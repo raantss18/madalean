@@ -82,6 +82,22 @@ export interface LeaderboardRow { model: string; task: string; domain: string; t
   score: number; mean_attempts: number | null; mean_seconds: number | null; lean_errors: number; pauses: number;
   last_success: number | null; updated: number | null }
 
+export interface RankingSource { kind: 'measured' | 'public' | 'estimate'; score?: number; solved?: number; tasks?: number;
+  confidence?: number; source?: string; license?: string; url?: string; value?: number; family?: string;
+  rows?: { slice: string; name: string; rating: number; rank: number | null; total: number | null; published: string }[] }
+export interface RankingRow { key: string; name: string; provider: string; paid: boolean; local: boolean; score: number;
+  evidence: 'measured' | 'public' | 'estimate'; new: boolean; sources: RankingSource[] }
+export interface RankingDomain { domain: string; task: string | null; public_slices: string[]; rows: RankingRow[] }
+export interface ModelNews { t: number; kind: 'new' | 'gone' | 'provider_added'; key?: string; name?: string;
+  provider: string; models?: number }
+export interface Rankings {
+  domains: RankingDomain[];
+  public: { source?: string; dataset?: string; url?: string; license?: string; verified?: string; fetched?: number | null;
+    published?: string; error?: string; slices?: string[] };
+  catalogue_updated: number | null; next: { catalogue?: number | null; public?: number | null }; auto: boolean;
+  news: ModelNews[]; new_days?: number;
+}
+
 export interface CheckResult {
   ok: boolean; statement_ok: boolean; summary: string;
   errors: { line: number; col: number; text: string; severity: string }[];
@@ -138,7 +154,12 @@ export interface UpdatesStatus {
   candidates: UpdateCandidate[];
   install: { key: string; title: string; step: string; step_text: string; progress: string } | null;
   last_result: (Message & { ok: boolean; details?: string }) | null;
+  tracked?: TrackedComponents | null;
 }
+export interface TrackedComponent { id: string; current: string; latest: string; pending: boolean; installable: boolean;
+  key: string; policy: 'auto' | 'auto_pin' | 'with_mathlib'; state?: string; pinned?: string }
+export interface TrackedComponents { components: TrackedComponent[]; last_check: number | null; next_check: number | null;
+  every_days: number }
 export interface JupyterStatus { state: 'stopped' | 'starting' | 'ready' | 'failed'; port: number | null; root_dir: string;
   kernels: string[]; error: string; available: boolean; lean_kernel: { available: boolean; note: string } }
 

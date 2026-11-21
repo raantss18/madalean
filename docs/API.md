@@ -351,6 +351,14 @@ Choosing a model per role: `PATCH /settings {"prefer":{"prove":"anthropic:claude
 combinatorics | geometry | logic), tasks, solved, score (0–1), mean_attempts, mean_seconds, lean_errors, pauses,
 last_success, updated}`, best first per (task, domain). `POST /models/leaderboard/reset` (**host only**) →
 `{"entries":[]}`, event `models.status {leaderboard:"reset"}`. See docs/BRAIN.md §11.
+`GET /models/rankings` (any paired device) → `{"domains":[{domain: lean|formalize|writing|code|reasoning, task,
+public_slices, rows:[{key, name, provider, paid, local, score, evidence: measured|public|estimate, new, sources:[…]}]}],
+"public":{source:"LMArena", dataset, url, license, verified, fetched, published, error, slices}, "catalogue_updated",
+"next":{catalogue, public}, "auto", "news":[{t, kind: new|gone|provider_added, key?, name?, provider, models?}]}`.
+`POST /models/rankings/refresh` → same body after refreshing the catalogue and (at most hourly) the public rankings;
+nothing in local mode; event `models.rankings`. See docs/BRAIN.md §14. `GET /updates` now also has `tracked`
+(`{components:[{id: lean|mathlib|sage|latex|tex-bundle, current, latest, pending, installable, key, policy}],
+last_check, next_check, every_days}`).
 
 Proof tournament settings (all in `Settings`, docs/BRAIN.md §11): `tournament_enabled` (true),
 `tournament_contestants` (3), `tournament_max_rounds` (3), `tournament_max_minutes` (40),

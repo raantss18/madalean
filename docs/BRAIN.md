@@ -437,3 +437,39 @@ sending and the month cap hides Goedel, auto online never starts the local model
 → local, `online` mode never local, provider down ≠ offline, fast cached probe, pipeline: Goedel-32B pinned round 0
 with the verbatim prompt and sampling, Goedel failing → free models and never local, offline → local, all unavailable
 → local fallback).
+
+
+## 14. « Classement » of the models, model news, automatic refreshes (session S-V, DECISIONS D34)
+
+`rankings.py` (state `brain-rankings.json`, 0600). Réglages → Modèles → « Classement des meilleurs modèles »:
+per Madalean domain — Lean proofs, formalisation, LaTeX / writing, Sage / code, general reasoning — the best models
+usable now (keyless providers + providers whose key is set, local models included, paused ones left out), each score
+with its evidence:
+
+| Evidence | Source | Weight |
+|---|---|---|
+| Measured here | leaderboard.py (Lean-verified results, task prove / formalize / explain) | takes over with its confidence n/(n+3) |
+| Public signal | LMArena, HF dataset `lmarena-ai/leaderboard-dataset`, config `text`, split `latest`, read through `https://datasets-server.huggingface.co/filter` (keyless), categories overall / math / coding / creative_writing / hard_prompts, top 100 each; licence CC BY 4.0, cited with its `leaderboard_publish_date` | 50 % with the catalogue estimate when the model is listed |
+| Estimate | catalogue.py (seed quality, family estimate) | the rest |
+
+- Verified by hand on 2026-11-22 (publish date of the rows: 2026-11-19); same source as Tontolo
+  (`core/tontolo/catalog/sources/rankings.py`, verified there 2026-10-10). Artificial Analysis (Tontolo's other source)
+  needs a key: not used yet.
+- An LMArena row counts only when its name normalises EXACTLY to the catalogue id (`slug`: lowercase, parentheses and
+  `-instruct/-it/-chat/-latest/-free/date` suffixes dropped; « preview » and sizes kept). Effort variants fold to the
+  plain name, else the lowest rating. Percentile within the slice → [0, 1]. It is a proxy (human votes), never shown
+  as a Lean result. Unknown models get no public score (never invented).
+- News: each online catalogue refresh diffs the usable models against the previous snapshot: `new` (badge
+  « Nouveau » 14 days), `gone` (a model missing while its provider still answers), `provider_added` (a new key: one
+  event, not one per model). First snapshot = no news. Bounded to 200 events.
+- Router (`router.rank(signals=…)`): while nothing is measured here for the role's task, +0.05 for a new model (so
+  the tournament's exploration rounds try it soon) and 0.10 × (public percentile − 0.5). Once measured, only the
+  leaderboard counts.
+- Cadence: the server's periodic loop calls `brain.tick()` every 10 min: catalogue when older than 12 h, public
+  rankings when older than 7 days (≤ 5 GETs). « Actualiser » forces both, the public fetch at most once an hour. Only
+  with `refresh_catalogue` on and never in `mode = local` (Http refuses non-loopback hosts anyway); a failed fetch keeps
+  the previous data (`error: unreachable`).
+- API: `GET /api/models/rankings` (domains, public source + dates, news, next refreshes), `POST
+  /api/models/rankings/refresh`. Event `models.rankings` after a manual refresh.
+- Tests: tests/test_rankings.py (fake datasets-server; slugs, folding, news, router bonus, cadence, local mode, failure
+  keeps data, API).

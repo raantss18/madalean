@@ -358,3 +358,18 @@
 - Rejected: listing the router's whole catalogue (hundreds of paid general models; the Goedel prompts are the point);
   running Goedel 32B as a tool-using agent (it is not trained for tools); a key test by inference (costs credits:
   `whoami-v2` instead). Details: docs/BRAIN.md §13.
+
+
+## D34 — Automatic model rankings and tracked component updates (user request, 2026-11-22, S-V)
+- Request: « donner régulièrement les ranking des meilleurs modèles de façon automatique dans l'app comme dans
+  Tontolo, bien suivre les nouveautés et les mises à jour. Sage, LaTeX, Lean et Mathlib doivent être à jour
+  régulièrement. »
+- Rankings: per domain, Madalean's own Lean-verified results first, then the public LMArena signal (keyless HF
+  datasets-server, CC BY 4.0, cited with its publish date; verified 2026-11-22), then the catalogue estimate — each row
+  says which. Exact-name matching only; no score for an unlisted model. Catalogue every 12 h, public weekly, manual at
+  most hourly; never in local mode. New models get « Nouveau » for 14 days and a small exploration bonus in the router.
+  Rejected: Artificial Analysis (needs a key; possible later), scraping leaderboard web pages (unstable, licence
+  unclear), fuzzy name matching (would attribute scores to the wrong model).
+- Components: pins brought by a signed release (`deps`: Sage env, main env incl. tectonic, TeX bundle, elan…) now
+  install automatically at a quiet moment like Mathlib, with rollback; the tectonic bundle relay is probed for newer
+  bundles (notify only). D29 unchanged. Details: docs/BRAIN.md §14, docs/ARCHITECTURE.md §12.

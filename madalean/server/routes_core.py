@@ -456,6 +456,39 @@ async def models_refresh(request: web.Request) -> web.Response:
     return ok(await ctx.models_public())
 
 
+def _rankings_of(ctx) -> dict:
+    fn = getattr(ctx.brain, "rankings_view", None)
+    if fn is None:                                   # fake brains (tests, --demo): nothing to rank
+        return {"domains": [], "public": {}, "news": [], "next": {}, "auto": False, "catalogue_updated": None}
+    return fn()
+
+
+@routes.get("/api/models/rankings")
+async def models_rankings(request: web.Request) -> web.Response:
+    """« Classement » (S-V, docs/BRAIN.md §12): per domain the best usable models with their evidence (measured here,
+    LMArena, catalogue estimate), the public source and its dates, the model news, the next automatic refreshes."""
+    ctx = ctx_of(request)
+    return ok(await asyncio.to_thread(_rankings_of, ctx))
+
+
+@routes.post("/api/models/rankings/refresh")
+async def models_rankings_refresh(request: web.Request) -> web.Response:
+    """Refresh the catalogue now and the public rankings (at most once an hour); nothing in local mode."""
+    ctx = ctx_of(request)
+    br = ctx.brain
+    if ctx.settings.mode != "local" and br is not None and hasattr(br, "refresh_public"):
+        async def run() -> None:
+            try:
+                await br.refresh()
+                await br.refresh_public(force=True)
+            except Exception:  # noqa: BLE001
+                from ..logs import get
+                get("models").exception("rankings refresh failed")
+            ctx.publish("models.rankings", {"updated": True})
+        await asyncio.wait({ctx.spawn(run())}, timeout=45)
+    return ok(await asyncio.to_thread(_rankings_of, ctx))
+
+
 @routes.post("/api/models/local/stop")
 async def models_local_stop(request: web.Request) -> web.Response:
     ctx = ctx_of(request)

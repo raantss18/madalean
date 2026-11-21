@@ -9,6 +9,7 @@
   import Icon from '../../components/Icon.svelte';
   import { saveSettings } from './save';
   import ClaudeBudget from './ClaudeBudget.svelte';
+  import Rankings from './Rankings.svelte';
 
   const s = $derived(app.m.settings);
   const m = $derived(app.m.models);
@@ -97,6 +98,8 @@
     </section>
 
     <ClaudeBudget />
+
+    <Rankings />
 
     <section class="panel" aria-labelledby="board-h">
       <div class="row"><h3 id="board-h">{t('board.title')}</h3><span class="spacer"></span>

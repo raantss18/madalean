@@ -28,6 +28,37 @@ def _get_json(url: str, timeout: float = 20) -> dict:
         return json.loads(r.read(2_000_000))
 
 
+def _head_ok(url: str, timeout: float = 15) -> bool:
+    """True when `url` exists (status < 400, redirects followed), False on 404 / 410; raises otherwise."""
+    import urllib.error
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA, method="HEAD"), timeout=timeout) as r:
+            return r.status < 400
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 410):
+            return False
+        raise
+
+
+BUNDLE_RE = re.compile(r"_v(\d+)\.tar$")
+BUNDLE_PROBES = 3                  # at most 3 HEAD requests per check (usually 1: the next version is missing)
+
+
+def bundle_latest(url: str, head=_head_ok) -> str:
+    """Newest tectonic bundle published on the relay, probing v<N+1>, v<N+2>… from the pinned URL
+    (relay.fullyjustified.net answers 302 for a published bundle, 404 otherwise — checked 2026-11-22: v33 302, v34
+    404). Returns "v<N>" or "" when the URL has no version."""
+    m = BUNDLE_RE.search(url or "")
+    if not m:
+        return ""
+    n = int(m.group(1))
+    for k in range(n + 1, n + 1 + BUNDLE_PROBES):
+        if not head(BUNDLE_RE.sub(f"_v{k}.tar", url)):
+            break
+        n = k
+    return f"v{n}"
+
+
 def vkey(v: str) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", v or "")[:4])
 
@@ -36,7 +67,7 @@ def newer(a: str, b: str) -> bool:
     return bool(a) and bool(b) and vkey(a) > vkey(b)
 
 
-def upstream_versions(comps: dict, get=_get_json) -> dict[str, dict[str, str]]:
+def upstream_versions(comps: dict, get=_get_json, head=_head_ok) -> dict[str, dict[str, str]]:
     """component -> {item: latest upstream version}. Errors are reported per item, never raised."""
     out: dict[str, dict[str, str]] = {}
     for name, c in comps.items():
@@ -48,6 +79,8 @@ def upstream_versions(comps: dict, get=_get_json) -> dict[str, dict[str, str]]:
                 items[name] = tag.lstrip("v")
             elif up == "go-module:tailscale.com":
                 items["tailscale"] = get(TAILSCALE_TAGS)["tag_name"].lstrip("v")
+            elif up == "tectonic-bundle":
+                items[name] = bundle_latest(str(c.get("url", "")), head)
             elif up == "conda-forge" and c.get("watch"):
                 for pkg in c["watch"]:
                     items[pkg] = str(get(ANACONDA.format(name=pkg)).get("latest_version", ""))
@@ -71,7 +104,7 @@ def pinned_versions(name: str, c: dict) -> dict[str, str]:
     return {name: c.get("version", "")}
 
 
-def candidates(get=_get_json, online: bool = True) -> list[updates.Candidate]:
+def candidates(get=_get_json, online: bool = True, head=_head_ok) -> list[updates.Candidate]:
     comps = manifest.components()
     out: list[updates.Candidate] = []
     for h in health.components():
@@ -84,7 +117,7 @@ def candidates(get=_get_json, online: bool = True) -> list[updates.Candidate]:
                                          {"component": name}))
     if not online:
         return out
-    ups = upstream_versions(comps, get)
+    ups = upstream_versions(comps, get, head)
     for name, items in ups.items():
         pins = pinned_versions(name, comps[name])
         for item, latest in items.items():

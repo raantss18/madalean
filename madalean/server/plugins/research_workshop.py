@@ -1059,7 +1059,9 @@ async def workspace_add_library(request):
 
 
 # ================================================================ automatic updates, self-update, system terminal
-AUTO_KINDS = ("mathlib", "model", "lake-package")
+# "deps" (S-V): a pin brought by a signed Madalean release (Sage env, tex-bundle, elan…): SHA-256 verified, installed
+# next to the old one, checked, switched; the previous one stays for rollback (madalean/deps/installer.py)
+AUTO_KINDS = ("mathlib", "model", "lake-package", "deps")
 
 
 def quiet(ctx) -> bool:
@@ -1370,6 +1372,9 @@ async def _periodic(ctx, rs: Research) -> None:
             try:
                 await rs.bridge.reap()
                 await ctx.updates.maybe_check(ctx.settings.check_updates)
+                tick = getattr(ctx.brain, "tick", None)   # S-V: catalogue 12 h, public rankings weekly
+                if tick is not None:
+                    ctx.spawn(tick())
                 if ctx.settings.mode != "local" and time.time() - float(rs.selfupdater.state.get("checked") or 0) \
                         > 7 * 86400:
                     await asyncio.to_thread(rs.selfupdater.check)

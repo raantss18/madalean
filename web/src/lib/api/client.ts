@@ -1,7 +1,7 @@
 // Typed HTTP client for docs/API.md. One place for: JSON, errors, 401 handling, aborts, downloads.
 import type {
   CheckResult, Device, Dossier, DossierSummary, FollowStage, Hello, Job, JupyterStatus, LibEntry, Mode,
-  LeaderboardRow, ModelsInfo, Project, Settings, Stage, StateSnapshot, Strategy, SystemInfo, UpdatesStatus, VersionKind,
+  LeaderboardRow, ModelsInfo, Rankings, Project, Settings, Stage, StateSnapshot, Strategy, SystemInfo, UpdatesStatus, VersionKind,
 } from './types';
 
 export class ApiError extends Error {
@@ -158,6 +158,8 @@ export const api = {
     request<{ provider: string; ok: boolean | null; reason?: string; results?: number; latency_s?: number }>('POST', '/search/test', { provider }),
   stopLocal: () => request<unknown>('POST', '/models/local/stop', {}),
   leaderboard: () => request<{ entries: LeaderboardRow[]; tournament: Record<string, number | boolean> }>('GET', '/models/leaderboard'),
+  rankings: () => request<Rankings>('GET', '/models/rankings'),
+  refreshRankings: () => request<Rankings>('POST', '/models/rankings/refresh', {}),
   resetLeaderboard: () => request<{ entries: LeaderboardRow[] }>('POST', '/models/leaderboard/reset', {}),
 
   system: () => request<SystemInfo>('GET', '/system'),

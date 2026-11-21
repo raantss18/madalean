@@ -177,6 +177,18 @@ Madalean itself (GitHub release, signed checksums), the online catalogue. **Sage
 kernels, TeX**: system packages → detected version vs upstream latest, *notification with the exact command only*
 (Madalean never runs pacman/apt/sudo). Each check lists what changed (release notes link) and what would be rebuilt.
 
+**Tracked components (S-V, 2026-11-22).** Réglages → Mises à jour → « Composants suivis » shows Lean, Mathlib, SageMath,
+LaTeX (tectonic) and the TeX bundle: installed vs newest known, last / next check (weekly, `updates.CHECK_EVERY_S`),
+and how each updates (`madalean/update_checkers/overview.py`, `updates.status.tracked`):
+- Mathlib (+ its Lean): installable and automatic (`updates_auto`) — copy → build → verify → switch → old Mathlib
+  removed, old toolchain uninstalled only when no project uses it (scripts/updater.py `toolchain_users`);
+- Lean alone: notify only (comes with Mathlib);
+- Sage env, tectonic (main env) and the TeX bundle: pinned in `deps/manifest.toml`; a newer pin (signed Madalean
+  release) is now installed automatically too (`AUTO_KINDS` += `deps`): SHA-256 → new versioned dir → check → switch
+  → previous kept for rollback, older pruned. Upstream news (conda-forge `sage`, `tectonic`; tectonic bundle probed on
+  the relay, `deps/checker.bundle_latest`, ≤ 3 HEAD requests) is notify-only until a release pins it.
+- D29 still applies to every automatic install (installed prefix, default config dir, prefix elan; otherwise notify).
+
 ## 13. Learning and understanding (applies to S-D)
 
 Madalean is both a research tool and a place to learn Lean and the mathematics. Design with the installed skills

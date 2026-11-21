@@ -60,6 +60,29 @@
     <p class="small">{t('updates.installed', { m: u.installed.mathlib ?? '—', models: Object.entries(u.installed.models).map(([k, v]) => `${k} ${v}`).join(', ') || '—' })}</p>
   </section>
 
+  {#if u.tracked}
+    {@const tr = u.tracked}
+    <section class="panel" aria-labelledby="tr-h">
+      <h3 id="tr-h">{t('tracked.title')}</h3>
+      <p class="hint">{t('tracked.hint', { d: tr.every_days })}</p>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="table-wrap" tabindex="0" role="region" aria-labelledby="tr-h">
+        <table class="tracked">
+          <thead><tr><th scope="col">{t('tracked.component')}</th><th scope="col">{t('tracked.current')}</th><th scope="col">{t('tracked.latest')}</th><th scope="col">{t('tracked.policy')}</th></tr></thead>
+          <tbody>
+            {#each tr.components as c (c.id)}
+              <tr><th scope="row">{tk(`tracked.${c.id}`, c.id)}</th>
+                <td class="mono xs">{c.current || (c.state === 'on_demand' ? t('tracked.onDemand') : '—')}</td>
+                <td class="xs">{#if c.pending}<span class="chip">{c.latest}</span>{:else}{t('tracked.upToDate')}{/if}</td>
+                <td class="xs muted">{tk(`tracked.policy.${c.policy}`, c.policy)}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <p class="xs muted">{tr.last_check ? t('updates.last', { t: fmtTime(tr.last_check) }) : t('updates.never')}{#if tr.next_check} · {t('tracked.next', { t: fmtTime(tr.next_check) })}{/if}</p>
+    </section>
+  {/if}
+
   {#if u.install}
     <section class="panel" aria-live="polite">
       <h3>{t('updates.installing', { title: u.install.title })}</h3>
@@ -152,5 +175,8 @@
   progress { width: 100%; height: 10px; accent-color: var(--accent); }
   .cmd { font: 0.8125rem/1.45 var(--font-mono); background: var(--surface-2); padding: var(--s-2); border-radius: var(--r-1); white-space: pre-wrap; overflow-wrap: anywhere; }
   .regressed { padding-left: 1.2em; }
+  .table-wrap { overflow-x: auto; }
+  .tracked { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
+  .tracked th, .tracked td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
   .notice { background: var(--running-soft); color: var(--running); padding: 4px 8px; border-radius: var(--r-1); }
 </style>

@@ -25,6 +25,7 @@
 - 🔄 Appairage de la tablette : port 443 au lieu de 10500, QR code en lien https avec bouton « Ouvrir dans l'application », nouvel APK à réinstaller (S-C)
 - 🔄 Écran « Fournisseurs » : spécialistes Lean (Aristotle de Harmonic, Goedel 32B…), code Sage, rédaction LaTeX, recherche Internet (Tavily, Exa…), modèles gratuits (Gemini, Mistral, Groq, Cerebras, GitHub Models, NVIDIA, OpenRouter…), clés à créer par toi, le moins cher d'abord (S-U)
 - 🔄 Goedel-Prover-V2-32B en ligne (Hugging Face, ta clé à ajouter) en tête du tournoi ; modèles locaux seulement hors connexion (S-T)
+- ⚠️ Classement automatique des meilleurs modèles (S-V) : Réglages → Modèles, par domaine (preuves Lean, formalisation, LaTeX, Sage/code, raisonnement), résultats mesurés ici + classement public LMArena (source et date affichées) + estimation ; badge « Nouveau » et journal des nouveautés ; catalogue toutes les 12 h, LMArena chaque semaine. « Composants suivis » dans Mises à jour (Lean, Mathlib, Sage, LaTeX : installé, plus récent, prochaine vérification) ; les versions de Sage/LaTeX validées s'installent seules comme Mathlib. Testé contre de faux serveurs ; à voir sur ton installation
 
 ### P1 — à faire avant la publication
 - 🔄 Outil à part « fitantanana » (`~/GitHub/fitantanana`) : inventaire des services, ports, carte graphique, modèles, Lean, environnements Python, Jupyter, TeX ; doublons proposés (liens physiques de préférence, rien sans ton accord) ; prêt automatique de la carte graphique entre Ollama et Madalean (Madalean rend la carte après 10 min d'inactivité)

@@ -64,9 +64,11 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
 def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | None = None, prefer: str | None = None,
          paid_first: bool = False, need_tools: bool = False, local_models: list[Model] | None = None,
          allow_online: bool = True, allow_local: bool = True, leaderboard: Leaderboard | None = None,
-         domain: str | None = None, lang: str = "fr") -> list[Candidate]:
+         domain: str | None = None, lang: str = "fr", signals=None) -> list[Candidate]:
     """`leaderboard`: observed results on this machine (session S-J) add a bonus for the role's task (prove /
-    formalize / explain), per problem `domain` when known."""
+    formalize / explain), per problem `domain` when known. `signals` (rankings.Rankings, S-V): while nothing is
+    measured here, a small bonus for a new model (so the tournament's exploration tries it) and from the public
+    LMArena percentile."""
     cat, cat2, fast = role_categories(role, messages)
     task = ROLE_TASK.get(role)
 
@@ -99,6 +101,11 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             if bwhy:
                 s += b
                 why += ", " + bwhy
+        if signals is not None and not m.local:
+            sb, swhy = signals.router_bonus(m, role, leaderboard)
+            if swhy:
+                s += sb
+                why += ", " + swhy
         if m.provider == "local":
             s += 0.1                          # the server's own model for this role beats Ollama's
             why += ", Madalean's local model for this role"

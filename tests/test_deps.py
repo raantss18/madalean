@@ -373,7 +373,7 @@ def test_checker_candidates(prefix, tmp_path):
         if "api.github.com" in url:
             return {"tag_name": "v0.0.1"}
         return {"latest_version": "0.0.1"}
-    cands = checker.candidates(get=fake_get)
+    cands = checker.candidates(get=fake_get, head=lambda url: False)
     kinds = {(c.kind, c.key) for c in cands}
     assert ("deps", "deps:madalean-net") in kinds
     up = [c for c in cands if c.kind == "deps-upstream"]
@@ -384,6 +384,23 @@ def test_checker_candidates(prefix, tmp_path):
     inst.spec["component"] = "../../x"
     with pytest.raises(ValueError):
         checker.install_args(inst)
+
+
+def test_tex_bundle_probe_and_candidate(prefix):
+    """S-V: a newer tectonic bundle on the relay is reported (notify only: a new pin needs its digest)."""
+    seen = []
+
+    def head(url):
+        seen.append(url)
+        return url.endswith(("_v34.tar", "_v35.tar"))
+    assert checker.bundle_latest("https://relay.example/default_bundle_v33.tar", head) == "v35"
+    assert len(seen) == 3                                         # bounded: stops at the first missing version
+    assert checker.bundle_latest("https://relay.example/bundle.tar", head) == ""
+    cands = checker.candidates(get=lambda url: {"tag_name": "v0", "latest_version": "0"}, head=head)
+    tex = [c for c in cands if c.key == "deps-upstream:tex-bundle:tex-bundle"]
+    assert tex and tex[0].latest == "v35" and not tex[0].installable
+    assert not [c for c in checker.candidates(get=lambda url: {}, head=lambda url: False)
+                if c.key.startswith("deps-upstream:tex-bundle")]
 
 
 def test_export_uses_system_tex_only_as_fallback(prefix):

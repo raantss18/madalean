@@ -109,7 +109,16 @@ class UpdatesManager:
                 "install": None if self.current is None else {
                     "key": self.current.key, "title": self.current.title, "step": self.step,
                     "step_text": _(STEPS.get(self.step, "Préparation…")), "progress": self.progress},
-                "last_result": self.last_result}
+                "last_result": self.last_result, "tracked": self._tracked()}
+
+    def _tracked(self) -> dict | None:
+        """S-V: Lean, Mathlib, Sage, LaTeX at a glance (current / latest / last and next check)."""
+        try:
+            from ..update_checkers.overview import overview
+            return overview(self.state, self.candidates)
+        except Exception:  # noqa: BLE001 (a status must always answer)
+            log.exception("updates overview failed")
+            return None
 
     def _changed(self) -> None:
         self.publish("updates.status", {"updates": self.status()})

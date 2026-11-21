@@ -18,6 +18,8 @@ from .providers import anthropic as anthropic_api
 from .providers import openai_compat
 from .providers.base import ProviderError, StreamResult, emit
 from .leaderboard import Leaderboard
+from . import rankings as rankings_mod
+from .rankings import Rankings
 from . import spend
 from .router import Candidate, compose, rank, score_model
 from .settings import EFFORT, MAX_TOKENS, merged
@@ -65,6 +67,8 @@ class MadaleanBrain:
         self.store = CatalogueStore(self.config_dir / "brain-catalogue.json")
         self.states = States(self.config_dir / "brain-state.json")
         self.leaderboard = Leaderboard(self.config_dir / "brain-leaderboard.json")
+        self.rankings = Rankings(self.config_dir / "brain-rankings.json")
+        self._public_task: asyncio.Task | None = None
         self.ledger = spend.Ledger(self.config_dir / "brain-spend.json")
         self._sem: asyncio.Semaphore | None = None
         self._refresh_task: asyncio.Task | None = None
@@ -155,7 +159,8 @@ class MadaleanBrain:
         return rank(self._view(), self.states, role, messages=messages, prefer=prefer,
                     paid_first=bool(self.settings.get("paid_first")), need_tools=need_tools,
                     local_models=self._local_models(role), allow_online=mode != "local",
-                    allow_local=mode != "online", leaderboard=self.leaderboard, domain=domain, lang=language())
+                    allow_local=mode != "online", leaderboard=self.leaderboard, domain=domain, lang=language(),
+                    signals=self.rankings)
 
     def ranking(self, role: str, mode: str = "auto", *, prefer: str | None = None, messages: list[dict] | None = None,
                 need_tools: bool = False, domain: str | None = None) -> list[Candidate]:
@@ -392,8 +397,66 @@ class MadaleanBrain:
     async def _refresh_once(self) -> None:
         online = self.settings.get("mode") != "local" and await self.http.online()
         router = self.endpoints.get("huggingface")
-        await self.store.refresh(self.http, self.key, online=online,
-                                 hf_urls=(self.hub_url(), router) if router or "huggingface_hub" in self.endpoints else None)
+        n = await self.store.refresh(self.http, self.key, online=online,
+                                     hf_urls=(self.hub_url(), router) if router or "huggingface_hub" in self.endpoints
+                                     else None)
+        if online and n:
+            try:                                   # S-V: « Nouveau » badges and the changelog of the models
+                self.rankings.update_news(self._view().models)
+            except Exception:  # noqa: BLE001 (news must never break a refresh)
+                log.exception("model news update failed")
+
+    # ------------------------------------------------------------------ rankings (S-V, docs/BRAIN.md §12)
+    def _auto_allowed(self) -> bool:
+        return bool(self.settings.get("refresh_catalogue", True)) and self.settings.get("mode") != "local"
+
+    async def refresh_public(self, force: bool = False) -> bool:
+        """Public rankings (LMArena): weekly, or forced at most once an hour. Never in local mode."""
+        if self.settings.get("mode") == "local":
+            return False
+        t = time.time()
+        if force:
+            if t - self.rankings.last_force < rankings_mod.MIN_FORCE_SECS:
+                return False
+            self.rankings.last_force = t
+        elif not self.rankings.public_due(t):
+            return False
+        if self._public_task is None or self._public_task.done():
+            url = self.endpoints.get("lmarena", rankings_mod.LMARENA_FILTER)
+            self._public_task = asyncio.ensure_future(self.rankings.fetch_public(self.http, url))
+        return await asyncio.shield(self._public_task)
+
+    async def tick(self) -> None:
+        """Called by the server every ~10 minutes: catalogue every 12 h, public rankings every 7 days, both only
+        with `refresh_catalogue` on and outside local mode. Bounded: one catalogue refresh + ≤ 5 GETs a week."""
+        if not self._auto_allowed():
+            return
+        if self.store.stale():
+            await self._refresh_quiet()
+        if self.rankings.public_due() and await self.http.online():
+            try:
+                await self.refresh_public()
+            except Exception as e:  # noqa: BLE001
+                log.info("public rankings refresh failed: %s", e)
+
+    def rankings_view(self) -> dict:
+        """GET /api/models/rankings: per domain the best usable models (online and local), with their evidence."""
+        cat = self._view()
+        models = [m for m in cat.models if not self.states.pause_of(m.key)] + self._local_models("prove")
+        pub = self.rankings.public
+        t_cat = self.store.cat.updated or 0.0
+        t_pub = float(pub.get("fetched") or 0)
+        auto = self._auto_allowed()
+        return {"domains": rankings_mod.table(self.rankings, models, self.leaderboard),
+                "public": {"source": "LMArena", "dataset": rankings_mod.LMARENA_DATASET,
+                           "url": rankings_mod.LMARENA_PAGE, "license": rankings_mod.LMARENA_LICENSE,
+                           "verified": rankings_mod.VERIFIED, "fetched": t_pub or None,
+                           "published": pub.get("published") or "", "error": pub.get("error") or "",
+                           "slices": sorted((pub.get("slices") or {}).keys())},
+                "catalogue_updated": t_cat or None,
+                "next": {"catalogue": (t_cat + rankings_mod.CATALOGUE_SECS) if auto else None,
+                         "public": (t_pub + rankings_mod.PUBLIC_SECS) if auto else None},
+                "auto": auto, "news": self.rankings.events(), "new_days": rankings_mod.NEW_DAYS}
 
     # ------------------------------------------------------------------ status
     async def status(self) -> dict[str, Any]:
