@@ -24,10 +24,13 @@
 - ✅ Mode agentique : prouveur qui compile avec Lean et cherche dans Mathlib
 - ✅ Index Mathlib (179 000 déclarations Lean 4.9, 290 000 Lean récent) ; bon lemme dans les 8 premiers : 13/20 et 12/20 sur le jeu final
 
-## 3. Applications (session S-C, Opus)
-- 🔄 AppImage (ce PC et autres ordinateurs), APK Android (téléphone, tablette)
-- 🔄 Icône et identité Madalean
-- 🔄 Script Tailscale (une seule entrée ajoutée, celles de Sampana intactes)
+## 3. Applications (session S-C, Opus) — terminé, testé contre un serveur factice
+- ✅ AppImage (Tauri, 104 Mo) : appairage, reconnexion, téléchargement PDF, révocation — 14 contrôles sur 14 dans une session graphique isolée
+- ✅ APK Android signés (Flutter, 18 Mo en arm64) : appairage, envoi et téléchargement de fichiers sur émulateurs
+- ✅ Icône Madalean (baobab formant ∀), script Tailscale (n'ajoute qu'une entrée, refuse de toucher celles de Sampana)
+- 🔄 Deux points d'accès à ajouter au serveur pour l'ouverture de session depuis les applications
+- ⚠️ Jamais essayé : vrai serveur, vrai Tailscale en HTTPS, vrai téléphone ou tablette, trousseau du bureau
+- ⚠️ À faire par toi : sauvegarder `~/.config/madalean/release-keys/` (clé de signature des APK)
 
 ## 4. Interface web (session S-D, Opus) — 🔄 en cours
 - ⬜ Écran 1 : écrire l'énoncé (langage naturel / LaTeX, import .tex)
