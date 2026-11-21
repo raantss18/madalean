@@ -64,6 +64,7 @@ class ServerContext:
         self.pairing = Pairing()
         self.tickets = Tickets()
         self.browser_sessions = BrowserSessions(lambda: self.settings.browser_session_idle_minutes * 60.0)
+        self.browser_sessions.on_expire = self.close_credential
         self.monitor = Monitor([config.MODELS_DIR, paths.config, Path.home()], monitor_interval)
         self.monitor.listeners.append(lambda snap: self.publish("system.status", {"system": self.system_light()}))
         self._fixed_workspaces = workspaces
@@ -96,6 +97,29 @@ class ServerContext:
     def toast(self, key: str, level: str = "info", **params) -> None:
         self.publish("toast", {"level": level, **i18n.msg(key, **params)})
 
+    def close_credential(self, cid: str) -> int:
+        """A device / browser session was revoked or expired: close its open WebSockets with code 4401 and cancel
+        the streaming it started (assistant answers). Returns the number of sockets closed."""
+        socks = self.bus.sockets.pop(cid, set())
+        for t in self.bus.owned.pop(cid, set()):
+            if not t.done():
+                t.cancel()
+        for ws in socks:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                break
+            loop.create_task(ws.close(code=4401, message=b"credential revoked"))
+        return len(socks)
+
+    async def _sweeper(self, every: float = 5.0) -> None:
+        while True:
+            await asyncio.sleep(every)
+            try:
+                self.browser_sessions.sweep()
+            except Exception:  # noqa: BLE001
+                log.exception("browser session sweep failed")
+
     def spawn(self, coro) -> asyncio.Task:
         t = asyncio.create_task(coro)
         self._bg.add(t)
@@ -121,6 +145,7 @@ class ServerContext:
             self.monitor.start()
         if self.brain is None:
             self._make_brain()
+        self.spawn(self._sweeper())
         if not self.demo:
             self.spawn(self.updates.maybe_check(self.settings.check_updates))
 

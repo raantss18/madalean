@@ -93,8 +93,10 @@ minutes. Details: [Security](security.md).
 ## Unlinking a device
 
 - From the host: “Settings › Devices”, the “Unlink” button next to the device. The page shows two lists:
-  “Applications (automatic connection)” and “Browsers (temporary session)”. Access is cut **immediately**,
-  including for a page that is already open.
+  “Applications (automatic connection)” and “Browsers (temporary session)”. Access is cut **immediately**:
+  a page that is already open loses its live connection at once, stops any answer still being written for it, and
+  goes back to the linking screen. The same happens when a browser session ends (inactivity, 12 h limit) and when
+  the device unlinks itself.
 - From the device itself: “Settings › Devices › Unlink this device”.
 
 Unlinking a lost phone is the first thing to do; your Tailscale account also lets you remove the device from the

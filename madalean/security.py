@@ -230,6 +230,7 @@ class BrowserSessions:
         self.absolute_s, self.clock = absolute_s, clock
         self.items: dict[str, BrowserSession] = {}
         self._lock = threading.Lock()
+        self.on_expire = None            # callable(session_id): close its WebSockets
 
     def _alive(self, s: BrowserSession, now: float) -> bool:
         return now - s.t_last < self.idle_s() and now - s.t0 < self.absolute_s
@@ -272,8 +273,20 @@ class BrowserSessions:
             return [s.public(self.idle_s(), now) for s in sorted(self.items.values(), key=lambda s: s.created)]
 
     def _purge(self, now: float) -> None:
-        for k in [k for k, s in self.items.items() if not self._alive(s, now)]:
+        gone = [k for k, s in self.items.items() if not self._alive(s, now)]
+        for k in gone:
             del self.items[k]
+        if gone and self.on_expire is not None:
+            for k in gone:
+                try:
+                    self.on_expire(k)
+                except Exception:  # noqa: BLE001
+                    log.exception("on_expire failed")
+
+    def sweep(self) -> None:
+        """Drop expired sessions now (called periodically by the server)."""
+        with self._lock:
+            self._purge(self.clock())
 
 
 class RateLimiter:

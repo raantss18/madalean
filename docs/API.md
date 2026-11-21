@@ -105,7 +105,9 @@ other devices use: from the embedded Tailscale status (`madalean.runtime.net.rem
 `GET /devices` **host** → `{"apps":[Device],"devices":[Device] (= apps, kept for compatibility),"browsers":[Device],
 "browser_idle_minutes":120}` — apps (« Applications (connexion automatique) ») and browser sessions (« Navigateurs
 (session temporaire) ») are listed separately. `DELETE /devices/{id}` **host** → `{"ok":true}` (404 unknown) for an
-app (`d-…`) or a browser session (`b-…`). Both publish `devices.updated {devices, apps, browsers}`.
+app (`d-…`) or a browser session (`b-…`). Both publish `devices.updated {devices, apps, browsers}`. Revoking a credential (host `DELETE`, `POST /logout`, `POST
+/devices/self/forget`, or a browser session reaching its idle/absolute limit — swept every 5 s) closes every
+WebSocket opened with it with close code **4401** and cancels the assistant answers it started.
 
 ### 3.1b Shell sessions (desktop / Android shells, docs/SHELLS.md)
 

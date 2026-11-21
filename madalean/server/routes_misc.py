@@ -81,7 +81,11 @@ async def assistant(request: web.Request) -> web.Response:
                          "Referrer-Policy": "no-referrer"})
     await resp.prepare(request)
     await resp.write_eof()
-    request.app[ASSIST][rid] = ctx.spawn(run())
+    task = request.app[ASSIST][rid] = ctx.spawn(run())
+    if request["device"] is not None:
+        owned = ctx.bus.owned.setdefault(request["device"].id, set())
+        owned.add(task)
+        task.add_done_callback(owned.discard)
     return resp
 
 
@@ -180,6 +184,9 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     bus = ctx.bus
     ws = web.WebSocketResponse(heartbeat=30, max_msg_size=1 << 20)
     await ws.prepare(request)
+    cred = request["device"].id if request["device"] is not None else None
+    if cred:
+        bus.sockets.setdefault(cred, set()).add(ws)
     q = bus.subscribe()
     state = {"last": bus.seq}
     lock = asyncio.Lock()
@@ -228,6 +235,10 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     finally:
         wtask.cancel()
         bus.unsubscribe(q)
+        if cred and cred in bus.sockets:
+            bus.sockets[cred].discard(ws)
+            if not bus.sockets[cred]:
+                del bus.sockets[cred]
     return ws
 
 

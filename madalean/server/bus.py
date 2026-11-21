@@ -25,6 +25,10 @@ class EventBus:
         self._flusher: asyncio.TimerHandle | None = None
         self.boot = int(time.time() * 1000)          # changes on restart: clients must resync
         self.recorder = None                         # callable(job_id, stage, attempt, kind, text): replay store
+        # open WebSockets and in-flight streaming tasks per credential (device / browser-session id), so that a
+        # revoked or expired credential loses them at once
+        self.sockets: dict[str, set] = {}
+        self.owned: dict[str, set] = {}
 
     def publish(self, type_: str, payload: dict[str, Any] | None = None) -> dict:
         if type_ != "job.token":

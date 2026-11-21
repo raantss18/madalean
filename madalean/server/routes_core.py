@@ -91,10 +91,12 @@ def publish_devices(ctx) -> None:
                                     "browsers": ctx.browser_sessions.list()})
 
 
-def revoke_any(ctx, did: str) -> bool:
-    ok_ = ctx.browser_sessions.revoke(did) if did.startswith("b-") else ctx.devices.revoke(did)
+async def revoke_any(ctx, did: str) -> bool:
+    ok_ = (ctx.browser_sessions.revoke(did) if did.startswith("b-")
+           else await asyncio.to_thread(ctx.devices.revoke, did))
     if ok_:
         publish_devices(ctx)
+    ctx.close_credential(did)          # open WebSockets → 4401, streaming it started is cancelled
     return ok_
 
 
@@ -104,7 +106,7 @@ async def logout(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     dev = request["device"]
     if dev is not None:
-        await asyncio.to_thread(revoke_any, ctx, dev.id)
+        await revoke_any(ctx, dev.id)
     resp = ok({"ok": True})
     resp.del_cookie(TOKEN_COOKIE, path="/")
     return resp
@@ -171,7 +173,7 @@ async def device_forget_self(request: web.Request) -> web.Response:
     dev = request["device"] or _bearer_device(request)
     if dev is None:
         return error(401, "unauthorized")
-    await asyncio.to_thread(revoke_any, ctx, dev.id)
+    await revoke_any(ctx, dev.id)
     resp = web.Response(status=204)
     resp.del_cookie(TOKEN_COOKIE, path="/")
     return resp
@@ -227,7 +229,7 @@ async def devices(request: web.Request) -> web.Response:
 @host_only
 async def device_revoke(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
-    if not await asyncio.to_thread(revoke_any, ctx, valid_id(request.match_info["id"])):
+    if not await revoke_any(ctx, valid_id(request.match_info["id"])):
         return error(404, "not_found")
     return ok({"ok": True})
 

@@ -97,7 +97,9 @@ Détails : [Sécurité](security.md).
 
 - Depuis l'hôte : « Réglages › Appareils », bouton « Délier » en face de l'appareil. La page montre deux listes :
   « Applications (connexion automatique) » et « Navigateurs (session temporaire) ». L'accès est coupé
-  **immédiatement**, y compris pour une page déjà ouverte.
+  **immédiatement** : une page déjà ouverte perd aussitôt sa connexion en direct, la réponse en cours d'écriture pour
+  elle est arrêtée, et elle revient à l'écran de liaison. Il en va de même quand une session de navigateur se termine
+  (inactivité, limite de 12 h) et quand l'appareil se délie lui-même.
 - Depuis l'appareil lui-même : « Réglages › Appareils › Délier cet appareil ».
 
 Délier un téléphone perdu est la première chose à faire ; votre compte Tailscale permet aussi de retirer l'appareil
