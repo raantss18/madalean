@@ -270,7 +270,7 @@ def build_tex(c: Content, verbatim: bool = False, f: texio.Fonts | None = None) 
 
 def _preamble(c: Content, f: texio.Fonts) -> str:
     t = T[c.lang]
-    math = (r"\usepackage{unicode-math}" + "\n" + r"\setmathfont{" + texio.MATH_FONT_FILE + "}") if f.has_math else \
+    math = (r"\usepackage{unicode-math}" + "\n" + r"\setmathfont{" + texio.MATH_FONT_FILE + "}" + "\n" + r"\providecommand{\blacksquare}{\mdlgblksquare}\providecommand{\square}{\mdlgwhtsquare}\renewcommand{\Box}{\mdlgwhtsquare}") if f.has_math else \
         r"\usepackage{amssymb}"
     mono = (r"\setmonofont{" + texio.MONO_FAMILY + r"}[Scale=0.86]") if f.has_mono else ""
     title = c.title.replace("\\", "").replace("{", "").replace("}", "")

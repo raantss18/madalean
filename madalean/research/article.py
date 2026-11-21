@@ -281,7 +281,7 @@ def build_tex(ctx, pid: str, art: dict, bib: list, backend: str, verbatim: bool 
             return texio.verbatim_text(text, f)
         return texio.sanitize_markdown(text or "", f, keys)
 
-    math = (r"\usepackage{unicode-math}" + "\n" + r"\setmathfont{" + texio.MATH_FONT_FILE + "}") if f.has_math else \
+    math = (r"\usepackage{unicode-math}" + "\n" + r"\setmathfont{" + texio.MATH_FONT_FILE + "}" + "\n" + r"\providecommand{\blacksquare}{\mdlgblksquare}\providecommand{\square}{\mdlgwhtsquare}\renewcommand{\Box}{\mdlgwhtsquare}") if f.has_math else \
         r"\usepackage{amssymb}"
     mono = (r"\setmonofont{" + texio.MONO_FAMILY + r"}[Scale=0.86]") if f.has_mono else ""
     within = "[section]" if art["options"].get("numbering") == "section" else ""
