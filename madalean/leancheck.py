@@ -667,3 +667,23 @@ def has_real_proof(code: str) -> bool:
         return False
     rest = re.sub(r"\bsorry\b", "", m.group(1)).strip()
     return len(rest) > 2
+
+
+def vacuous(lean: str) -> bool:
+    """A Lean statement that says nothing (`: True`, `: 0 = 0`…): proving it verifies nothing of the paper (real run
+    2026-11-22: « Theorem 1.1 » was formalised as `theorem … : True` and « proved » by `trivial`)."""
+    code = remove_comments(lean)
+    m = re.search(r"(?s)\b(?:theorem|lemma)\s+\S+(.*?):=", code)
+    if not m:
+        return False
+    sig = m.group(1)
+    depth, cut = 0, -1                                    # the conclusion: after the last top-level « : »
+    for i, ch in enumerate(sig):
+        if ch in "([{⦃":
+            depth += 1
+        elif ch in ")]}⦄":
+            depth -= 1
+        elif ch == ":" and depth == 0 and sig[i + 1: i + 2] != "=":
+            cut = i
+    concl = re.sub(r"\s+", " ", sig[cut + 1:] if cut >= 0 else sig).strip()
+    return bool(re.fullmatch(r"\(?\s*(True|(\w+)\s*=\s*\2|0\s*=\s*0|1\s*=\s*1)\s*\)?", concl))

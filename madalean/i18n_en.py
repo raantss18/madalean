@@ -1248,3 +1248,22 @@ EN.update({
     'Le projet LaTeX existe déjà.': 'The LaTeX project already exists.',
     'Champs refusés : {fields}.': 'Refused fields: {fields}.',
 })
+
+EN.update({
+    'Énoncé vide de sens (`True`, `x = x`) : nouvel essai.': 'Statement says nothing (`True`, `x = x`): new attempt.',
+})
+
+# ---------------------------------------------------------------- Hugging Face, Goedel online, local fallback (S-T)
+EN.update({
+    "Aucun modèle en ligne n'a pu travailler (mode « en ligne » : pas de modèle local).":
+        "No online model could work (« online » mode: no local model).",
+    "Aucun modèle en ligne n'a pu travailler : repli sur le modèle local.":
+        "No online model could work: falling back to the local model.",
+    'Goedel en ligne indisponible ({why}).': 'Goedel online unavailable ({why}).',
+    'Goedel-Prover en ligne : {name}, la boucle de Goedel servie par Hugging Face (payant, plafonds : {cap_p} $ pour '
+    'cette preuve, {cap_m} $ par mois).':
+        'Goedel-Prover online: {name}, Goedel’s own loop served through Hugging Face (paid, caps: {cap_p} $ for this '
+        'proof, {cap_m} $ per month).',
+    "Pas d'accès à Internet : la preuve est cherchée avec le modèle local.":
+        "No Internet access: the proof is searched with the local model.",
+})

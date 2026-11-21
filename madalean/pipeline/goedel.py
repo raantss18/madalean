@@ -236,6 +236,13 @@ class Formalizer:
                 self.io.update_attempt(a)
                 raise InfraError("workspace", r.infra_error)
             res.errors = r.verdict.errors
+            if not r.verdict.errors and not r.timed_out and leancheck.vacuous(a.code):
+                # Lean accepts `: True`, but it states nothing (real run 2026-11-22): never a valid translation
+                a.status, a.summary = "rejected", msg("Énoncé vide de sens (`True`, `x = x`) : nouvel essai.")["text"]
+                self.io.update_attempt(a)
+                feedback = ("\n\nA previous attempt stated something trivial (`True` or `x = x`). State the actual "
+                            "mathematical content of the problem.\n")
+                continue
             if not r.verdict.errors and not r.timed_out:
                 a.status, a.summary = "accepted", msg("Énoncé valide en Lean (à relire)")["text"]
                 self.io.update_attempt(a)

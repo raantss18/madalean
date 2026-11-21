@@ -195,3 +195,10 @@ def test_famous_matches_unaccented_descriptions():
     from madalean.brain import rag
     assert "LinearMap.aeval_self_charpoly" in rag.famous("montre que si P est le polynome caracteristique d'un endomorphisme f alors P(f)=0")
     assert "LinearMap.aeval_self_charpoly" in rag.famous("Théorème de Cayley-Hamilton")
+
+
+def test_vacuous_statements_are_detected():
+    from madalean import leancheck as lc
+    assert lc.vacuous("theorem t : True := by sorry")
+    assert lc.vacuous("theorem t (n : ℕ) : n = n := by sorry")
+    assert not lc.vacuous("theorem t (n : ℕ) (h : Even n) : Even (n + 2) := by sorry")
