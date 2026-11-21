@@ -273,3 +273,11 @@
   found — single choke point before every compilation. Imports limited to Mathlib, Aesop, Batteries, Std, Qq,
   ProofWidgets, Plausible. Word-level matching can refuse a legitimate file using these words outside comments
   (e.g. a variable named `prefix`); accepted trade-off, refusal message names the construct. To be re-reviewed by S-H.
+
+## D29 — Incident: an automatic update ran during a test and wrote to ~/.elan (2026-11-21)
+- A test server started from the dev checkout with a temporary config (`updates_auto` defaults to true) upgraded the
+  dev checkout's `workspaces/lean-current` to Lean 4.36.0 / recent Mathlib at 16:11 (verify-then-switch worked; the
+  proven dossiers were re-checked), and installed the toolchain v4.36.0 into the user's `~/.elan` because the prefix
+  did not exist yet (ELAN_HOME fallback). No toolchain was removed by Madalean (v4.34.1 is still there).
+- Rules from now on: automatic installs only run from an installed prefix (never from a dev checkout or with a
+  temporary config dir), and never with `~/.elan` — if the prefix elan is missing, the update is notify-only.
