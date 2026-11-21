@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import time
 from pathlib import Path
 
@@ -184,7 +185,64 @@ async def device_forget_self(request: web.Request) -> web.Response:
 async def pairing_start(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     code, ttl = ctx.pairing.start()
-    return ok({"code": code, "expires": time.time() + ttl, "expires_in": ttl, "remote_url": await remote_url(ctx)})
+    url = await remote_url(ctx)
+    return ok({"code": code, "expires": time.time() + ttl, "expires_in": ttl, "remote_url": url,
+               "addresses": await pair_addresses(ctx, request.app, url)})
+
+
+def _is_tailnet_ipv4(ip: str) -> bool:
+    try:
+        a = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return a.version == 4 and a in ipaddress.ip_network("100.64.0.0/10")
+
+
+def _is_lan_ipv4(ip: str) -> bool:
+    """Private IPv4 of a home/office network (RFC 1918), never loopback, link-local or the tailnet's CGNAT range."""
+    try:
+        a = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return a.version == 4 and any(a in ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12",
+                                                                          "192.168.0.0/16"))
+
+
+def lan_ipv4() -> str | None:
+    """The host's address on its local network: source address of the default route (a UDP `connect` sends no
+    packet). None when it is not a private RFC 1918 address."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("192.0.2.1", 9))           # TEST-NET-1: never contacted
+        ip = s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+    return ip if _is_lan_ipv4(ip) else None
+
+
+async def pair_addresses(ctx, app: web.Application, url: str | None) -> dict:
+    """Fallback addresses for the pairing QR code (docs/SHELLS.md « Pair link »): the tailnet name (HTTPS), the
+    node's tailnet IPv4 (the app then still talks TLS to the name, only the DNS lookup is skipped) and, only while
+    the LAN listener is open, `<LAN IPv4>:<port>` (plain HTTP, same rules as any LAN client: code + token)."""
+    from .auth import LAN_PORTS
+    host = url.split("://", 1)[1].split("/", 1)[0] if url else None
+    ip = None
+    nm = getattr(ctx, "net", None)
+    if nm is not None and host:
+        try:
+            ip = next((a for a in nm.status().get("ips") or [] if _is_tailnet_ipv4(str(a))), None)
+        except Exception:  # noqa: BLE001
+            ip = None
+    lan: list[str] = []
+    ports = sorted(app.get(LAN_PORTS, set()))
+    if ports:
+        lip = await asyncio.to_thread(lan_ipv4)
+        if lip:
+            lan.append(f"{lip}:{ports[0]}")
+    return {"host": host, "ip": ip, "lan": lan}
 
 
 async def remote_url(ctx) -> str | None:

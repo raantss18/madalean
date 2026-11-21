@@ -123,6 +123,70 @@ def strip_restated_theorem(text: str) -> str:
     return rest or t
 
 
+def proof_body(text: str) -> str:
+    """The informal proof for a `proof` environment, which prints « Démonstration. » / « Proof. » and the end mark
+    itself: no restated theorem, no leading proof label, no trailing □ (the article printed « Théorème. … »
+    and « Démonstration. » twice inside its proofs)."""
+    t = strip_restated_theorem(text)
+    m = _PROOF_HEAD.match(t)
+    if m and m.end() < len(t) and (t[m.start():m.end()].strip().endswith((".", ":", "*", "_")) or
+                                   t[m.end():m.end() + 1] == "\n"):
+        t = t[m.end():]
+    return re.sub(r"\s*[□∎■]\s*$", "", t.strip()).strip()
+
+
+_SEC_MD = re.compile(r"^\s{0,3}#{1,6}\s+(.*)$")
+# « 1. **Énoncé du théorème :** » / « **Idée de la preuve** » alone on their line: a section title, not a list item
+_SEC_BOLD = re.compile(r"^(?:\d+[.)]\s+)?(?:\*\*|__)([^*_`\n]{2,90}?)(?:\*\*|__)\s*[:.]?\s*$")
+_SEC_NUM = re.compile(r"^\s*(?:\d+|[IVX]+)[.)]\s*")
+_SEC_STATEMENT = re.compile(r"^(?:l['’]\s*)?(?:énoncé|enoncé|enonce|statement|théorème|theoreme|theorem|"
+                            r"rappel de l['’]énoncé|the theorem|what the theorem says)\b", re.I)
+_SEC_KNOWN = re.compile(r"^(?:l['’]\s*)?(?:idée|idee|idea|étapes?|etapes?|steps?|commentaires?|comments?|explication|"
+                        r"explanation|déroulement|walkthrough)\b", re.I)
+
+
+def _section_title(line: str) -> str | None:
+    m = _SEC_MD.match(line) or _SEC_BOLD.match(line.rstrip())
+    if m is None:
+        return None
+    title = re.sub(r"[*_]{2}", "", m.group(1)).strip()
+    return _SEC_NUM.sub("", title).strip().rstrip(" :.").strip() or None
+
+
+def document_explanation(text: str) -> str:
+    """The AI explanation as printed in the document (PDF / HTML / Markdown, 2026-11-22): the document already prints
+    the statement, so the model's section that restates it (« 1. Énoncé du théorème en langage mathématique courant »)
+    is dropped, and the model's own section numbers (« 1. », « 2. », « 3. ») are removed from its titles so that only
+    the list of steps is numbered — the annex used to read « 1. Énoncé… 2. Idée… 3. Étapes » then « 1. 2. 3. » again.
+    Text without sections is returned unchanged."""
+    lines = (text or "").strip().split("\n")
+    # « 1. **intro x** » may be a step of the list: numbered bold lines are titles only when one of them reads like
+    # the prompt's sections (statement / idea / steps)
+    numbered = [t for ln in lines if re.match(r"\d+[.)]\s", ln) and (t := _section_title(ln))]
+    numbered_ok = any(_SEC_STATEMENT.match(t) or _SEC_KNOWN.match(t) for t in numbered)
+    sections: list[tuple[str | None, list[str]]] = [(None, [])]
+    for ln in lines:
+        title = _section_title(ln)
+        if title is not None and re.match(r"\d", ln) and not numbered_ok:
+            title = None
+        if title is not None and not re.match(r"\s", ln):
+            sections.append((title, []))
+        else:
+            sections[-1][1].append(ln)
+    if len(sections) == 1:
+        return (text or "").strip()               # no section titles: nothing to rework
+    kept = [(t, body) for t, body in sections if t is None or not _SEC_STATEMENT.match(t)]
+    if not any("".join(body).strip() for _t, body in kept):
+        kept = sections                           # the statement was all there is: keep it
+    out: list[str] = []
+    for t, body in kept:
+        if t is not None:
+            out += ["", f"### {t}", ""]
+        out += body
+    res = re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+    return res or (text or "").strip()
+
+
 def collect(d: Dossier, lang: str = "fr", ws_info: dict | None = None, bib_keys: list[str] | None = None,
             bib_path: Path | None = None, bib_entries: list | None = None) -> Content:
     proved = d.proof_is_current
@@ -141,10 +205,11 @@ def collect(d: Dossier, lang: str = "fr", ws_info: dict | None = None, bib_keys:
     return Content(
         title=d.title or "Sans titre", kind=d.kind or "theorem", theorem=d.theorem,
         nl_statement=(d.understood_display or d.problem or d.understood or "").strip(),
-        lean_statement=d.statement, notes=d.notes, informal=informal or (d.explanation if proved else ""),
+        lean_statement=d.statement, notes=d.notes,
+        informal=informal or (document_explanation(d.explanation) if proved else ""),
         informal_is_explanation=proved and not informal and bool(d.explanation),
         proof=d.proof if proved else "", proved=proved, stamp=stamp,
-        explanation=d.explanation if (proved and informal) else "", date=_dt.date.today(), lang=lang if lang in T else "fr",
+        explanation=document_explanation(d.explanation) if (proved and informal) else "", date=_dt.date.today(), lang=lang if lang in T else "fr",
         bib_keys=list(bib_keys or []), bib_path=bib_path, bib=_bib_entries(bib_entries, bib_keys, bib_path))
 
 

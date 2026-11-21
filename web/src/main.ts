@@ -11,7 +11,9 @@ import App from './App.svelte';
 import './routes';
 import { applyPrefs } from './lib/prefs.svelte';
 import { startRouter } from './lib/router.svelte';
+import { watchKeyboard } from './lib/ui/keyboard';
 
 applyPrefs();
 startRouter();
+watchKeyboard();
 mount(App, { target: document.getElementById('app')! });

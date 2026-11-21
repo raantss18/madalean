@@ -490,8 +490,10 @@ def _inline(s: str, f: Fonts, cites=None) -> str:
             from .research.biblio import cite_to_latex
             part = CITE_GROUP.sub(lambda mo: keep(t) if (t := cite_to_latex(mo.group(1), cites)) is not None
                                   else mo.group(0), part)
-        part = re.sub(r"`([^`]+)`", lambda mo: keep(r"\texttt{" + wrap_uncovered(escape_plain(mo.group(1)), f.mono, f)
-                                                     + "}"), part)
+        # ``code with ` inside`` (double backticks, common in model glosses) before `code`
+        part = re.sub(r"``\s?(.+?)\s?``|`([^`]+)`",
+                      lambda mo: keep(r"\texttt{" + wrap_uncovered(escape_plain(mo.group(1) or mo.group(2)), f.mono, f)
+                                      + "}"), part)
         part = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda mo: "\x03B" + (mo.group(1) or mo.group(2)) + "\x03E", part)
         part = re.sub(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\*)", lambda mo: "\x03I" + mo.group(1) + "\x03E", part)
         part = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", lambda mo: mo.group(1) + " (" + mo.group(2) + ")", part)
@@ -642,7 +644,7 @@ def markdown_to_html(text: str, keep_tex: bool = False) -> str:
                     res.append(f'<span class="math">{_html.escape(latex_math_to_unicode(part))}</span>')
                 continue
             p = _html.escape(part, quote=False)
-            p = re.sub(r"`([^`]+)`", r"<code>\1</code>", p)
+            p = re.sub(r"``\s?(.+?)\s?``|`([^`]+)`", lambda mo: f"<code>{mo.group(1) or mo.group(2)}</code>", p)
             p = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", p)
             p = re.sub(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"<em>\1</em>", p)
             res.append(p)

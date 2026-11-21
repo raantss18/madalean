@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Library of proven results (S-M): organised by domain (auto-classified, editable), project or tag; card and table
+  // Library of proven results (S-M, S-W): organised and filtered by domain (auto-classified, editable), project or tag; card and table
   // views; each result with its statement (words + Lean), status (verified by Lean / conditional on admitted lemmas),
   // who proved it, what it uses and what uses it, export. Results are reused as lemmas by later proofs.
   import { api } from '../lib/api/client';
@@ -9,11 +9,11 @@
   import { toast } from '../lib/ui/toasts.svelte';
   import { errorText } from '../lib/ui/errors';
   import { providerName } from '../lib/status';
+  import { facets, filterResults, groupResults, type GroupBy } from '../lib/library';
   import Icon from '../components/Icon.svelte';
   import Md from '../components/Md.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
-  type GroupBy = 'domain' | 'project' | 'tag' | 'none';
   let entries = $state<CatalogEntry[] | null>(null);
   let domains = $state<string[]>([]);
   let err = $state('');
@@ -21,6 +21,10 @@
   let groupBy = $state<GroupBy>(readPref('groupBy', 'domain') as GroupBy);
   let view = $state<'cards' | 'table'>(readPref('view', 'cards') as 'cards' | 'table');
   let status = $state<'' | 'verified' | 'conditional'>('');
+  // filters (combine with « Ranger par »): one domain, one project, one tag
+  let fDomain = $state('');
+  let fProject = $state<string | null>(null);   // null = all projects, '' = results without a project
+  let fTag = $state<string | null>(null);       // null = all tags, '' = results without a tag
   let selected = $state<string | null>(null);
   let tagDraft = $state('');
 
@@ -33,29 +37,20 @@
     void app.m.libraryRev;
     wb.catalog().then((r) => { entries = r.entries; domains = r.domains; err = ''; }).catch((e) => { err = errorText(e); });
   });
-  const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const shown = $derived.by(() => {
-    const needle = fold(q.trim());
-    return (entries ?? []).filter((e) => (!status || e.status === status) &&
-      (!needle || fold(`${e.name} ${e.title} ${e.statement} ${e.nl} ${e.tags.join(' ')} ${e.project} ${tk(`domain.${e.domain}`, e.domain)}`).includes(needle)))
-      .sort((a, b) => b.t - a.t);
-  });
-  const groups = $derived.by(() => {
-    const g = new Map<string, CatalogEntry[]>();
-    const add = (k: string, e: CatalogEntry) => { if (!g.has(k)) g.set(k, []); g.get(k)!.push(e); };
-    for (const e of shown) {
-      if (groupBy === 'domain') add(e.domain, e);
-      else if (groupBy === 'project') add(e.project_id || '', e);
-      else if (groupBy === 'tag') { if (e.tags.length) for (const tg of e.tags) add(tg, e); else add('', e); }
-      else add('*', e);
-    }
-    return [...g.entries()].sort(([a, x], [b, y]) => (a === '' ? 1 : b === '' ? -1 : y.length - x.length || a.localeCompare(b)));
-  });
+  const shown = $derived(filterResults(entries ?? [], { q, status, domain: fDomain, project: fProject, tag: fTag,
+    label: (e) => tk(`domain.${e.domain}`, e.domain) }));
+  const groups = $derived(groupResults(shown, groupBy, fTag));
   function groupLabel(k: string): string {
     if (groupBy === 'domain') return tk(`domain.${k}`, k);
-    if (groupBy === 'project') return k ? (app.m.projects[k]?.title ?? (entries ?? []).find((e) => e.project_id === k)?.project ?? k) : t('library.noProject');
+    if (groupBy === 'project') return projectLabel(k);
     if (groupBy === 'tag') return k || t('library.noTag');
     return t('library.allResults');
+  }
+  const facetList = $derived(facets(entries ?? []));
+  const filtered = $derived(!!fDomain || fProject !== null || fTag !== null || !!status || !!q.trim());
+  function resetFilters() { fDomain = ''; fProject = null; fTag = null; status = ''; q = ''; }
+  function projectLabel(k: string): string {
+    return k ? (app.m.projects[k]?.title ?? (entries ?? []).find((e) => e.project_id === k)?.project ?? k) : t('library.noProject');
   }
   const sel = $derived((entries ?? []).find((e) => e.name === selected) ?? null);
   const byName = $derived(new Map((entries ?? []).map((e) => [e.name, e])));
@@ -127,12 +122,33 @@
           <option value="verified">{t('library.statusVerified', { n: counts.verified })}</option>
           <option value="conditional">{t('library.statusConditional', { n: counts.conditional })}</option>
         </select></label>
+      <label class="field-inline"><span>{t('library.colDomain')}</span>
+        <select class="input" bind:value={fDomain}>
+          <option value="">{t('library.allDomains')}</option>
+          {#each facetList.domains as [d, n] (d)}<option value={d}>{tk(`domain.${d}`, d)} ({n})</option>{/each}
+        </select></label>
+      {#if facetList.projects.length > 1}
+        <label class="field-inline"><span>{t('library.colProject')}</span>
+          <select class="input" value={fProject ?? '*'} onchange={(ev) => { const v = (ev.target as HTMLSelectElement).value; fProject = v === '*' ? null : v; }}>
+            <option value="*">{t('library.allProjects')}</option>
+            {#each facetList.projects as [p, n] (p)}<option value={p}>{projectLabel(p)} ({n})</option>{/each}
+          </select></label>
+      {/if}
+      {#if facetList.tags.length}
+        <label class="field-inline"><span>{t('library.tags')}</span>
+          <select class="input" value={fTag ?? '*'} onchange={(ev) => { const v = (ev.target as HTMLSelectElement).value; fTag = v === '*' ? null : v; }}>
+            <option value="*">{t('library.allTags')}</option>
+            {#each facetList.tags as [tg, n] (tg)}<option value={tg}>{tg} ({n})</option>{/each}
+            {#if facetList.untagged}<option value="">{t('library.noTag')} ({facetList.untagged})</option>{/if}
+          </select></label>
+      {/if}
       <div class="seg views" role="radiogroup" aria-label={t('library.view')}>
         <label class:sel={view === 'cards'}><input type="radio" name="lib-view" value="cards" bind:group={view} />{t('library.viewCards')}</label>
         <label class:sel={view === 'table'}><input type="radio" name="lib-view" value="table" bind:group={view} />{t('library.viewTable')}</label>
       </div>
     </div>
-    <p class="small muted" role="status" aria-live="polite">{t('library.count', { n: shown.length })}</p>
+    <p class="small muted" role="status" aria-live="polite">{t('library.count', { n: shown.length })}
+      {#if filtered}<button class="btn small quiet" onclick={resetFilters}>{t('library.resetFilters')}</button>{/if}</p>
 
     <div class="layout" class:with-detail={!!sel}>
       <div class="results">
@@ -183,7 +199,7 @@
               </div>
             {/if}
           </section>
-        {:else}<p class="muted">{t('library.noMatch')}</p>{/each}
+        {:else}<p class="muted">{t('library.noMatch')} <button class="btn small quiet" onclick={resetFilters}>{t('library.resetFilters')}</button></p>{/each}
       </div>
 
       {#if sel}

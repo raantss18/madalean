@@ -1,17 +1,21 @@
 import 'dart:async';
-import 'dart:ui';
+import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+import 'package:madalean_shell/src/address.dart';
 import 'package:madalean_shell/src/api.dart';
 import 'package:madalean_shell/src/connect_screen.dart';
 import 'package:madalean_shell/src/controller.dart';
 import 'package:madalean_shell/src/native.dart';
 import 'package:madalean_shell/src/storage.dart';
-import 'package:madalean_shell/src/strings.dart';
 import 'package:madalean_shell/src/theme.dart';
+import 'package:madalean_shell/src/tunnel.dart';
 import 'package:madalean_shell/src/update.dart';
 import 'package:madalean_shell/src/update_ui.dart';
 import 'package:madalean_shell/src/web_screen.dart';
@@ -19,17 +23,22 @@ import 'package:madalean_shell/src/web_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final native = NativeBridge();
-  final lang = PlatformDispatcher.instance.locale.languageCode == 'en'
-      ? Lang.en
-      : Lang.fr;
+  // Tailnet-IP fallback (MagicDNS not resolving): CONNECT proxy on
+  // 127.0.0.1 used by the Dart client and, through ProxyController, by the
+  // web view. TLS stays end to end and is checked for the tailnet name.
+  final tunnel = TunnelProxy(webView: _webViewProxy);
+  final httpClient = HttpClient()
+    ..findProxy = tunnel.findProxy
+    ..connectionTimeout = const Duration(seconds: 5);
   final controller = ShellController(
-    api: MadaleanApi(http.Client()),
+    api: MadaleanApi(IOClient(httpClient)),
     tokens: SecureTokenStore(),
     prefs: SharedPrefs(),
     defaultDeviceName: await native.deviceName(),
-    // Release builds: HTTPS only (also enforced by network_security_config).
+    // Release builds: HTTPS, or plain HTTP to a private LAN address (the
+    // host's LAN listener); loopback http only in debug builds.
     allowCleartext: kDebugMode,
-    systemLang: lang,
+    tunnels: tunnel,
   );
   final version = await native.appVersion();
   // Signed updates: fixed HTTPS channel; debug builds may point to a test
@@ -67,6 +76,31 @@ Future<void> main() async {
     if (l != initial) controller.handleLink(l);
     initial = null;
   });
+}
+
+/// Points the web view at the tunnel proxy (port) or back to direct (null).
+Future<bool> _webViewProxy(int? port) async {
+  try {
+    final proxy = ProxyController.instance();
+    if (port == null) {
+      await proxy.clearProxyOverride();
+      return true;
+    }
+    if (!await WebViewFeature.isFeatureSupported(
+      WebViewFeature.PROXY_OVERRIDE,
+    )) {
+      return false;
+    }
+    await proxy.setProxyOverride(
+      settings: ProxySettings(
+        proxyRules: [ProxyRule(url: 'http://127.0.0.1:$port')],
+        bypassRules: [],
+      ),
+    );
+    return true;
+  } on Object {
+    return false;
+  }
 }
 
 class MadaleanApp extends StatefulWidget {
@@ -119,6 +153,8 @@ class _MadaleanAppState extends State<MadaleanApp> with WidgetsBindingObserver {
         theme: shellTheme(Brightness.light),
         darkTheme: shellTheme(Brightness.dark),
         locale: Locale(c.lang.name),
+        supportedLocales: const [Locale('fr'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         builder: (context, child) => UpdateBanner(
           updater: widget.updater,
           strings: () => c.s,
@@ -132,13 +168,16 @@ class _MadaleanAppState extends State<MadaleanApp> with WidgetsBindingObserver {
             controller: c,
             state: st,
             updater: widget.updater,
+            openTailscale: widget.native.openTailscale,
+            openAppSettings: widget.native.openAppSettings,
           ),
           final UnreachableState st => UnreachableScreen(
             controller: c,
             state: st,
+            openTailscale: widget.native.openTailscale,
           ),
           final WebState st => WebScreen(
-            key: ValueKey(st.server.key),
+            key: ValueKey(originKey(st.origin)),
             controller: c,
             state: st,
             native: widget.native,

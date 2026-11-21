@@ -12,6 +12,7 @@ import re
 import shutil
 from pathlib import Path
 
+from . import computations as calc
 from . import layout
 from .graph import render_svg
 from .leanhl import code_block
@@ -116,6 +117,8 @@ def validate(d: dict) -> list[str]:
         if not re.fullmatch(r"files/[A-Za-z0-9._-]+", f.get("path", "")):
             err.append(f"bad file path {f.get('path')!r} (must be files/<name>)")
     del keys
+    if d.get("computations") is not None:
+        err += calc.validate(d["computations"])
     return err
 
 
@@ -245,7 +248,7 @@ def build(src: Path, out: Path, math: MathBatch | None = None, problems: list[st
         def link(h: str):
             if h.startswith(("https://", "http://")):
                 return h
-            pm = re.fullmatch(r"page:(graph|verification|bibliography|index)", h)
+            pm = re.fullmatch(r"page:(graph|verification|bibliography|index|computations)", h)
             if pm:
                 return f"{root}{pm.group(1)}.html"
             m = re.fullmatch(r"node:([A-Za-z0-9._-]+)", h)
@@ -282,8 +285,11 @@ def build(src: Path, out: Path, math: MathBatch | None = None, problems: list[st
                 f'<a href="{root}results/{E(n["id"])}.html">{E(label(n))}</a>{title}</{heading}>'
                 f'{chip(n["id"])}<div class="statement">{md(n.get("statement", ""), root)}</div>{warn}</section>')
 
+    comp = calc.load(d)
     nav_items = [("index.html", t["article"]), ("graph.html", t["graph"]), ("verification.html", t["verification"]),
                  ("bibliography.html", t["bibliography"])]
+    if comp:
+        nav_items.insert(3, ("computations.html", calc.T[lg]["title"]))
 
     def nav(root: str, cur: str) -> str:
         return (f'<nav class="top-nav" aria-label="{E(proj["title"])}"><ul>'
@@ -411,6 +417,10 @@ def build(src: Path, out: Path, math: MathBatch | None = None, problems: list[st
          f'<th>{E(t["axioms"])}</th></tr></thead><tbody>{vrows}</tbody></table></div>'
          f'<h2>{E(t["ci"])}</h2><p>{t["ci_text"]}</p><p><img class="badge" src="verification/badge.svg" alt="{E(t["badge_alt"])}" height="20"></p>'
          f'<p><a href="verification/result.json">verification/result.json</a></p></main>')
+
+    # ------------------------------------------------------------ computations (Calcul notebooks)
+    if comp:
+        page("computations.html", calc.T[lg]["title"], calc.render(comp, lg, md, math, src, out, problems))
 
     # ------------------------------------------------------------ bibliography
     keys = cited + [k for k in bib if k not in cited]

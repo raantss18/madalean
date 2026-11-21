@@ -287,6 +287,23 @@ export const GLOSSARY: Record<string, GlossEntry> = Object.assign(Object.create(
 // `constructor` is set apart: as an object-literal key TypeScript confuses it with Object.prototype.constructor.
 GLOSSARY['constructor'] = { kind: 'tactic', cat: 'tactics', level: 1, fr: 'Découpe le but « A ∧ B » (ou « A ↔ B », les deux sens) en deux buts.', en: 'Splits the goal “A ∧ B” (or “A ↔ B”, both directions) into two goals.', example: 'example : 0 < 1 ∧ 1 < 2 := by\n  constructor\n  · norm_num\n  · norm_num', related: ['∧', '↔', 'refine', '·'], decls: ['And.intro', 'Iff.intro'] };
 
+/** Sort key of a term: accents and leading symbols ignored (`¬` sorts with symbols, `Équiv` with E). */
+export function glossSortKey(k: string): string {
+  const f = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return f(k.replace(/^[^\p{L}\p{N}]+/u, '') || k);
+}
+
+/** The glossary browsed by category (in GLOSS_CATS order), easiest terms first inside each one; empty ones left out. */
+export function groupByCategory(list: [string, GlossEntry][], lang = 'fr'): [GlossCat, [string, GlossEntry][]][] {
+  const out: [GlossCat, [string, GlossEntry][]][] = [];
+  for (const c of GLOSS_CATS) {
+    const l = list.filter(([, e]) => e.cat === c)
+      .sort(([a, x], [b, y]) => x.level - y.level || glossSortKey(a).localeCompare(glossSortKey(b), lang));
+    if (l.length) out.push([c, l]);
+  }
+  return out;
+}
+
 /** Normalises a token: `Nat.Prime` → `Prime`, `rw [h]` → `rw`. */
 export function lookupGloss(token: string): { token: string; entry: GlossEntry } | null {
   const t = token.trim();

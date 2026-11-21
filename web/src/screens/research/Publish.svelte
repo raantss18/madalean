@@ -24,6 +24,7 @@
   let dossiers = $state<string[]>([]);
   let noteIds = $state<string[]>([]);
   let includePdf = $state(false);
+  let includeCalc = $state(true);
   let license = $state('CC-BY-4.0');
   let repo = $state('');
   let create = $state(false);
@@ -53,7 +54,7 @@
 
   async function plan() {
     busy = 'plan'; err = ''; previewUrl = ''; hasPreview = false;
-    try { manifest = (await research.publishPlan(pid, { dossiers, notes: noteIds, include_pdf: includePdf, license })).manifest; }
+    try { manifest = (await research.publishPlan(pid, { dossiers, notes: noteIds, include_pdf: includePdf, computations: includeCalc, license })).manifest; }
     catch (e) { err = errorText(e); } finally { busy = ''; }
   }
   async function preview() {
@@ -104,6 +105,7 @@
           </fieldset>
         {/if}
         <label class="switch small"><input type="checkbox" bind:checked={includePdf} />{t('publish.includePdf')}</label>
+        <label class="switch small"><input type="checkbox" bind:checked={includeCalc} />{t('publish.includeCalc')}</label>
         <div class="field" style="max-width: 16rem"><label for="lic">{t('publish.license')}</label><input id="lic" class="input" bind:value={license} /></div>
         <button class="btn primary" onclick={plan} disabled={!available || !!busy || !dossiers.length}>{busy === 'plan' ? t('publish.planning') : t('publish.makeList')}</button>
         <p class="hint">{t('publish.nothingSent')}</p>

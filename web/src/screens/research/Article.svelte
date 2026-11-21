@@ -717,5 +717,17 @@
   .sugs .mine { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
   .sugs del { color: var(--failed); } .sugs ins { color: var(--proved); text-decoration: none; }
   .h3 { font-size: var(--fs-md); margin: 0; }
+  @media (max-width: 767px) {
+    .ae { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0; }
+    .bar { padding: var(--s-2) var(--s-3); }
+    .sugs { left: var(--s-2); right: var(--s-2); width: auto; bottom: calc(var(--bottomnav-h) + var(--s-2) + env(safe-area-inset-bottom)); max-height: 60dvh; z-index: 520; }
+    :global(html[data-kb='open']) .sugs { bottom: var(--s-2); }
+  }
+  @media (pointer: coarse) {
+    .node, .linkish { min-height: var(--touch); }
+    .sub { min-height: 40px; }
+    .tiny { width: 40px !important; min-height: 40px !important; }
+    .node-row .tools { display: inline-flex; }
+  }
   @media (max-width: 1100px) { .with-preview .body { grid-template-columns: 0 minmax(0, 1fr) minmax(320px, 46%); } .with-preview .outline { display: none; } }
 </style>

@@ -187,7 +187,7 @@
 
 <ProjectGate>
   {#snippet children(_p)}
-    <div class="notes">
+    <div class="notes" class:has-note={Boolean(nid)}>
       <aside class="nlist" aria-label={t('notes.list')}>
         <div class="row"><h1>{t('notes.title')}</h1><HelpLink page="notes" /></div>
         <div class="row">
@@ -216,6 +216,7 @@
         {#if !note}
           <div class="empty"><h2>{t('notes.pick')}</h2><p>{t('notes.pickText')}</p></div>
         {:else}
+          <a class="btn quiet small back-list" href="/notes"><Icon name="chevronLeft" size={16} />{t('notes.title')}</a>
           <div class="row ebar">
             <label class="sr-only" for="ntitle">{t('notes.titleLabel')}</label>
             <input id="ntitle" class="input ntitle" bind:value={title} />
@@ -289,6 +290,15 @@
 <style>
   .notes { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--s-4); max-width: 1500px; }
   @media (max-width: 900px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+  /* Phones and narrow tablets: list → note, one at a time (back link to the list), like Réglages. */
+  .back-list { display: none; margin-bottom: var(--s-2); }
+  @media (max-width: 900px) {
+    .has-note .nlist { display: none; }
+    .notes:not(.has-note) .editor { display: none; }
+    .back-list { display: inline-flex; }
+    .nlist ul { max-height: none; }
+  }
+  @media (pointer: coarse) { .nlist li a { min-height: var(--touch); align-content: center; } }
   .nlist { display: grid; gap: var(--s-2); align-content: start; }
   .nlist h1 { margin: 0; }
   .nlist ul { list-style: none; padding: 0; margin: 0; max-height: 60vh; overflow: auto; }

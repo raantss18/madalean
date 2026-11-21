@@ -23,10 +23,15 @@ class MathBatch:
         self.rendered: dict[str, str] = {}
         self.styles: dict[str, str] = {}      # style text -> class
         self.errors: list[str] = []
+        self.fallbacks: dict[str, str] = {}   # key -> HTML shown when KaTeX refuses the TeX (no build error)
 
-    def add(self, tex: str, display: bool) -> str:
+    def add(self, tex: str, display: bool, fallback: str | None = None) -> str:
+        """`fallback`: HTML used, without reporting an error, when KaTeX cannot render `tex` (computed results:
+        a Sage LaTeX macro KaTeX does not know must not stop the publication)."""
         key = hashlib.sha1(f"{int(display)}{tex}".encode()).hexdigest()[:16]
         self.items[key] = (tex, display)
+        if fallback is not None:
+            self.fallbacks.setdefault(key, fallback)
         return f"\x01M{key}\x01"
 
     def finish(self) -> None:
@@ -48,6 +53,9 @@ class MathBatch:
             tex, display = self.items[k]
             r = results[idx] if results else {"html": None, "error": "no renderer"}
             if r["html"] is None:
+                if k in self.fallbacks:
+                    self.rendered[k] = self.fallbacks[k]
+                    continue
                 if results:
                     self.errors.append(f"KaTeX error in {tex!r}: {r['error']}")
                 self.rendered[k] = f'<code class="tex">{html.escape(tex)}</code>'

@@ -235,4 +235,5 @@
   .tree a { display: flex; align-items: center; gap: var(--s-3); min-height: var(--touch); color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .tree a:hover { background: var(--surface-2); }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; min-height: 24px; }
+  @media (pointer: coarse) { .linkish { min-height: var(--touch); } }
 </style>

@@ -49,14 +49,42 @@ class S {
   String get deviceLabel => _t('Nom de cet appareil', 'Name of this device');
   String get pair => _t('Appairer et ouvrir', 'Pair and open');
   String get connecting => _t('Connexion…', 'Connecting…');
-  String get scanHint => _t(
-    'Astuce : scannez le QR code de l’hôte avec l’appareil photo, puis '
-        'touchez « Ouvrir dans l’application Madalean » : adresse et code '
-        'sont remplis ici.',
-    'Tip: scan the host’s QR code with the camera, then tap “Open in the '
-        'Madalean app”: address and code are filled in here.',
+  String get scanQr => _t('Scanner le QR code', 'Scan the QR code');
+  String get scanIntro => _t(
+    'Sur l’ordinateur : Réglages › Appareils › « Ajouter un appareil ». '
+        'Puis scannez le QR code affiché.',
+    'On the computer: Settings › Devices › “Add a device”. Then scan the '
+        'QR code shown.',
   );
-  String get languageSwitch => _t('English', 'Français');
+  String get orManual =>
+      _t('Ou saisir l’adresse et le code', 'Or enter the address and code');
+  String get scanAim => _t(
+    'Visez le QR code affiché sur l’ordinateur.',
+    'Point at the QR code shown on the computer.',
+  );
+  String get notMadaleanQr => _t(
+    'Ce QR code n’est pas un code Madalean.',
+    'This QR code is not a Madalean code.',
+  );
+  String get cameraWhyTitle => _t('Appareil photo', 'Camera');
+  String get cameraWhy => _t(
+    'Madalean utilise l’appareil photo seulement pour lire le QR code de '
+        'l’ordinateur. Aucune image n’est enregistrée ni envoyée.',
+    'Madalean uses the camera only to read the computer’s QR code. No '
+        'image is saved or sent.',
+  );
+  String get continueLabel => _t('Continuer', 'Continue');
+  String get cameraDenied => _t(
+    'L’appareil photo n’est pas autorisé. Autorisez-le dans les réglages, '
+        'ou saisissez l’adresse et le code à la main.',
+    'The camera is not allowed. Allow it in the settings, or enter the '
+        'address and code by hand.',
+  );
+  String get cameraError =>
+      _t('Impossible d’utiliser l’appareil photo.', 'Cannot use the camera.');
+  String get openSettings => _t('Ouvrir les réglages', 'Open settings');
+  String get torch => _t('Lampe', 'Torch');
+  String get language => _t('Langue', 'Language');
 
   // Errors.
   String get errEmpty => _t('Indiquez une adresse.', 'Enter an address.');
@@ -96,6 +124,36 @@ class S {
         'Appairez-le à nouveau.',
     'This device is no longer authorised (pairing revoked on the host). '
         'Pair it again.',
+  );
+
+  // Network errors (why the server could not be reached).
+  String get errTailscale => _t(
+    'Tailscale n’est pas connecté sur ce téléphone. Ouvrez l’app '
+        'Tailscale et activez-la, puis réessayez.',
+    'Tailscale is not connected on this phone. Open the Tailscale app and '
+        'turn it on, then try again.',
+  );
+  String get openTailscale => _t('Ouvrir Tailscale', 'Open Tailscale');
+  String get errLookup => _t(
+    'Adresse introuvable. Vérifiez l’adresse et la connexion du téléphone.',
+    'Address not found. Check the address and the phone’s connection.',
+  );
+  String get errRefused => _t(
+    'L’ordinateur refuse la connexion. Vérifiez que Madalean est lancé.',
+    'The computer refuses the connection. Check that Madalean is running.',
+  );
+  String get errTimeout => _t(
+    'Pas de réponse de l’ordinateur. Vérifiez qu’il est allumé et '
+        'connecté.',
+    'No answer from the computer. Check that it is on and connected.',
+  );
+  String get errNoNetwork => _t(
+    'Ce téléphone n’a pas de réseau. Activez le Wi-Fi ou les données.',
+    'This phone has no network. Turn on Wi-Fi or mobile data.',
+  );
+  String get errTls => _t(
+    'Connexion sécurisée impossible (certificat refusé).',
+    'Secure connection failed (certificate refused).',
   );
 
   // Unreachable screen.

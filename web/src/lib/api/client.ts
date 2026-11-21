@@ -73,7 +73,8 @@ export const api = {
     try { await request<unknown>('POST', '/devices/self/forget', {}, { allow401: true }); }
     catch (e) { if (e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 401)) await request('POST', '/logout', {}, { allow401: true }); else throw e; }
   },
-  pairingStart: () => request<{ code: string; expires: number; expires_in: number; remote_url?: string | null }>('POST', '/pairing/start', {}),
+  pairingStart: () => request<{ code: string; expires: number; expires_in: number; remote_url?: string | null;
+    addresses?: { host: string | null; ip: string | null; lan: string[] } }>('POST', '/pairing/start', {}),
   pairing: () => request<{ active: boolean; expires_in: number; locked_for: number }>('GET', '/pairing'),
   devices: () => request<{ devices: Device[]; apps?: Device[]; browsers?: Device[]; browser_idle_minutes?: number }>('GET', '/devices'),
   revokeDevice: (id: string) => request<{ ok: boolean }>('DELETE', `/devices/${enc(id)}`),

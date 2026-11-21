@@ -290,7 +290,7 @@ export const research = {
 
   // publish
   publishState: (pid: string) => request<{ manifest: PublishManifest | null; state: PublishState | null; preview: boolean; running: boolean }>('GET', `/research/publish/${enc(pid)}`),
-  publishPlan: (pid: string, p: { dossiers?: string[]; notes?: string[]; include_pdf?: boolean; license?: string; title?: string; lang?: string }) =>
+  publishPlan: (pid: string, p: { dossiers?: string[]; notes?: string[]; include_pdf?: boolean; computations?: boolean | string[]; license?: string; title?: string; lang?: string }) =>
     request<{ manifest: PublishManifest }>('POST', `/research/publish/${enc(pid)}/plan`, p),
   publishPreview: (pid: string, manifest_id: string) => request<{ pages: number; url: string }>('POST', `/research/publish/${enc(pid)}/preview`, { manifest_id }),
   publishPush: (pid: string, p: { manifest_id: string; repo: string; create?: boolean; private?: boolean; branch?: string }) =>

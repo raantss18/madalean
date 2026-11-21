@@ -100,7 +100,10 @@ The same rules apply on the remote and the LAN listeners; the local listener nee
 `POST /pairing/start` **host** → `{"code":"482913","expires":1795250000.0,"expires_in":300,
 "remote_url":"https://nitro.tail1234.ts.net:10500"|null}` (replaces any previous code). `remote_url` = the address
 other devices use: from the embedded Tailscale status (`madalean.runtime.net.remote_url`, when present), else
-`https://<host_name>:10500` when the setting `host_name` is a `*.ts.net` name, else `null`. `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"locked_for":0}`.
+`https://<host_name>:10500` when the setting `host_name` is a `*.ts.net` name, else `null`. Also
+`"addresses":{"host":"madalean.tail1234.ts.net"|null,"ip":"100.74.179.13"|null,"lan":["192.168.1.20:11502"]}`:
+fallbacks put in the pairing QR code for the Android app (tailnet IPv4 of the embedded node; `lan` only while the
+LAN listener is open, RFC 1918 address of the default route; docs/SHELLS.md). `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"locked_for":0}`.
 
 `GET /devices` **host** → `{"apps":[Device],"devices":[Device] (= apps, kept for compatibility),"browsers":[Device],
 "browser_idle_minutes":120}` — apps (« Applications (connexion automatique) ») and browser sessions (« Navigateurs

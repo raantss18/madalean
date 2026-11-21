@@ -1078,6 +1078,7 @@ def publication_computations(store: NotebookStore, pid: str, files_dir: Path | N
                             outs.append({"kind": "figure", "spec": dd[FIGURE_MIME]})
                         elif "text/latex" in dd:
                             outs.append({"kind": "latex", "latex": dd["text/latex"][:20000],
+                                         **({"text": dd["text/plain"][:20000]} if dd.get("text/plain") else {}),
                                          **({"approx": o["approx"]} if o.get("approx") else {})})
                         elif "text/plain" in dd:
                             outs.append({"kind": "text", "text": dd["text/plain"][:20000],

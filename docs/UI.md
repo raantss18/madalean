@@ -180,6 +180,9 @@ Main:
 Ctrl+K searches everything: screens, actions, dossiers, notes (full text), sources of the project, the manual.
 Phone (<768 px): bottom navigation Accueil · Projet · Activité · Aide · Réglages; mode switch moves into the drawer;
                  the privacy indicator becomes an icon when idle, shows the model while work runs.
+Tablet (768–1023 px): rail as a drawer, full top bar (labels become icons); ≥ 1024 px: permanent rail; ≥ 1280 px the
+                 dossier shows its thread beside the steps (tablet landscape 1366 px: rail + steps + thread).
+                 Details and adaptive patterns: §12.
 ```
 
 **Data layer** (`web/src/lib/`): `api/types.ts` (types of docs/API.md §5), `api/client.ts` (typed client, errors as
@@ -404,7 +407,12 @@ Still open (the UI works around each):
 - New API module `web/src/lib/api/workbench.ts` (kept apart from `client.ts` for parallel sessions).
 - Screens: `screens/Glossary.svelte`, `screens/Library.svelte`, `screens/research/Calcul.svelte` (route `/calcul`,
   project section), `screens/settings/ClaudeBudget.svelte` (inside Réglages › Modèles). Per-device conveniences in
-  localStorage only: library grouping and view.
+  localStorage only: library grouping and view, glossary order.
+- S-W: the glossary is browsed A–Z or « Par catégorie » (GLOSS_CATS order, easiest level first: `groupByCategory`);
+  the library is filtered by domain, project, tag and status on top of « Ranger par » (`web/src/lib/library.ts`:
+  `filterResults`, `groupResults`, `facets` — only values that exist are offered; with a tag filter a result is listed
+  once). Domains: one list, `brain/leaderboard.DOMAINS`, used by the rankings and the library. Tests:
+  `web/tests/unit/library.test.ts`.
 - Layout: glossary 2 columns ≥ 900 px (category rail + list), select below; library cards/table + sticky detail
   ≥ 1024 px, detail above the list below; Calcul sheet + sticky assistant ≥ 1024 px, assistant collapsed on top below
   (single column on phones, no gutter < 600 px). Checked at 360 / 820 / 1440 px, light and dark
@@ -440,3 +448,50 @@ Still open (the UI works around each):
   versions, Overleaf, assistant suggestion accepted inline, phone, dark; axe on each state) →
   `docs/screenshots/v2/article-*.png`. `e2e/global-setup.ts` now starts the demo server with a temporary
   `MADALEAN_HOME` (it used to inherit the real prefix and therefore the user's tectonic cache).
+
+## 12. Phone and tablet layouts (session S-X, 2026-11-22)
+
+Goal: the APK (Flutter web view) and the AppImage (Tauri) on phones and tablets — « épuré, complet, sans chevauchement ».
+Same UI, one rule as in Mahay (`~/GitHub/mahay-adaptive-layout`, DECISIONS D23): **the layout depends only on the
+window width** (no « tablet mode » setting), so rotation and split screen just work. Size classes: phone < 600 px,
+bottom bar < 768 px, drawer rail < 1024 px, permanent rail ≥ 1024 px, side thread ≥ 1280 px. Touch sizes follow
+`(pointer: coarse)` (the shells and remote browsers on phones/tablets), so the desktop keeps its denser controls.
+
+Patterns adopted (and where they come from):
+- **Bottom navigation on phones** (already there) + **bottom sheets** instead of drop-downs: every `Menu` (« ⋯ »,
+  « Insérer », « Plus d'actions ») opens as a sheet above the bottom bar below 600 px (thumb reach, never cut by the
+  screen edge); every `Dialog` becomes a full-width sheet anchored to the bottom with its actions above the system bar
+  (TONTOLO's modal bottom sheets, Mahay's compact dialogs).
+- **Overflow menu for cramped toolbars**: Calcul's « Ouvrir dans JupyterLab », « Télécharger (.ipynb) », « Redémarrer
+  le noyau », « Effacer les sorties » go into one « ⋯ » on phones (header + toolbar: 5 rows → 2). The dossier, the
+  article editor and the cells already used overflow menus.
+- **List → detail, one at a time** below 900 px for Notes and Conjectures (like Réglages): the list hides when an item
+  is open, a « ‹ Notes » / « ‹ Conjectures » link goes back; two panes side by side from 901 px (tablet landscape).
+- **Scrolling strip** instead of a wrapped grid (Mahay's command bar): the glossary's A–Z index on touch screens, only
+  the letters that have entries, 44 px each.
+- **On-screen keyboard** (`web/src/lib/ui/keyboard.ts`, unit-tested): the viewport asks for
+  `interactive-widget=resizes-content` (the Android shell already uses `adjustResize`); when a field is focused and the
+  page lost ≥ 22 % of its height, `html[data-kb=open]` hides fixed bars marked `.kb-hide` (bottom navigation, tour)
+  and the caret (or the top of a tall editor) is scrolled just above the keyboard; rotation resets the reference height.
+- **Safe areas** (sampana): `viewport-fit=cover` + `env(safe-area-inset-*)` on the top bar, the page, the drawer, the
+  bottom bar, sheets and toasts (landscape notches in a browser; the Android shell also wraps the web view in SafeArea).
+- **Touch targets ≥ 44 px** on touch screens, everywhere: disclosure headings (`summary`), selects, checkboxes and
+  radios (22 px box in a 44 px label where needed), text-like buttons (« Voir directement la preuve », passage links),
+  tag chips, outline items (their tools are always visible on touch — no hover there), help contents, contact links.
+- **Top bar never squeezes the logo**: brand fixed at 44 px; the project picker and the privacy pill shrink instead
+  (at 768 px the logo had been crushed to 6–18 px).
+- **Nothing under the bottom bar**: the article's suggestions panel and the tour sit above it; while the tour is shown
+  the page gets extra bottom room so every field can be scrolled clear of it.
+
+Verification: demo server on spare ports with a temporary config, built-in browser at 360×800, 412×915 (touch
+emulation), 768×1024, 1024×1366, 1366×1024, 1440×900, light and dark. A DOM audit (in-page script: horizontal page
+scroll, elements past the right edge, visible interactive elements < 44 px on touch, overlapping visible controls in
+the same layer) over 35 routes (every screen, the 11 settings sections, a dossier at each step, a source, a note, a
+conjecture). Before: at 360 px 1 horizontal scroll (article editor, 4 px), 5 real touch-size problems on most screens
+(summary 21–32 px, checkboxes 13 px, letters 32 px, links 24–31 px), the tour hiding the statement field, a crushed
+logo at 768 px, three rows of Calcul buttons. After: 0 horizontal scroll, 0 overlaps, 0 targets < 44 px at 360 and 412
+px (the only remaining audit hits are inline links that wrap inside manual paragraphs — WCAG inline exception — and
+graph node labels at desktop size). Screenshots were taken during the session but not committed.
+
+Not verified: real devices (only emulation; the keyboard was simulated by shrinking the viewport with a field focused),
+WebKitGTK of the AppImage on a touch tablet, TalkBack.

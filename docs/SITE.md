@@ -219,12 +219,20 @@ interface Computations {                           // producer: madalean.researc
       origin?: "user" | "assistant"; status?: string /* ok | error | timeout | not_run … */;
       stale?: boolean;                             // an earlier cell changed since this result: show it as such
       markdown?: string;                           // Markdown + $maths$ (markdown cells)
-      outputs?: ({ kind: "text"; text: string; approx?: string } | { kind: "latex"; latex: string; approx?: string }
+      outputs?: ({ kind: "text"; text: string; approx?: string } | { kind: "latex"; latex: string; text?: string /* plain fallback */; approx?: string }
                | { kind: "image"; path: string /* files/calcul/<sha>.png|svg */; mime: string; alt: string }
                | { kind: "figure"; spec: object /* FigureSpec */ } | { kind: "error"; text: string })[];
       figure?: { spec: object; svg?: string /* files/calcul/<sha>.svg */ };
     }[] }[];
 }
+// Rendering (site/madasite/computations.py, S-W): page computations.html, in the menu as « Calculs / Computations »
+// when at least one document has cells. Requests, code (« Entrée [n] »), outputs; LaTeX rendered by KaTeX at build
+// time (Sage macros \Bold, \ZZ… mapped; a formula KaTeX refuses falls back to `text`, never a build error);
+// `figure` outputs and Figure cells without `svg` are drawn as static SVG by site/madasite/figure.py (explicit,
+// implicit, polar, parametric curves, points, graphs — same grammar as web/src/lib/figure/expr.ts, no eval);
+// geometric constructions come from the cell's own `svg`. Paths must match files/calcul/<name> (validated); the
+// referenced files are copied. « Publier » adds the section unless `computations: false` (or a list of document
+// ids), and lists every files/calcul/* in the manifest (kind "calcul").
 interface Node {
   id: string;                                      // ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ (dossier id or blueprint node id)
   kind: "definition" | "lemma" | "theorem" | "proposition" | "corollary" | "conjecture" | "claim";

@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Release: HTTPS only, system CAs only (the tailnet URL has a Let's Encrypt certificate). -->
+<!-- Release: system CAs only (the tailnet URL has a Let's Encrypt certificate).
+     Plain HTTP is allowed at this level only because the host's LAN listener (D32, plain HTTP on a private
+     address, port 11502 by default) has no fixed address to list here. The app itself restricts http:// to
+     private RFC 1918 IPv4 addresses (lib/src/address.dart: isLanIPv4, normaliseAddress), tries HTTPS routes first
+     (lib/src/routes.dart) and the web view only ever loads the connected server's origin (lib/src/web_screen.dart). -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

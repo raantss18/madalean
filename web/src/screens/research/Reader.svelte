@@ -204,6 +204,7 @@
   .ctl { margin: var(--s-2) 0 var(--s-3); }
   .tagchip { border: 0; cursor: pointer; }
   .tagin { width: 9rem; min-height: 32px; }
+  @media (pointer: coarse) { .tagchip { min-height: var(--touch); padding: 0 12px; } .tagin { min-height: var(--touch); } .linkish { min-height: var(--touch); text-align: left; } }
   .split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: var(--s-4); align-items: start; }
   @media (max-width: 1100px) { .split { grid-template-columns: minmax(0, 1fr); } }
   .side { position: sticky; top: calc(var(--topbar-h) + 8px); max-height: calc(100dvh - var(--topbar-h) - 24px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--s-4); }

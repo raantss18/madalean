@@ -44,4 +44,12 @@
   .body { padding: var(--s-4) var(--s-5); overflow: auto; }
   footer { padding: var(--s-3) var(--s-5) var(--s-4); justify-content: flex-end; border-top: 1px solid var(--line); }
   @media (max-width: 767px) { .body { padding: var(--s-4); } header { padding-left: var(--s-4); } footer { padding: var(--s-3) var(--s-4); } }
+  /* Phones: a sheet anchored to the bottom, full width, actions within thumb reach and above the system bar. */
+  @media (max-width: 599px) {
+    dialog, dialog.wide { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: var(--r-3) var(--r-3) 0 0; max-height: calc(100dvh - 16px); }
+    .dlg { max-height: calc(100dvh - 16px); }
+    footer { padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); flex-wrap: wrap-reverse; }
+    footer :global(.btn) { flex: 1 1 auto; }
+    .dlg:not(:has(footer)) .body { padding-bottom: calc(var(--s-4) + env(safe-area-inset-bottom)); }
+  }
 </style>

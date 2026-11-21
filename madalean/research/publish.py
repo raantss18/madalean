@@ -358,6 +358,22 @@ def plan(ctx, pid: str, opts: dict) -> dict:
             "pdf" if f["kind"] == "pdf" else "other", lic)
         pub["files"].append({"path": name, "title": f"{src['key']} ({lic})", "kind": "pdf" if f["kind"] == "pdf"
                              else ("tex" if f["kind"] in ("tex", "archive") else "other")})
+    # ---- Calcul notebooks → the « Calculs » page (docs/CALCUL.md §6); `computations: false` leaves them out
+    store = opts.get("_calc")
+    if store is not None and opts.get("computations", True) is not False:
+        from .notebook import publication_computations
+        only = opts.get("computations") if isinstance(opts.get("computations"), list) else None
+        try:
+            comp = publication_computations(store, pid, inp / "files", docs=only)
+        except Exception as e:  # noqa: BLE001 (a broken notebook must not block the publication)
+            comp = None
+            warnings.append(f"computations_failed:{type(e).__name__}")
+        if comp:
+            pub["computations"] = comp
+            for f in sorted((inp / "files" / "calcul").glob("*")):
+                data = f.read_bytes()
+                items.append({"path": f"files/calcul/{f.name}", "kind": "calcul", "size": len(data),
+                              "sha256": hashlib.sha256(data).hexdigest(), "origin": "calcul", "note": ""})
     errs = tpl.validate(pub)
     if errs:
         raise PublishError("invalid_publication", 422, errors=errs[:20])

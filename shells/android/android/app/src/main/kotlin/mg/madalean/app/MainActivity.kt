@@ -59,6 +59,20 @@ class MainActivity : FlutterActivity() {
                             result.success(false)
                         }
                     }
+                    // Tailscale app if installed, else its store page (Play Store, then the web).
+                    "openTailscale" -> result.success(openTailscale())
+                    // This app's system settings (camera permission refused for good).
+                    "openAppSettings" -> {
+                        try {
+                            startActivity(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                            result.success(true)
+                        } catch (e: ActivityNotFoundException) {
+                            result.success(false)
+                        }
+                    }
                     // ---- signed self-update (lib/src/update.dart)
                     "abis" -> result.success(Build.SUPPORTED_ABIS.toList())
                     "cacheDir" -> result.success(cacheDir.absolutePath)
@@ -85,6 +99,23 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /** "app" (Tailscale opened), "store" (its store page), or "none". */
+    private fun openTailscale(): String {
+        val pkg = "com.tailscale.ipn"
+        packageManager.getLaunchIntentForPackage(pkg)?.let {
+            try {
+                startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return "app"
+            } catch (e: ActivityNotFoundException) { /* fall through */ }
+        }
+        for (u in listOf("market://details?id=$pkg", "https://play.google.com/store/apps/details?id=$pkg")) {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return "store"
+            } catch (e: ActivityNotFoundException) { /* next */ }
+        }
+        return "none"
     }
 
     private fun saveDownload(name: String, mime: String, bytes: ByteArray, result: MethodChannel.Result) {

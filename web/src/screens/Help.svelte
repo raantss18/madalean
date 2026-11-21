@@ -76,6 +76,7 @@
   .toc h1 { font-size: var(--fs-lg); }
   .toc ul { list-style: none; padding: 0; margin: 0 0 var(--s-2); }
   .toc a { display: block; padding: 5px 8px; border-radius: var(--r-1); text-decoration: none; color: var(--text-2); font-size: var(--fs-sm); }
+  @media (pointer: coarse) { .toc a { display: flex; align-items: center; min-height: var(--touch); } }
   .toc a[aria-current='page'] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .sec { font: 700 var(--fs-xs) var(--font-ui); color: var(--text-3); margin: var(--s-3) 0 4px; }
   .res a { display: grid; gap: 2px; padding: 6px 8px; }

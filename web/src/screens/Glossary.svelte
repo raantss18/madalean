@@ -2,7 +2,7 @@
   // Lean glossary (S-M): one source (lib/lean/glossary.ts) for this screen, the hover help in the editors and the
   // manual. Organised by category and level, searchable, with an A–Z index; each entry: plain meaning, Lean form,
   // tiny example, related entries, Mathlib declarations (looked up on demand) and the user's dossiers that use it.
-  import { GLOSSARY, GLOSS_CATS, type GlossCat, type GlossEntry, type GlossLevel } from '../lib/lean/glossary';
+  import { GLOSSARY, GLOSS_CATS, glossSortKey, groupByCategory, type GlossCat, type GlossEntry, type GlossLevel } from '../lib/lean/glossary';
   import { ABBREVIATIONS } from '../lib/lean/abbrev';
   import { api } from '../lib/api/client';
   import { wb } from '../lib/api/workbench';
@@ -16,12 +16,16 @@
   let cat = $state<GlossCat | ''>('');
   let level = $state<GlossLevel | 0>(0);
   let open = $state<string | null>(null);
+  // « A–Z » (alphabetical index) or « by category » (each category, easiest terms first)
+  let order = $state<'az' | 'cat'>(readOrder());
+  function readOrder(): 'az' | 'cat' { try { return localStorage.getItem('madalean.glossary.order') === 'cat' ? 'cat' : 'az'; } catch { return 'az'; } }
+  $effect(() => { try { localStorage.setItem('madalean.glossary.order', order); } catch { /* private mode */ } });
   let decl = $state<Record<string, { status: string; signature?: string; doc?: string; module?: string } | 'loading'>>({});
   let uses = $state<Record<string, { id: string; title: string; in: string }[] | 'loading' | string>>({});
 
   const all = Object.entries(GLOSSARY) as [string, GlossEntry][];
   const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const sortKey = (k: string) => fold(k.replace(/^[^\p{L}\p{N}]+/u, '') || k);
+  const sortKey = glossSortKey;
   const initial = (k: string) => { const c = sortKey(k)[0] ?? '#'; return /[a-z]/.test(c) ? c.toUpperCase() : '#'; };
 
   const shown = $derived.by(() => {
@@ -33,9 +37,14 @@
   });
   const groups = $derived.by(() => {
     const g = new Map<string, [string, GlossEntry][]>();
+    if (order === 'cat') return groupByCategory(shown, i18n.lang) as [string, [string, GlossEntry][]][];
     for (const x of shown) { const l = initial(x[0]); if (!g.has(l)) g.set(l, []); g.get(l)!.push(x); }
     return [...g.entries()].sort(([a], [b]) => (a === '#' ? -1 : b === '#' ? 1 : a.localeCompare(b)));
   });
+  function groupTitle(k: string): string {
+    if (order === 'cat') return tk(`gloss.cat.${k}`, k);
+    return k === '#' ? t('glossary.symbols') : k;
+  }
   const counts = $derived.by(() => {
     const c: Record<string, number> = {};
     for (const [, e] of all) if (!level || e.level === level) c[e.cat] = (c[e.cat] ?? 0) + 1;
@@ -82,6 +91,10 @@
       <option value="">{t('glossary.all')}</option>
       {#each GLOSS_CATS as c}<option value={c}>{tk(`gloss.cat.${c}`, c)}</option>{/each}
     </select>
+    <div class="seg levels" role="radiogroup" aria-label={t('glossary.order')}>
+      <label class:sel={order === 'az'}><input type="radio" name="g-order" value="az" bind:group={order} />{t('glossary.orderAz')}</label>
+      <label class:sel={order === 'cat'}><input type="radio" name="g-order" value="cat" bind:group={order} />{t('glossary.orderCat')}</label>
+    </div>
     <div class="seg levels" role="radiogroup" aria-label={t('glossary.level')}>
       {#each [0, 1, 2, 3] as l}
         <label class:sel={level === l}><input type="radio" name="g-level" value={l} checked={level === l} onchange={() => (level = l as GlossLevel | 0)} />{l ? tk(`gloss.level.${l}`, String(l)) : t('glossary.allLevels')}</label>
@@ -100,17 +113,17 @@
     </nav>
 
     <div class="main">
-      <nav class="az" aria-label={t('glossary.index')}>
+      {#if order === 'az'}<nav class="az" aria-label={t('glossary.index')}>
         {#each letters as l}
           {@const has = groups.some(([g]) => g === l)}
           <button class="letter" disabled={!has} onclick={() => toLetter(l)} aria-label={t('glossary.jumpLetter', { l })}>{l}</button>
         {/each}
-      </nav>
+      </nav>{/if}
       <p class="count small muted" role="status" aria-live="polite">{t('glossary.count', { n: shown.length })}</p>
 
       {#each groups as [letter, list] (letter)}
         <section class="group" aria-labelledby="letter-{letter}">
-          <h2 id="letter-{letter}" tabindex="-1" class="letter-h">{letter === '#' ? t('glossary.symbols') : letter}</h2>
+          <h2 id="letter-{letter}" tabindex="-1" class="letter-h" class:cat-h={order === 'cat'}>{groupTitle(letter)}{#if order === 'cat'} <span class="n">{list.length}</span>{/if}</h2>
           <ul class="entries">
             {#each list as [k, e] (k)}
               {@const isOpen = open === k}
@@ -212,6 +225,8 @@
   .group { margin-bottom: var(--s-4); }
   .letter-h { font-family: var(--font-serif); font-size: var(--fs-xl); color: var(--laterite); margin: var(--s-3) 0 var(--s-1);
     border-bottom: 1px solid var(--line); padding-bottom: 2px; scroll-margin-top: 64px; }
+  .letter-h.cat-h { font-size: var(--fs-lg); }
+  .letter-h .n { font: 600 var(--fs-xs) var(--font-ui); color: var(--text-3); }
   .entries { list-style: none; margin: 0; padding: 0; }
   .entry { border-bottom: 1px solid var(--line); scroll-margin-top: 64px; }
   .entry.open { background: var(--surface); border-radius: var(--r-2); border-bottom-color: transparent; box-shadow: var(--shadow-1); margin: var(--s-1) 0; }
@@ -251,5 +266,12 @@
     .tags { order: -1; }
     .tools input[type='search'] { flex-basis: 100%; max-width: none; }
     .letter { width: 32px; height: 32px; }
+  }
+  /* Touch: one scrolling strip of full-size letters (only those with entries) instead of a wrapped grid. */
+  @media (pointer: coarse) {
+    .az { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; padding-bottom: 2px; }
+    .letter { flex: none; width: var(--touch); height: var(--touch); font-size: var(--fs-sm); }
+    .letter:disabled { display: none; }
+    .cats button { min-height: var(--touch); }
   }
 </style>

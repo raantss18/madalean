@@ -1115,6 +1115,16 @@ async def publish_plan(request):
                                        all(isinstance(x, dict) for x in opts["source_files"])):
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields="source_files")
     opts["_notes"] = _note_getter(request)
+    if "computations" in data:
+        c = data["computations"]
+        if not (isinstance(c, bool) or (isinstance(c, list) and all(isinstance(x, str) for x in c))):
+            return error(400, "bad_fields", "Champs refusés : {fields}.", fields="computations")
+        opts["computations"] = c
+    try:
+        from .workbench import WB
+        opts["_calc"] = request.app[WB].calc
+    except Exception:  # noqa: BLE001 (Calcul plugin absent)
+        pass
     if data.get("include_pdf"):
         art = await asyncio.to_thread(art_mod.load, ctx, p.id)
         name, ctype, pdf, fb = await art_mod.export(ctx, p.id, art, "pdf", ctx.paths.exports)

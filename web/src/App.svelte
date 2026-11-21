@@ -136,7 +136,7 @@
         {/if}
       </main>
     </div>
-    <nav class="bottomnav" aria-label={t('nav.main')}>
+    <nav class="bottomnav kb-hide" aria-label={t('nav.main')}>
       {#each navItems.filter((r) => r.nav?.phone) as r (r.name)}
         <a href={r.pattern.replace(/\/:[^/]+\??/g, '')} aria-current={route.name === r.name ? 'page' : undefined}>
           <Icon name={r.nav!.icon} size={22} /><span>{t(r.nav!.label)}</span>
@@ -158,9 +158,11 @@
 
 <style>
   .shell { min-height: 100dvh; display: flex; flex-direction: column; }
-  .topbar { position: sticky; top: 0; z-index: 500; display: flex; align-items: center; gap: var(--s-2); height: var(--topbar-h); padding: 0 var(--s-3); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; margin-right: var(--s-2); min-height: var(--touch); }
-  .brand img { border-radius: 6px; }
+  .topbar { position: sticky; top: 0; z-index: 500; display: flex; align-items: center; gap: var(--s-2); height: var(--topbar-h); padding: 0 max(var(--s-3), env(safe-area-inset-right)) 0 max(var(--s-3), env(safe-area-inset-left)); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .brand { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: var(--touch); color: var(--text); text-decoration: none; margin-right: var(--s-2); min-height: var(--touch); }
+  .brand img { flex: none; border-radius: 6px; }
+  .topbar :global(.switch-select) { flex: 0 1 auto; min-width: 0; }
+  .topbar :global(.privacy) { flex: 0 1 auto; min-width: 0; }
   .word { font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; letter-spacing: 0.01em; border-bottom: 2px solid var(--laterite-mark); line-height: 1.1; }
   .spacer { flex: 1; }
   .search-btn .kbd { margin-left: 4px; }
@@ -182,7 +184,7 @@
   .secondary a { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 var(--s-3); color: var(--text-2); text-decoration: none; font-size: var(--fs-sm); font-weight: 600; }
   .secondary a:hover { background: var(--surface-2); color: var(--text); }
   .secondary a[aria-current='page'] { color: var(--accent); }
-  main { min-width: 0; padding: var(--s-5) var(--s-6) var(--s-7); }
+  main { min-width: 0; padding: var(--s-5) max(var(--s-6), env(safe-area-inset-right)) var(--s-7) var(--s-6); }
   main:focus { outline: none; }
   .menu-btn { display: none; }
   .rail-mode { display: none; margin: var(--s-3) var(--s-3) 0; }
@@ -207,11 +209,12 @@
     .rail { position: fixed; z-index: 650; left: 0; top: var(--topbar-h); bottom: 0; height: auto; width: min(340px, 88vw); transform: translateX(-105%); transition: transform 180ms var(--ease); box-shadow: var(--shadow-2); visibility: hidden; }
     .drawer-open .rail { transform: none; visibility: visible; }
     .scrim { display: block; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: 640; background: rgba(10, 14, 24, 0.35); border: 0; }
-    main { padding: var(--s-4) var(--s-4) var(--s-7); }
+    main { padding: var(--s-4) max(var(--s-4), env(safe-area-inset-right)) var(--s-7) max(var(--s-4), env(safe-area-inset-left)); }
+    .rail { padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom); }
   }
   @media (min-width: 768px) and (max-width: 1023px) {
     .topbar :global(.switch-select) { max-width: 200px; }
-    .topbar :global(.pill) { max-width: 200px; }
+    .topbar :global(.pill) { max-width: 180px; }
   }
   @media (max-width: 767px) {
     .topbar { gap: 2px; padding: 0 var(--s-1); }
@@ -222,8 +225,10 @@
     .rail-mode { display: flex; }
     .topbar :global(.switch-select) { flex: 1 1 0; width: 0; min-width: 0; max-width: none; }
     .act-btn { display: none; }
-    main { padding: var(--s-3) var(--s-3) calc(var(--bottomnav-h) + var(--s-5) + env(safe-area-inset-bottom)); }
-    .bottomnav { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; position: fixed; z-index: 500; left: 0; right: 0; bottom: 0; height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line); }
+    main { padding: var(--s-3) max(var(--s-3), env(safe-area-inset-right)) calc(var(--bottomnav-h) + var(--s-5) + env(safe-area-inset-bottom)) max(var(--s-3), env(safe-area-inset-left)); }
+    :global(html[data-kb='open']) main { padding-bottom: var(--s-5); }
+    :global(html[data-tour]) main { padding-bottom: calc(var(--bottomnav-h) + 300px); }
+    .bottomnav { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; position: fixed; z-index: 500; left: 0; right: 0; bottom: 0; height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--surface); border-top: 1px solid var(--line); }
     .bottomnav a { position: relative; display: grid; place-items: center; align-content: center; gap: 2px; color: var(--text-2); text-decoration: none; font-size: 12px; font-weight: 600; min-height: 48px; }
     .bottomnav a[aria-current='page'] { color: var(--accent); }
     .bottomnav a[aria-current='page']::before { content: ''; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }

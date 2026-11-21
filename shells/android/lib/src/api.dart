@@ -15,11 +15,67 @@ class Hello {
     required this.paired,
     required this.local,
     required this.hostName,
+    this.lang,
   });
   final String version;
   final bool paired;
   final bool local;
   final String hostName;
+
+  /// Language chosen on the host (`fr` / `en`), if it says.
+  final String? lang;
+}
+
+/// Why the network failed (to explain it simply).
+enum NetError {
+  /// DNS: the name does not resolve (on `*.ts.net`: Tailscale is off).
+  hostLookup,
+
+  /// Something answered "no" on that port.
+  refused,
+
+  /// No answer in time.
+  timeout,
+
+  /// The phone has no network at all.
+  noNetwork,
+
+  /// TLS handshake / certificate refused.
+  tls,
+
+  /// Anything else (5xx…).
+  other,
+}
+
+/// Classifies the text of a socket / client exception.
+NetError classifyNetError(String message) {
+  final m = message.toLowerCase();
+  if (m.contains('failed host lookup') ||
+      m.contains('no address associated') ||
+      m.contains('nodename nor servname') ||
+      m.contains('name or service not known')) {
+    return NetError.hostLookup;
+  }
+  if (m.contains('connection refused') || m.contains('errno = 111')) {
+    return NetError.refused;
+  }
+  if (m.contains('timed out') ||
+      m.contains('timeout') ||
+      m.contains('errno = 110')) {
+    return NetError.timeout;
+  }
+  if (m.contains('network is unreachable') ||
+      m.contains('errno = 101') ||
+      m.contains('no route to host') ||
+      m.contains('errno = 113')) {
+    return NetError.noNetwork;
+  }
+  if (m.contains('handshake') ||
+      m.contains('certificate') ||
+      m.startsWith('tls')) {
+    return NetError.tls;
+  }
+  return NetError.other;
 }
 
 /// Failure categories the UI knows how to explain.
@@ -44,8 +100,11 @@ enum ApiFailure {
 }
 
 class ApiException implements Exception {
-  const ApiException(this.failure, {this.retryAfter, this.detail});
+  const ApiException(this.failure, {this.retryAfter, this.detail, this.net});
   final ApiFailure failure;
+
+  /// For [ApiFailure.unreachable]: what kind of network failure.
+  final NetError? net;
 
   /// Seconds before pairing may be retried (429).
   final int? retryAfter;
@@ -74,26 +133,46 @@ class MadaleanApi {
     if (token != null) 'Authorization': 'Bearer $token',
   };
 
-  Future<http.Response> _send(Future<http.Response> Function() call) async {
+  Future<http.Response> _send(
+    Future<http.Response> Function() call, {
+    Duration? timeout,
+  }) async {
     try {
-      final r = await call().timeout(timeout);
+      final r = await call().timeout(timeout ?? this.timeout);
       if (r.statusCode >= 500) {
         throw ApiException(
           ApiFailure.unreachable,
           detail: 'HTTP ${r.statusCode}',
+          net: NetError.other,
         );
       }
       return r;
     } on ApiException {
       rethrow;
     } on TimeoutException {
-      throw const ApiException(ApiFailure.unreachable, detail: 'timeout');
+      throw const ApiException(
+        ApiFailure.unreachable,
+        detail: 'timeout',
+        net: NetError.timeout,
+      );
     } on HandshakeException catch (e) {
-      throw ApiException(ApiFailure.unreachable, detail: 'TLS: ${e.message}');
+      throw ApiException(
+        ApiFailure.unreachable,
+        detail: 'TLS: ${e.message}',
+        net: NetError.tls,
+      );
     } on SocketException catch (e) {
-      throw ApiException(ApiFailure.unreachable, detail: e.message);
+      throw ApiException(
+        ApiFailure.unreachable,
+        detail: e.message,
+        net: classifyNetError('${e.message} ${e.osError ?? ''}'),
+      );
     } on http.ClientException catch (e) {
-      throw ApiException(ApiFailure.unreachable, detail: e.message);
+      throw ApiException(
+        ApiFailure.unreachable,
+        detail: e.message,
+        net: classifyNetError(e.message),
+      );
     }
   }
 
@@ -107,12 +186,13 @@ class MadaleanApi {
   }
 
   /// `GET /api/hello`, optionally with the Bearer token (revocation check).
-  Future<Hello> hello(Uri origin, {String? token}) async {
+  Future<Hello> hello(Uri origin, {String? token, Duration? timeout}) async {
     final r = await _send(
       () => _client.get(
         origin.replace(path: '/api/hello'),
         headers: _headers(token),
       ),
+      timeout: timeout,
     );
     final j = _json(r);
     if (r.statusCode != 200 || j == null || j['name'] != 'madalean') {
@@ -126,6 +206,7 @@ class MadaleanApi {
       paired: j['paired'] == true,
       local: j['local'] == true,
       hostName: '${j['host_name'] ?? ''}',
+      lang: j['lang'] is String ? j['lang'] as String : null,
     );
   }
 

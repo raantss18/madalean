@@ -24,6 +24,8 @@ LOCAL_PORTS = web.AppKey("local_ports", set)
 # names in REMOTE_HOSTS (the node's current DNS name, set by the net plugin). Anything else is a DNS-rebinding attempt.
 REMOTE_PORTS = web.AppKey("remote_ports", set)
 REMOTE_HOSTS = web.AppKey("remote_hosts", set)
+# Port of the optional LAN listener while it is open (empty set otherwise): announced in the pairing QR code.
+LAN_PORTS = web.AppKey("lan_ports", set)
 # /api/session authenticates with its one-time ticket; /api/session/ticket and /api/devices/self/forget check the
 # Bearer token themselves (they also work on the local listener, where no device is attached to the request).
 PUBLIC_API = {("GET", "/api/hello"), ("HEAD", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout"),

@@ -266,7 +266,7 @@ void main() {
 
   test('release mode refuses an http pair link', () async {
     final c = make();
-    await c.init(initialLink: 'madalean://pair?host=10.0.2.2:1&code=123456');
+    await c.init(initialLink: 'madalean://pair?host=127.0.0.1:1&code=123456');
     expect(msg(c.state), contains('https://'));
   });
 

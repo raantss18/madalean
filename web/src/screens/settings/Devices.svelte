@@ -21,6 +21,8 @@
   let idleMin = $state(120);
   let address = $state(loadJSON<string>('pair.address', ''));
   let confirmRevoke = $state<string | null>(null);
+  // Fallbacks carried by the QR code for the Android app (tailnet IP, LAN listener address), see docs/SHELLS.md.
+  let fallback = $state<{ ip: string; lan: string[] }>({ ip: '', lan: [] });
 
   $effect(() => { if (app.m.devices) devices = app.m.devices; });
   $effect(() => { if (app.m.browsers) browsers = app.m.browsers; });
@@ -37,6 +39,7 @@
     try {
       const r = await api.pairingStart();
       if (r.remote_url) { address = r.remote_url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''); saveJSON('pair.address', address); }
+      fallback = { ip: r.addresses?.ip ?? '', lan: r.addresses?.lan ?? [] };
       code = { code: r.code, expires: Date.now() / 1000 + r.expires_in };
       left = r.expires_in;
       if (timer) clearInterval(timer);
@@ -51,7 +54,11 @@
   // The QR code is an https link served by Madalean itself (camera apps open it; custom schemes are often ignored).
   // Its pairing page offers « Ouvrir dans l'application Madalean » on Android (intent://) or pairs the browser.
   const host = $derived(address.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:443$/, ''));
-  const link = $derived(code && host ? `https://${host}/pair?code=${code.code}` : '');
+  const extra = $derived((fallback.ip ? `&ip=${encodeURIComponent(fallback.ip)}` : '')
+    + (fallback.lan.length ? `&lan=${encodeURIComponent(fallback.lan.join(','))}` : ''));
+  // No tailnet name: LAN listener only (http, the app accepts it for private addresses).
+  const link = $derived(!code ? '' : host ? `https://${host}/pair?code=${code.code}${extra}`
+    : fallback.lan.length ? `http://${fallback.lan[0]}/pair?code=${code.code}` : '');
   async function forget() {
     try { await api.forgetSelf(); } catch { /* we leave anyway */ }
     location.assign('/pair');
@@ -99,7 +106,7 @@
         </div>
         {#if link}<div class="qr-box"><QrCode text={link} label={t('devices.qrLabel')} />
           <p class="xs muted">{t('devices.qrScan')}</p>
-          <p class="small">{t('devices.qrAddr')} : <strong class="mono">{host}</strong><br />{t('devices.qrCode')} : <strong class="mono">{code.code}</strong></p>
+          <p class="small">{t('devices.qrAddr')} : <strong class="mono">{host || fallback.lan[0]}</strong><br />{t('devices.qrCode')} : <strong class="mono">{code.code}</strong></p>
           <p class="xs mono link">{link}</p></div>{/if}
       </div>
     {:else}

@@ -38,13 +38,21 @@ void main() {
         throwsAddress(AddressError.cleartextForbidden),
       );
       expect(
-        () => normaliseAddress('http://10.0.2.2:11621'),
+        () => normaliseAddress('http://127.0.0.1:11621'),
+        throwsAddress(AddressError.cleartextForbidden),
+      );
+      expect(
+        () => normaliseAddress('http://203.0.113.5:11502'),
+        throwsAddress(AddressError.cleartextForbidden),
+      );
+      expect(
+        () => normaliseAddress('http://100.74.179.13:11502'),
         throwsAddress(AddressError.cleartextForbidden),
       );
       // Without scheme a loopback host is treated as https in release.
       expect(
-        normaliseAddress('10.0.2.2:11621'),
-        Uri.parse('https://10.0.2.2:11621'),
+        normaliseAddress('127.0.0.1:11621'),
+        Uri.parse('https://127.0.0.1:11621'),
       );
     });
     test('debug builds accept http to loopback hosts only', () {
@@ -60,6 +68,45 @@ void main() {
         () => normaliseAddress('http://evil.example:80', allowCleartext: true),
         throwsAddress(AddressError.cleartextForbidden),
       );
+    });
+    test('private LAN addresses use http (LAN listener, port 11502)', () {
+      expect(
+        normaliseAddress('192.168.1.20:11502'),
+        Uri.parse('http://192.168.1.20:11502'),
+      );
+      expect(
+        normaliseAddress('192.168.1.20'),
+        Uri.parse('http://192.168.1.20:11502'),
+      );
+      expect(
+        normaliseAddress('http://10.1.2.3:8080/x'),
+        Uri.parse('http://10.1.2.3:8080'),
+      );
+      expect(
+        normaliseAddress('172.16.0.9:11502'),
+        Uri.parse('http://172.16.0.9:11502'),
+      );
+      // 172.32/12 is not private: https as any other address.
+      expect(
+        normaliseAddress('172.32.0.9:11502'),
+        Uri.parse('https://172.32.0.9:11502'),
+      );
+    });
+    test('address classes', () {
+      expect(isLanIPv4('192.168.0.1'), isTrue);
+      expect(isLanIPv4('10.0.0.1'), isTrue);
+      expect(isLanIPv4('172.31.255.1'), isTrue);
+      expect(isLanIPv4('100.74.179.13'), isFalse);
+      expect(isLanIPv4('127.0.0.1'), isFalse);
+      expect(isLanIPv4('192.168.1.256'), isFalse);
+      expect(isLanIPv4('h.ts.net'), isFalse);
+      expect(isTailnetIPv4('100.74.179.13'), isTrue);
+      expect(isTailnetIPv4('100.128.0.1'), isFalse);
+      expect(isTailnetIPv4('192.168.1.2'), isFalse);
+      expect(parseLanHostPort('192.168.1.20:11502'), '192.168.1.20:11502');
+      expect(parseLanHostPort('192.168.1.20'), isNull);
+      expect(parseLanHostPort('8.8.8.8:11502'), isNull);
+      expect(parseLanHostPort('192.168.1.20:70000'), isNull);
     });
     test('short MagicDNS names are refused (certificate is for FQDN)', () {
       expect(
@@ -152,16 +199,57 @@ void main() {
     });
     test('loopback hosts use http (debug only)', () {
       final l = parsePairLink(
-        'madalean://pair?host=10.0.2.2:11621&code=123456',
+        'madalean://pair?host=127.0.0.1:11621&code=123456',
       )!;
       expect(
         pairLinkOrigin(l, allowCleartext: true),
-        Uri.parse('http://10.0.2.2:11621'),
+        Uri.parse('http://127.0.0.1:11621'),
       );
       expect(
         () => pairLinkOrigin(l),
         throwsAddress(AddressError.cleartextForbidden),
       );
+    });
+    test('QR code with fallbacks (tailnet IP, LAN listener)', () {
+      const want = PairLink(
+        host: 'madalean.tail804764.ts.net',
+        code: '123456',
+        ip: '100.74.179.13',
+        lan: ['192.168.1.20:11502'],
+      );
+      expect(
+        parsePairLink(
+          'https://madalean.tail804764.ts.net/pair?code=123456'
+          '&ip=100.74.179.13&lan=192.168.1.20%3A11502',
+        ),
+        want,
+      );
+      expect(
+        parsePairLink(
+          'madalean://pair?host=madalean.tail804764.ts.net&code=123456'
+          '&ip=100.74.179.13&lan=192.168.1.20:11502',
+        ),
+        want,
+      );
+      // Bad fallbacks are dropped, the link stays usable.
+      expect(
+        parsePairLink(
+          'https://m.t.ts.net/pair?code=123456&ip=8.8.8.8'
+          '&lan=8.8.8.8:80,10.0.0.2:11502,junk',
+        ),
+        const PairLink(
+          host: 'm.t.ts.net',
+          code: '123456',
+          lan: ['10.0.0.2:11502'],
+        ),
+      );
+    });
+    test('plain-http QR code: LAN listener only', () {
+      final l = parsePairLink('http://192.168.1.20:11502/pair?code=123456')!;
+      expect(l, const PairLink(host: '192.168.1.20:11502', code: '123456'));
+      expect(pairLinkOrigin(l), Uri.parse('http://192.168.1.20:11502'));
+      expect(parsePairLink('http://evil.example/pair?code=123456'), isNull);
+      expect(parsePairLink('http://100.74.179.13/pair?code=123456'), isNull);
     });
     test('rejects links without host or with path/userinfo', () {
       expect(parsePairLink('madalean://pair?code=123456'), isNull);

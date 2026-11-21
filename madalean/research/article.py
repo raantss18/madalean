@@ -239,8 +239,10 @@ def statement_text(d) -> str:
     bp = (d.extra or {}).get("blueprint") or {}
     text = bp.get("statement") or d.understood_display or d.problem or (d.source or {}).get("original_text", "") \
         or d.title
-    return re.sub(r"^(Theorem|Lemma|Proposition|Corollary|Definition|Conjecture|Claim|Théorème|Lemme|Corollaire|"
-                  r"Définition)\s+[\dA-Z][\d.]*\s*(\([^)]*\))?\.\s*", "", text.strip())
+    # « Théorème 1.2. », « **Théorème.** », « Lemme (Riesz) : » — the environment prints its own label
+    return re.sub(r"^(?:\*\*|__)?(Theorem|Lemma|Proposition|Corollary|Definition|Conjecture|Claim|Théorème|Lemme|"
+                  r"Corollaire|Définition)(?:\s+[\dA-Z][\d.]*)?\s*(\([^)]*\))?\s*[.:](?:\*\*|__)?\s*", "",
+                  text.strip())
 
 
 def env_for(d) -> str:
@@ -277,7 +279,7 @@ def article_bib(ctx, pid: str, art: dict) -> list[tuple[str, dict]]:
 
 def build_tex(ctx, pid: str, art: dict, bib: list, backend: str, verbatim: bool = False,
               f: texio.Fonts | None = None) -> str:
-    from ..export import _esc
+    from ..export import _esc, proof_body
     from ..runtime.lean import workspace_info
     f = f or texio.fonts()
     lang = art["options"].get("lang", "fr")
@@ -360,7 +362,7 @@ def build_tex(ctx, pid: str, art: dict, bib: list, backend: str, verbatim: bool 
         body.append(md(stmt))
         body.append(r"\end{" + env + "}")
         if verified:
-            proof = re.sub(r"\s*[□∎■]\s*$", "", (d.informal_proof or d.explanation).strip())
+            proof = proof_body(d.informal_proof or d.explanation)
             if proof.strip():
                 body += [r"\begin{proof}", md(proof), "", r"{\footnotesize " +
                          T["lean_ok"].format(name=_esc(d.theorem, f, ), tab=r"\ref{ml:table}") + "}", r"\end{proof}"]
@@ -426,8 +428,9 @@ def build_md(ctx, pid: str, art: dict, bib: list) -> str:
             mark = "" if _status(d) or env == "definition" else f" *[{T['unverified']}]*"
             out += [f"**{N[env]} ({d.title}).**{mark} " + cite(statement_text(d)), ""]
             if _status(d) and (d.informal_proof or d.explanation):
-                out += ["*Proof.* " if lang == "en" else "*Démonstration.* ", cite(d.informal_proof or d.explanation),
-                        ""]
+                from ..export import proof_body
+                out += [("*Proof.* " if lang == "en" else "*Démonstration.* ") +
+                        cite(proof_body(d.informal_proof or d.explanation)), ""]
     if bib:
         out += [f"## {T['refs']}", ""] + [f"- [{labels[k]}] {biblio.reference_text(it)}" for k, it in bib] + [""]
     return "\n".join(out)

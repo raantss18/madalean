@@ -128,6 +128,14 @@ comp = publication_computations(wb.calc, pid, DIR / "files")    # wb = app[workb
 if comp: publication["computations"] = comp
 ```
 It copies each `.ipynb` to `files/calcul/<doc>.ipynb` and each image once to `files/calcul/<sha>.png|svg`.
+Wired in `publish.plan` (S-W): the plan route passes the workbench store; the Publier screen has « Joindre les
+calculs » (on by default). The site renders it as `computations.html` (docs/SITE.md §4).
+
+Kernel problems in a cell (S-W): an error output whose `ename` is `unavailable` / `died` (kernel could not start,
+stopped, or `kernel_unavailable: no sage kernel`) is shown as one sentence (« Le noyau Sage n'a pas pu démarrer. »,
+« SageMath n'est pas installé. ») with « Redémarrer le noyau » (restart, then run the cell again) or « Installer
+SageMath » (POST /api/deps/sage/install, progress from GET /api/deps, then the cell is run again); the raw log stays
+under « Détails » (`web/src/lib/calcul/kernel.ts`).
 
 ## 7. HTTP API
 

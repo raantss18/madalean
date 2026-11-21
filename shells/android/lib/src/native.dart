@@ -42,6 +42,28 @@ class NativeBridge implements UpdatePlatform {
       await _ch.invokeMethod<bool>('openUri', {'uri': uri, 'mime': mime}) ??
       false;
 
+  /// Opens the Tailscale app, or its store page: 'app' | 'store' | 'none'.
+  Future<String> openTailscale() async {
+    try {
+      return await _ch.invokeMethod<String>('openTailscale') ?? 'none';
+    } on PlatformException {
+      return 'none';
+    } on MissingPluginException {
+      return 'none';
+    }
+  }
+
+  /// Opens this app's system settings (permissions).
+  Future<bool> openAppSettings() async {
+    try {
+      return await _ch.invokeMethod<bool>('openAppSettings') ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   // ---------------------------------------------------------------- updates
   @override
   Future<String> installedVersion() => appVersion();

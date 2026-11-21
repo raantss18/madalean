@@ -19,7 +19,7 @@ from aiohttp import web
 from .. import config
 from ..logs import get
 from . import plugins as plugins_pkg
-from .auth import LOCAL_PORTS, REMOTE_HOSTS, REMOTE_PORTS, security_middleware
+from .auth import LAN_PORTS, LOCAL_PORTS, REMOTE_HOSTS, REMOTE_PORTS, security_middleware
 from .common import CTX
 from .routes_core import routes as core_routes
 from .routes_extra import routes as extra_routes
@@ -58,6 +58,7 @@ def make_app(ctx, static_dir: Path | None = None, extra_plugins: list[Plugin] | 
     app[LOCAL_PORTS] = set()
     app[REMOTE_PORTS] = set()
     app[REMOTE_HOSTS] = set()
+    app[LAN_PORTS] = set()
     app[ASSIST] = {}
     app[STATIC_DIR] = Path(static_dir or DEFAULT_STATIC)
     app.add_routes(core_routes)
@@ -109,6 +110,7 @@ class Server:
             lan = web.TCPSite(self.runner, "0.0.0.0", s.lan_port, reuse_address=True)
             await lan.start()
             self.ports["lan"] = lan._server.sockets[0].getsockname()[1]
+            self.app[LAN_PORTS].add(self.ports["lan"])
         info = {"pid": os.getpid(), **self.ports, "version": self.ctx.version, "demo": self.ctx.demo}
         await asyncio.to_thread(config.atomic_write_text, self.ctx.paths.server_info, json.dumps(info))
         log.info("madalean listening: local 127.0.0.1:%s, remote 127.0.0.1:%s%s", self.ports["local"],

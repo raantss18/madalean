@@ -124,7 +124,7 @@
               <tbody>
                 {#each bp.nodes as n (n.id)}
                   <tr class:sel={selected === n.id}>
-                    <td><input type="checkbox" value={n.id} bind:group={checked} aria-label={t('bp.selectOne', { n: `${n.name} ${n.number}` })} /></td>
+                    <td><label class="cbx"><input type="checkbox" value={n.id} bind:group={checked} aria-label={t('bp.selectOne', { n: `${n.name} ${n.number}` })} /></label></td>
                     <td><button class="linkish" onclick={() => (selected = n.id)}>{n.name} {n.number}</button> <span class="small">{n.title}</span></td>
                     <td><span class="stlabel st-{status[n.id]?.state ?? 'not_created'}">{tk(`bp.state.${status[n.id]?.state ?? 'not_created'}`, '')}</span></td>
                     <td class="small">{n.uses.filter((u) => !u.rejected).map((u) => titleOf(u.to)).join(', ')}</td>
@@ -209,5 +209,7 @@
   .tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .tbl tr.sel { background: var(--accent-soft); }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; }
+  .cbx { display: inline-grid; place-items: center; min-width: 32px; min-height: 32px; cursor: pointer; }
+  @media (pointer: coarse) { .cbx { min-width: var(--touch); min-height: var(--touch); } .linkish { min-height: var(--touch); text-align: left; } }
   .empty { max-width: 34rem; }
 </style>

@@ -14,6 +14,9 @@ class SavedServer {
     required this.hostName,
     required this.deviceName,
     required this.lastUsed,
+    this.ip,
+    this.lan = const [],
+    this.route,
   });
 
   factory SavedServer.fromJson(Map<String, dynamic> j) => SavedServer(
@@ -23,12 +26,30 @@ class SavedServer {
     lastUsed: DateTime.fromMillisecondsSinceEpoch(
       (j['last_used'] as int?) ?? 0,
     ),
+    ip: j['ip'] is String && isTailnetIPv4(j['ip'] as String)
+        ? j['ip'] as String
+        : null,
+    lan: [
+      if (j['lan'] is List)
+        for (final l in j['lan'] as List<dynamic>)
+          if (l is String) ?parseLanHostPort(l),
+    ],
+    route: j['route'] as String?,
   );
 
+  /// Canonical origin (key of the token): the tailnet name, or the LAN
+  /// address for a host without one.
   final Uri origin;
   final String hostName;
   final String deviceName;
   final DateTime lastUsed;
+
+  /// Fallbacks from the pairing QR code: tailnet IPv4, LAN listener(s).
+  final String? ip;
+  final List<String> lan;
+
+  /// Id of the route that worked last time (see routes.dart).
+  final String? route;
 
   String get key => originKey(origin);
 
@@ -37,14 +58,21 @@ class SavedServer {
     'host_name': hostName,
     'device_name': deviceName,
     'last_used': lastUsed.millisecondsSinceEpoch,
+    if (ip != null) 'ip': ip,
+    if (lan.isNotEmpty) 'lan': lan,
+    if (route != null) 'route': route,
   };
 
-  SavedServer copyWith({String? hostName, DateTime? lastUsed}) => SavedServer(
-    origin: origin,
-    hostName: hostName ?? this.hostName,
-    deviceName: deviceName,
-    lastUsed: lastUsed ?? this.lastUsed,
-  );
+  SavedServer copyWith({String? hostName, DateTime? lastUsed, String? route}) =>
+      SavedServer(
+        origin: origin,
+        hostName: hostName ?? this.hostName,
+        deviceName: deviceName,
+        lastUsed: lastUsed ?? this.lastUsed,
+        ip: ip,
+        lan: lan,
+        route: route ?? this.route,
+      );
 }
 
 /// Ordered list of saved servers, most recently used first (pure logic).

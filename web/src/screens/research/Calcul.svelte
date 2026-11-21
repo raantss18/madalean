@@ -11,6 +11,7 @@
   import { navigate } from '../../lib/router.svelte';
   import { fmtTime } from '../../lib/i18n/index.svelte';
   import { ct } from '../../lib/calcul/strings';
+  import { kernelProblem } from '../../lib/calcul/kernel';
   import { renderMath } from '../../lib/md';
   import { toast } from '../../lib/ui/toasts.svelte';
   import { errorText } from '../../lib/ui/errors';
@@ -263,6 +264,20 @@
       toast('ok', ct('sent'), { action: { label: ct('open'), run: go[s.target]! } });
     } catch (x) { toast('error', errorText(x)); }
   }
+  // Phones: the notebook's secondary actions go into one « more » menu (one row of controls instead of three).
+  function phoneMore(pid: string): MenuItem[] {
+    const items: MenuItem[] = [
+      { label: ct('restart'), icon: 'refresh', run: () => void kernel('restart'), disabled: !canExec || queue },
+      { label: ct('clear'), icon: 'x', run: () => void kernel('clear'), disabled: queue },
+    ];
+    if (v) {
+      const lab = nb.labUrl(v.doc.path), file = nb.ipynbUrl(pid, docId);
+      items.push({ label: ct('openLab'), icon: 'external', run: () => { window.open(lab, '_blank', 'noopener'); } });
+      items.push({ label: ct('download'), icon: 'download', run: () => { const a = document.createElement('a'); a.href = file; a.download = ''; document.body.append(a); a.click(); a.remove(); } });
+    }
+    return items;
+  }
+
   function moreItems(c: NbCell): MenuItem[] {
     const items: MenuItem[] = [];
     const hasOut = isCode(c) ? (c.outputs ?? []).length > 0 : true;
@@ -325,8 +340,39 @@
   function rows(code: string): number { return Math.min(30, Math.max(2, code.split('\n').length)); }
   const outline = $derived(cells.flatMap((c, i) => c.type === 'markdown' ? c.source.split('\n').filter((l) => /^#{1,3}\s/.test(l)).map((l) => ({ id: c.id, i, depth: l.match(/^#+/)![0].length, text: l.replace(/^#+\s*/, '') })) : []));
   function staleText(c: NbCell) { return c.stale ? ct(`stale.${c.stale_reason}`) : (c.last && !c.fresh && kstate !== 'none' ? ct('oldSession') : ''); }
-  async function installSage() {
-    try { await wb.installDep('sage'); toast('ok', ct('installing')); } catch (e) { toast('error', errorText(e)); }
+  // ---- kernel that cannot start / Sage missing: a short message and one action instead of the raw server log
+  type InstallJob = { phase: string; done?: number; total?: number; message?: string };
+  let sageJob = $state<InstallJob | null>(null);
+  function kernelName() { return v?.doc.language === 'python' ? 'Python' : 'Sage'; }
+  async function restartAndRun(c: NbCell) {
+    await kernel('restart');
+    const fresh = cells.find((x) => x.id === c.id);
+    if (fresh) await runCell(fresh);
+  }
+  async function installSage(retry?: NbCell) {
+    if (sageJob && sageJob.phase !== 'error' && sageJob.phase !== 'done') return;
+    sageJob = { phase: 'queued' };
+    try { await wb.installDep('sage'); } catch (e) { sageJob = null; toast('error', errorText(e)); return; }
+    toast('ok', ct('installing'));
+    for (;;) {                                        // the install takes minutes: follow it, then run the cell again
+      await new Promise((r) => setTimeout(r, 2000));
+      let job: InstallJob | null = null;
+      try { job = (((await wb.deps()).jobs ?? {})['sage'] as InstallJob | undefined) ?? null; } catch { continue; }
+      if (!job) continue;
+      sageJob = job;
+      if (job.phase === 'error') { toast('error', ct('installFailed')); return; }
+      if (job.phase === 'done') {
+        sageJob = null;
+        toast('ok', ct('installed'));
+        await open(loadedFor, docId);
+        if (retry) { const fresh = cells.find((x) => x.id === retry.id); if (fresh) await runCell(fresh); }
+        return;
+      }
+    }
+  }
+  function jobText(j: InstallJob): string {
+    const pct = j.total ? ` ${Math.round(((j.done ?? 0) / j.total) * 100)} %` : '';
+    return ct('installingStep', { step: j.message || j.phase }) + pct;
   }
   void untrack(() => 0);
 </script>
@@ -345,8 +391,8 @@
           <button class="btn small quiet" onclick={() => (newOpen = true)}><Icon name="plus" size={14} />{ct('newDoc')}</button>
           <span class="spacer"></span>
           {#if v}
-            <a class="btn small quiet" href={nb.labUrl(v.doc.path)} target="_blank" rel="noopener">{ct('openLab')}</a>
-            <a class="btn small quiet" href={nb.ipynbUrl(pid, docId)} download>{ct('download')}</a>
+            <a class="btn small quiet wide-only" href={nb.labUrl(v.doc.path)} target="_blank" rel="noopener">{ct('openLab')}</a>
+            <a class="btn small quiet wide-only" href={nb.ipynbUrl(pid, docId)} download>{ct('download')}</a>
           {/if}
         </div>
         <p class="lead">{ct('lead')}</p>
@@ -356,7 +402,7 @@
       {#if status && !canExec}<p class="banner warn" role="status">{ct('hostOnly')}</p>{/if}
       {#if status && status.available['sage'] === false && v?.doc.language === 'sage'}
         <div class="banner" role="status"><p><strong>{ct('noSage')}</strong></p>
-          {#if status.local}<button class="btn small primary" onclick={installSage}><Icon name="download" size={14} />{ct('installSage')}</button>{/if}</div>
+          {#if status.local}<button class="btn small primary" onclick={() => installSage()} disabled={!!sageJob}><Icon name="download" size={14} />{ct('installSage')}</button>{/if}</div>
       {/if}
       {#if status?.kernel?.sandboxed === false}<p class="banner warn" role="alert">{ct('notSandboxed')}</p>{/if}
 
@@ -364,8 +410,9 @@
         <button class="btn small primary" onclick={() => runIds({ all: true })} disabled={!canExec || queue}><Icon name="play" size={14} />{ct('runAll')}</button>
         {#if sel && cells.find((c) => c.id === sel && isCode(c))}<button class="btn small" onclick={() => runIds({ until: sel! })} disabled={!canExec || queue}>{ct('runUntil')}</button>{/if}
         <button class="btn small" onclick={() => kernel('interrupt')} disabled={!queue && kstate !== 'busy'}><Icon name="stop" size={14} />{ct('interrupt')}</button>
-        <button class="btn small quiet" onclick={() => kernel('restart')} disabled={!canExec || queue}>{ct('restart')}</button>
-        <button class="btn small quiet" onclick={() => kernel('clear')} disabled={queue}>{ct('clear')}</button>
+        <button class="btn small quiet wide-only" onclick={() => kernel('restart')} disabled={!canExec || queue}>{ct('restart')}</button>
+        <button class="btn small quiet wide-only" onclick={() => kernel('clear')} disabled={queue}>{ct('clear')}</button>
+        <span class="narrow-only"><Menu label={ct('more')} align="left" items={phoneMore(pid)} /></span>
         <span class="spacer"></span>
         <span class="chip kstate {kstate}" role="status" aria-live="polite" title={ct('idleHint', { n: status?.idle_minutes ?? 30 })}>
           <span class="dot" aria-hidden="true"></span>{queue ? ct('k.busy') : ct(`k.${['none', 'idle', 'busy', 'starting'].includes(kstate) ? kstate : 'unknown'}`)}{status?.kernel?.shared ? ` · ${ct('shared')}` : ''}
@@ -515,6 +562,18 @@
 
 {#snippet output(c: NbCell, i: number, o: NbOutput, k: number)}
   {#if o.type === 'stream'}<pre class="out" class:err={o.name === 'stderr'}>{o.text}</pre>
+  {:else if o.type === 'error' && kernelProblem(o)}
+    {@const kp = kernelProblem(o)}
+    <div class="out err kernel-problem" role="alert">
+      <p><strong>{kp === 'nosage' ? ct('noSageLong') : kp === 'stopped' ? ct('kernelStopped', { k: kernelName() }) : ct('kernelNoStart', { k: kernelName() })}</strong></p>
+      <div class="row">
+        {#if kp === 'nosage'}
+          {#if sageJob}<span class="small" role="status" aria-live="polite">{jobText(sageJob)}</span>
+          {:else if status?.local}<button class="btn small primary" onclick={() => installSage(c)}><Icon name="download" size={14} />{ct('installSageLong')}</button>{/if}
+        {:else}<button class="btn small" onclick={() => restartAndRun(c)} disabled={!canExec}><Icon name="refresh" size={14} />{ct('restartKernel')}</button>{/if}
+      </div>
+      <details><summary class="xs">{ct('details')}</summary><pre class="out">{o.ename}: {o.evalue}{o.traceback ? '\n' + o.traceback : ''}</pre></details>
+    </div>
   {:else if o.type === 'error'}<pre class="out err" role="alert">{o.ename}: {o.evalue}{o.traceback ? '\n' + o.traceback.split('\n').slice(-8).join('\n') : ''}</pre>
   {:else}
     {@const d = o.data ?? {}}
@@ -547,6 +606,8 @@
   .banner.warn { border-left-color: var(--running-fill); }
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; position: sticky; top: 0; z-index: 3; background: var(--bg, var(--surface)); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); margin-bottom: var(--s-3); }
   .chip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  .kernel-problem p { margin: 0 0 var(--s-1); white-space: normal; }
+  .kernel-problem details pre { max-height: 14rem; overflow: auto; font-size: var(--fs-xs); }
   .kstate .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
   .kstate.idle .dot { background: var(--proved); }
   .kstate.busy .dot { background: var(--running-fill); }
@@ -606,6 +667,7 @@
   .vars { width: 100%; border-collapse: collapse; }
   .vars th, .vars td { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
   .empty { padding: var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--r-2); color: var(--text-2); }
+  .narrow-only { display: none; }
   @media (max-width: 1023px) {
     .layout.with-side { grid-template-columns: minmax(0, 1fr); }
     .side { position: static; max-height: none; order: -1; }
@@ -618,5 +680,9 @@
     .ask-row { grid-template-columns: minmax(0, 1fr); }
     .toolbar .btn { min-height: 44px; }
     .toolbar { position: static; }
+    .wide-only { display: none; }
+    .toolbar .narrow-only { display: inline-flex; }
+    .toolbar .narrow-only :global(.btn) { min-height: 44px; min-width: 44px; }
   }
+  @media (pointer: coarse) { .doc-pick { min-height: var(--touch); } .link { min-height: var(--touch); } }
 </style>

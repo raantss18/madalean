@@ -42,4 +42,5 @@
   h3 { margin-top: var(--s-4); }
   .contact { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
   .contact li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  @media (pointer: coarse) { .contact a { display: inline-flex; align-items: center; min-height: var(--touch); } .contact { gap: 0; } }
 </style>

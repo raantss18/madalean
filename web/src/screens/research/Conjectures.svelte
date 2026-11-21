@@ -110,7 +110,7 @@
 
 <ProjectGate>
   {#snippet children(_pid)}
-    <div class="cj">
+    <div class="cj" class:has-item={Boolean(cid)}>
       <aside class="clist" aria-label={t('conj.list')}>
         <div class="row"><h1>{t('conj.title')}</h1><HelpLink page="conjectures" /></div>
         <div class="row">
@@ -131,6 +131,7 @@
         {#if !c}
           <div class="empty"><h2>{t('conj.pick')}</h2><p>{t('conj.pickText')}</p></div>
         {:else}
+          <a class="btn quiet small back-list" href="/conjectures"><Icon name="chevronLeft" size={16} />{t('conj.title')}</a>
           <div class="row"><h2 class="ctitle">{c.title}</h2><span class="cstatus big st-{c.status}">{tk(`conj.status.${c.status}`, c.status)}</span></div>
           <ol class="steps" aria-label={t('conj.progress')}>
             {#each STEPS as s, i}
@@ -240,6 +241,14 @@
 <style>
   .cj { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: var(--s-4); max-width: 1400px; }
   @media (max-width: 900px) { .cj { grid-template-columns: minmax(0, 1fr); } }
+  /* Narrow screens: list → detail, one at a time, with a way back. */
+  .back-list { display: none; margin-bottom: var(--s-2); }
+  @media (max-width: 900px) {
+    .has-item .clist { display: none; }
+    .cj:not(.has-item) .detail { display: none; }
+    .back-list { display: inline-flex; }
+  }
+  @media (pointer: coarse) { .clist a { min-height: var(--touch); } }
   .clist h1 { margin: 0; }
   .clist ul { list-style: none; padding: 0; margin: var(--s-2) 0 0; }
   .clist a { display: grid; gap: 2px; padding: 8px; border-radius: var(--r-2); text-decoration: none; color: var(--text); }

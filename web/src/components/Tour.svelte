@@ -1,6 +1,7 @@
 <script lang="ts">
   // Gentle first-run tour (Learn mode only, once per device): one idea per step, skippable at any time.
   import { t, type Key } from '../lib/i18n/index.svelte';
+  import { onMount } from 'svelte';
   import { setTourDone } from '../lib/prefs.svelte';
   const steps: { title: Key; text: Key }[] = [
     { title: 'tour.1.title', text: 'tour.1.text' },
@@ -10,9 +11,11 @@
   ];
   let i = $state(0);
   const s = $derived(steps[i]!);
+  // Phones: the page gets extra room at the bottom so nothing stays hidden behind the card.
+  onMount(() => { document.documentElement.dataset['tour'] = '1'; return () => { delete document.documentElement.dataset['tour']; }; });
 </script>
 
-<section class="tour" aria-labelledby="tour-h" aria-live="polite">
+<section class="tour kb-hide" aria-labelledby="tour-h" aria-live="polite">
   <p class="step xs">{t('tour.step', { i: i + 1, n: steps.length })}</p>
   <h2 id="tour-h">{t(s.title)}</h2>
   <p>{t(s.text)}</p>

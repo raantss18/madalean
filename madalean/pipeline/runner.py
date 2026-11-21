@@ -350,10 +350,14 @@ class DossierPipeline:
             return
         nl = d.understood_display or d.understood or d.problem
         try:
-            c = await self._short(io, "explain", prompts.notes_messages(d.statement, nl, language()), 0.3, 1500)
+            # 6000: a thinking model (Gemini 3.x) spends part of the budget before writing; with 1500 its gloss stopped
+            # after one sentence and the PDF printed it cut (real dossiers, 2026-11-21)
+            c = await self._short(io, "explain", prompts.notes_messages(d.statement, nl, language()), 0.3, 6000)
         except BrainError:
             return                     # optional: the statement stays usable without its gloss
         text = leancheck.clean_model_text(c.text)
+        if c.finish in ("length", "loop"):
+            return                     # a cut gloss is worse than none (an earlier complete one stays shown)
         if text:
             idx = d.add_notes(text, c.model.key)
             await self.event(d, job, "notes", "Lecture guidée de l'énoncé Lean, rédigée par l'IA :", ref=idx,

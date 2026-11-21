@@ -28,6 +28,7 @@
 </script>
 
 <svelte:window onclick={(e) => { if (open && !(e.target as Element).closest?.(`#${mid}-wrap`)) open = false; }} />
+{#if open}<div class="sheet-scrim" aria-hidden="true"></div>{/if}
 <div class="menu" id="{mid}-wrap">
   <button bind:this={btn} class="btn small" class:icon={!text} aria-haspopup="menu" aria-expanded={open} aria-controls={mid} aria-label={text ? undefined : label} onclick={toggle}>
     <Icon name={icon} size={16} />{#if text}<span>{text}</span>{/if}
@@ -52,4 +53,13 @@
   button[role='menuitem'].danger { color: var(--failed); }
   button[role='menuitem']:disabled { opacity: 0.5; cursor: not-allowed; }
   .h { margin-left: auto; }
+  .sheet-scrim { display: none; }
+  /* Phones: the menu becomes a bottom sheet (thumb reach, never cut off at the screen edge). */
+  @media (max-width: 599px) {
+    /* Clicking the scrim is an outside click: the window handler closes the menu. Above the bottom bar, which may
+       sit in a higher stacking context than the toolbar holding this menu. */
+    .sheet-scrim { display: block; position: fixed; inset: 0; z-index: 760; background: rgba(10, 14, 24, 0.4); }
+    ul, ul.left, ul.right { position: fixed; z-index: 770; left: 8px; right: 8px; top: auto; bottom: calc(var(--bottomnav-h) + 8px + env(safe-area-inset-bottom)); min-width: 0; max-height: min(70dvh, 520px); overflow: auto; padding: 6px; border-radius: var(--r-3); }
+    button[role='menuitem'] { min-height: 48px; font-size: var(--fs-md); }
+  }
 </style>

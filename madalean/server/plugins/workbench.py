@@ -46,10 +46,10 @@ from ...research.notebook import (DEFAULT_DOC, FIGURE_MIME, KINDS, NotebookStore
                                   static_names)
 from ..common import body, ctx_of, error, ok, valid_id
 from ..helpers import complete_once
+from ...brain.leaderboard import DOMAINS          # one list of domains: model rankings and the results library
 
 log = get("workbench")
 WB = web.AppKey("workbench", object)
-DOMAINS = ("linear_algebra", "analysis", "combinatorics", "number_theory", "algebra", "geometry", "logic", "other")
 TAG_RE = re.compile(r"^[\w .+-]{1,40}$", re.U)
 
 

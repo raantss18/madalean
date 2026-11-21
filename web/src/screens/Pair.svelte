@@ -22,6 +22,7 @@
     && !(typeof window !== 'undefined' && (window as unknown as { madaleanShell?: unknown }).madaleanShell);
   const appLink = $derived(isAndroid
     ? `intent://pair?host=${encodeURIComponent(location.host)}&code=${qrCode.length === 6 ? qrCode : ''}`
+      + ['ip', 'lan'].map((k) => (route.query.get(k) ? `&${k}=${encodeURIComponent(route.query.get(k) ?? '')}` : '')).join('')
       + `#Intent;scheme=madalean;package=mg.madalean.app;`
       + `S.browser_fallback_url=${encodeURIComponent('https://raantss18.github.io/madalean/download.html')};end`
     : '');

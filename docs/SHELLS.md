@@ -16,6 +16,24 @@ Owner: session S-C. Sources in `shells/`, build/setup scripts in `scripts/`.
   `intent://pair?host=<host>&code=<code>#Intent;scheme=madalean;package=mg.madalean.app;S.browser_fallback_url=<site download page>;end`,
   which opens the app with address and code filled (the app's `madalean://pair` filter); otherwise the browser
   pairs itself. Both shells also accept the https link pasted in the address field. Desktop: `madalean://` as before.
+- **Fallback addresses in the QR code (2026-11-22, S-Y).** `POST /api/pairing/start` also returns
+  `addresses: {host, ip, lan[]}`: the tailnet name, the node's tailnet IPv4 (`100.x`, from the tsnet status) and —
+  only while the LAN listener is open — `<LAN IPv4>:<lan port>` (source address of the default route, RFC 1918
+  only). The QR becomes `https://<name>/pair?code=XXXXXX&ip=100.x.y.z&lan=192.168.1.20%3A11502` (the web pairing
+  page forwards `ip`/`lan` into its `intent://` link); a host without a tailnet name but with the LAN listener
+  shows `http://<LAN IPv4>:<port>/pair?code=XXXXXX`. Nothing in the security model changes: the code is still
+  required, the addresses are only shown to the host (host-only route), unknown/invalid fallbacks are dropped.
+- **Android: the scan happens in the app** (« Scanner le QR code », primary action of the pairing screen). The
+  app tries, in order and with short timeouts (4 s per route, 2 s TCP probe of the tailnet IP), and remembers the
+  route that worked (`route` of the saved server; HTTPS routes are always tried before the LAN one):
+  1. `https://<name>` (MagicDNS);
+  2. `https://<name>` through its tailnet IP — a CONNECT proxy on 127.0.0.1 (`lib/src/tunnel.dart`) forwards only
+     `CONNECT <name>:443` to `<ip>:443`, used by the Dart client (`findProxy`) and the web view (androidx
+     ProxyController); TLS is end to end and still checked against the name, only DNS is skipped (Android
+     "Private DNS" or another VPN breaking MagicDNS);
+  3. `http://<LAN IPv4>:<port>` (LAN listener, plain HTTP: accepted risk D32 — the device token and the session
+     cookie travel unencrypted on that Wi-Fi). The token is stored once, under the canonical origin (the name).
+  On resume (> 30 s) an unreachable route triggers a new probe, so the app moves to Tailscale when it comes back.
 
 ## Required server endpoints (contract for S-A, and for S-D where noted)
 
@@ -78,10 +96,12 @@ shells accept both the shapes below and the server's: `403 wrong|expired|no_code
    `/api/devices/self/forget` and otherwise just delete their token locally.
 9. **Pair link**: the QR code is `https://<remote host>/pair?code=<6 digits>` (see "Addresses and pairing links");
    the app link is `madalean://pair?host=<host>[:<port>]&code=<6 digits>`, e.g.
-   `madalean://pair?host=madalean.tail804764.ts.net&code=123456`. Scheme is always `https` (port 443 when
-   omitted), except loopback hosts (`127.0.0.1`, `localhost`) which use `http`. The camera opens the https
-   page, whose button hands over to the app (no camera permission in the app); on desktop `madalean://` links open
-   the AppImage when the launcher is installed (`scripts/install_desktop_entry.sh`).
+   `madalean://pair?host=madalean.tail804764.ts.net&code=123456[&ip=100.x.y.z][&lan=a.b.c.d:port]`. Scheme is
+   `https` (port 443 when omitted), except private LAN IPv4 hosts (LAN listener, `http`, port 11502 when omitted)
+   and loopback hosts (`http`, debug builds only). Android scans the QR code itself (camera permission asked at
+   first use, after a one-line explanation); the system camera → https page → « Ouvrir dans l'application »
+   path still works. On desktop `madalean://` links open the AppImage when the launcher is installed
+   (`scripts/install_desktop_entry.sh`).
 
 `shells/dev/mock_server.py` implements exactly this contract (plus test helpers: `/mock/events`,
 `/mock/revoke_all`, `/mock/new_code` on its local listener) and is the reference for S-A.
@@ -168,7 +188,18 @@ Flow as above. Specifics:
   on Android 10+, the system "save as" picker on 8–9), then « Ouvrir ». `data:` decoded directly; `blob:` best
   effort (read in the page, passed through the bridge).
 - Uploads: system file picker (`accept=".tex,.lean"` does not filter on Android: no MIME type for those).
-- Deep link `madalean://pair?host=…&code=…` prefills address and code; the user taps « Appairer ».
+- Pairing screen: « Scanner le QR code » first (in-app scanner, `lib/src/scan_screen.dart`, mobile_scanner 7.5.0
+  BSD-3 = CameraX + Google ML Kit barcode model bundled in the APK, on-device; CAMERA requested only when the
+  scanner opens, after an explanation; refused → « Ouvrir les réglages »). A scanned code fills address + code
+  and pairs at once. Manual form below (« Ou saisir l'adresse et le code »). Deep link `madalean://pair?…`
+  prefills the form.
+- Network errors are explained (`classifyNetError` + `netMessage`): failed lookup of a `*.ts.net` name → « Tailscale
+  n'est pas connecté sur ce téléphone… » with « Ouvrir Tailscale » (app `com.tailscale.ipn`, else Play Store,
+  else the web store page); refused, timeout, no network, certificate: one short sentence each.
+- Language: French by default; follows the host's language (`/api/hello` → `lang`) until the user picks one in
+  the selector (top right, shows the *current* language). 2.0.0 had a toggle showing the *other* language
+  (« Français » while in English), easy to hit by mistake: its stored value (`lang`) is ignored from 2.0.1
+  (`lang_choice`). Material texts follow too (flutter_localizations delegates).
 - Adaptive icon (vector baobab-∀ on #1F2A44, monochrome layer for Android 13 themed icons), splash #1F2A44 + mark.
   Tablets: the responsive web UI, nothing specific in the shell.
 
@@ -178,7 +209,7 @@ Flow as above. Specifics:
 scripts/build_apk.sh --new-key   # ONCE: RSA-4096 release key, 10 000 days, refuses to overwrite
 scripts/build_apk.sh             # release APKs per ABI + universal → shells/android/dist/, signature verified,
                                  # refuses debug-signed output, writes SHA256SUMS
-scripts/build_apk.sh --debug     # debug APK (cleartext allowed to 10.0.2.2/127.0.0.1/localhost for the mock)
+scripts/build_apk.sh --debug     # debug APK (http also to 10.0.2.2/127.0.0.1/localhost for the mock)
 ```
 
 Release key: `~/.config/madalean/release-keys/madalean-release.jks` + `keystore.properties` (passwords), both 0600,
@@ -189,7 +220,8 @@ installed over an existing installation (only uninstall + reinstall, which loses
 
 Pinned: Flutter 3.47.9 / Dart 3.13.7, AGP 8.13.2, Kotlin 2.4.0, Gradle 9.3.1, JDK 17, compileSdk/targetSdk 36,
 minSdk 26 (Android 8.0); flutter_inappwebview 6.1.5, flutter_secure_storage 11.2.0, app_links 7.2.2, http 1.6.0,
-shared_preferences 2.5.6, url_launcher 6.3.3, androidx core-splashscreen 1.0.1 (versions locked in pubspec.lock).
+shared_preferences 2.5.6, url_launcher 6.3.3, mobile_scanner 7.5.0 (ML Kit barcode-scanning 17.3.0, bundled),
+androidx core-splashscreen 1.0.1 (versions locked in pubspec.lock).
 
 ## Updates (signed, automatic) — both shells
 
@@ -255,7 +287,10 @@ the server runs); `--status`/`--print` were run, and the refusal path was checke
 
 - The token only travels in `Authorization: Bearer` from native code, over HTTPS (tailnet, Let's Encrypt
   certificate, system roots) or to loopback. Plain `http://` is refused except to `127.0.0.1`/`localhost`/`[::1]`
-  (desktop) — release APKs refuse all cleartext (network security config), debug APKs allow 10.0.2.2/loopback.
+  (desktop). Android (2.0.1+): plain HTTP only to private RFC 1918 IPv4 addresses, i.e. the host's LAN listener
+  (D32), tried after the HTTPS routes; loopback http only in debug builds. The network security config therefore
+  permits cleartext at the platform level (a LAN address cannot be listed in advance); the Dart address rules
+  (`isLanIPv4`, `normaliseAddress`) and the web view's same-origin policy are what restrict it.
 - The web view only ever receives a one-time 60 s ticket; tokens and tickets are never logged (the test trace
   logs origins and event kinds only); the mock server logs no URLs.
 - Remote pages get no native IPC; the bridge only offers "change server" and "open externally" and is injected
@@ -279,8 +314,11 @@ the baobab-∀ was chosen because it stays legible at 16–48 px and as a one-co
 - Desktop: `cargo test` in `shells/desktop/src-tauri` — 12 unit tests (addresses, pair links, answer mapping for
   both server shapes, saved servers + 0600/0700 files, token file store, file-name sanitising); 1 ignored test for
   the real keyring.
-- Android: `flutter test` in `shells/android` — 34 tests (addresses, API client incl. both server shapes, controller
-  flows: revocation, unreachable, re-auth loop guard, storage).
+- Android: `flutter test` in `shells/android` — 68 tests (addresses + pair links with fallbacks, route order,
+  CONNECT tunnel on real sockets, API client incl. both server shapes, network-error mapping, controller flows:
+  revocation, unreachable, re-auth loop guard, LAN / tailnet-IP fallback and remembered route, host language,
+  widget tests of the pairing screen: scan first, language selector, « Ouvrir Tailscale »). Server side:
+  `tests/test_pair_addresses.py`.
 - End to end, desktop, **real server**: `shells/desktop/tests/e2e.sh --server real` starts
   `bin/madalean serve --demo` on free ports with a temporary `--config-dir`, gets codes from the local listener's
   `POST /api/pairing/start`, revokes with `DELETE /api/devices/{id}`, and checks from inside the web view
@@ -335,6 +373,8 @@ Android:
   exercised. The final code (403/rate-limit tolerance, logout fallback) was re-run on the API 36 emulator with the
   debug APK and the 200 + meta-refresh session page: paired → ticket → session → page authenticated by cookie →
   WebSocket. The release APKs themselves were only launched (connect screen, cleartext refused) in the earlier run.
-- Language: French by default, English when the device language is English (desktop: French unless switched).
+- Language: Android follows the host's language, French by default (desktop: French unless switched).
 - Android 8–9 "save as" download path, blob:/data: downloads, tablet layout, Android 13 themed icon rendering,
   splash on a real device, QR scan with the camera app, Keystore behaviour after a device restore.
+- 2.0.1 (S-Y, 2026-11-22): the in-app scanner, the tailnet-IP tunnel through the web view's ProxyController and the
+  LAN route were tested only by unit/widget tests (no camera, no device here); first real run = the user's phone.

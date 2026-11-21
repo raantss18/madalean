@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:madalean_shell/src/address.dart';
 import 'package:madalean_shell/src/controller.dart';
+import 'package:madalean_shell/src/scan_screen.dart';
 import 'package:madalean_shell/src/storage.dart';
 import 'package:madalean_shell/src/strings.dart';
 import 'package:madalean_shell/src/update.dart';
@@ -14,11 +15,17 @@ class ConnectScreen extends StatefulWidget {
     required this.controller,
     required this.state,
     this.updater,
+    this.openTailscale,
+    this.openAppSettings,
     super.key,
   });
   final ShellController controller;
   final ConnectState state;
   final Updater? updater;
+
+  /// Native actions (null in tests).
+  final Future<String> Function()? openTailscale;
+  final Future<bool> Function()? openAppSettings;
 
   @override
   State<ConnectScreen> createState() => _ConnectScreenState();
@@ -69,6 +76,45 @@ class _ConnectScreenState extends State<ConnectScreen> {
     }
   }
 
+  /// Explains the camera once, then opens the in-app scanner; a scanned
+  /// pairing link fills the form and pairs at once.
+  Future<void> _scan() async {
+    final c = widget.controller;
+    final s = c.s;
+    if (await c.prefs.getString('camera_explained') != '1') {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (d) => AlertDialog(
+          icon: const Icon(Icons.photo_camera_outlined),
+          title: Text(s.cameraWhyTitle),
+          content: Text(s.cameraWhy),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: Text(s.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(d, true),
+              child: Text(s.continueLabel),
+            ),
+          ],
+        ),
+      );
+      if (!(ok ?? false)) return;
+      await c.prefs.setString('camera_explained', '1');
+    }
+    if (!mounted) return;
+    final raw = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ScanScreen(strings: c.s, openAppSettings: widget.openAppSettings),
+      ),
+    );
+    if (raw == null || !mounted) return;
+    await c.scanned(raw, deviceName: _device.text);
+  }
+
   void _submit() {
     FocusScope.of(context).unfocus();
     unawaited(
@@ -111,10 +157,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
       appBar: AppBar(
         title: const Text('Madalean'),
         actions: [
-          TextButton(
-            onPressed: () => c.setLang(c.lang == Lang.fr ? Lang.en : Lang.fr),
-            child: Text(s.languageSwitch),
-          ),
+          LanguageMenu(controller: c),
           if (widget.updater != null)
             IconButton(
               tooltip: s.settings,
@@ -142,16 +185,43 @@ class _ConnectScreenState extends State<ConnectScreen> {
                       color: theme.colorScheme.errorContainer,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Text(
-                          st.message!(s),
-                          style: TextStyle(
-                            color: theme.colorScheme.onErrorContainer,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              st.message!(s),
+                              style: TextStyle(
+                                color: theme.colorScheme.onErrorContainer,
+                              ),
+                            ),
+                            if (st.tailscale &&
+                                widget.openTailscale != null) ...[
+                              const SizedBox(height: 8),
+                              FilledButton.icon(
+                                icon: const Icon(Icons.vpn_lock_outlined),
+                                onPressed: () =>
+                                    unawaited(widget.openTailscale!()),
+                                label: Text(s.openTailscale),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ],
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  key: const Key('scan'),
+                  onPressed: st.busy ? null : () => unawaited(_scan()),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Text(s.scanQr, style: const TextStyle(fontSize: 18)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(s.scanIntro, style: theme.textTheme.bodySmall),
                 if (saved.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(s.savedServers, style: theme.textTheme.titleMedium),
@@ -186,7 +256,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                     ),
                 ],
                 const SizedBox(height: 24),
-                Text(s.newServer, style: theme.textTheme.titleMedium),
+                Text(s.orManual, style: theme.textTheme.titleMedium),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _address,
@@ -232,7 +302,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   decoration: InputDecoration(labelText: s.deviceLabel),
                 ),
                 const SizedBox(height: 16),
-                FilledButton(
+                FilledButton.tonal(
                   onPressed: st.busy ? null : _submit,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -253,11 +323,49 @@ class _ConnectScreenState extends State<ConnectScreen> {
                         : Text(s.pair),
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(s.scanHint, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Language selector: shows the current language, menu with both.
+class LanguageMenu extends StatelessWidget {
+  const LanguageMenu({required this.controller, super.key});
+  final ShellController controller;
+
+  static const Map<Lang, String> _names = {
+    Lang.fr: 'Français',
+    Lang.en: 'English',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    return PopupMenuButton<Lang>(
+      tooltip: c.s.language,
+      initialValue: c.lang,
+      onSelected: (l) => unawaited(c.setLang(l)),
+      itemBuilder: (_) => [
+        for (final l in Lang.values)
+          CheckedPopupMenuItem(
+            value: l,
+            checked: l == c.lang,
+            child: Text(_names[l]!),
+          ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.language, size: 20),
+            const SizedBox(width: 6),
+            Text(_names[c.lang]!),
+          ],
         ),
       ),
     );
@@ -268,16 +376,20 @@ class UnreachableScreen extends StatelessWidget {
   const UnreachableScreen({
     required this.controller,
     required this.state,
+    this.openTailscale,
     super.key,
   });
   final ShellController controller;
   final UnreachableState state;
+  final Future<String> Function()? openTailscale;
 
   @override
   Widget build(BuildContext context) {
     final s = controller.s;
     final theme = Theme.of(context);
+    final known = state.tailscale || state.net != null;
     return Scaffold(
+      appBar: AppBar(actions: [LanguageMenu(controller: controller)]),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -299,7 +411,9 @@ class UnreachableScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  s.unreachableBody(displayAddress(state.server.origin)),
+                  known
+                      ? netMessage(s, state.net, tailscale: state.tailscale)
+                      : s.unreachableBody(displayAddress(state.server.origin)),
                   textAlign: TextAlign.center,
                 ),
                 if (state.detail != null) ...[
@@ -311,7 +425,22 @@ class UnreachableScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 24),
-                FilledButton(onPressed: controller.retry, child: Text(s.retry)),
+                if (state.tailscale && openTailscale != null) ...[
+                  FilledButton.icon(
+                    icon: const Icon(Icons.vpn_lock_outlined),
+                    onPressed: () => unawaited(openTailscale!()),
+                    label: Text(s.openTailscale),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: controller.retry,
+                    child: Text(s.retry),
+                  ),
+                ] else
+                  FilledButton(
+                    onPressed: controller.retry,
+                    child: Text(s.retry),
+                  ),
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: controller.changeServer,

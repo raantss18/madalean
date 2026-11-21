@@ -41,12 +41,26 @@ final Set<WebResourceErrorType> _networkErrors = {
   WebResourceErrorType.NOT_CONNECTED_TO_INTERNET,
 };
 
+/// Web view error → network failure kind (for a clear message).
+NetError _netErrorOf(WebResourceErrorType t) {
+  if (t == WebResourceErrorType.HOST_LOOKUP) return NetError.hostLookup;
+  if (t == WebResourceErrorType.TIMEOUT) return NetError.timeout;
+  if (t == WebResourceErrorType.FAILED_SSL_HANDSHAKE) return NetError.tls;
+  if (t == WebResourceErrorType.NOT_CONNECTED_TO_INTERNET) {
+    return NetError.noNetwork;
+  }
+  if (t == WebResourceErrorType.CANNOT_CONNECT_TO_HOST) {
+    return NetError.refused;
+  }
+  return NetError.other;
+}
+
 class _WebScreenState extends State<WebScreen> {
   InAppWebViewController? _web;
   int _loaded = 0;
   double _progress = 0;
 
-  Uri get _origin => widget.state.server.origin;
+  Uri get _origin => widget.state.origin;
 
   bool _sameOrigin(Uri? u) =>
       u != null &&
@@ -321,7 +335,10 @@ fetch(${jsonEncode(url.toString())}).then(r => r.blob()).then(b => {
                 onReceivedError: (c, request, error) {
                   if ((request.isForMainFrame ?? false) &&
                       _networkErrors.contains(error.type)) {
-                    widget.controller.webLoadFailed(error.description);
+                    widget.controller.webLoadFailed(
+                      error.description,
+                      net: _netErrorOf(error.type),
+                    );
                   }
                 },
                 // Camera, microphone, MIDI…: always denied (default action).
