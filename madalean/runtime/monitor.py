@@ -26,13 +26,14 @@ async def _run(*args: str, timeout: float = 8.0) -> str | None:
 def parse_gpu(out: str, apps_out: str | None) -> dict | None:
     try:
         name, total, used, temp, util = [x.strip() for x in out.strip().splitlines()[0].split(",")]
-        d = {"name": name, "total": int(total), "used": int(used), "free": int(total) - int(used),
-             "temp": int(temp), "util": int(util), "apps": {}}
+        num = lambda x: int(round(float(x)))       # drivers ≥ 620 print the temperature as a decimal ("59.18")
+        d = {"name": name, "total": num(total), "used": num(used), "free": num(total) - num(used),
+             "temp": num(temp), "util": num(util), "apps": {}}
     except (ValueError, IndexError):
         return None
     for line in (apps_out or "").splitlines():
         try:
-            pid, mem = [int(x.strip()) for x in line.split(",")[:2]]
+            pid, mem = [int(round(float(x.strip()))) for x in line.split(",")[:2]]
             d["apps"][pid] = d["apps"].get(pid, 0) + mem
         except ValueError:
             continue
