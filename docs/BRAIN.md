@@ -376,3 +376,64 @@ largest size in the name < 7 B). The router never offers them for `prove` / `for
 explicitly) and gives them −0.30 for `route`; Madalean's own local models are exempt. The leaderboard adds a « junk »
 penalty (up to −0.25) to a model that ran ≥ 2 tasks, never succeeded and whose Lean was rejected at every attempt, so
 it sinks below an unknown model. Test: `tests/test_spend_keyed.py::test_summariser_and_tiny_models_never_prove_or_formalize`.
+
+## 13. Hugging Face Inference Providers, Goedel online, local only as the fallback (session S-T, DECISIONS D33)
+
+**Provider** `huggingface` (`catalogue.KEYED`): OpenAI-compatible router `https://router.huggingface.co/v1`
+(`POST /chat/completions`, `Authorization: Bearer hf_…`, SSE with `stream_options.include_usage`, model id
+`<repo>:<provider>` — provider pinned, the router never swaps it). Keyed, paid. Verified on 2026-11-22: docs
+(huggingface.co/docs/inference-providers: index, tasks/chat-completion, pricing, hub-api, routing), the public
+`GET https://router.huggingface.co/v1/models/<repo>` (Goedel-Prover-V2-32B and -8B: `featherless-ai`, live,
+`is_free: false`, **no `pricing`**), and an anonymous / bad-token call: router and `GET /api/whoami-v2` both answer
+**401 `{"error": "Invalid username or password."}`**. Not verified (no token here): the 402 body when credits run out
+(the engine's generic 402 → 12 h pause applies), the real featherless-ai context limit, real latency.
+
+**Discovery** (`catalogue.refresh_hf`, at each catalogue refresh, public API, **without** the token):
+`GET https://huggingface.co/api/models/<repo>?expand[]=inferenceProviderMapping` for Goedel-Prover-V2-32B/-8B and
+Goedel-Formalizer-V2-32B/-8B; a model is listed only for a provider whose mapping is `status: live` (2026-11-22: both
+provers on featherless-ai, **no provider for the formalizers** — `goedel_model("formalize")` is then None and the
+formalize stage runs as before). The router's per-provider `pricing` is read when published. HF models never enter
+the general pool (router: only when pinned, roles prove/formalize): they are Goedel's prompts' models, not agents.
+
+**Key test** (`MadaleanBrain.hf_check`, `POST /api/models/test {provider: huggingface}`): `GET /api/whoami-v2` on the
+Hub — no inference, nothing billed — then a refresh; returns `login`, the live Goedel names, `warning:
+inference_permission` when a fine-grained token's `global` permissions lack `inference.serverless.write` (« Make calls
+to Inference Providers »; field shape from HF's token docs, not seen with a real token). Key isolation: the token's
+hosts are exactly `{router.huggingface.co, huggingface.co}` (`net.Http.key_hosts` takes a set; no subdomains).
+
+**Goedel-Prover-V2-32B online leads the proof** (`hf_goedel`, default on): with the token, outside local mode, while
+the month's cap leaves room, `runner._tournament` puts contestant kind `goedel_online` first in round 0. It runs
+`GoedelProver(io, "online", model=key)`: the SAME loop as the local 8B (verbatim `leancheck.initial_prompt` /
+`correction_prompt`, ≤ 2 corrections per line of attack, fresh samples, loop guard), every call `brain.complete(...,
+only=key)` (pinned: no other model ever answers in its place), temperature 1.0, top_p 0.95 (Goedel's evaluation
+defaults, as 1.1.x; the model card only shows `max_new_tokens=32768`), up to 32 768 output tokens, context 40 960. If it
+ran and failed, round 0 ends and the free models race as before (§11); if it could not run (cap, credits, 401,
+provider down), the next model takes round 0 at once. Strategy « Goedel » uses it too (else the local 8B). Shown first
+in `candidates("prove")` / `explain` (« qui reçoit quoi » and « pourquoi ce modèle »).
+
+**Spending** (`spend.py`): the same ledger and the SAME caps as Claude (`claude_cap_proof_usd`, `claude_cap_month_usd`)
+apply to every paid OpenAI-compatible model with a known or estimated price. HF bills the provider's price without
+markup (PRO: $2 credits a month; free accounts buy credits). No price is published for Goedel on featherless-ai, so
+`spend.HF_ESTIMATE` = **$1.00 / $3.20 per MTok, a conservative estimate** (≈ the router's published featherless-ai price
+of GLM-5.3, a far larger model, rounded up), flagged `estimated_price` in the `cost`/`spent` events; a published
+price replaces it. Before a call: `max_tokens` fitted, refused below 2 048 affordable tokens (nothing sent). After:
+usage recorded; a cancelled / cut stream records the prompt + streamed characters / 3.5.
+
+**Local models only offline or as the last fallback** (user decision 3): in `auto`, `complete` probes reachability
+once (cached: 30 s online, 10 s offline; three resolvers in parallel, first answer wins, ≤ 1.5 s) when the chain
+holds local models; offline → straight to them. A provider whose connection fails while the probe succeeds is
+« down » (`MadaleanBrain.down`, 60 s, `status.providers[].down`): its other models are skipped, not each waited for.
+The proof stage: no Internet → strategy goedel locally at once (« Pas d'accès à Internet… »); the local Goedel is **no
+longer a tournament contestant**; after the tournament it runs only when **no online contestant could run at all**
+(every one unavailable) — a proof the online models searched and failed is not re-run on the 8B. `online` mode: never
+local. So llama-server is not started in normal online use (GPU lending S-N unchanged for when it does start).
+Mode `local` always uses the local models. A brain without `internet()` (the scripted demo brain of `--demo` and the
+older tests) keeps the previous behaviour (local Goedel after a failed online search) — `runner._legacy_fallback`.
+`status()` adds `internet`, `local_policy` (`fallback` | `now` | `only` | `never`) and `goedel_online`.
+
+Tests: `tests/test_hf_goedel.py` (16: key isolation, mapping parsing, discovery without the token and only live
+models, identity key test, wire format + usage + ledger + pinning (402 → 32B paused, 8B remains), caps refuse before
+sending and the month cap hides Goedel, auto online never starts the local model, offline → local, all online failing
+→ local, `online` mode never local, provider down ≠ offline, fast cached probe, pipeline: Goedel-32B pinned round 0
+with the verbatim prompt and sampling, Goedel failing → free models and never local, offline → local, all unavailable
+→ local fallback).

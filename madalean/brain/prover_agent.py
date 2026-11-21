@@ -82,6 +82,13 @@ TOOLS_PARAMS = {
         "name": {"type": "string", "description": "Full name, e.g. `Finset.sum_le_sum`."}}, "required": ["name"]},
     "library_search": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
     "lean_search_online": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    # aliases for Leanstral (S-U): its card's example tool is `lean_run_code` {code | file_path}, and it was trained
+    # with the Lean language server's tools (lean-lsp-mcp names) — same strict check, statement re-assembled
+    "lean_run_code": {"type": "object", "properties": {
+        "code": {"type": "string", "description": "Lean 4 code: helper lemmas + the theorem with the identical statement."},
+        "file_path": {"type": "string", "description": "Not supported here: give `code`."}}, "required": []},
+    "lean_leansearch": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    "lean_loogle": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
     "submit": {"type": "object", "properties": {
         "proof": {"type": "string", "description": "Accepted tactic block."},
         "code": {"type": "string", "description": "Accepted full code (helpers + theorem)."}}, "required": []},
@@ -292,6 +299,16 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
     ]
     if online_ok:
         tools.append(spec("lean_search_online", "Ask LeanSearch / Loogle (recent Mathlib) about a short query.", t_online))
+    if only and "leanstral" in only.lower():
+        async def t_run_code(a: dict) -> str:
+            if not str(a.get("code") or "").strip():
+                return "Give the Lean code in `code` (files are not available here)."
+            return await t_check({"code": a["code"]})
+        tools.append(spec("lean_run_code", "Compile Lean 4 code (helpers + the theorem, identical statement) with the "
+                          "workspace's Lean under the strict check; returns errors and remaining goals.", t_run_code))
+        if online_ok:
+            tools.append(spec("lean_leansearch", "LeanSearch: natural-language search of (recent) Mathlib.", t_online))
+            tools.append(spec("lean_loogle", "Loogle: search Mathlib by name or type pattern.", t_online))
     tools.append(spec("submit", "Finish: submit the complete accepted proof (`proof` or `code`).", t_submit))
 
     ws_note = WORKSPACE_NOTES.get(workspace_key, "")

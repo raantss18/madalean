@@ -73,6 +73,10 @@ KEYED: list[Provider] = [
     Provider("mistral", "Mistral AI", "https://api.mistral.ai/v1", True, False,
              key_url="https://console.mistral.ai/api-keys"),
     Provider("cerebras", "Cerebras", "https://api.cerebras.ai/v1", True, False, key_url="https://cloud.cerebras.ai"),
+    # session S-U (docs/PROVIDERS.md, checked 2026-11-22): free tiers with a key, OpenAI-compatible, `/models` listed
+    Provider("sambanova", "SambaNova Cloud", "https://api.sambanova.ai/v1", True, False,
+             key_url="https://cloud.sambanova.ai/apis"),
+    Provider("nvidia", "NVIDIA NIM", "https://integrate.api.nvidia.com/v1", True, False, key_url="https://build.nvidia.com"),
     Provider("openai", "OpenAI", "https://api.openai.com/v1", True, True, key_url="https://platform.openai.com/api-keys"),
     Provider("deepseek", "DeepSeek", "https://api.deepseek.com/v1", True, True,
              key_url="https://platform.deepseek.com/api_keys"),
@@ -123,7 +127,7 @@ ANTHROPIC_MODELS = [
 
 # Families known to be good at formal mathematics / Lean (bonus on the `lean` category; explainable).
 LEAN_FAMILIES: list[tuple[str, float, str]] = [
-    (r"prover|goedel|kimina|deepseek-?math|leanabell|stepfun-?prover", 0.30, "trained for formal proofs"),
+    (r"prover|goedel|kimina|deepseek-?math|leanabell|stepfun-?prover|leanstral", 0.30, "trained for formal proofs"),
     (r"claude-(opus|sonnet|fable)", 0.15, "strong at Lean 4 / Mathlib"),
     (r"gemini.*pro|gpt-?[56]|o[34]-|grok-?[45]", 0.12, "strong reasoning model"),
     (r"deepseek|qwen-?3|qwen3|kimi|glm-?[45]|gpt-oss-120b|ling-|minimax|nemotron.*ultra|magistral|devstral", 0.08,
@@ -180,6 +184,19 @@ FAMILIES: list[tuple[str, dict, str]] = [
     (r"gpt-5", _q(0.86, 0.88, 0.9, 0.9, 0.86), "GPT-5 family"),
     (r"deepseek-reasoner", _q(0.74, 0.76, 0.82, 0.82, 0.7), "DeepSeek reasoner"),
     (r"deepseek-chat", _q(0.72, 0.78, 0.7, 0.7, 0.72), "DeepSeek chat"),
+    # session S-U: Lean specialist and the free tiers' flagship families (Groq, Cerebras, SambaNova, NVIDIA, OpenRouter),
+    # same scale; ids as listed by the providers on 2026-11-22 (docs/PROVIDERS.md)
+    (r"leanstral", _q(0.3, 0.45, 0.86, 0.86, 0.6), "Leanstral (Lean 4 proof agent)"),   # lean ≈ 1.0 with the bonus
+    (r"gemini-4-(carbon|argon|neon)", _q(0.9, 0.9, 0.92, 0.92, 0.88), "Gemini 4 (paid tiers)"),
+    (r"gemini-4", _q(0.84, 0.84, 0.86, 0.86, 0.82), "Gemini 4 Hydrogen"),
+    (r"gpt-oss-120b", _q(0.7, 0.74, 0.8, 0.8, 0.7), "gpt-oss-120b (open reasoning model)"),
+    (r"gpt-oss-20b", _q(0.55, 0.58, 0.64, 0.64, 0.54), "gpt-oss-20b"),
+    (r"qwen-?3\.[5-9].*coder|qwen.*coder", _q(0.55, 0.74, 0.6, 0.6, 0.66), "Qwen Coder (code)"),
+    (r"qwen-?3\.[5-9]", _q(0.66, 0.7, 0.74, 0.74, 0.66), "Qwen 3.x"),
+    (r"nemotron-?3-ultra|nemotron.*ultra", _q(0.72, 0.72, 0.78, 0.78, 0.7), "Nemotron 3 Ultra"),
+    (r"deepseek-v4", _q(0.76, 0.8, 0.8, 0.8, 0.76), "DeepSeek V4"),
+    (r"kimi-k2", _q(0.74, 0.8, 0.74, 0.74, 0.8), "Kimi K2"),
+    (r"glm-?5", _q(0.72, 0.78, 0.74, 0.74, 0.76), "GLM 5"),
 ]
 _FAMILY_RX = [(re.compile(p), q, why) for p, q, why in FAMILIES]
 
@@ -203,6 +220,8 @@ TEST_MODELS: dict[str, list[str]] = {
     "cerebras": [r"llama3?\.1-8b", r"8b"],
     "openai": [r"gpt-5(\.\d+)?-nano", r"mini"],
     "deepseek": [r"^deepseek-chat$"],
+    "sambanova": [r"gpt-oss-120b", r"llama"],
+    "nvidia": [r"nemotron.*nano", r"llama-3\.1-8b", r"8b"],
     "openrouter": [r":free$"],
 }
 _CHEAP = re.compile(r"flash|mini|small|lite|haiku|nano|instant|8b", re.I)

@@ -532,6 +532,11 @@ class DossierPipeline:
             return None
         return r.key if r is not None else None
 
+    def _legacy_fallback(self) -> bool:
+        """A brain that cannot tell whether the Internet works (the scripted demo brain, older brains) keeps the
+        1.x/S-J behaviour: the local Goedel after a failed online search. The real engine has `internet` (S-T)."""
+        return getattr(self.ctx.brain, "internet", None) is None
+
     async def _internet(self, mode: str) -> bool:
         """Reachability as the brain sees it (cached probe); a brain without a probe is trusted to be online."""
         if mode == "local":
@@ -633,12 +638,14 @@ class DossierPipeline:
                     ran = ran or (res is not None and not st.get("unavailable"))
                     if res is None or res.ok:
                         break
-                local_ok = not ran or not await self._internet(job.mode)
+                local_ok = not ran or not await self._internet(job.mode) or self._legacy_fallback()
             if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto" and local_ok \
-                    and job.mode != "online":
+                    and (job.mode != "online" or self._legacy_fallback()):
                 strategy = "goedel"
                 res = None
-                await self.event(d, job, "info", "Aucun modèle en ligne n'a pu travailler : repli sur le modèle local.")
+                if not self._legacy_fallback():
+                    await self.event(d, job, "info",
+                                     "Aucun modèle en ligne n'a pu travailler : repli sur le modèle local.")
         if res is None and job.mode != "local" and (key := self._goedel_online_key("prove", job.mode)) \
                 and await self._internet(job.mode):
             # « Goedel » strategy with a Hugging Face token: the same loop on Goedel-Prover-V2-32B online (S-T)
@@ -653,7 +660,7 @@ class DossierPipeline:
                 res = None             # could not run at all (cap, credits, provider down): the local prover may
                 await self.event(d, job, "info", "Goedel en ligne indisponible ({why}).", why=str(e.details)[:200])
         if res is None:
-            if job.mode == "online":
+            if job.mode == "online" and not self._legacy_fallback():
                 raise Failed("Aucun modèle en ligne n'a pu travailler (mode « en ligne » : pas de modèle local).",
                              "no_model")
             ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
@@ -835,7 +842,7 @@ class DossierPipeline:
                 await self.event(d, job, "info", "Tournoi terminé sans preuve : {n} modèles essayés en {m} min.",
                                  n=len(res.tried), m=state["minutes"])
         # the local prover may run afterwards only when no online contestant could work at all (S-T)
-        local_ok = not any(not o.unavailable and not o.cancelled for o in res.outcomes)
+        local_ok = not any(not o.unavailable and not o.cancelled for o in res.outcomes) or self._legacy_fallback()
         if w is None:
             return ProveResult(False), "agent", local_ok
         return w.result, ("goedel" if w.contestant.kind in ("goedel", "goedel_online") else "agent"), False

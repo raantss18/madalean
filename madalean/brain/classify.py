@@ -2,10 +2,13 @@
 the mapping from Madalean roles to quality categories."""
 from __future__ import annotations
 
+import contextvars
 import re
+from contextlib import contextmanager
 
 _RULES: list[tuple[str, re.Pattern, float]] = [(c, re.compile(p, re.I), w) for c, p, w in [
     ("code", r"```", 3.0),
+    ("code", r"\b(sage|sagemath|pari|gp|numpy|sympy|jupyter)\b|sage:", 2.0),
     ("code", r"\b(python|javascript|typescript|java|rust|golang|kotlin|dart|flutter|c\+\+|sql|bash|regex|html|css|react|django|fastapi|docker)\b", 2.0),
     ("code", r"\b(code|coder|fonction|function|bug|d[ée]bogue|debug|compile|script|classe|m[ée]thode|api|refactor|stack ?trace|exception|traceback)\b", 1.5),
     ("code", r"(def |class |import |#include|console\.log|public static)", 3.0),
@@ -41,7 +44,31 @@ ROLE_CATEGORIES: dict[str, tuple[str, str, bool]] = {
 }
 
 
+# Kind of work of a call, set by the caller around `brain.complete` (session S-U): Sage / Python code goes to code
+# models (Codestral, Qwen Coder, gpt-oss…), LaTeX writing to strong writing models — whatever the role says (the roles
+# of api.Role are fixed). Formal roles (prove / formalize) are never overridden.
+#     with classify.task("sage"):
+#         await brain.complete("explain", msgs)
+TASKS: dict[str, tuple[str, str, bool]] = {
+    "code": ("code", "math", False), "sage": ("code", "math", False), "python": ("code", "math", False),
+    "latex": ("writing", "math", False), "writing": ("writing", "chat", False), "search": ("search", "chat", True),
+}
+TASK_HINT: contextvars.ContextVar[str | None] = contextvars.ContextVar("madalean_brain_task", default=None)
+
+
+@contextmanager
+def task(kind: str | None):
+    token = TASK_HINT.set(kind if kind in TASKS else None)
+    try:
+        yield
+    finally:
+        TASK_HINT.reset(token)
+
+
 def role_categories(role: str, messages: list[dict] | None = None) -> tuple[str, str, bool]:
+    hint = TASK_HINT.get()
+    if hint and role not in ("prove", "formalize"):
+        return TASKS[hint]
     if role in ROLE_CATEGORIES:
         return ROLE_CATEGORIES[role]
     last = ""

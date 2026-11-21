@@ -7,10 +7,11 @@
   import HelpLink from '../../components/HelpLink.svelte';
 
   let { params }: { params: Record<string, string> } = $props();
-  interface Sec { id: string; label: Key; icon: string; load: () => Promise<{ default: Component }>; help?: string }
+  interface Sec { id: string; label: Key; icon: string; load: () => Promise<{ default: Component }>; help?: string; hidden?: boolean }
   const sections: Sec[] = [
     { id: 'modeles', help: 'models-keys', label: 'settings.sec.models', icon: 'cpu', load: () => import('./Models.svelte') },
-    { id: 'cles', help: 'models-keys', label: 'settings.sec.keys', icon: 'key', load: () => import('./Keys.svelte') },
+    { id: 'fournisseurs', help: 'models-keys', label: 'settings.sec.providers', icon: 'key', load: () => import('./Providers.svelte') },
+    { id: 'cles', help: 'models-keys', label: 'settings.sec.providers', icon: 'key', load: () => import('./Providers.svelte'), hidden: true },
     { id: 'appareils', help: 'pairing', label: 'settings.sec.devices', icon: 'device', load: () => import('./Devices.svelte') },
     { id: 'espaces', label: 'settings.sec.workspaces', icon: 'folder', load: () => import('./Workspaces.svelte') },
     { id: 'mises-a-jour', help: 'updates', label: 'settings.sec.updates', icon: 'refresh', load: () => import('./Updates.svelte') },
@@ -36,8 +37,8 @@
     <h1 class:sr-only={Boolean(params['section']) && narrow}>{t('settings.title')}</h1>
     {#if !app.m.local}<p class="remote-note small"><Icon name="lock" size={14} /> {t('settings.remoteNote')}</p>{/if}
     <ul>
-      {#each sections as s (s.id)}
-        <li><a href="/reglages/{s.id}" aria-current={current?.id === s.id ? 'page' : undefined}><Icon name={s.icon} />{t(s.label)}<span class="chev"><Icon name="chevronRight" size={16} /></span></a></li>
+      {#each sections.filter((x) => !x.hidden) as s (s.id)}
+        <li><a href="/reglages/{s.id}" aria-current={current?.id === s.id || (current?.hidden && current.label === s.label) ? 'page' : undefined}><Icon name={s.icon} />{t(s.label)}<span class="chev"><Icon name="chevronRight" size={16} /></span></a></li>
       {/each}
     </ul>
   </nav>

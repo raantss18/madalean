@@ -29,6 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "claude_cap_month_usd": 20.0,   # spending cap per calendar month (USD)
     "hf_goedel": True,              # with a Hugging Face token: Goedel-Prover-V2-32B online leads the proof (S-T)
     "embeddings": True,             # semantic re-ranking with an Ollama embedding model when installed
+    "providers_disabled": [],       # S-U: provider ids turned off in Réglages → Fournisseurs (« keyless » = all keyless)
+    "web_search": True,             # S-U: Internet search (Tavily / Exa / Brave / Wikipedia) for research, never local
 }
 
 EFFORT = {"prove": "high", "formalize": "high", "explain": "medium", "assistant": "medium", "understand": "low",

@@ -639,6 +639,27 @@ true), `claude_model` ("auto" or a Claude key), `claude_cap_proof_usd` (0–100,
 20.0). WebSocket events: `calcul.updated {project_id, cell? | cell_id + run | removed}`, `calcul.output {project_id,
 cell_id, kind, text}`, `calcul.running {project_id, cell_id}`.
 
+S-T (Hugging Face, docs/BRAIN.md §13): `POST /api/models/test {"provider": "huggingface"}` is an identity check
+(`GET huggingface.co/api/whoami-v2`, nothing billed) → `{ok, login, warning ("" | "inference_permission"), models,
+model (live Goedel-Prover key or ""), names, reason ("" | key_refused | network | offline | no_live_model |
+local_mode)}`. Setting added: `hf_goedel` (bool, true). `GET /api/models` → `status` adds `internet`, `local_policy`
+(`fallback` | `now` | `only` | `never`), `goedel_online` ({key, name} | null) and `providers[].down`; `roles.prove`
+lists the online Goedel first when it leads the proof. `GET /api/models/spend` adds `hf_estimate`.
+
+## 6c. Providers hub and Internet search (session S-U, plugin `providers_hub.py`)
+
+- `GET /api/providers` → `{checked, groups[{id, fr, en}], starter[ids], cards[…], ocr{fr,en}, web_search, mode}`;
+  a card: `{id, group, name, key (KeyStore provider id or null), kind (llm|search|keyless|info|token), price
+  (free|free_tier|credits|paid), integrated (yes|auto|no|retired), good_for/free_tier/privacy/details {fr,en}, key_url,
+  sources[], checked, prefix, models[], key_set, disabled, state?{models, ok, paused_until, reason},
+  usage?{units, searches, unit, free_month}}`. Keys never appear.
+- `POST /api/search/web {query, k?, lang?, providers?}` → `{query, provider, results[{n, title, url, snippet,
+  published, source}], tried[{provider, error}]}`; 409 `local_mode` | `disabled`, 503 `no_provider`, 400 `bad_query`.
+- `POST /api/search/test {provider}` → `{provider, ok, reason, results?, latency_s?}` (one tiny real search).
+- Keys: `POST /api/models/keys {provider: "tavily"|"exa"|"brave"|"sambanova"|"nvidia"|…}` as before. Settings:
+  `providers_disabled: [ids]` (`"keyless"` = every keyless model provider, `"wikipedia"` = the keyless search
+  fallback), `web_search: bool`. Details and verified facts: docs/PROVIDERS.md.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

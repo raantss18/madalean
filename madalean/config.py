@@ -97,6 +97,9 @@ class Settings:
     # Hugging Face Inference Providers (S-T, user decision 2026-11-22): with a token, Goedel-Prover-V2-32B served online
     # leads the proof (tournament round 0, Goedel's own prompts), paid within the caps above
     hf_goedel: bool = True
+    # providers hub (S-U, docs/PROVIDERS.md): providers turned off by the user, Internet search for research
+    providers_disabled: list = field(default_factory=list)
+    web_search: bool = True
     host_name: str = ""                     # name shown to paired devices (default: hostname)
     # host-only switches (can only be changed from the local listener)
     lan_listener: bool = False

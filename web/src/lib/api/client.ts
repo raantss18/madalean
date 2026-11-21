@@ -150,6 +150,12 @@ export const api = {
   deleteKey: (provider: string) => request<{ provider: string; set: boolean; existed: boolean }>('DELETE', `/models/keys/${enc(provider)}`),
   testKey: (provider: string) => request<{ provider: string; ok: boolean | null; reason?: string; model?: string; models?: number; latency_s?: number }>('POST', '/models/test', { provider }),
   refreshModels: () => request<ModelsInfo>('POST', '/models/refresh', {}),
+  // providers hub + Internet search (S-U, docs/PROVIDERS.md)
+  providers: () => request<ProvidersHub>('GET', '/providers'),
+  searchWeb: (query: string, k = 6, lang = 'en') =>
+    request<WebSearchResult>('POST', '/search/web', { query, k, lang }),
+  testSearchKey: (provider: string) =>
+    request<{ provider: string; ok: boolean | null; reason?: string; results?: number; latency_s?: number }>('POST', '/search/test', { provider }),
   stopLocal: () => request<unknown>('POST', '/models/local/stop', {}),
   leaderboard: () => request<{ entries: LeaderboardRow[]; tournament: Record<string, number | boolean> }>('GET', '/models/leaderboard'),
   resetLeaderboard: () => request<{ entries: LeaderboardRow[] }>('POST', '/models/leaderboard/reset', {}),
@@ -220,4 +226,23 @@ function clickLink(href: string, download: boolean): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+// ---- providers hub (S-U)
+export interface I18nText { fr: string; en: string }
+export interface ProviderCard {
+  id: string; group: string; name: string; key: string | null; kind: 'llm' | 'search' | 'keyless' | 'info' | 'token';
+  price: 'free' | 'free_tier' | 'credits' | 'paid'; integrated: 'yes' | 'auto' | 'no' | 'retired';
+  good_for: I18nText; free_tier: I18nText; privacy: I18nText; details: I18nText; key_url: string; sources: string[];
+  checked: string; prefix: string; models: string[]; key_set: boolean | null; disabled: boolean;
+  state?: { models: number; ok: boolean; paused_until: number | null; reason: string };
+  usage?: { units: number; searches: number; unit: string; free_month: number };
+}
+export interface ProvidersHub {
+  checked: string; groups: { id: string; fr: string; en: string }[]; starter: string[]; cards: ProviderCard[];
+  ocr: I18nText; web_search: boolean; mode: string;
+}
+export interface WebSearchResult {
+  query: string; provider: string; tried: { provider: string; error: string }[];
+  results: { n: number; title: string; url: string; snippet: string; published: string; source: string }[];
 }

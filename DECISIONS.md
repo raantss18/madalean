@@ -346,3 +346,15 @@
   every visit and get a temporary session; app shells keep their device token. Accepted risk: on the LAN the code and
   the session cookie travel unencrypted on the Wi-Fi (no `Secure` flag possible over HTTP); Tailscale (HTTPS) stays
   the recommended path. Listed in docs/SECURITY.md accepted risks.
+
+## D33 — Hugging Face Goedel online first; local models only offline (user decisions 2026-11-22, S-T)
+- Goedel-Prover-V2-32B is served live on Hugging Face Inference Providers (featherless-ai). With the user's HF token
+  it opens every proof (tournament round 0) with Goedel's own loop and verbatim prompts, pinned, paid within the same
+  monthly / per-proof caps as Claude (no published price: conservative estimate $1.00 / $3.20 per MTok). Free models
+  follow as before; Goedel-Formalizer is used when a provider serves it (none on 2026-11-22).
+- Local models (Goedel 8B, Qwen on llama-server) run only without Internet or when no online model could run at all;
+  never as a tournament contestant while online, never after online models searched and failed. llama-server stays
+  stopped in normal online use. Reachability: cached probe (30 s / 10 s), « provider down » distinct from « offline ».
+- Rejected: listing the router's whole catalogue (hundreds of paid general models; the Goedel prompts are the point);
+  running Goedel 32B as a tool-using agent (it is not trained for tools); a key test by inference (costs credits:
+  `whoami-v2` instead). Details: docs/BRAIN.md §13.

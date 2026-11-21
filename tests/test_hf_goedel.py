@@ -198,6 +198,9 @@ def test_key_test_is_an_identity_check_without_inference(tmp_path):
             bad = hf_brain(tmp_path / "bad", srv, key="hf_wrong_token_xxxxxxxxxxxx")
             r = await bad.hf_check()
             assert r["ok"] is False and r["reason"] == "key_refused"
+            await bad.refresh()
+            await bad.hf_check()
+            assert bad.goedel_model("prove") is None                                 # refused token: not offered
             await b.close()
             await bad.close()
         finally:
