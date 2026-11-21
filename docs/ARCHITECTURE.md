@@ -251,3 +251,18 @@ Everything updates from inside Madalean, automatically when it is safe, with no 
   available version, notifies, and offers « Installer » which opens a terminal with the exact command (the password is
   typed by the user), like L Katta's Konsole tool. Where a user-level install exists (pip --user kernels, elan) it is
   handled automatically.
+
+## 17. GitHub Pages: three useful roles, no showcase (user decision, 2026-11-21)
+
+The site plays no part in synchronisation (that is host ⇄ devices over Tailscale only). It serves:
+1. **Publication of verified work**: « Publier » in a project builds a static site (article HTML+PDF, blueprint
+   dependency graph with status, each statement with its Lean code and natural-language proof, verification table,
+   bibliography, downloadable Lake project) and pushes it to a GitHub repository chosen by the user (gh CLI / token in
+   the keyring), with a GitHub Action that re-runs `lake build` so readers see an independent verification badge.
+   Preview locally before pushing; nothing private is published without an explicit per-item choice; the publish step
+   lists exactly what leaves the machine.
+2. **Signed update channel**: `raantss18.github.io/madalean/updates/stable.json` (versions, files, SHA-256, notes),
+   signed with the release Ed25519 key; read by the server self-update, the AppImage updater and the APK; release files
+   themselves stay on GitHub Releases. Install page with APK/AppImage links and a QR code for phones.
+3. **Reference manual**: one Markdown source (`docs/manual/`, FR + EN) rendered both as the in-app help and as the
+   site — guides, Lean glossary, tutorials, pairing and security guide. Built by a GitHub Action from the repo.

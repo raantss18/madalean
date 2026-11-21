@@ -60,8 +60,10 @@
 - ⬜ Lean, Mathlib, paquets Lean, modèles Goedel : installés automatiquement après vérification (réglable)
 - ⬜ Sage, JupyterLab, TeX : détection + bouton qui ouvre un terminal avec la commande exacte (jamais de sudo automatique)
 
-## 6. Site et documentation (session S-F) — après S-D
-- ⬜ Site GitHub Pages (FR + EN), captures, guide d'installation, guide d'appairage
+## 6. Site GitHub Pages utile (session S-F) — pas de vitrine
+- ⬜ « Publier » un projet : site statique (article, graphe blueprint, Lean, vérification, bibliographie) poussé sur un dépôt de ton choix, revérifié par une action GitHub
+- ⬜ Canal de mises à jour signé (manifeste Ed25519, page d'installation avec QR code)
+- ⬜ Manuel de référence : une seule source pour l'aide intégrée et le site (FR + EN)
 - ⬜ README, CHANGELOG 2.0.0, DECISIONS, ACCEPTANCE
 
 ## 6 bis. Sécurité et robustesse (session S-H, Opus, indépendante des auteurs) — avant publication
