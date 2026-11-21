@@ -442,7 +442,9 @@ class MadaleanBrain:
     def rankings_view(self) -> dict:
         """GET /api/models/rankings: per domain the best usable models (online and local), with their evidence."""
         cat = self._view()
-        models = [m for m in cat.models if not self.states.pause_of(m.key)] + self._local_models("prove")
+        keyed = {p.id for p in KEYED}
+        models = [m for m in cat.models if not self.states.pause_of(m.key)
+                  and (m.provider not in keyed or self.key(m.provider) is not None)] + self._local_models("prove")
         pub = self.rankings.public
         t_cat = self.store.cat.updated or 0.0
         t_pub = float(pub.get("fetched") or 0)
