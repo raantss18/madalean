@@ -89,6 +89,9 @@ def default_article(ctx, pid: str) -> dict:
 
 
 def load(ctx, pid: str, create: bool = True) -> dict | None:
+    from . import texproject                 # S-R: once the LaTeX project exists, it is the source (docs/ARTICLE.md)
+    if texproject.exists(ctx, pid):
+        return texproject.to_view(ctx, pid)
     try:
         return json.loads(path_of(ctx, pid).read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -102,6 +105,11 @@ def load(ctx, pid: str, create: bool = True) -> dict | None:
 
 
 def save(ctx, pid: str, art: dict) -> None:
+    from . import texproject                 # S-R: write the view back into the .tex regions
+    if texproject.exists(ctx, pid):
+        art.pop("_pid", None)
+        texproject.apply_view(ctx, pid, art)
+        return
     art["updated"] = time.time()
     config.atomic_write_text(path_of(ctx, pid), json.dumps(art, ensure_ascii=False, indent=1))
 
@@ -427,6 +435,10 @@ def build_md(ctx, pid: str, art: dict, bib: list) -> str:
 
 async def export(ctx, pid: str, art: dict, fmt: str, tmp_root: Path) -> tuple[str, str, bytes, str]:
     """(filename, content type, data, fallback). PDF falls back to thebibliography, then verbatim text, then HTML."""
+    from . import texproject
+    if texproject.exists(ctx, pid):          # S-R: compile the LaTeX project itself
+        from .texbuild import export_compat
+        return await export_compat(ctx, pid, fmt)
     from ..export import _engines, bib_backend, compile_pdf
     from ..dossiers import slugify
     art = dict(art)

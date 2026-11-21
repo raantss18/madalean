@@ -62,27 +62,39 @@ def test_store_approval_rules_and_history(tmp_path):
         st.add("../x", "1", "sage", "user")
 
 
-class FakeBridge:
-    sandbox_kind = "bwrap"
+class FakeKernels:
+    """S-P: Calcul cells run in the document's kernel (research/nbkernels.py); this double answers like one."""
 
     def __init__(self):
         self.calls = []
-        self.kernels = {}
+        self.docs = {}
 
-    def available(self):
-        return {"sage": True, "python": True}
+    def known(self, path):
+        return ""
 
-    async def run(self, key, language, code, *, timeout=60, on_output=None, workdir="", preamble="", **kw):
-        self.calls.append((key, language, code, workdir, preamble))
+    def epoch(self, path):
+        return "k@0"
+
+    async def status(self, path):
+        return {"kernel": "", "state": "none"}
+
+    async def execute(self, path, language, code, *, timeout=60, on_output=None, approx=True):
+        self.calls.append((path, language, code))
         if on_output:
             on_output("stdout", "42\n")
-        return ExecResult("ok", stdout="42\n", seconds=0.01, language=language, sandbox="bwrap",
-                          rich=[{"mime": "text/latex", "data": "$$\\frac{1}{2}$$"}, {"mime": "image/png", "data": PNG}])
+        return ExecResult("ok", stdout="42\n", seconds=0.01, language=language, sandbox="bwrap", execution_count=1,
+                          outputs=[{"output_type": "stream", "name": "stdout", "text": "42\n"},
+                                   {"output_type": "display_data", "metadata": {},
+                                    "data": {"text/latex": "$$\\frac{1}{2}$$", "text/plain": "1/2"}},
+                                   {"output_type": "display_data", "metadata": {}, "data": {"image/png": PNG}}])
+
+    async def variables(self, path, language):
+        return None
 
 
 def responder(role, messages, brain):
     first = next((m["content"] for m in messages if m.get("role") == "user"), "")
-    if "Write one code cell" in first:
+    if "Write one code cell" in first or "Translate the request into ONE short" in first:
         return "Here:\n```sage\nprint(sum(range(10)))\n```"
     if "This cell failed" in first:
         return "```sage\nprint(1)\n```"
@@ -92,8 +104,8 @@ def responder(role, messages, brain):
 
 
 async def test_calcul_api_approval_actions_and_assets(tmp_path, monkeypatch):
-    fake = FakeBridge()
-    monkeypatch.setattr(wbm.Workbench, "bridge", lambda self: fake)
+    fake = FakeKernels()
+    monkeypatch.setattr(wbm.Workbench, "kernels", lambda self: fake)
     ctx = make_ctx(tmp_path, brain=FakeBrain(responder))
     async with running(ctx) as (_s, L, Rm), session() as s:
         pid = (await (await s.post(L + "/api/projects", json={"title": "P"})).json())["project"]["id"]
@@ -107,7 +119,8 @@ async def test_calcul_api_approval_actions_and_assets(tmp_path, monkeypatch):
         r = await s.post(L + f"/api/calcul/{pid}/cells/{u['id']}/run")
         run = (await r.json())["run"]
         assert r.status == 200 and run["stdout"] == "42\n" and run["rich"][0]["data"] == "$$\\frac{1}{2}$$"
-        assert fake.calls[-1][0] == f"calcul:{pid}" and "def tex" in fake.calls[-1][4]
+        assert fake.calls[-1][0] == f"calcul/{pid}/calcul.ipynb"          # the default document's kernel
+        assert "def tex" in wbm.CALC_PREAMBLE
         a = await s.get(L + f"/api/calcul/assets/{run['rich'][1]['asset']}")
         assert a.status == 200 and a.headers["Content-Type"] == "image/png" and "sandbox" in a.headers["Content-Security-Policy"]
         # the assistant's cell needs the explicit approval of that exact code
@@ -143,7 +156,7 @@ async def test_calcul_api_approval_actions_and_assets(tmp_path, monkeypatch):
         did = (await r.json())["dossier"]["id"]
         assert r.status == 201 and ctx.repo.get(did).project_id == pid and ctx.repo.get(did).problem == "6 × 7 = 42"
         r = await s.post(L + f"/api/calcul/{pid}/cells/{u['id']}/to", json={"target": "article"})
-        assert r.status == 201 and (await r.json())["block"]["text"] == "$$\\frac{1}{2}$$"
+        assert r.status == 201 and (await r.json())["block"]["text"].startswith("$$\\frac{1}{2}$$")
         r = await s.post(L + f"/api/calcul/{pid}/cells/{u['id']}/to",
                          json={"target": "conjecture", "text": "For every n, n^2 + n is even."})
         assert r.status == 201 and (await r.json())["conjecture"]["kind"] == "conjecture"

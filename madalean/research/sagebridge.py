@@ -230,6 +230,31 @@ def report(verdict, witness=None, cases=None, note=""):
                                             "cases": _c(cases), "note": str(note)[:500]}))
 '''
 RESULT_RE = re.compile(r"^MADALEAN_RESULT (\{.*\})\s*$", re.M)
+# S-P notebooks: the representations kept in an .ipynb (never text/html nor scripts), the figure spec of Calcul
+NB_MIMES = ("text/plain", "text/latex", "text/markdown", "image/png", "image/svg+xml",
+            "application/vnd.madalean.figure+json")
+NB_MAX_OUTPUTS = 40
+
+
+def nb_data(data: dict) -> dict:
+    """The kept, bounded representations of a display_data / execute_result bundle (JSON mimes stay objects)."""
+    out = {}
+    for mime in NB_MIMES:
+        v = data.get(mime)
+        if mime.endswith("+json"):
+            if isinstance(v, str):
+                try:
+                    v = json.loads(v)
+                except ValueError:
+                    continue
+            if isinstance(v, dict) and len(json.dumps(v)) <= 1_000_000:
+                out[mime] = v
+            continue
+        if isinstance(v, list):
+            v = "".join(str(x) for x in v)
+        if isinstance(v, str) and v and len(v) <= MAX_RICH_BYTES:
+            out[mime] = v if mime != "text/plain" else v[:MAX_OUTPUT]
+    return out
 
 
 @dataclass
@@ -246,6 +271,11 @@ class ExecResult:
     sandbox: str = ""
     reports: list[dict] = field(default_factory=list)
     rich: list[dict] = field(default_factory=list)   # S-M (Calcul): [{mime, data}] text/latex, image/png (base64), image/svg+xml
+    # S-P (Calcul notebooks, `nb_outputs=True`): nbformat-4 shaped outputs in order, the kernel's execution counter and
+    # the evaluated user_expressions ({name: text/plain}); empty for every other caller
+    outputs: list[dict] = field(default_factory=list)
+    execution_count: int | None = None
+    user_expressions: dict = field(default_factory=dict)
 
     @property
     def output(self) -> str:
@@ -286,6 +316,10 @@ def system_python() -> str:
         if p and os.path.exists(p):
             return p
     return sys.executable
+
+
+MAX_WARM_KERNELS = 3            # ≈ 0.3–0.6 GB each (Sage): bounded, kept warm (session S-Q, docs/PERFORMANCE.md)
+KERNEL_IDLE_S = 2 * 3600.0      # was 10 min: every new experiment paid a Sage start (≈ 10–20 s)
 
 
 class SageBridge:
@@ -423,18 +457,25 @@ class SageBridge:
             pass
 
     async def kernel_for(self, key: str, language: str) -> str:
-        """Reuse the kernel of this conjecture (state kept between its experiments), else start one."""
+        """Reuse the kernel of this conjecture (state kept between its experiments), else start one. Kernels stay
+        warm (user decision 2026-11-21: ~1.5–2 GB at rest is fine, a Sage start is slow) but at most
+        MAX_WARM_KERNELS live at once: the least recently used one is shut down to make room."""
         key = f"{key}/{language}"
         async with self._lock:
             k = self.kernels.get(key)
             if k is not None:
                 k["last"] = time.time()
                 return k["id"]
+            while len(self.kernels) >= MAX_WARM_KERNELS:
+                old = min(self.kernels.values(), key=lambda v: v["last"])
+                await self.shutdown(old["id"])
+                self.kernels = {kk: v for kk, v in self.kernels.items() if v is not old}
             kid = await self.start_kernel(language)
             self.kernels[key] = {"id": kid, "language": language, "last": time.time()}
             return kid
 
-    async def reap(self, idle_s: float = 600) -> None:
+    async def reap(self, idle_s: float | None = None) -> None:
+        idle_s = KERNEL_IDLE_S if idle_s is None else idle_s
         for key, k in list(self.kernels.items()):
             if time.time() - k["last"] > idle_s:
                 await self.shutdown(k["id"])
@@ -445,7 +486,11 @@ class SageBridge:
 
     # ------------------------------------------------------------ execution
     async def execute(self, kid: str, code: str, *, timeout: float = DEFAULT_TIMEOUT_S, max_output: int = MAX_OUTPUT,
-                      on_output=None, language: str = "") -> ExecResult:
+                      on_output=None, language: str = "", store_history: bool = False,
+                      user_expressions: dict | None = None, kill_on_limit: bool = True,
+                      nb_outputs: bool = False) -> ExecResult:
+        """`nb_outputs` (S-P notebooks): also collect nbformat outputs; `kill_on_limit=False`: on timeout / output
+        limit the kernel is only interrupted (the notebook's caller decides whether it must be shut down)."""
         import aiohttp
         jm = await self._jm()
         timeout = max(1.0, min(float(timeout), MAX_TIMEOUT_S))
@@ -455,7 +500,17 @@ class SageBridge:
         t0 = time.monotonic()
         total = 0
         done = asyncio.Event()
-        finished = {"idle": False}
+        finished = {"idle": False, "reply": not user_expressions}
+        outs = res.outputs
+
+        def nb_add(out: dict) -> None:
+            if not nb_outputs or len(outs) >= NB_MAX_OUTPUTS:
+                return
+            if out["output_type"] == "stream" and outs and outs[-1]["output_type"] == "stream" \
+                    and outs[-1]["name"] == out["name"]:
+                outs[-1]["text"] += out["text"]
+            else:
+                outs.append(out)
 
         def emit(kind: str, text: str) -> None:
             nonlocal total
@@ -471,6 +526,8 @@ class SageBridge:
                 res.stderr += text
             else:
                 res.result += text
+            if kind in ("stdout", "stderr"):
+                nb_add({"output_type": "stream", "name": kind, "text": text})
             if on_output:
                 try:
                     on_output(kind, text)
@@ -488,7 +545,8 @@ class SageBridge:
                 "header": {"msg_id": msg_id, "username": "madalean", "session": session,
                            "msg_type": "execute_request", "version": "5.3", "date": ""},
                 "parent_header": {}, "metadata": {}, "channel": "shell", "buffers": [],
-                "content": {"code": code, "silent": False, "store_history": False, "user_expressions": {},
+                "content": {"code": code, "silent": False, "store_history": bool(store_history),
+                            "user_expressions": dict(user_expressions or {}),
                             "allow_stdin": False, "stop_on_error": True}}))
 
             async def pump() -> None:
@@ -505,6 +563,17 @@ class SageBridge:
                     if d.get("parent_header", {}).get("msg_id") != msg_id:
                         continue
                     c = d.get("content", {})
+                    if mt == "execute_input" and isinstance(c.get("execution_count"), int):
+                        res.execution_count = c["execution_count"]
+                    elif mt == "execute_reply":
+                        if isinstance(c.get("execution_count"), int):
+                            res.execution_count = c["execution_count"]
+                        for k, v in (c.get("user_expressions") or {}).items():
+                            if isinstance(v, dict) and v.get("status") == "ok":
+                                res.user_expressions[str(k)] = str((v.get("data") or {}).get("text/plain", ""))[:2000]
+                        finished["reply"] = True
+                        if finished["idle"]:
+                            break
                     if mt == "stream":
                         emit("stdout" if c.get("name") == "stdout" else "stderr", c.get("text", ""))
                     elif mt in ("execute_result", "display_data"):
@@ -517,14 +586,25 @@ class SageBridge:
                             if isinstance(v, str) and v and len(res.rich) < MAX_RICH and len(v) <= MAX_RICH_BYTES:
                                 res.rich.append({"mime": mime, "data": v})
                                 break
+                        if nb_outputs:
+                            keep = nb_data(data)
+                            if keep:
+                                out = {"output_type": mt, "data": keep, "metadata": {}}
+                                if mt == "execute_result":
+                                    out["execution_count"] = c.get("execution_count")
+                                nb_add(out)
                     elif mt == "error":
                         tb = "\n".join(re.sub(r"\x1b\[[0-9;]*m", "", t) for t in (c.get("traceback") or [])[-6:])
                         res.error = f"{c.get('ename')}: {c.get('evalue')}\n{tb}"[-4000:]
                         if res.status == "ok":
                             res.status = "error"
+                        nb_add({"output_type": "error", "ename": str(c.get("ename"))[:200],
+                                "evalue": str(c.get("evalue"))[:4000],
+                                "traceback": [str(t)[:4000] for t in (c.get("traceback") or [])[-20:]]})
                     elif mt == "status" and c.get("execution_state") == "idle":
                         finished["idle"] = True
-                        break
+                        if finished["reply"]:
+                            break
                     if res.status == "output_limit":
                         break
                 if not finished["idle"] and res.status == "ok":
@@ -546,8 +626,9 @@ class SageBridge:
         if res.status in ("timeout", "output_limit", "died"):
             # interrupt first, then kill: a runaway kernel never survives its experiment
             await self.interrupt(kid)
-            await self.shutdown(kid)
-            res.killed = True
+            if kill_on_limit or res.status == "died":
+                await self.shutdown(kid)
+                res.killed = True
         res.seconds = time.monotonic() - t0
         res.reports = parse_reports(res.stdout)
         return res

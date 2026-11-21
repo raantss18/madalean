@@ -9,6 +9,8 @@
   import ProjectGate from '../../components/ProjectGate.svelte';
   import ProjectSwitcher from '../../components/ProjectSwitcher.svelte';
   import Icon from '../../components/Icon.svelte';
+  import ConsignePanel from '../../components/ConsignePanel.svelte';
+  import ProjectSearch from '../../components/ProjectSearch.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -42,6 +44,8 @@
           </a></li>
         {/each}
       </ul>
+      <ProjectSearch {pid} />
+      <ConsignePanel {pid} />
     </div>
   {/snippet}
 </ProjectGate>

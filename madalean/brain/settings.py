@@ -27,6 +27,7 @@ DEFAULTS: dict[str, Any] = {
     "claude_model": "auto",         # which Claude for that round ("auto" = best for the role)
     "claude_cap_proof_usd": 1.0,    # spending cap per proof (USD, list prices, real usage) — every paid Claude call
     "claude_cap_month_usd": 20.0,   # spending cap per calendar month (USD)
+    "hf_goedel": True,              # with a Hugging Face token: Goedel-Prover-V2-32B online leads the proof (S-T)
     "embeddings": True,             # semantic re-ranking with an Ollama embedding model when installed
 }
 

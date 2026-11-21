@@ -67,42 +67,87 @@ test('library: groups, card/table views, detail with domain and tags, export lin
   await detail.getByLabel('Domaine').selectOption('');                     // back to automatic
 });
 
-test('calcul: your cells run directly, assistant cells wait for approval, results become notes', async ({ page }) => {
-  // the demo's seeded worksheet belongs to the first demo project: make it the current project on this device
+test('calcul notebook: ordered cells, exact/approx, NL cell to review, keyboard, connections', async ({ page }) => {
+  // the demo's seeded notebook belongs to the first demo project: make it the current project on this device
   const ps = (await api<{ projects: { id: string }[] }>('GET', '/projects')).projects;
   let pid = ps[0]!.id;
-  for (const p of ps) if ((await api<{ sheet: { cells: unknown[] } }>('GET', `/calcul/${p.id}`)).sheet.cells.length) { pid = p.id; break; }
+  for (const p of ps) if ((await api<{ cells: unknown[] }>('GET', `/calcul/${p.id}/docs/calcul`)).cells.length) { pid = p.id; break; }
   await page.addInitScript((id) => { localStorage.setItem('madalean.project', id); }, pid);
   await open(page, '/calcul', { mode: 'research' });
   await expect(page.getByRole('heading', { name: 'Calcul', level: 1 })).toBeVisible();
   await expect(page.locator('.tex .katex').first()).toBeVisible();            // seeded LaTeX output
   await expect(page.locator('img.plot').first()).toBeVisible();                // seeded SVG plot (served sanitised)
-  await axe(page, 'calcul');
-  // the seeded assistant cell: no run button, only « approve »
+  await expect(page.locator('li.cell.figure svg').first()).toBeVisible();      // interactive figure cell
+  await expect(page.getByRole('link', { name: 'Ouvrir dans JupyterLab' })).toHaveAttribute('href', /\/jupyter\/lab\/tree\/calcul\//);
+  await axe(page, 'calcul notebook');
+  await page.screenshot({ path: '../docs/screenshots/v2/calcul-notebook.png', fullPage: true });
+  // exact ↔ approximate
+  const approx = page.getByRole('group', { name: 'Exact / Approché' }).first();
+  await approx.getByRole('button', { name: 'Approché' }).click();
+  await expect(page.getByText('≈ 4.44288293815837')).toBeVisible();
+  await approx.getByRole('button', { name: 'Exact' }).click();
+  // the seeded model cell: approve only, no run button
   const pending = page.locator('li.cell.pending').first();
-  await expect(pending.getByRole('button', { name: 'Approuver ce code' })).toBeVisible();
-  await expect(pending.getByRole('button', { name: 'Exécuter' })).toHaveCount(0);
-  await pending.getByRole('button', { name: 'Approuver ce code' }).click();
-  await expect(page.locator('li.cell.pending')).toHaveCount(0);
-  // ask the assistant: a new cell to review appears
-  await page.getByLabel('Calcul demandé à l’assistant').fill('les nombres premiers jumeaux');
-  await page.getByRole('button', { name: 'Écrire la cellule' }).click();
-  await expect(page.locator('li.cell.pending')).toHaveCount(1);
-  // a result → note
-  const first = page.locator('li.cell').first();
-  await first.getByRole('button', { name: '→ Note' }).click();
-  const dlg = page.getByRole('dialog', { name: 'Enregistrer dans une note' });
+  await expect(pending.getByRole('button', { name: 'Approuver et exécuter' })).toBeVisible();
+  await expect(pending.getByRole('button', { name: /^Exécuter/ })).toHaveCount(0);
+  // a natural-language cell: the model writes Sage code, to review
+  const before = await page.locator('li.cell').count();
+  await page.getByRole('group', { name: 'Ajouter une cellule' }).getByRole('button', { name: 'Demander' }).click();
+  await expect(page.locator('li.cell')).toHaveCount(before + 1);
+  const ask = page.locator('li.cell.ask').last();
+  await ask.getByRole('textbox', { name: /Demande de la cellule/ }).fill('graphe de Petersen et son nombre chromatique');
+  await ask.getByRole('button', { name: 'Écrire le code' }).click();
+  await expect(ask.getByRole('textbox', { name: /Code de la cellule/ })).toHaveValue(/PetersenGraph/);
+  await expect(ask).toHaveClass(/pending/);
+  await axe(page, 'calcul ask cell');
+  // keyboard: Esc (command mode), B inserts below, D D deletes
+  await ask.getByRole('textbox', { name: /Code de la cellule/ }).press('Escape');
+  await expect(ask).toBeFocused();
+  await page.keyboard.press('b');
+  await expect(page.locator('li.cell')).toHaveCount(before + 2);
+  const added = page.locator('li.cell').last();
+  await added.focus();
+  await page.keyboard.press('d');
+  await page.keyboard.press('d');
+  await expect(page.locator('li.cell')).toHaveCount(before + 1);
+  // a result → note, → Lean dossier (statement prefilled from the result)
+  const first = page.locator('li.cell.code').first();
+  await first.getByRole('button', { name: /Plus d’actions/ }).click();
+  await page.getByRole('menuitem', { name: 'Ajouter à une note' }).click();
+  let dlg = page.getByRole('dialog', { name: 'Ajouter à une note' });
   await dlg.getByLabel('Titre (facultatif)').fill('Nombre de Fermat F5');
-  await dlg.getByRole('button', { name: 'Créer la note' }).click();
-  await expect(page.getByText('Note créée.')).toBeVisible();
-  // a result → Lean dossier
-  await first.getByRole('button', { name: '→ Dossier Lean' }).click();
-  const d2 = page.getByRole('dialog', { name: 'Ouvrir un dossier Lean' });
-  await d2.getByLabel('Énoncé à prouver').fill('Le nombre 2^32 + 1 n’est pas premier.');
-  await d2.getByRole('button', { name: 'Créer le dossier' }).click();
-  await expect(page.getByText('Dossier créé.')).toBeVisible();
-  const ds = await api<{ dossiers: { title: string; problem?: string }[] }>('GET', '/dossiers');
-  expect(JSON.stringify(ds)).toContain('2^32 + 1');
+  await dlg.getByRole('button', { name: 'Envoyer' }).click();
+  await expect(page.getByText('C’est fait.').first()).toBeVisible();
+  await first.getByRole('button', { name: /Plus d’actions/ }).click();
+  await page.getByRole('menuitem', { name: 'Créer un dossier Lean' }).click();
+  dlg = page.getByRole('dialog', { name: 'Créer un dossier Lean' });
+  await expect(dlg.getByLabel('Énoncé')).toHaveValue(/641/);
+  await dlg.getByLabel('Énoncé').fill('Le nombre 2^32 + 1 n’est pas premier.');
+  await dlg.getByRole('button', { name: 'Envoyer' }).click();
+  await expect.poll(async () => JSON.stringify(await api('GET', '/dossiers'))).toContain('2^32 + 1');
+});
+
+test('calcul notebook on a phone and in dark mode: single column, big run buttons, axe clean', async ({ browser }) => {
+  const ps = (await api<{ projects: { id: string }[] }>('GET', '/projects')).projects;
+  let pid = ps[0]!.id;
+  for (const p of ps) if ((await api<{ cells: unknown[] }>('GET', `/calcul/${p.id}/docs/calcul`)).cells.length) { pid = p.id; break; }
+  for (const [w, h, scheme] of [[390, 844, 'light'], [1280, 900, 'dark']] as const) {
+    const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme, locale: 'fr-FR' });
+    const page = await ctx.newPage();
+    await page.addInitScript((id) => { localStorage.setItem('madalean.project', id); }, pid);
+    await open(page, '/calcul', { mode: 'research' });
+    await expect(page.locator('.tex .katex').first()).toBeVisible();
+    await expect(page.locator('li.cell.figure svg').first()).toBeVisible();
+    const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    expect(sw).toBeLessThanOrEqual(iw);
+    if (w < 600) {
+      const box = await page.locator('li.cell.code').first().getByRole('button', { name: /^Exécuter/ }).boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+    await axe(page, `calcul ${w}px ${scheme}`);
+    await page.screenshot({ path: `../docs/screenshots/v2/calcul-${w < 600 ? 'phone' : 'dark'}.png`, fullPage: w >= 600 });
+    await ctx.close();
+  }
 });
 
 test('Claude caps: per-proof and monthly caps saved, spend shown, out-of-range refused', async ({ page }) => {

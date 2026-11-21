@@ -84,6 +84,8 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             continue
         if m.paid and not (paid_first or chosen(m)):
             continue
+        if m.provider == "huggingface" and not (chosen(m) and role in ("prove", "formalize")):
+            continue                          # Goedel specialists (S-T): only pinned, with Goedel's own prompts
         s, why = score_model(m, cat, cat2, fast, states, paid_first)
         if role in FORMAL_ROLES and not chosen(m):
             unfit = unfit_reason(m)

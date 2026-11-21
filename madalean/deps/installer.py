@@ -674,6 +674,8 @@ def warmup_documents() -> list[tuple[str, dict]]:
         c.bib_backend = "bibtex"
         tex = export.build_tex(c, False, texio.fonts())
         out.append((tex, {"refs.bib": export.bib_file(c)}))
+    from ..research.texproject import warmup_documents as article_documents   # S-R: article templates (offline)
+    out += article_documents()
     return out
 
 

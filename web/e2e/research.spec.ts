@@ -108,27 +108,7 @@ test('graph and blueprint: nodes, list views, node panel with paper text beside 
   for (const j of (await api<{ active: { dossier_id: string }[] }>('GET', '/jobs')).active) await api('POST', `/dossiers/${j.dossier_id}/stop`, {});
 });
 
-test('article: AI draft vs your text, regenerate one block, never overwrite without asking', async ({ page }) => {
-  const pid = await project(/Recherche/);
-  await openIn(page, '/article', pid);
-  const intro = page.locator('li.block').filter({ hasText: 'Introduction' }).first();
-  await expect(intro.getByText(/Brouillon IA/)).toBeVisible();
-  await axe(page, 'article');
-  await intro.getByRole('button', { name: 'Modifier' }).click();
-  await intro.getByRole('textbox', { name: 'Texte du bloc' }).click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.type('Mon introduction, écrite à la main.');
-  await intro.getByRole('button', { name: 'Enregistrer' }).click();
-  await expect(intro.getByText('Votre texte')).toBeVisible();
-  await intro.getByRole('button', { name: 'Régénérer ce bloc' }).click();
-  await expect(page.getByRole('heading', { name: 'Régénérer un bloc que vous avez modifié ?' })).toBeVisible();
-  await page.getByRole('button', { name: 'Garder mon texte' }).click();
-  await expect(intro).toContainText('Mon introduction, écrite à la main.');
-  // An AI block regenerates and streams.
-  const abs = page.locator('li.block').first();
-  await abs.getByRole('button', { name: 'Régénérer ce bloc' }).click();
-  await expect(abs.getByRole('button', { name: /Régénérer ce bloc/ })).toBeEnabled({ timeout: 30_000 });
-});
+// The article editor (LaTeX project, visual/source modes, suggestions) is tested in e2e/article.spec.ts (S-R).
 
 test('conjectures: counter-example and evidence log, write one, experiment needs explicit approval', async ({ page }) => {
   const pid = await project(/Exemples/);

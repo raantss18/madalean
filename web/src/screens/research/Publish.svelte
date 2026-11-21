@@ -12,6 +12,8 @@
   import ProjectGate from '../../components/ProjectGate.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
   import Icon from '../../components/Icon.svelte';
+  import GithubCheck from '../../components/GithubCheck.svelte';
+  import { consigne } from '../../lib/api/consigne';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -27,6 +29,7 @@
   let create = $state(false);
   let priv = $state(false);
   let previewUrl = $state('');
+  let hasPreview = $state(false);
   let busy = $state('');
   let progress = $state<string[]>([]);
   let confirm = $state(false);
@@ -37,36 +40,40 @@
     if (!pid) return;
     try {
       const r = await research.publishState(pid);
-      available = true; manifest = r.manifest; last = r.state;
+      available = true; manifest = r.manifest; last = r.state; hasPreview = r.preview;
       if (last?.repo) repo = last.repo;
     } catch (e) { if (e instanceof ApiError && (e.status === 404 || e.status === 405)) available = false; else err = errorText(e); }
     research.notes(pid).then((r) => (notes = r.notes)).catch(() => {});
   }
   $effect(() => { void pid; void load(); });
   let preselected = '';
-  $effect(() => { if (preselected !== pid && projectDossiers.length) { preselected = pid; dossiers = projectDossiers.filter((d) => d.proved).map((d) => d.id); } });
+  $effect(() => { if (preselected !== pid && projectDossiers.length) { preselected = pid; dossiers = projectDossiers.filter((d) => d.proved).map((d) => d.id);
+    // what was sent here from the project search (« → Publier ») is preselected too
+    consigne.basket(pid).then((r) => { dossiers = [...new Set([...dossiers, ...r.basket.dossiers.filter((id) => projectDossiers.some((d) => d.id === id))])]; noteIds = [...new Set([...noteIds, ...r.basket.notes])]; }).catch(() => {}); } });
 
   async function plan() {
-    busy = 'plan'; err = ''; previewUrl = '';
+    busy = 'plan'; err = ''; previewUrl = ''; hasPreview = false;
     try { manifest = (await research.publishPlan(pid, { dossiers, notes: noteIds, include_pdf: includePdf, license })).manifest; }
     catch (e) { err = errorText(e); } finally { busy = ''; }
   }
   async function preview() {
     if (!manifest) return;
     busy = 'preview'; err = '';
-    try { previewUrl = (await research.publishPreview(pid, manifest.id)).url; }
+    try { previewUrl = (await research.publishPreview(pid, manifest.id)).url; hasPreview = true; }
     catch (e) { err = e instanceof ApiError && e.kind === 'manifest_changed' ? t('publish.changed') : errorText(e); } finally { busy = ''; }
   }
   async function push() {
     if (!manifest) return;
     confirm = false; busy = 'push'; progress = []; err = '';
     try {
+      // the site sent is the local preview: build it first when it was not (the push used to stop on « no preview »)
+      if (!hasPreview) { progress = [t('publish.building')]; previewUrl = (await research.publishPreview(pid, manifest.id)).url; hasPreview = true; }
       const r = await research.publishPush(pid, { manifest_id: manifest.id, repo: repo.trim(), create, private: priv });
       await new Promise<void>((resolve) => {
         app.listenRequest(r.request_id, (ev) => {
           if (ev.type === 'publish.progress') progress = [...progress, tk(`publish.step.${String(ev['step'])}`, String(ev['step']))];
           else if (ev.type === 'publish.done') { last = ev['state'] as PublishState; toast('ok', last.changed ? t('publish.pushed', { url: last.pages_url || last.repo }) : t('publish.upToDate')); resolve(); }
-          else if (ev.type === 'publish.error') { err = (ev['message'] as { text?: string } | undefined)?.text ?? tk(`publish.err.${String(ev['error'])}`, String(ev['error'])); resolve(); }
+          else if (ev.type === 'publish.error') { err = (ev['message'] as { text?: string } | undefined)?.text || tk(`publish.err.${String(ev['error'])}`, t('publish.err.unknown', { code: String(ev['error']) })); resolve(); }
         });
       });
     } catch (e) { err = e instanceof ApiError && e.kind === 'manifest_changed' ? t('publish.changed') : errorText(e); } finally { busy = ''; }
@@ -137,7 +144,12 @@
           <p class="hint">{t('publish.tokenHint')} <a href="/reglages/cles">{t('settings.sec.keys')}</a></p>
           <button class="btn primary" onclick={() => (confirm = true)} disabled={!!busy || !/^[\w.-]+\/[\w.-]+$/.test(repo.trim()) || !app.m.local}>{t('publish.push')}</button>
           {#if !app.m.local}<p class="small muted">{t('publish.hostOnly')}</p>{/if}
+          <details class="ghbox"><summary class="small">{t('gh.testTitle')}</summary><GithubCheck {repo} {priv} /></details>
           {#if progress.length}<ol class="small steps" aria-live="polite">{#each progress as p}<li>{p}</li>{/each}</ol>{/if}
+          {#if last?.pages_error}
+            <p class="small warn" role="note">{t('publish.pagesFailed')} {last.pages_error.message || tk(`gh.code.${last.pages_error.error}`, '', last.pages_error as Record<string, string>)}
+              {#if last.pages_settings}<a href={last.pages_settings} target="_blank" rel="noopener noreferrer">{t('publish.pagesManual')}</a>{/if}</p>
+          {/if}
           {#if confirm}
             <div class="confirm" role="group" aria-labelledby="pc-h">
               <h3 id="pc-h">{t('publish.confirmTitle', { n: manifest.items.length, repo })}</h3>
@@ -167,4 +179,5 @@
   .confirm { border: 2px solid var(--running-fill); background: var(--running-soft); border-radius: var(--r-2); padding: var(--s-3); margin-top: var(--s-3); }
   .confirm h3 { font-size: var(--fs-md); margin: 0; }
   .steps { padding-left: 1.2em; }
+  .ghbox { margin: var(--s-2) 0; }
 </style>

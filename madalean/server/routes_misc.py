@@ -188,6 +188,8 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     if cred:
         bus.sockets.setdefault(cred, set()).add(ws)
     q = bus.subscribe()
+    bus.clients += 1
+    ctx.monitor.wake()                             # fresh GPU / disk status for the new client, fast pace again
     state = {"last": bus.seq}
     lock = asyncio.Lock()
 
@@ -235,6 +237,7 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
     finally:
         wtask.cancel()
         bus.unsubscribe(q)
+        bus.clients = max(0, bus.clients - 1)
         if cred and cred in bus.sockets:
             bus.sockets[cred].discard(ws)
             if not bus.sockets[cred]:

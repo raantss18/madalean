@@ -1,19 +1,25 @@
-"""Session S-M plugin: the « Calcul » compute workspace, the organised library of proven results, and the glossary's
-links to the user's dossiers. Reference: docs/API.md §« Calcul, library catalogue, glossary » and
-docs/RESEARCH_WORKSHOP.md §« Calcul ».
+"""Session S-M/S-P plugin: the « Calcul » notebooks, the organised library of proven results, and the glossary's
+links to the user's dossiers. Reference: docs/API.md §« Calcul, library catalogue, glossary », docs/CALCUL.md.
 
-Calcul
-- `GET    /api/calcul/{pid}`                          worksheet {cells, rev} + kernel status (sage/python available,
-                                                       sandbox, auto, remote_allowed, local)
-- `POST   /api/calcul/{pid}/cells {code, language, after?}`           a cell typed by the user (origin « user »)
-- `PATCH  /api/calcul/{pid}/cells/{cid} {code?, language?, note?}`     edit (an assistant cell loses its approval)
-- `DELETE /api/calcul/{pid}/cells/{cid}` · `POST …/cells/{cid}/restore` · `POST …/cells/{cid}/move {to}`
-- `POST   /api/calcul/{pid}/cells/{cid}/approve {code_hash}`           approve an assistant cell (exact code)
-- `POST   /api/calcul/{pid}/cells/{cid}/run {timeout?}`               run in the sandboxed offline kernel; output
-                                                                       streamed as `calcul.output`, run returned
-- `POST   /api/calcul/{pid}/assist {action: write|fix|explain, cell_id?, prompt?, language?}`
-- `POST   /api/calcul/{pid}/cells/{cid}/to {target: conjecture|note|dossier|article, text?, title?}`
-- `GET    /api/calcul/assets/{aid}`                   a plot (PNG / sanitised SVG), restrictive CSP
+Calcul (S-P: notebooks — a document is a standard .ipynb sharing one kernel with JupyterLab, docs/CALCUL.md)
+- `GET    /api/calcul/{pid}/docs`                         the project's documents (creates « calcul » on first use)
+- `POST   /api/calcul/{pid}/docs {title, language}` · `PATCH …/docs/{doc} {title}` · `DELETE …/docs/{doc}`
+- `GET    /api/calcul/{pid}/docs/{doc}`                   {doc, cells, trash, status} — never starts a kernel
+- `GET    /api/calcul/{pid}/docs/{doc}/ipynb`             the notebook file (download)
+- `POST   …/docs/{doc}/cells {type: code|ask|markdown|figure, source?, prompt?, figure?, svg?, after?|at?}`
+- `PATCH  …/docs/{doc}/cells/{cid} {source?, prompt?, figure?, svg?, type?, collapsed?, outputs_hidden?, note?}`
+- `DELETE …/cells/{cid}` · `POST …/cells/{cid}/restore` · `POST …/cells/{cid}/move {to}`
+- `POST   …/cells/{cid}/approve {code_hash}`             approve model code (exact hash, host / experiments_remote)
+- `POST   …/docs/{doc}/run {cells: [ids] | until: cid | all: true, timeout?}`   sequential, one kernel; stops at
+                                                          the first error or unapproved cell (`stopped`)
+- `POST   …/cells/{cid}/run {timeout?}`                  one cell
+- `POST   …/cells/{cid}/ask {prompt}`                    natural language → code (assistant, needs approval)
+- `POST   …/docs/{doc}/interrupt | restart | shutdown | clear`
+- `GET    …/docs/{doc}/variables`                         names defined in the kernel (or read from the code)
+- `POST   …/docs/{doc}/assist {action: explain|fix, cell_id, prompt?}`
+- `POST   …/cells/{cid}/to {target: conjecture|note|dossier|article, text?, title?, png?, tikz?}`
+- `GET    /api/calcul/assets/{aid}`                       an image by content address, restrictive CSP
+Older S-M routes `/api/calcul/{pid}[/cells…|/assist|/interrupt]` act on the default document « calcul ».
 Library catalogue
 - `GET    /api/library/catalog`                        entries with domain, project, tags, status, model, uses/used-by
                                                        (+ conditional results of proof plans)
@@ -23,7 +29,9 @@ Glossary
 - `GET    /api/glossary/uses?term=`                   dossiers whose current statement or proof uses the term"""
 from __future__ import annotations
 
+import ast
 import asyncio
+import base64
 import json
 import re
 import time
@@ -33,8 +41,9 @@ from aiohttp import web
 from ... import config
 from ...i18n import language, msg
 from ...logs import get
-from ...research.calcul import (CALC_PREAMBLE, CalcError, CalcStore, LANGS, assist_messages, extract_code,
-                                output_text)
+from ...research.calcul import CALC_PREAMBLE, CalcError, CalcStore, assist_messages, extract_code
+from ...research.notebook import (DEFAULT_DOC, FIGURE_MIME, KINDS, NotebookStore, ask_messages, outputs_text,
+                                  static_names)
 from ..common import body, ctx_of, error, ok, valid_id
 from ..helpers import complete_once
 
@@ -47,10 +56,14 @@ TAG_RE = re.compile(r"^[\w .+-]{1,40}$", re.U)
 class Workbench:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.calc = CalcStore(ctx.paths.config / "research" / "calcul")
+        root = ctx.paths.config / "research" / "calcul"
+        self.legacy = CalcStore(root)                 # S-M worksheets: migrated on first use, old plot ids
+        self.calc = NotebookStore(ctx.jupyter.root_dir, root, legacy=self.legacy)
         self.meta_path = ctx.paths.config / "library-meta.json"
         self.locks: dict[str, asyncio.Lock] = {}
+        self.cancel: set[str] = set()
         self._bridge = None
+        self._kernels = None
 
     def bridge(self):
         rs = getattr(self.ctx, "research", None)          # the research workshop's bridge (one kernel manager)
@@ -61,8 +74,28 @@ class Workbench:
             self._bridge = SageBridge(self.ctx)
         return self._bridge
 
-    def lock(self, pid: str) -> asyncio.Lock:
-        return self.locks.setdefault(pid, asyncio.Lock())
+    def kernels(self):
+        if self._kernels is None:
+            from ...research.nbkernels import NotebookKernels
+            from ...research.sagebridge import PREAMBLE
+            self._kernels = NotebookKernels(self.ctx, self.bridge(), PREAMBLE + "\n" + CALC_PREAMBLE)
+        return self._kernels
+
+    def lock(self, key: str) -> asyncio.Lock:
+        return self.locks.setdefault(key, asyncio.Lock())
+
+    async def run_cell(self, pid: str, cid: str, device: str, doc: str = DEFAULT_DOC,
+                       timeout: float | None = 60.0) -> dict | None:
+        """For other plugins (S-Q's research agent): run one cell in its document's kernel under the approval rule
+        (approved model code or `experiments_auto`); None when not allowed, busy, or nothing ran."""
+        try:
+            c = await asyncio.to_thread(self.calc.cell_view, pid, doc, cid)
+        except CalcError:
+            return None
+        if not self.calc.may_run(c, bool(self.ctx.settings.experiments_auto)) or self.lock(f"{pid}/{doc}").locked():
+            return None
+        r = await _run_cells(self, self.ctx, device, True, pid, doc, [cid], timeout)
+        return r["runs"].get(cid)
 
     def meta(self) -> dict:
         data, _bad = config.read_json(self.meta_path)
@@ -92,6 +125,10 @@ def _project(request) -> str:
     return pid
 
 
+def _doc(request) -> str:
+    return request.match_info.get("doc") or DEFAULT_DOC
+
+
 def _exec_allowed(request) -> web.Response | None:
     if not request["local"] and not getattr(ctx_of(request).settings, "experiments_remote", False):
         return error(403, "experiments_host_only", "Les expériences exécutent du code sur l'ordinateur hôte : "
@@ -99,212 +136,641 @@ def _exec_allowed(request) -> web.Response | None:
     return None
 
 
-# ================================================================ Calcul
-async def calc_get(request):
-    wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
-    sheet = await asyncio.to_thread(wb.calc.load, pid)
+def _ev(ctx, pid: str, doc: str, **kw) -> None:
+    ctx.publish("calcul.updated", {"project_id": pid, "doc": doc, **kw})
+
+
+async def _calc_status(request, wb: Workbench, pid: str, doc: str, path: str) -> dict:
+    ctx = ctx_of(request)
     br = wb.bridge()
     try:
         avail = await asyncio.to_thread(br.available)
     except Exception:  # noqa: BLE001
         avail = {}
-    return ok({"sheet": {k: v for k, v in sheet.items() if k != "trash"},
-               "trash": [{"id": c["id"], "code": c["code"][:200]} for c in sheet.get("trash", [])][-5:],
-               "status": {"available": avail, "sandbox": br.sandbox_kind, "auto": bool(ctx.settings.experiments_auto),
-                          "remote_allowed": bool(ctx.settings.experiments_remote), "local": bool(request["local"]),
-                          "running": wb.lock(pid).locked()}})
+    try:
+        kernel = await wb.kernels().status(path)
+    except Exception:  # noqa: BLE001
+        kernel = {"kernel": "", "state": "none"}
+    return {"available": avail, "sandbox": br.sandbox_kind, "auto": bool(ctx.settings.experiments_auto),
+            "remote_allowed": bool(ctx.settings.experiments_remote), "local": bool(request["local"]),
+            "running": wb.lock(f"{pid}/{doc}").locked(), "kernel": kernel,
+            "idle_minutes": int(getattr(ctx.settings, "calcul_idle_minutes", 30))}
 
 
-async def calc_add(request):
+# ================================================================ Calcul: documents
+async def docs_list(request):
+    wb = W(request)
+    pid = _project(request)
+    try:
+        docs = await asyncio.to_thread(wb.calc.docs, pid)
+    except CalcError as e:
+        return _calc_fail(e)
+    return ok({"docs": docs})
+
+
+async def docs_create(request):
     wb, ctx = W(request), ctx_of(request)
     pid = _project(request)
     data = await body(request)
     try:
-        c = await asyncio.to_thread(wb.calc.add, pid, str(data.get("code", "")), str(data.get("language", "sage")),
-                                    "user", after=str(data.get("after", "") or ""))
+        await asyncio.to_thread(wb.calc.docs, pid)
+        d = await asyncio.to_thread(wb.calc.create, pid, str(data.get("title", "") or "Calcul")[:200],
+                                    str(data.get("language", "sage")))
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell": c})
+    ctx.publish("calcul.docs", {"project_id": pid})
+    return ok({"doc": d}, status=201)
+
+
+async def docs_patch(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    try:
+        d = await asyncio.to_thread(wb.calc.rename, pid, doc, str(data.get("title", "")))
+    except CalcError as e:
+        return _calc_fail(e)
+    ctx.publish("calcul.docs", {"project_id": pid})
+    return ok({"doc": d})
+
+
+async def docs_delete(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    try:
+        path = wb.calc.rel_path(pid, doc)
+        if wb.kernels().known(path):
+            await wb.kernels().shutdown(path)
+        await asyncio.to_thread(wb.calc.delete_doc, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    ctx.publish("calcul.docs", {"project_id": pid})
+    return ok({"removed": doc})
+
+
+async def doc_get(request):
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    try:
+        if doc == DEFAULT_DOC:
+            await asyncio.to_thread(wb.calc.docs, pid)
+        path = wb.calc.rel_path(pid, doc)
+        st = await _calc_status(request, wb, pid, doc, path)
+        v = await asyncio.to_thread(wb.calc.view, pid, doc, wb.kernels().epoch(path) if st["kernel"].get("kernel")
+                                    else "")
+    except CalcError as e:
+        return _calc_fail(e)
+    return ok({**v, "status": st})
+
+
+async def doc_ipynb(request):
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    try:
+        p = wb.calc.path(pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    if not p.is_file():
+        return error(404, "not_found")
+    return web.FileResponse(p, headers={"Content-Type": "application/x-ipynb+json",
+                                        "Content-Disposition": f'attachment; filename="{doc}.ipynb"',
+                                        "X-Content-Type-Options": "nosniff"})
+
+
+# ================================================================ Calcul: cells
+def _cell_args(data: dict) -> dict:
+    out = {}
+    if "source" in data or "code" in data:
+        out["code"] = str(data.get("source", data.get("code", "")))
+    if "prompt" in data:
+        out["prompt"] = str(data["prompt"])
+    if "figure" in data:
+        if not isinstance(data["figure"], dict):
+            raise CalcError("bad_figure")
+        out["figure"] = data["figure"]
+        out["svg"] = str(data.get("svg", ""))[:3_000_000]
+    return out
+
+
+async def cell_add(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    kind = str(data.get("type", "code"))
+    if kind not in KINDS:
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="type")
+    try:
+        a = _cell_args(data)
+        at = data.get("at")
+        c = await asyncio.to_thread(
+            wb.calc.add, pid, a.get("code", ""), str(data.get("language", "") or ""), "user", doc=doc, kind=kind,
+            after=str(data.get("after", "") or ""), prompt=a.get("prompt", ""), figure=a.get("figure"),
+            svg=a.get("svg", ""), at=int(at) if isinstance(at, int) else None)
+    except CalcError as e:
+        return _calc_fail(e)
+    _ev(ctx, pid, doc, cell=c)
     return ok({"cell": c}, status=201)
 
 
-async def calc_edit(request):
+async def cell_edit(request):
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     data = await body(request)
-    bad = [k for k in data if k not in ("code", "language", "note")]
+    allowed = ("source", "code", "language", "note", "prompt", "figure", "svg", "type", "collapsed", "outputs_hidden")
+    bad = [k for k in data if k not in allowed]
     if bad:
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields=", ".join(bad))
     try:
-        c = await asyncio.to_thread(wb.calc.edit, pid, request.match_info["cid"],
-                                    code=str(data["code"]) if "code" in data else None,
-                                    language=str(data["language"]) if "language" in data else None,
-                                    note=str(data["note"]) if "note" in data else None, by="user")
+        a = _cell_args(data)
+        c = await asyncio.to_thread(
+            wb.calc.edit, pid, request.match_info["cid"], doc=doc, by="user", code=a.get("code"),
+            prompt=a.get("prompt"), figure=a.get("figure"), svg=a.get("svg", ""),
+            language=str(data["language"]) if "language" in data else None,
+            note=str(data["note"]) if "note" in data else None,
+            kind=str(data["type"]) if "type" in data else None,
+            collapsed=bool(data["collapsed"]) if "collapsed" in data else None,
+            outputs_hidden=bool(data["outputs_hidden"]) if "outputs_hidden" in data else None)
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell": c})
+    _ev(ctx, pid, doc, cell=c)
     return ok({"cell": c})
 
 
-async def calc_delete(request):
+async def cell_delete(request):
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     try:
-        c = await asyncio.to_thread(wb.calc.delete, pid, request.match_info["cid"])
+        c = await asyncio.to_thread(wb.calc.delete, pid, request.match_info["cid"], doc)
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "removed": c["id"]})
+    _ev(ctx, pid, doc, removed=c["id"])
     return ok({"removed": c["id"]})
 
 
-async def calc_restore(request):
+async def cell_restore(request):
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     try:
-        c = await asyncio.to_thread(wb.calc.restore, pid, request.match_info["cid"])
+        c = await asyncio.to_thread(wb.calc.restore, pid, request.match_info["cid"], doc)
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell": c})
+    _ev(ctx, pid, doc, cell=c)
     return ok({"cell": c})
 
 
-async def calc_move(request):
-    wb = W(request)
-    pid = _project(request)
+async def cell_move(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
     data = await body(request)
     try:
-        sheet = await asyncio.to_thread(wb.calc.move, pid, request.match_info["cid"], int(data.get("to", 0)))
+        order = await asyncio.to_thread(wb.calc.move, pid, request.match_info["cid"], int(data.get("to", 0)), doc)
     except (CalcError, ValueError, TypeError) as e:
         return _calc_fail(e) if isinstance(e, CalcError) else error(400, "bad_fields", "Champs refusés : {fields}.",
                                                                     fields="to")
-    ctx_of(request).publish("calcul.updated", {"project_id": pid})
-    return ok({"order": [c["id"] for c in sheet["cells"]]})
+    _ev(ctx, pid, doc, order=order)
+    return ok({"order": order})
 
 
-async def calc_approve(request):
+async def cell_approve(request):
     if (r := _exec_allowed(request)) is not None:
         return r
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     data = await body(request)
     try:
         c = await asyncio.to_thread(wb.calc.approve, pid, request.match_info["cid"], str(data.get("code_hash", "")),
-                                    device_of(request))
+                                    device_of(request), doc)
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell": c})
+    _ev(ctx, pid, doc, cell=c)
     return ok({"cell": c})
 
 
-async def calc_run(request):
+# ================================================================ Calcul: execution
+def _uexpr(res, name: str) -> str:
+    """A string returned by one of Madalean's user_expressions, only when the cell displayed a result."""
+    v = (getattr(res, "user_expressions", None) or {}).get(name, "")
+    if not v or not any(o.get("output_type") == "execute_result" for o in getattr(res, "outputs", []) or []):
+        return ""
+    try:
+        v = ast.literal_eval(v)
+    except (ValueError, SyntaxError):
+        return ""
+    return v if isinstance(v, str) else ""
+
+
+def _approx(res) -> str:
+    tex = _uexpr(res, "latex")
+    if tex:
+        for o in res.outputs:
+            if o.get("output_type") == "execute_result" and "text/latex" not in o.get("data", {}):
+                o["data"]["text/latex"] = "$\\displaystyle " + tex + "$"
+    return _uexpr(res, "approx")
+
+
+async def _run_cells(wb: Workbench, ctx, device: str, live: bool, pid: str, doc: str, ids: list[str],
+                     timeout: float | None) -> dict:
+    """Run cells in order in the document's one kernel (caller checked the device may execute)."""
+    store, km = wb.calc, wb.kernels()
+    path = store.rel_path(pid, doc)
+    key = f"{pid}/{doc}"
+    runs, stopped, autofix = {}, None, None
+    wb.cancel.discard(key)
+    async with wb.lock(key):
+        for cid in ids:
+            if key in wb.cancel:
+                stopped = {"cell_id": cid, "reason": "interrupted"}
+                break
+            try:
+                c = await asyncio.to_thread(store.cell_view, pid, doc, cid)
+            except CalcError:
+                continue
+            if c["type"] not in ("code", "ask") or not c["code"].strip():
+                continue
+            if not store.may_run(c, bool(ctx.settings.experiments_auto)):
+                stopped = {"cell_id": cid, "reason": "not_approved"}
+                break
+            up = await asyncio.to_thread(store.upstream_of, pid, doc, cid)
+            to = timeout or (300.0 if c["language"] == "sage" else 60.0)
+
+            def on_output(kind: str, text: str, cid=cid) -> None:
+                ctx.publish("calcul.output", {"project_id": pid, "doc": doc, "cell_id": cid, "kind": kind,
+                                              "text": text[:20000]})
+            ctx.publish("calcul.running", {"project_id": pid, "doc": doc, "cell_id": cid})
+            res = await km.execute(path, c["language"], c["code"], timeout=to, on_output=on_output)
+            eng = (km.docs.get(path) or {}).get("engine")
+            if eng:
+                await asyncio.to_thread(store.set_engine, pid, doc, eng)
+            run = await asyncio.to_thread(store.record_run, pid, cid, res, device, c["code_hash"],
+                                          doc=doc, kernel=res.kernel, upstream=up, approx=_approx(res))
+            runs[cid] = run
+            _ev(ctx, pid, doc, cell_id=cid, run=run)
+            if res.status != "ok":
+                stopped = {"cell_id": cid, "reason": res.status}
+                if c["type"] == "ask" and not c.get("autofix"):
+                    autofix = await _autofix(wb, ctx, live, pid, doc, c, run)
+                break
+    wb.cancel.discard(key)
+    return {"runs": runs, "stopped": stopped, "autofix": autofix}
+
+
+async def _autofix(wb: Workbench, ctx, live: bool, pid: str, doc: str, c: dict, run: dict) -> dict | None:
+    """An « ask » cell failed: the error goes back to the model once, for a corrected proposal (to approve)."""
+    names = await _names(wb, live, pid, doc, c["id"], c["language"])
+    msgs = ask_messages(language(), c["language"], c.get("prompt", ""), names, "", fix=True, code=c["code"],
+                        error=(run.get("error") or run.get("stderr") or "")[-3000:])
+    try:
+        r = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
+                                temperature=0.2)
+    except Exception:  # noqa: BLE001
+        return None
+    code = extract_code(r.text)
+    if not code or code == c["code"]:
+        return None
+    model = getattr(r.model, "key", "") or ""
+    new = await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=code, by="assistant", model=model)
+    await asyncio.to_thread(wb.calc.set_autofix, pid, doc, c["id"], {"t": time.time(), "model": model})
+    new["autofix"] = {"t": time.time(), "model": model}
+    _ev(ctx, pid, doc, cell=new)
+    return new
+
+
+async def doc_run(request):
+    if (r := _exec_allowed(request)) is not None:
+        return r
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    try:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    order = [c["id"] for c in v["cells"]]
+    if isinstance(data.get("cells"), list):
+        ids = [str(x) for x in data["cells"] if str(x) in order]
+    elif data.get("until"):
+        u = str(data["until"])
+        if u not in order:
+            return error(404, "not_found")
+        ids = order[: order.index(u) + 1]
+    elif data.get("from"):
+        f = str(data["from"])
+        if f not in order:
+            return error(404, "not_found")
+        ids = order[order.index(f):]
+    else:
+        ids = order
+    if wb.lock(f"{pid}/{doc}").locked():
+        return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
+    timeout = max(1.0, min(float(data["timeout"]), 600.0)) if data.get("timeout") else None
+    return ok(await _run_cells(W(request), ctx_of(request), device_of(request), True, pid, doc, ids, timeout))
+
+
+async def cell_run(request):
     if (r := _exec_allowed(request)) is not None:
         return r
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     cid = request.match_info["cid"]
     data = await body(request)
-    sheet = await asyncio.to_thread(wb.calc.load, pid)
-    c = next((x for x in sheet["cells"] if x["id"] == cid), None)
-    if c is None:
-        return error(404, "not_found")
+    try:
+        c = await asyncio.to_thread(wb.calc.cell_view, pid, doc, cid)
+    except CalcError as e:
+        return _calc_fail(e)
+    if c["type"] not in ("code", "ask"):
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="type")
     if not wb.calc.may_run(c, bool(ctx.settings.experiments_auto)):
         return error(403, "not_approved", "Ce code a été écrit par l'assistant : relisez-le et approuvez-le d'abord.")
-    if wb.lock(pid).locked():
+    if wb.lock(f"{pid}/{doc}").locked():
         return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
-    timeout = max(1.0, min(float(data.get("timeout") or 60), 600.0))
-    code, h, lang = c["code"], c["code_hash"], c["language"]
-
-    def on_output(kind: str, text: str) -> None:
-        ctx.publish("calcul.output", {"project_id": pid, "cell_id": cid, "kind": kind, "text": text[:20000]})
-    async with wb.lock(pid):
-        ctx.publish("calcul.running", {"project_id": pid, "cell_id": cid})
-        res = await wb.bridge().run(f"calcul:{pid}", lang, code, timeout=timeout, on_output=on_output,
-                                    workdir=f"calcul-{pid}", preamble=CALC_PREAMBLE)
-        run = await asyncio.to_thread(wb.calc.record_run, pid, cid, res, device_of(request), h)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell_id": cid, "run": run})
-    return ok({"run": run})
+    timeout = max(1.0, min(float(data["timeout"]), 600.0)) if data.get("timeout") else None
+    r = await _run_cells(wb, ctx, device_of(request), True, pid, doc, [cid], timeout)
+    run = r["runs"].get(cid)
+    if run is None:
+        return error(409, "not_run", "Rien à exécuter.")
+    return ok({"run": run, "autofix": r["autofix"]})
 
 
-async def calc_interrupt(request):
+async def doc_interrupt(request):
     wb = W(request)
-    pid = _project(request)
-    br = wb.bridge()
-    k = getattr(br, "kernels", {}).get(f"calcul:{pid}")
-    if k:
-        await br.interrupt(k["id"])
-    return ok({"interrupted": bool(k)})
+    pid, doc = _project(request), _doc(request)
+    wb.cancel.add(f"{pid}/{doc}")
+    done = await wb.kernels().interrupt(wb.calc.rel_path(pid, doc))
+    return ok({"interrupted": done})
 
 
-async def calc_assist(request):
+async def doc_restart(request):
+    if (r := _exec_allowed(request)) is not None:
+        return r
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
+    if wb.lock(f"{pid}/{doc}").locked():
+        return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
+    try:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+        kid = await wb.kernels().restart(wb.calc.rel_path(pid, doc), v["doc"]["language"])
+    except CalcError as e:
+        return _calc_fail(e)
+    except Exception as e:  # noqa: BLE001
+        return error(503, "kernel_unavailable", "Noyau indisponible ({err}).", err=str(e)[:200])
+    _ev(ctx, pid, doc, restarted=True)
+    return ok({"kernel": kid})
+
+
+async def doc_shutdown(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    await wb.kernels().shutdown(wb.calc.rel_path(pid, doc))
+    _ev(ctx, pid, doc, restarted=True)
+    return ok({"stopped": True})
+
+
+async def doc_clear(request):
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    try:
+        await asyncio.to_thread(wb.calc.clear_outputs, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    _ev(ctx, pid, doc, cleared=True)
+    return ok({"cleared": True})
+
+
+async def _names(wb: Workbench, live: bool, pid: str, doc: str, cid: str, lang_: str) -> list:
+    """Defined names: asked to the running kernel (Madalean's helper, `live` = the device may execute), else read
+    from the code above."""
+    names = None
+    if live:
+        try:
+            names = await wb.kernels().variables(wb.calc.rel_path(pid, doc), lang_)
+        except Exception:  # noqa: BLE001
+            names = None
+    if names is None:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+        src = []
+        for c in v["cells"]:
+            if c["id"] == cid:
+                break
+            if c["type"] in ("code", "ask"):
+                src.append(c["code"])
+        names = static_names(src)
+    return names
+
+
+async def doc_variables(request):
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    try:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    names = await _names(wb, _exec_allowed(request) is None, pid, doc, "", v["doc"]["language"])
+    return ok({"names": [{"name": n, "type": t, "value": r} for n, t, r in names]})
+
+
+async def cell_ask(request):
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    return await _do_ask(request, pid, doc, request.match_info["cid"], str(data.get("prompt", "")))
+
+
+async def _do_ask(request, pid: str, doc: str, cid: str, prompt: str):
+    """Natural language → Sage: the model writes the code of an « ask » cell from the request and the notebook's
+    current names (a compact summary, never full outputs); the code runs only once approved (or auto, host)."""
+    wb, ctx = W(request), ctx_of(request)
+    try:
+        c = await asyncio.to_thread(wb.calc.cell_view, pid, doc, cid)
+    except CalcError as e:
+        return _calc_fail(e)
+    if c["type"] != "ask":
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="type")
+    prompt = (prompt or c.get("prompt", "")).strip()[:4000]
+    if not prompt:
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="prompt")
+    names = await _names(wb, _exec_allowed(request) is None, pid, doc, cid, c["language"])
+    context = await asyncio.to_thread(wb.calc.context, pid, doc, cid)
+    msgs = ask_messages(language(), c["language"], prompt, names, context)
+    try:
+        r = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
+                                temperature=0.2)
+    except Exception as e:  # noqa: BLE001
+        return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
+    code = extract_code(r.text)
+    if not code:
+        return error(502, "no_code", "Le modèle n'a pas proposé de code ; reformulez la demande.")
+    model = getattr(r.model, "key", "") or ""
+    try:
+        new = await asyncio.to_thread(wb.calc.edit, pid, cid, doc=doc, code=code, by="assistant", model=model,
+                                      prompt=prompt)
+    except CalcError as e:
+        return _calc_fail(e)
+    _ev(ctx, pid, doc, cell=new)
+    return ok({"cell": new, "model": model, "approval_required": not ctx.settings.experiments_auto}, status=201)
+
+
+async def doc_assist(request):
+    """explain (Markdown answer) · fix (rewrite a failed cell as assistant code). Older « write » = ask cell."""
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
     data = await body(request)
     action = str(data.get("action", "write"))
     if action not in ("write", "fix", "explain"):
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields="action")
-    sheet = await asyncio.to_thread(wb.calc.load, pid)
-    cell = next((x for x in sheet["cells"] if x["id"] == str(data.get("cell_id", ""))), None)
-    if action != "write" and cell is None:
-        return error(404, "not_found")
-    lang_ = cell["language"] if cell else (str(data.get("language", "sage")) if data.get("language") in LANGS
-                                           else "sage")
-    last = (cell.get("runs") or [{}])[-1] if cell else {}
-    msgs = assist_messages(action, lang_, language(), str(data.get("prompt", "")), cell["code"] if cell else "",
-                           (last.get("error") or last.get("stderr") or "") if last else "",
-                           output_text(last) if last else "")
     try:
-        c = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    cell = next((x for x in v["cells"] if x["id"] == str(data.get("cell_id", ""))), None)
+    if action == "write":
+        try:
+            c = await asyncio.to_thread(wb.calc.add, pid, "", "", "assistant", doc=doc, kind="ask",
+                                        after=str(data.get("after", "") or ""), prompt=str(data.get("prompt", "")))
+        except CalcError as e:
+            return _calc_fail(e)
+        return await _do_ask(request, pid, doc, c["id"], str(data.get("prompt", "")))
+    if cell is None or cell["type"] not in ("code", "ask"):
+        return error(404, "not_found")
+    outs = outputs_text([_raw(o) for o in cell.get("outputs") or []], 6000)
+    err = next((f"{o['ename']}: {o['evalue']}\n{o['traceback'][-3000:]}" for o in cell.get("outputs") or []
+                if o["type"] == "error"), "")
+    msgs = assist_messages(action, cell["language"], language(), str(data.get("prompt", "")), cell["code"], err, outs)
+    try:
+        r = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
                                 temperature=0.2)
     except Exception as e:  # noqa: BLE001
         return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
-    model = getattr(c.model, "key", "") or ""
+    model = getattr(r.model, "key", "") or ""
     if action == "explain":
-        return ok({"text": c.text, "model": model})
-    code = extract_code(c.text)
+        return ok({"text": r.text, "model": model})
+    code = extract_code(r.text)
     if not code:
         return error(502, "no_code", "Le modèle n'a pas proposé de code ; reformulez la demande.")
     try:
-        if action == "write":
-            new = await asyncio.to_thread(wb.calc.add, pid, code, lang_, "assistant",
-                                          after=str(data.get("after", "") or ""), note=str(data.get("prompt", "")),
-                                          model=model)
-        else:
-            new = await asyncio.to_thread(wb.calc.edit, pid, cell["id"], code=code, by="assistant", model=model)
+        new = await asyncio.to_thread(wb.calc.edit, pid, cell["id"], doc=doc, code=code, by="assistant", model=model)
     except CalcError as e:
         return _calc_fail(e)
-    ctx.publish("calcul.updated", {"project_id": pid, "cell": new})
+    _ev(ctx, pid, doc, cell=new)
     return ok({"cell": new, "model": model, "approval_required": not ctx.settings.experiments_auto}, status=201)
 
 
-def _fact_text(cell: dict, run: dict) -> str:
-    out = output_text(run)
-    return f"```{cell['language']}\n{cell['code']}\n```\n\n" + (f"```\n{out[:6000]}\n```\n" if out else "")
+def _raw(o: dict) -> dict:
+    """A view output back to the nbformat shape (for outputs_text)."""
+    if o["type"] == "stream":
+        return {"output_type": "stream", "name": o.get("name"), "text": o.get("text", "")}
+    if o["type"] == "error":
+        return {"output_type": "error", "ename": o.get("ename"), "evalue": o.get("evalue")}
+    return {"output_type": "display_data", "data": {k: (v if isinstance(v, str) else "") for k, v in
+                                                    o.get("data", {}).items()}}
 
 
-async def calc_to(request):
-    """One-click actions on a result: → conjecture, → note, → Lean dossier, → article (table / formula block)."""
+# ================================================================ Calcul: one-click connections
+def _cell_text(cell: dict) -> str:
+    return outputs_text([_raw(o) for o in cell.get("outputs") or []], 6000)
+
+
+def _fact_text(cell: dict) -> str:
+    out = _cell_text(cell)
+    lead = f"> {cell['prompt']}\n\n" if cell.get("type") == "ask" and cell.get("prompt") else ""
+    return lead + f"```{cell['language']}\n{cell['code']}\n```\n\n" + (f"```\n{out}\n```\n" if out else "")
+
+
+def _latex_of(cell: dict) -> list[str]:
+    return [o["data"]["text/latex"] for o in cell.get("outputs") or [] if o["type"] in ("result", "display")
+            and "text/latex" in o["data"]]
+
+
+def _verbatim(code: str) -> str:
+    return "\\begin{verbatim}\n" + code.replace("\\end{verbatim}", "\\end {verbatim}") + "\n\\end{verbatim}"
+
+
+async def _to_article(ctx, wb: Workbench, pid: str, doc: str, cell: dict, text: str, title: str, png: bytes | None,
+                      engine: dict | None) -> dict:
+    """Figure, table or computation → the project's article. With the LaTeX project (docs/ARTICLE.md, S-R), a
+    figure is a `figure` environment over a content-addressed image, a computation is its result (formula or
+    verbatim output) plus its code in a « Computations » section at the end (the appendix of computations)."""
+    from ...research import article as art_mod
+    from ...research import texproject as tp
+    fr = language() == "fr"
+    eng = (engine or {}).get("name", "SageMath") + (" " + engine["version"] if (engine or {}).get("version") else "")
+    label = "calc:" + re.sub(r"[^A-Za-z0-9]", "", cell["id"])
+    if png is not None:
+        await asyncio.to_thread(tp.ensure, ctx, pid)
+        rel = await asyncio.to_thread(tp.add_figure, ctx, pid, png)
+        cap = tp.texio_plain(text or title or ("Figure" if not fr else "Figure"))
+        body_ = ("\\begin{figure}[ht]\n\\centering\n\\includegraphics[width=0.8\\linewidth]{" + rel + "}\n"
+                 "\\caption{" + cap + "}\\label{fig:" + label[5:] + "}\n\\end{figure}")
+        blocks = [art_mod.new_block("prose", "", body_, "user")]
+    else:
+        latex = _latex_of(cell)
+        if text:
+            main = text
+        elif latex:
+            main = "\n".join(latex)
+        else:
+            out = _cell_text(cell)
+            if not out:
+                raise CalcError("no_output", 409)
+            main = "```\n" + out[:20000] + "\n```"
+        if tp.exists(ctx, pid):
+            if not text and not latex:
+                main = _verbatim(_cell_text(cell)[:20000])
+            main += ("\n\n{\\footnotesize " + ("Calcul " if fr else "Computation ") + "\\ref{" + label + "} ("
+                     + tp.texio_plain(eng) + ").}")
+            appendix = ("\\paragraph{" + ("Calcul" if fr else "Computation") + " \\label{" + label + "}"
+                        + tp.texio_plain(title or "") + "}\n" + _verbatim(cell["code"]))
+        else:
+            main += "\n\n*" + (f"Calcul ({eng}), code en annexe." if fr else f"Computation ({eng}), code in the appendix.") + "*"
+            appendix = f"**{title or ('Calcul' if fr else 'Computation')}**\n\n```{cell['language']}\n{cell['code']}\n```"
+        blocks = [art_mod.new_block("prose", title or msg("Résultat de calcul")["text"], main, "user")]
+        blocks[0]["calcul_appendix"] = appendix
+    art = await asyncio.to_thread(art_mod.load, ctx, pid)
+    sec_title = "Calculs (SageMath)" if fr else "Computations (SageMath)"
+    sec = next((i for i, b in enumerate(art["blocks"]) if b["kind"] == "section" and b.get("title") == sec_title), None)
+    for b in blocks:
+        appendix = b.pop("calcul_appendix", None)
+        b["calcul_origin"] = {"kind": "calcul", "project_id": pid, "doc": doc, "cell_id": cell["id"]}
+        if sec is None:
+            art["blocks"].append(b)
+        else:
+            art["blocks"].insert(sec, b)
+            sec += 1
+        if appendix:
+            if sec is None:
+                art["blocks"].append(art_mod.new_block("section", sec_title, "", "user"))
+                sec = len(art["blocks"]) - 1
+            art["blocks"].append(art_mod.new_block("prose", "", appendix, "user"))
+    await asyncio.to_thread(art_mod.save, ctx, pid, art)
+    ctx.publish("article.updated", {"project_id": pid})
+    return blocks[0]
+
+
+async def cell_to(request):
+    """One-click actions on a result: → conjecture, → note, → Lean dossier, → article (figure, formula, table)."""
     wb, ctx = W(request), ctx_of(request)
-    pid = _project(request)
+    pid, doc = _project(request), _doc(request)
     cid = request.match_info["cid"]
     data = await body(request)
     target = str(data.get("target", ""))
-    sheet = await asyncio.to_thread(wb.calc.load, pid)
-    cell = next((x for x in sheet["cells"] if x["id"] == cid), None)
+    try:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    cell = next((x for x in v["cells"] if x["id"] == cid), None)
     if cell is None:
         return error(404, "not_found")
-    run = (cell.get("runs") or [{}])[-1]
     text = str(data.get("text", "")).strip()[:20000]
     title = str(data.get("title", "")).strip()[:200]
-    origin = {"kind": "calcul", "project_id": pid, "cell_id": cid, "run_id": run.get("id", "")}
+    origin = {"kind": "calcul", "project_id": pid, "doc": doc, "cell_id": cid,
+              "run_id": ((cell.get("runs") or [{}])[-1] or {}).get("id", "")}
+    is_code = cell["type"] in ("code", "ask")
     rs = getattr(ctx, "research", None)
     if target == "conjecture":
         if rs is None or not text:
             return error(400, "bad_fields", "Champs refusés : {fields}.", fields="text")
         from ...research.conjectures import ConjectureError, public as conj_public
         try:
-            d = await rs.workshop.create(pid, text, motivation=_fact_text(cell, run), title=title, origin=origin,
-                                         device=device_of(request))
+            d = await rs.workshop.create(pid, text, motivation=_fact_text(cell) if is_code else cell["source"],
+                                         title=title, origin=origin, device=device_of(request))
         except ConjectureError as e:
             return web.json_response({"error": e.kind}, status=getattr(e, "status", 400))
         return ok({"target": "conjecture", "conjecture": conj_public(d)}, status=201)
@@ -312,10 +778,13 @@ async def calc_to(request):
         if rs is None:
             return error(503, "unavailable")
         from ...research.notes import NoteError
-        md = (text + "\n\n" if text else "") + _fact_text(cell, run)
-        for r in run.get("rich", []):
-            if r.get("mime") == "text/latex":
-                md += "\n" + r["data"] + "\n"
+        if is_code:
+            md = (text + "\n\n" if text else "") + _fact_text(cell)
+            for x in _latex_of(cell):
+                md += "\n" + x + "\n"
+        else:
+            md = (text + "\n\n" if text else "") + (cell["source"] if cell["type"] == "markdown" else
+                                                    "```json\n" + json.dumps(cell.get("figure"), ensure_ascii=False)[:20000] + "\n```")
         name = title or msg("Calcul du {d}", d=time.strftime("%d/%m/%Y %H:%M"))["text"]
         try:
             n = await asyncio.to_thread(rs.notes.create, pid, name, md, ["calcul"], "note", device_of(request))
@@ -332,36 +801,114 @@ async def calc_to(request):
         await ctx.repo.save(d)
         return ok({"target": "dossier", "dossier": {"id": d.id, "title": d.title}}, status=201)
     if target == "article":
-        from ...research import article as art_mod
-        latex = [r["data"] for r in run.get("rich", []) if r.get("mime") == "text/latex"]
-        if text:
-            body_ = text
-        elif latex:
-            body_ = "\n".join(latex)
-        else:
-            out = (run.get("stdout", "") + "\n" + run.get("result", "")).strip()
-            body_ = "```\n" + out[:20000] + "\n```" if out else ""
-        if not body_:
-            return error(409, "no_output", "Exécutez d'abord la cellule.")
-        art = await asyncio.to_thread(art_mod.load, ctx, pid)
-        b = art_mod.new_block("prose", title or msg("Résultat de calcul")["text"], body_, "user")
-        b["calcul_origin"] = origin
-        art["blocks"].append(b)
-        await asyncio.to_thread(art_mod.save, ctx, pid, art)
-        ctx.publish("article.updated", {"project_id": pid})
+        png = None
+        if data.get("png"):
+            try:
+                png = base64.b64decode(str(data["png"]).split(",", 1)[-1], validate=False)
+            except ValueError:
+                png = None
+            from ...research.calcul import PNG_MAGIC
+            if not png or not png.startswith(PNG_MAGIC) or len(png) > 15 * 1024 * 1024:
+                return error(400, "bad_fields", "Champs refusés : {fields}.", fields="png")
+        elif data.get("asset"):
+            hit = await asyncio.to_thread(wb.calc.asset, str(data["asset"]))
+            if hit is None or hit[1] != "image/png":
+                return error(415, "bad_type", "Image PNG attendue.")
+            png = hit[0]
+        if png is None and not is_code:
+            return error(400, "bad_fields", "Champs refusés : {fields}.", fields="png")
+        try:
+            b = await _to_article(ctx, wb, pid, doc, cell, text, title, png, v["doc"].get("engine"))
+        except CalcError as e:
+            return web.json_response({"error": e.kind, "message": msg("Exécutez d'abord la cellule.")["text"]},
+                                     status=e.status)
         return ok({"target": "article", "block": b}, status=201)
     return error(400, "bad_fields", "Champs refusés : {fields}.", fields="target")
 
 
 async def calc_asset(request):
     wb = W(request)
-    found = wb.calc.asset_path(request.match_info["aid"])
-    if found is None:
+    hit = await asyncio.to_thread(wb.calc.asset, request.match_info["aid"])
+    if hit is None:
         return error(404, "not_found")
-    path, mime = found
-    return web.FileResponse(path, headers={
-        "Content-Type": mime, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=86400",
+    raw, mime = hit
+    if mime == "image/svg+xml":                   # sanitised again: notebooks may have been saved by JupyterLab
+        from ...research.calcul import sanitize_svg
+        try:
+            raw = sanitize_svg(raw.decode("utf-8", "replace")).encode()
+        except CalcError:
+            return error(415, "bad_type")
+    return web.Response(body=raw, headers={
+        "Content-Type": mime, "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=31536000, immutable",
         "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"})
+
+
+# ================================================================ Calcul: S-M compatibility (default document)
+async def calc_get(request):
+    """The S-M shape {sheet: {cells, rev}, trash, status} of the default document."""
+    wb = W(request)
+    pid = _project(request)
+    try:
+        await asyncio.to_thread(wb.calc.docs, pid)
+        path = wb.calc.rel_path(pid, DEFAULT_DOC)
+        st = await _calc_status(request, wb, pid, DEFAULT_DOC, path)
+        v = await asyncio.to_thread(wb.calc.view, pid, DEFAULT_DOC)
+    except CalcError as e:
+        return _calc_fail(e)
+    return ok({"sheet": {"project_id": pid, "cells": v["cells"], "rev": v["doc"]["rev"]},
+               "trash": [{"id": t["id"], "code": t["source"]} for t in v["trash"]], "status": st, "doc": v["doc"]})
+
+
+async def calc_interrupt(request):
+    return await doc_interrupt(request)
+
+
+async def calc_assist(request):
+    return await doc_assist(request)
+
+
+def _register_calcul(a) -> None:
+    a.add_get("/api/calcul/assets/{aid}", calc_asset)
+    a.add_get("/api/calcul/{pid}/docs", docs_list)
+    a.add_post("/api/calcul/{pid}/docs", docs_create)
+    d = "/api/calcul/{pid}/docs/{doc}"
+    a.add_get(d, doc_get)
+    a.add_patch(d, docs_patch)
+    a.add_delete(d, docs_delete)
+    a.add_get(d + "/ipynb", doc_ipynb)
+    a.add_get(d + "/variables", doc_variables)
+    a.add_post(d + "/run", doc_run)
+    a.add_post(d + "/interrupt", doc_interrupt)
+    a.add_post(d + "/restart", doc_restart)
+    a.add_post(d + "/shutdown", doc_shutdown)
+    a.add_post(d + "/clear", doc_clear)
+    a.add_post(d + "/assist", doc_assist)
+    for base in (d, "/api/calcul/{pid}"):
+        a.add_post(base + "/cells", cell_add)
+        a.add_patch(base + "/cells/{cid}", cell_edit)
+        a.add_delete(base + "/cells/{cid}", cell_delete)
+        a.add_post(base + "/cells/{cid}/restore", cell_restore)
+        a.add_post(base + "/cells/{cid}/move", cell_move)
+        a.add_post(base + "/cells/{cid}/approve", cell_approve)
+        a.add_post(base + "/cells/{cid}/run", cell_run)
+        a.add_post(base + "/cells/{cid}/ask", cell_ask)
+        a.add_post(base + "/cells/{cid}/to", cell_to)
+    a.add_get("/api/calcul/{pid}", calc_get)
+    a.add_post("/api/calcul/{pid}/interrupt", calc_interrupt)
+    a.add_post("/api/calcul/{pid}/assist", calc_assist)
+
+
+async def _reaper(ctx, wbench: Workbench) -> None:
+    """Idle Calcul kernels (ours and JupyterLab's under calcul/) stop after `calcul_idle_minutes` (0 = never)."""
+    while True:
+        await asyncio.sleep(60)
+        if wbench._kernels is None:
+            continue
+        try:
+            minutes = float(getattr(ctx.settings, "calcul_idle_minutes", 30) or 0)
+            await wbench._kernels.reap(minutes * 60)
+        except Exception:  # noqa: BLE001
+            log.exception("calcul kernel reaper")
 
 
 # ================================================================ library catalogue
@@ -518,6 +1065,12 @@ DEMO_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width
 
 
 def demo_answer(first: str) -> str | None:
+    if "Translate the request into ONE short" in first:
+        if "Petersen" in first:
+            return "```sage\nG = graphs.PetersenGraph()\nprint(G.chromatic_number())\nG\n```"
+        if "sin(x)/x" in first:
+            return "```sage\nplot(sin(x)/x, (x, -10, 10))\n```"
+        return "```sage\n# twin primes below 200\n[p for p in primes(200) if is_prime(p + 2)]\n```"
     if "Write one code cell" in first:
         return "```sage\n# twin primes below 200\n[p for p in primes(200) if is_prime(p + 2)]\n```"
     if "This cell failed" in first:
@@ -530,26 +1083,52 @@ def demo_answer(first: str) -> str | None:
 
 
 async def seed_demo(ctx, wbench: Workbench) -> None:
+    """Demo: a short Sage notebook (outputs recorded as if run, no kernel needed)."""
     from ...research.sagebridge import ExecResult
     projects = ctx.projects.list()
     if not projects:
         return
     pid = projects[0].id
     st = wbench.calc
-    if st.load(pid)["cells"]:
+    docs = await asyncio.to_thread(st.docs, pid)
+    if any(d["cells"] for d in docs):
         return
-    c1 = st.add(pid, "F5 = 2^32 + 1\nprint(factor(F5))\ntex(factor(F5))", language="sage", origin="user")
-    st.record_run(pid, c1["id"], ExecResult("ok", stdout="641 * 6700417\n", seconds=0.4, language="sage",
-                                            sandbox="bwrap", rich=[{"mime": "text/latex",
-                                                                    "data": "$$641 \\cdot 6700417$$"}]),
-                  "host", c1["code_hash"])
-    c2 = st.add(pid, "P = plot(prime_pi, 0, 1000, legend_label='π(x)')\nP += plot(x / log(x), 2, 1000, "
-                     "linestyle='--', legend_label='x / ln x')\nP.show()", language="sage", origin="user")
-    st.record_run(pid, c2["id"], ExecResult("ok", seconds=1.2, language="sage", sandbox="bwrap",
-                                            rich=[{"mime": "image/svg+xml", "data": DEMO_SVG}]), "host",
-                  c2["code_hash"])
-    st.add(pid, "# twin primes below 200\n[p for p in primes(200) if is_prime(p + 2)]", language="sage", origin="assistant",
-           note="les nombres premiers jumeaux inférieurs à 200", model="fake:fake-assistant")
+
+    def out(*o):
+        return list(o)
+    await asyncio.to_thread(st.add, pid, "## Nombres de Fermat\nLe cinquième, $F_5 = 2^{32}+1$, n'est pas premier "
+                            "(Euler, 1732).", kind="markdown")
+    c1 = await asyncio.to_thread(st.add, pid, "F5 = 2^32 + 1\nfactor(F5)")
+    up = await asyncio.to_thread(st.upstream_of, pid, DEFAULT_DOC, c1["id"])
+    await asyncio.to_thread(st.record_run, pid, c1["id"], ExecResult(
+        "ok", seconds=0.4, language="sage", sandbox="bwrap", execution_count=1, outputs=out(
+            {"output_type": "execute_result", "execution_count": 1, "metadata": {},
+             "data": {"text/plain": "641 * 6700417", "text/latex": "641 \\cdot 6700417"}})),
+        "host", c1["code_hash"], upstream=up)
+    c2 = await asyncio.to_thread(st.add, pid, "sqrt(2) * pi")
+    up = await asyncio.to_thread(st.upstream_of, pid, DEFAULT_DOC, c2["id"])
+    await asyncio.to_thread(st.record_run, pid, c2["id"], ExecResult(
+        "ok", seconds=0.1, language="sage", sandbox="bwrap", execution_count=2, outputs=out(
+            {"output_type": "execute_result", "execution_count": 2, "metadata": {},
+             "data": {"text/plain": "sqrt(2)*pi", "text/latex": "\\sqrt{2} \\pi"}})),
+        "host", c2["code_hash"], upstream=up, approx="4.44288293815837")
+    c3 = await asyncio.to_thread(st.add, pid, "P = plot(prime_pi, 0, 1000, legend_label='π(x)')\n"
+                                 "P += plot(x / log(x), 2, 1000, linestyle='--', legend_label='x / ln x')\nP")
+    up = await asyncio.to_thread(st.upstream_of, pid, DEFAULT_DOC, c3["id"])
+    await asyncio.to_thread(st.record_run, pid, c3["id"], ExecResult(
+        "ok", seconds=1.2, language="sage", sandbox="bwrap", execution_count=3, outputs=out(
+            {"output_type": "display_data", "metadata": {},
+             "data": {"image/svg+xml": DEMO_SVG, "text/plain": "Graphics object consisting of 2 graphics primitives"}})),
+        "host", c3["code_hash"], upstream=up)
+    await asyncio.to_thread(st.add, pid, "[p for p in primes(200) if is_prime(p + 2)]", "", "assistant", kind="ask",
+                            prompt="les nombres premiers jumeaux inférieurs à 200", model="fake:fake-assistant")
+    await asyncio.to_thread(st.add, pid, "", kind="figure", figure={
+        "v": 1, "title": "Cercle et tangente", "view": {"xmin": -5, "xmax": 5, "ymin": -3.5, "ymax": 3.5},
+        "curves": [{"id": "c0", "expr": "sin(x)/x"}],
+        "objects": [{"id": "o1", "name": "O", "kind": "point", "parents": [], "x": 0, "y": 0},
+                    {"id": "o2", "name": "A", "kind": "point", "parents": [], "x": 2, "y": 1},
+                    {"id": "o3", "name": "c", "kind": "circle_center_point", "parents": ["o1", "o2"]},
+                    {"id": "o4", "name": "r", "kind": "distance", "parents": ["o1", "o2"]}]})
 
 
 def _demo_brain(ctx) -> None:
@@ -576,18 +1155,11 @@ def register(app: web.Application, ctx) -> None:
                 log.exception("demo seed (workbench) failed")
         app.on_startup.append(startup)
     a = app.router
-    a.add_get("/api/calcul/assets/{aid}", calc_asset)
-    a.add_get("/api/calcul/{pid}", calc_get)
-    a.add_post("/api/calcul/{pid}/cells", calc_add)
-    a.add_patch("/api/calcul/{pid}/cells/{cid}", calc_edit)
-    a.add_delete("/api/calcul/{pid}/cells/{cid}", calc_delete)
-    a.add_post("/api/calcul/{pid}/cells/{cid}/restore", calc_restore)
-    a.add_post("/api/calcul/{pid}/cells/{cid}/move", calc_move)
-    a.add_post("/api/calcul/{pid}/cells/{cid}/approve", calc_approve)
-    a.add_post("/api/calcul/{pid}/cells/{cid}/run", calc_run)
-    a.add_post("/api/calcul/{pid}/cells/{cid}/to", calc_to)
-    a.add_post("/api/calcul/{pid}/interrupt", calc_interrupt)
-    a.add_post("/api/calcul/{pid}/assist", calc_assist)
+    _register_calcul(a)
+
+    async def reaper_start(_app):
+        ctx.spawn(_reaper(ctx, app[WB]))
+    app.on_startup.append(reaper_start)
     a.add_get("/api/library/catalog", library_catalog)
     a.add_get("/api/library/catalog/export", library_catalog_export)
     a.add_patch("/api/library/meta/{name}", library_meta_patch)

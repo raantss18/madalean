@@ -609,6 +609,12 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 
 ## 6b. Calcul, library catalogue, glossary, spending (session S-M, plugin `workbench.py`)
 
+**S-P: Calcul notebooks** — documents `/api/calcul/{pid}/docs[/{doc}]` (cells code/ask/markdown/figure, sequential
+`…/run {all|until|from|cells}`, `…/cells/{cid}/ask {prompt}`, `interrupt|restart|shutdown|clear`, `variables`,
+`ipynb`, `…/cells/{cid}/to`): full list in the docstring of `madalean/server/plugins/workbench.py` and
+[CALCUL.md](CALCUL.md). The S-M routes below act on the default document `calcul` (cells now also carry `type`,
+`outputs`, `exec_count`, `stale`; a run also returns nbformat-shaped `outputs`).
+
 | Method | Path | Body → answer |
 |---|---|---|
 | GET | `/api/calcul/{pid}` | → `{sheet: {cells, rev}, trash, status: {available{sage,python}, sandbox, auto, remote_allowed, local, running}}` |

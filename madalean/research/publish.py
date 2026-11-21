@@ -13,7 +13,10 @@ publication`) + a Lake project that a GitHub Action re-verifies, pushed to a Git
    redistributable AND the user ticked them. Building / pushing needs the manifest id the user confirmed.
 3. Preview: `python3 site/build.py publication --input … --out …` into `<project>/publish/preview/`.
 4. Push (host only): `git` (never `--force`) to `https://github.com/<owner>/<repo>.git` with a token from the keyring
-   (provider "github") or `gh auth token`, passed in an `http.extraHeader` (never in a URL, never logged);
+   (provider "github") or `gh auth token`, handed to a GIT_ASKPASS helper through the environment (never in a URL, a
+   command line or a log); identity checked first, classic scopes checked before trying, every GitHub refusal mapped to
+   the missing scope / permission, SSO, 2FA, expiry or rate limit (`gh_failure`, `_git_failure`); `check()` is the
+   read-only « Tester la connexion GitHub »;
    repository created on request, GitHub Pages enabled with `build_type: workflow`; updates are new commits on top of
    the remote branch, and nothing is committed when nothing changed."""
 from __future__ import annotations
@@ -407,14 +410,47 @@ def render(ctx, pid: str, timeout: float = 300) -> dict:
 
 
 # ================================================================ GitHub
+# What each step needs (docs.github.com, REST "fine-grained permissions" + classic scopes):
+#   step              classic token (ghp_/gho_)                fine-grained token (github_pat_)
+#   identity          —                                        —
+#   create repo       repo (public_repo for a public repo)     Administration: write (+ "All repositories")
+#   push              repo / public_repo                       Contents: write
+#   push the workflow workflow                                 Workflows: write
+#   enable Pages      repo                                     Pages: write (+ Administration: write)
+STEP_NEEDS = {
+    "create": {"classic": ["repo"], "fine_grained": ["administration=write"]},
+    "push": {"classic": ["repo"], "fine_grained": ["contents=write"]},
+    "workflow": {"classic": ["workflow"], "fine_grained": ["workflows=write"]},
+    "pages": {"classic": ["repo"], "fine_grained": ["pages=write", "administration=write"]},
+}
+TOKEN_SETTINGS = {"classic": "https://github.com/settings/tokens",
+                  "fine_grained": "https://github.com/settings/personal-access-tokens"}
+
+
 def _gh_path() -> str | None:
     return shutil.which("gh")
 
 
+def token_kind(tok: str) -> str:
+    """classic (ghp_) | fine_grained (github_pat_) | oauth (gho_, e.g. `gh auth token`) | app (ghu_/ghs_) | unknown."""
+    for pre, kind in (("ghp_", "classic"), ("github_pat_", "fine_grained"), ("gho_", "oauth"), ("ghu_", "app"),
+                      ("ghs_", "app")):
+        if tok.startswith(pre):
+            return kind
+    return "unknown"
+
+
+def _scoped(kind: str) -> str:
+    """The permission model of a token kind: classic scopes (X-OAuth-Scopes) or fine-grained permissions."""
+    return "classic" if kind in ("classic", "oauth") else ("fine_grained" if kind in ("fine_grained", "app") else "")
+
+
 def github_token(ctx) -> tuple[str, str]:
+    """(token, where): the key saved in Réglages → Clés (provider "github", keyring service "madalean"), else the
+    token of the GitHub CLI (`gh auth token`). Whitespace from a copy-paste is removed."""
     tok = ctx.keys.get("github") if hasattr(ctx, "keys") else None
-    if tok:
-        return tok, "keyring"
+    if tok and tok.strip():
+        return re.sub(r"\s+", "", tok), "keyring"
     gh = _gh_path()
     if gh:
         try:
@@ -429,29 +465,213 @@ def github_token(ctx) -> tuple[str, str]:
 class GitHub:
     def __init__(self, token: str, api: str | None = None):
         self.token, self.api = token, (api or GITHUB_API).rstrip("/")
+        self.headers: dict[str, str] = {}               # of the last response (scopes, SSO, permissions, rate limit)
 
     async def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
         import aiohttp
         headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json",
                    "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "Madalean/2.0 (publish)"}
-        async with aiohttp.ClientSession(trust_env=False, cookie_jar=aiohttp.DummyCookieJar()) as s:
-            async with s.request(method, self.api + path, json=body, headers=headers, allow_redirects=False,
-                                 timeout=aiohttp.ClientTimeout(total=60)) as r:
-                try:
-                    data = await r.json(content_type=None)
-                except ValueError:
-                    data = {}
-                return r.status, data if isinstance(data, dict) else {"items": data}
+        try:
+            async with aiohttp.ClientSession(trust_env=False, cookie_jar=aiohttp.DummyCookieJar()) as s:
+                async with s.request(method, self.api + path, json=body, headers=headers, allow_redirects=False,
+                                     timeout=aiohttp.ClientTimeout(total=60)) as r:
+                    self.headers = {k.lower(): v for k, v in r.headers.items()}
+                    try:
+                        data = await r.json(content_type=None)
+                    except ValueError:
+                        data = {}
+                    return r.status, data if isinstance(data, dict) else {"items": data}
+        except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
+            raise PublishError("github_unreachable", 502, detail=type(e).__name__)
+
+    def scopes(self) -> list[str] | None:
+        """Classic / OAuth scopes of the token (None: header absent, e.g. a fine-grained token)."""
+        h = self.headers.get("x-oauth-scopes")
+        return None if h is None else [x.strip() for x in h.split(",") if x.strip()]
+
+
+def _perm_names(spec: str) -> list[str]:
+    """'contents=write; workflows=write' (X-Accepted-GitHub-Permissions) → ['contents=write', 'workflows=write']."""
+    out = []
+    for alt in spec.split(";"):
+        out += [x.strip() for x in alt.split(",") if "=" in x]
+    return list(dict.fromkeys(out))
+
+
+def perm_label(codes: list[str] | str) -> str:
+    """['contents=write'] → 'Contents (Read and write)': the words of GitHub's token page."""
+    if isinstance(codes, str):
+        codes = [codes]
+    out = []
+    for c in codes:
+        k, _, v = c.partition("=")
+        out.append(f"{k.replace('_', ' ').title()} ({'Read and write' if v in ('write', 'admin') else 'Read-only'})")
+    return ", ".join(out)
+
+
+def gh_failure(gh: GitHub, status: int, data: dict, step: str, kind: str, owner: str = "") -> PublishError:
+    """A precise error from a GitHub API answer: which permission is missing, SSO, 2FA, expired token, rate limit."""
+    message = str((data or {}).get("message", ""))[:300]
+    h = gh.headers
+    if status == 401:
+        return PublishError("github_token_invalid", 401, token_kind=kind)
+    sso = h.get("x-github-sso", "")
+    if sso:
+        m = re.search(r"url=(https://github\.com/\S+)", sso)
+        return PublishError("github_sso_required", 403, org=owner, url=m.group(1) if m else TOKEN_SETTINGS["classic"],
+                            step=step)
+    if re.search(r"(?i)two-factor|2fa", message):
+        return PublishError("github_2fa_required", 403, org=owner, step=step)
+    if status in (403, 429) and (h.get("x-ratelimit-remaining") == "0" or "rate limit" in message.lower()):
+        return PublishError("github_rate_limited", 429, reset=h.get("x-ratelimit-reset", ""))
+    accepted = _perm_names(h.get("x-accepted-github-permissions", ""))
+    if status in (403, 404) and (accepted or "not accessible by" in message.lower()):
+        # GitHub names what THIS request needed (e.g. pages=read for a GET): the step needs at least its own list
+        want = {c.partition("=")[0]: c for c in accepted}
+        for c in STEP_NEEDS[step]["fine_grained"]:
+            if c.partition("=")[0] in want or not accepted:
+                want[c.partition("=")[0]] = c
+        need = list(want.values())
+        return PublishError("github_permission_missing", 403, step=step, permission=perm_label(need),
+                            token_kind=kind, settings=TOKEN_SETTINGS["fine_grained"])
+    if status == 403 and _scoped(kind) == "classic":
+        have = gh.scopes() or []
+        need = [s for s in STEP_NEEDS[step]["classic"] if s not in have]
+        return PublishError("github_scope_missing", 403, step=step, scope=", ".join(need or STEP_NEEDS[step]["classic"]),
+                            token_kind=kind, settings=TOKEN_SETTINGS["classic"])
+    if status == 403:
+        return PublishError("github_forbidden", 403, step=step, message=message, token_kind=kind)
+    return PublishError("github_error", 502, step=step, status=status, message=message)
+
+
+def _git_failure(stderr: str, step: str, kind: str) -> PublishError:
+    """Classify a git clone/push failure (stderr already redacted)."""
+    low = stderr.lower()
+    log_ = stderr[-500:]
+    if "workflow" in low and ("refusing to allow" in low or "without `workflow`" in low or "workflows" in low):
+        if _scoped(kind) == "fine_grained":
+            return PublishError("github_permission_missing", 403, step="workflow",
+                                permission=perm_label("workflows=write"),
+                                token_kind=kind, settings=TOKEN_SETTINGS["fine_grained"], log=log_)
+        return PublishError("github_scope_missing", 403, step="workflow", scope="workflow", token_kind=kind,
+                            settings=TOKEN_SETTINGS["classic"], log=log_)
+    if re.search(r"authentication failed|invalid username or password|returned error: 401|bad credentials", low):
+        return PublishError("github_token_invalid", 401, token_kind=kind, log=log_)
+    if re.search(r"permission to \S+ denied|returned error: 403|write access to repository not granted", low):
+        if _scoped(kind) == "fine_grained":
+            return PublishError("github_permission_missing", 403, step=step, permission=perm_label("contents=write"),
+                                token_kind=kind, settings=TOKEN_SETTINGS["fine_grained"], log=log_)
+        return PublishError("github_scope_missing", 403, step=step, scope="repo", token_kind=kind,
+                            settings=TOKEN_SETTINGS["classic"], log=log_)
+    if re.search(r"saml|single sign-on", low):
+        return PublishError("github_sso_required", 403, step=step, org="", url=TOKEN_SETTINGS["classic"], log=log_)
+    if re.search(r"could not resolve host|unable to access|connection timed out|failed to connect", low):
+        return PublishError("github_unreachable", 502, detail="git", log=log_)
+    if step == "push" and re.search(r"rejected|non-fast-forward|fetch first|declined", low):
+        return PublishError("git_push_rejected", 409, log=log_)
+    return PublishError("git_clone_failed" if step == "fetch" else "git_push_failed", 502, log=log_)
+
+
+async def check(ctx, repo: str = "", private: bool = False) -> dict:
+    """« Tester la connexion GitHub »: read-only (GET only, nothing is created). Who am I, token kind, scopes, expiry,
+    and per step whether the token can do it: {ok, login, token_kind, source, scopes, expires, checks: [{id, ok, code,
+    params}]}. `ok` is None when GitHub cannot tell in advance (fine-grained tokens: permissions are only known by
+    trying)."""
+    try:
+        token, how = await asyncio.to_thread(github_token, ctx)
+    except PublishError:
+        return {"ok": False, "source": "", "token_kind": "", "checks": [{"id": "token", "ok": False,
+                                                                        "code": "no_token", "params": {}}]}
+    kind = token_kind(token)
+    gh = GitHub(token)
+    out: dict = {"source": how, "token_kind": kind, "login": "", "scopes": None, "expires": "", "checks": []}
+    checks = out["checks"]
+
+    def mark(id_: str, ok_: bool | None, code: str, **params) -> None:
+        checks.append({"id": id_, "ok": ok_, "code": code, "params": params})
+    try:
+        st, me = await gh.call("GET", "/user")
+    except PublishError as e:
+        mark("identity", False, e.kind)
+        out["ok"] = False
+        return out
+    if st != 200:
+        e = gh_failure(gh, st, me, "push", kind)
+        mark("identity", False, e.kind, **{k: v for k, v in e.info.items() if isinstance(v, str)})
+        out["ok"] = False
+        return out
+    out["login"] = str(me.get("login", ""))
+    out["name"] = str(me.get("name") or "")
+    out["expires"] = gh.headers.get("github-authentication-token-expiration", "")
+    mark("identity", True, "identity_ok", login=out["login"])
+    if out["expires"]:
+        mark("expiry", True, "expires", date=out["expires"])
+    scopes = gh.scopes()
+    out["scopes"] = scopes
+    model = _scoped(kind) or ("classic" if scopes is not None else "")
+    owner, name = (repo.split("/", 1) + [""])[:2] if repo else (out["login"], "")
+    if model == "classic":
+        have = set(scopes or [])
+        repo_ok = "repo" in have or (not private and "public_repo" in have)
+        mark("create", repo_ok, "scope_ok" if repo_ok else "scope_missing", scope="repo")
+        mark("push", repo_ok, "scope_ok" if repo_ok else "scope_missing", scope="repo")
+        mark("workflow", "workflow" in have, "scope_ok" if "workflow" in have else "scope_missing", scope="workflow")
+        pages_ok = "repo" in have
+        mark("pages", pages_ok, "scope_ok" if pages_ok else "scope_missing", scope="repo")
+    elif model == "fine_grained":
+        for step in ("create", "push", "workflow", "pages"):
+            mark(step, None, "permission_needed", permission=perm_label(STEP_NEEDS[step]["fine_grained"]))
+    if owner and owner.lower() != out["login"].lower():      # an organisation: membership, SSO, 2FA
+        st, org = await gh.call("GET", f"/orgs/{owner}")
+        if st == 200:
+            mark("org", True, "org_ok", org=owner)
+        else:
+            e = gh_failure(gh, st, org, "create", kind, owner)
+            mark("org", False, e.kind if st != 404 else "org_not_found", org=owner,
+                **{k: v for k, v in e.info.items() if isinstance(v, str) and k != "org"})
+    if repo and name:
+        st, info = await gh.call("GET", f"/repos/{owner}/{name}")
+        if st == 200:
+            perms = info.get("permissions") or {}
+            can = perms.get("push") if perms else None
+            mark("repo", True if can is None else bool(can), "repo_ok" if can is not False else "repo_read_only",
+                repo=repo)
+        elif st == 404:
+            mark("repo", None, "repo_absent", repo=repo)
+        else:
+            e = gh_failure(gh, st, info, "push", kind, owner)
+            mark("repo", False, e.kind, repo=repo, **{k: v for k, v in e.info.items() if isinstance(v, str)})
+    rem = gh.headers.get("x-ratelimit-remaining")
+    if rem is not None and rem.isdigit() and int(rem) < 20:
+        mark("rate", False, "rate_low", remaining=rem)
+    out["ok"] = not any(c["ok"] is False for c in checks)
+    return out
+
+
+ASKPASS = "#!/bin/sh\ncase \"$1\" in\n  [Uu]sername*) printf '%s\\n' \"$MADALEAN_GIT_USER\" ;;\n" \
+          "  *) printf '%s\\n' \"$MADALEAN_GIT_TOKEN\" ;;\nesac\n"
 
 
 def _git(args: list[str], cwd: Path, token: str = "", timeout: float = 300) -> subprocess.CompletedProcess:
+    """git with the token given to an askpass helper through the environment (readable only by this user): never in a
+    URL, never on a command line (visible in `ps`), never in a config file, never logged."""
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(cwd), "GIT_TERMINAL_PROMPT": "0",
-           "GIT_CONFIG_NOSYSTEM": "1", "LANG": "C.UTF-8"}
-    if token:                                   # Authorization header through git's config env: never in a URL / log
-        basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-        env.update({"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-                    "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}"})
-    r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=timeout, env=env)
+           "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "LANG": "C.UTF-8",
+           # no credential helper of the user can store / answer for this token
+           "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "credential.helper", "GIT_CONFIG_VALUE_0": ""}
+    helper_dir = None
+    if token:
+        helper_dir = tempfile.mkdtemp(prefix="madalean-askpass-")
+        os.chmod(helper_dir, 0o700)
+        helper = Path(helper_dir) / "askpass.sh"
+        helper.write_text(ASKPASS)
+        helper.chmod(0o700)
+        env.update({"GIT_ASKPASS": str(helper), "MADALEAN_GIT_USER": "x-access-token", "MADALEAN_GIT_TOKEN": token})
+    try:
+        r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=timeout, env=env)
+    finally:
+        if helper_dir:
+            shutil.rmtree(helper_dir, ignore_errors=True)
     if token:
         r = subprocess.CompletedProcess(r.args, r.returncode, r.stdout.replace(token, "***"),
                                         r.stderr.replace(token, "***"))
@@ -491,35 +711,58 @@ async def push(ctx, pid: str, repo: str, *, create: bool = False, private: bool 
     if not (base / "preview" / "index.html").exists():
         raise PublishError("no_preview", 409)
     token, how = await asyncio.to_thread(github_token, ctx)
+    kind = token_kind(token)
     gh = GitHub(token)
     owner, name = repo.split("/", 1)
-    progress("repository", repo=repo, credentials=how)
+    # ---- identity first: an expired / revoked token is reported as such (not as « repository not found »)
+    st_u, me = await gh.call("GET", "/user")
+    if st_u != 200:
+        raise gh_failure(gh, st_u, me, "push", kind, owner)
+    login = str(me.get("login", ""))
+    scopes = gh.scopes()
+    if scopes is not None and _scoped(kind) != "fine_grained":     # classic scopes are known before trying
+        have = set(scopes)
+        if not ("repo" in have or (not private and "public_repo" in have)):
+            raise PublishError("github_scope_missing", 403, step="push", scope="repo", token_kind=kind,
+                               settings=TOKEN_SETTINGS["classic"])
+        if "workflow" not in have:
+            raise PublishError("github_scope_missing", 403, step="workflow", scope="workflow", token_kind=kind,
+                               settings=TOKEN_SETTINGS["classic"])
+    progress("repository", repo=repo, credentials=how, login=login)
     st, info = await gh.call("GET", f"/repos/{owner}/{name}")
     created = False
     if st == 404:
         if not create:
-            raise PublishError("repo_not_found", 404, repo=repo)
-        st_u, me = await gh.call("GET", "/user")
-        if st_u != 200:
-            raise PublishError("github_auth", 401)
-        path = "/user/repos" if me.get("login", "").lower() == owner.lower() else f"/orgs/{owner}/repos"
+            raise PublishError("repo_not_found", 404, repo=repo, token_kind=kind)
+        mine = login.lower() == owner.lower()
+        path = "/user/repos" if mine else f"/orgs/{owner}/repos"
         st, info = await gh.call("POST", path, {"name": name, "private": bool(private), "auto_init": False,
                                                 "description": "Published with Madalean (Lean-verified)"})
+        if st == 422 and "exist" in str(info).lower():
+            # it exists but this token cannot see it (fine-grained token limited to other repositories)
+            raise PublishError("github_repo_not_granted", 403, repo=repo, token_kind=kind,
+                               settings=TOKEN_SETTINGS["fine_grained"])
+        if st == 404 and not mine:
+            raise PublishError("github_org_not_found", 404, org=owner)
         if st not in (200, 201):
-            raise PublishError("repo_create_failed", 502, status=st, message=str(info.get("message", ""))[:200])
+            raise gh_failure(gh, st, info, "create", kind, owner)
         created = True
         progress("created", repo=repo)
-    elif st in (401, 403):
-        raise PublishError("github_auth", 401)
     elif st != 200:
-        raise PublishError("github_error", 502, status=st)
+        raise gh_failure(gh, st, info, "push", kind, owner)
     url = git_url(repo)
     with tempfile.TemporaryDirectory(prefix="madalean-publish-") as tmp:
         work = Path(tmp) / "repo"
         progress("fetch")
-        r = await asyncio.to_thread(_git, ["clone", "--quiet", url, str(work)], Path(tmp), token)
+        for attempt in range(4 if created else 1):        # a repository just created can take a moment to answer
+            r = await asyncio.to_thread(_git, ["clone", "--quiet", url, str(work)], Path(tmp), token)
+            if r.returncode == 0:
+                break
+            shutil.rmtree(work, ignore_errors=True)
+            if attempt < 3 and created:
+                await asyncio.sleep(1.5 * (attempt + 1))
         if r.returncode != 0:
-            raise PublishError("git_clone_failed", 502, log=r.stderr[-500:])
+            raise _git_failure(r.stderr, "fetch", kind)
         await asyncio.to_thread(_git, ["checkout", "-q", "-B", branch] + ([f"origin/{branch}"] if (
             await asyncio.to_thread(_git, ["rev-parse", "--verify", "-q", f"origin/{branch}"], work)).returncode == 0
             else []), work)
@@ -537,7 +780,7 @@ async def push(ctx, pid: str, repo: str, *, create: bool = False, private: bool 
             progress("push")
             r = await asyncio.to_thread(_git, ["push", "--quiet", "origin", f"HEAD:refs/heads/{branch}"], work, token)
             if r.returncode != 0:                        # never --force: a diverged remote is reported
-                raise PublishError("git_push_rejected", 409, log=r.stderr[-500:])
+                raise _git_failure(r.stderr, "push", kind)
         commit = (await asyncio.to_thread(_git, ["rev-parse", "HEAD"], work)).stdout.strip()
         changed = bool(diff.stdout.strip())
     progress("pages")
@@ -548,9 +791,19 @@ async def push(ctx, pid: str, repo: str, *, create: bool = False, private: bool 
         st, pages = await gh.call("PUT", f"/repos/{owner}/{name}/pages", {"build_type": "workflow"})
         st = 200 if st == 204 else st
     pages_ok = st in (200, 201, 204)
+    pages_error: dict = {}
+    if not pages_ok:                 # the code is pushed: Pages is reported, not fatal (it can be enabled by hand)
+        msg_ = str((pages or {}).get("message", ""))
+        if st == 422 and re.search(r"(?i)plan|private", msg_):
+            pages_error = {"error": "pages_plan", "message": msg_[:200]}
+        else:
+            e = gh_failure(gh, st, pages or {}, "pages", kind, owner)
+            pages_error = {"error": e.kind, **{k: v for k, v in e.info.items() if isinstance(v, str)}}
     state = {"repo": repo, "branch": branch, "commit": commit, "changed": changed, "created": created,
-             "pages": pages_ok, "pages_url": pages.get("html_url") or f"https://{owner.lower()}.github.io/{name}/",
-             "pushed_at": time.time()}
+             "pages": pages_ok, "pages_url": (pages or {}).get("html_url") or f"https://{owner.lower()}.github.io/{name}/",
+             "pushed_at": time.time(), "login": login,
+             **({"pages_error": pages_error, "pages_settings": f"https://github.com/{repo}/settings/pages"}
+                if pages_error else {})}
     config.atomic_write_text(base / "state.json", json.dumps(state, indent=1))
     return state
 

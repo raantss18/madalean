@@ -196,12 +196,21 @@ A boundary is crossed in four places, and each place must hold:
 - **XML.** Entities are refused.
 - **PDF tools.** Run under rlimits and timeouts.
 - **Paper TeX.** Parsed, never compiled.
+- **Article projects (S-R, docs/ARTICLE.md §6).** The user's own LaTeX is compiled, always inside `tex_confine`
+  (tectonic `--untrusted --only-cached`), after `texbuild.guard` refuses file/shell primitives, `^^`, `\csname`,
+  `\catcode`, `\scantokens`, absolute or `..` paths in the whole project. AI text enters only as suggestions the user
+  accepts; `guard_ai` also refuses definitions and inclusions in them. Overleaf imports: `.tex/.bib`/images only
+  (third-party `.sty/.cls/.lua` refused), guarded. The network is shared with the sandbox only for the explicit
+  « Télécharger une fois » (files of the pinned bundle, generated or guarded source).
 
 ### Secrets
 - **Keys.**
   - Stored in the keyring, or in `keys.json` 0600. They are never returned (`set: true/false`) and never logged; the
     only log line is « stored for <provider> ».
   - Not passed to Lean, TeX or experiment kernels (environment allow-lists, tested).
+  - Each key is attached only to its provider's exact host(s) (`net.Http.check`, no subdomains). The Hugging Face
+    token (S-T) has two: `router.huggingface.co` (inference) and `huggingface.co` (`/api/whoami-v2`, the key test);
+    the Hub's public model-mapping API is called without it (tested in `tests/test_hf_goedel.py`).
 - **Device tokens.**
   - Hashed.
   - The `devices.updated` event shows names and last IPs to every paired device (accepted, R-7).

@@ -58,3 +58,45 @@ export const wb = {
   deps: () => request<{ components?: DepsComponent[]; jobs?: Record<string, { running?: boolean; phase?: string; done?: number; total?: number; message?: string }> }>('GET', '/deps'),
   installDep: (name: string) => request<{ component: string; started: boolean }>('POST', `/deps/${enc(name)}/install`, {}),
 };
+
+// ---------------------------------------------------------------- S-P: Calcul notebooks (docs/CALCUL.md)
+export type NbCellType = 'code' | 'ask' | 'markdown' | 'figure';
+export interface NbOutput { type: 'stream' | 'error' | 'result' | 'display'; name?: string; text?: string; ename?: string; evalue?: string;
+  traceback?: string; data?: Record<string, unknown>; approx?: string }
+export interface NbRunMeta { status: string; seconds: number; t: number; code_hash: string; upstream: string; kernel: string }
+export interface NbCell { id: string; type: NbCellType; language: 'sage' | 'python'; source: string; collapsed: boolean; outputs_hidden: boolean;
+  code?: string; code_hash?: string; origin?: 'user' | 'assistant'; model?: string; approved?: { hash: string; t: number; device: string } | null;
+  prompt?: string; versions?: { code: string; t: number; origin: string }[]; runs?: { id: string; t: number; status: string; seconds: number }[];
+  exec_count?: number | null; outputs?: NbOutput[]; last?: NbRunMeta | null; stale?: boolean; stale_reason?: string; fresh?: boolean;
+  autofix?: { t: number; model: string } | null; figure?: Record<string, unknown>; svg?: { asset: string } }
+export interface NbDocInfo { id: string; title: string; language: 'sage' | 'python'; path: string; cells?: number; updated?: number; engine?: { name: string; version: string } | null; rev?: number }
+export interface NbKernel { kernel: string; state: string; shared?: boolean; name?: string; sandboxed?: boolean; connections?: number }
+export interface NbStatus extends CalcStatus { kernel: NbKernel; idle_minutes: number }
+export interface NbView { doc: NbDocInfo; cells: NbCell[]; trash: { id: string; source: string }[]; status: NbStatus }
+export interface NbRunResult { runs: Record<string, CalcRun & { outputs: NbOutput[] }>; stopped: { cell_id: string; reason: string } | null; autofix: NbCell | null }
+
+const D = (pid: string, doc: string) => `/calcul/${enc(pid)}/docs/${enc(doc)}`;
+export const nb = {
+  docs: (pid: string) => request<{ docs: NbDocInfo[] }>('GET', `/calcul/${enc(pid)}/docs`),
+  createDoc: (pid: string, title: string, language: 'sage' | 'python') => request<{ doc: NbDocInfo }>('POST', `/calcul/${enc(pid)}/docs`, { title, language }),
+  renameDoc: (pid: string, doc: string, title: string) => request<{ doc: NbDocInfo }>('PATCH', D(pid, doc), { title }),
+  deleteDoc: (pid: string, doc: string) => request<{ removed: string }>('DELETE', D(pid, doc)),
+  get: (pid: string, doc: string) => request<NbView>('GET', D(pid, doc)),
+  add: (pid: string, doc: string, body: { type: NbCellType; source?: string; prompt?: string; figure?: unknown; svg?: string; after?: string; at?: number }) =>
+    request<{ cell: NbCell }>('POST', `${D(pid, doc)}/cells`, body),
+  edit: (pid: string, doc: string, cid: string, patch: Record<string, unknown>) => request<{ cell: NbCell }>('PATCH', `${D(pid, doc)}/cells/${enc(cid)}`, patch),
+  remove: (pid: string, doc: string, cid: string) => request<{ removed: string }>('DELETE', `${D(pid, doc)}/cells/${enc(cid)}`),
+  restore: (pid: string, doc: string, cid: string) => request<{ cell: NbCell }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/restore`, {}),
+  move: (pid: string, doc: string, cid: string, to: number) => request<{ order: string[] }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/move`, { to }),
+  approve: (pid: string, doc: string, cid: string, code_hash: string) => request<{ cell: NbCell }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/approve`, { code_hash }),
+  run: (pid: string, doc: string, body: { cells?: string[]; until?: string; from?: string; all?: boolean; timeout?: number }) =>
+    request<NbRunResult>('POST', `${D(pid, doc)}/run`, body),
+  ask: (pid: string, doc: string, cid: string, prompt: string) => request<{ cell: NbCell; model: string; approval_required: boolean }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/ask`, { prompt }),
+  kernel: (pid: string, doc: string, action: 'interrupt' | 'restart' | 'shutdown' | 'clear') => request<Record<string, unknown>>('POST', `${D(pid, doc)}/${action}`, {}),
+  variables: (pid: string, doc: string) => request<{ names: { name: string; type: string; value: string }[] }>('GET', `${D(pid, doc)}/variables`),
+  explain: (pid: string, doc: string, cell_id: string) => request<{ text: string; model: string }>('POST', `${D(pid, doc)}/assist`, { action: 'explain', cell_id }),
+  sendTo: (pid: string, doc: string, cid: string, body: { target: CalcTarget; text?: string; title?: string; png?: string; asset?: string }) =>
+    request<Record<string, unknown>>('POST', `${D(pid, doc)}/cells/${enc(cid)}/to`, body),
+  ipynbUrl: (pid: string, doc: string) => `/api${D(pid, doc)}/ipynb`,
+  labUrl: (path: string) => `/jupyter/lab/tree/${path.split('/').map(enc).join('/')}`,
+};

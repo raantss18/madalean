@@ -35,7 +35,7 @@ export function modelLabel(key: string): { name: string; provider: string; local
 
 export const PROVIDER_NAMES: Record<string, string> = {
   local: 'Madalean (local)', ollama: 'Ollama', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter',
-  groq: 'Groq', mistral: 'Mistral', cerebras: 'Cerebras', openai: 'OpenAI', deepseek: 'DeepSeek', llm7: 'LLM7',
+  groq: 'Groq', mistral: 'Mistral', cerebras: 'Cerebras', openai: 'OpenAI', deepseek: 'DeepSeek', huggingface: 'Hugging Face', llm7: 'LLM7',
   ovh: 'OVHcloud', kilo: 'Kilo', pollinations: 'Pollinations', fake: 'Démo', 'lean': 'Lean', mathlib: 'Mathlib',
 };
 

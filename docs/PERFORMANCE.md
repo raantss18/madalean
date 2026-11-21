@@ -1,0 +1,61 @@
+# Madalean 2.0 — memory and idle work (session S-Q, 2026-11-21)
+
+User decision: optimised, no redundancy, no useless task; kernels kept warm, ~1.5–2 GB at rest is acceptable.
+Measured on the host (Ryzen, 31 GB RAM, RTX GPU) with a separate server (`bin/madalean serve --port 11630
+--config-dir …`, real Lean workspace lean-prover49, keyless free online models) and `scripts/dev/memtree.py <pid>`
+(RSS and PSS of the whole process tree, from `/proc/*/smaps_rollup`). The installed server was only observed
+read-only.
+
+## Numbers
+
+| situation | before | after |
+|---|---|---|
+| server at rest, no UI open (Python process) | 63–78 MiB RSS | 63 MiB RSS (48 MiB PSS), no child process |
+| child processes spawned at rest | 2 × `nvidia-smi` every 3 s (≈ 40 / min) | ≤ 2 / min (one poll per minute) |
+| events written to the replay ring at rest | 1 `system.status` every 3 s (≈ 1 200 / h) | 0 |
+| one UI open, 20 s | 7 `system.status` | 6 (only when the GPU / disk / slots snapshot changed) |
+| one strict Lean check (`lean --json`, `import Mathlib`) | 3.4 GB PSS for ≈ 4.5 s, released | unchanged (no resident Lean) |
+| real consigne run (3 Lean jobs in parallel + local Qwen3-8B llama-server) | — | peak 5.4 GB PSS (Lean 4.9 GB, llama-server 0.43 GB host RAM, server 77 MiB) |
+| installed server at rest (observed) | 42 MiB RSS + 177 MiB swapped; cgroup peak 14.2 GB with llama + Lean | — (not modified) |
+
+Lean processes share the memory-mapped Mathlib `.olean` files: two or three concurrent checks cost much less than
+2–3 × 3.4 GB (8.2 GB RSS but 4.9 GB PSS above). Nothing of Lean stays resident between checks.
+
+## What was changed
+
+- **GPU / disk monitor** (`runtime/monitor.py`, `context.py`): fast pace (3 s) only when someone looks (an open
+  WebSocket: `bus.clients`), the local model is loaded / loading, or a Lean check runs; otherwise one poll per minute.
+  A new client wakes it at once (no latency regression). `system.status` is published only to an audience and only
+  when the snapshot changed.
+- **Event ring** (`server/bus.py`): still 5 000 events, now also ≤ 24 MB (article / blueprint / manifest events carry
+  whole documents; 5 000 of them could hold hundreds of MB). A client too late resyncs, as before.
+- **HTTP cache of the sources library** (`research/fetch.py`): was 500 answers of up to 8 MB each, never evicted by
+  age; now ≤ 200 answers, ≤ 16 MB, expired entries dropped first, bodies > 2 MB (PDFs, archives: they are stored on
+  the shelf) never kept in memory.
+- **Embeddings** (`brain/rag.py`, `research/fulltext.py`): one shared `Embedder` for the Lean retriever and the
+  sources library (each source search used to create a new one: new Ollama model detection, empty cache); its cache
+  is an LRU of float32 vectors, 4 000 entries ≈ 12 MB (was up to 20 000 Python float lists ≈ 0.5 GB, then cleared all
+  at once).
+- **Catalogue refresh** (`brain/engine.py`): single flight — « Actualiser », a key test and the staleness check no
+  longer start parallel refreshes; the GitHub key test no longer triggers a refresh at all.
+- **Sage kernels** (`research/sagebridge.py`): kept warm 2 h (was 10 min: each experiment after a pause paid a Sage
+  start of 10–20 s), at most 3 at once (least recently used shut down first) ≈ 1–1.8 GB when all are warm.
+- **Tailscale node** (`server/plugins/deps_net.py`): a dev checkout or a server with `--config-dir` no longer
+  auto-starts the shared `madalean-net` node (its state lives in the installation prefix). Incident during this
+  measurement: the test server started a second node on the installed server's state directory and status socket
+  for about two minutes; the installed node kept serving, but its status socket file `net.sock` was removed —
+  restarting the installed service recreates it.
+
+## Checked and left as is
+
+- RAG index: one retriever, read-only SQLite opened per query (data in the page cache, not the Python heap).
+- Sources full-text: per-shelf SQLite FTS, opened per query; shelves cached once per server.
+- Leaderboard (600 rows), finished jobs (200), streamed model text (40 jobs × 1 M characters, 10 min after the end):
+  bounded.
+- Browser-session sweeper (5 s, in memory), research-workshop minute tick (update policy, cheap), llama-server idle
+  unload after 10 min (gives the GPU back: kept, GPU sharing with Ollama).
+- No duplicated poller where events exist: the proof-plan watcher subscribes to the bus; the consigne waits on the
+  job tasks themselves.
+- `texio` font caches (`lru_cache(maxsize=None)`) are bounded in practice by the installed fonts (S-O's file).
+
+Tests: `tests/test_memory_bounds.py`.

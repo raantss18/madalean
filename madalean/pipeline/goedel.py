@@ -28,13 +28,25 @@ class ProveResult:
     seconds: float = 0.0
 
 
+# Goedel-Prover-V2 served online (Hugging Face Inference Providers, session S-T): the SAME loop and verbatim prompts as
+# the local 8B, pinned to one model. Sampling as Goedel's own inference (temperature 1.0, top_p 0.95 — the 1.1.x
+# defaults taken from Goedel-Prover-V2's evaluation scripts; the model card itself only shows max_new_tokens=32768).
+# Output up to 32 768 tokens (the model card's standard budget), context 40 960 (Qwen3 base); a provider that allows
+# less answers 400 and stream_chat retries without max_tokens.
+ONLINE_SAMPLING = config.SamplingSettings(temperature=1.0, top_p=0.95, max_tokens=32768)
+ONLINE_CTX = 40960
+
+
 class GoedelProver:
     MAX_CORRECTIONS = 2      # correction rounds on one line of attack, then a fresh sample (D24)
     MIN_GEN_TOKENS = 8192    # never ask for an answer shorter than this: restart the conversation instead (D24)
 
-    def __init__(self, io: StageIO, mode: str = "local"):
+    def __init__(self, io: StageIO, mode: str = "local", model: str | None = None):
+        """`model`: the online Goedel key (« huggingface:Goedel-LM/Goedel-Prover-V2-32B:featherless-ai »), pinned —
+        no other model ever answers in its place; None = the local llama-server (mode « local »)."""
         self.io = io
         self.mode = mode
+        self.model = model
 
     async def run(self, statement: str, ws, n_attempts: int, sampling: config.SamplingSettings, timeout_s: int,
                   ctx: int, refine: tuple[str, str] | None = None, hint: str = "") -> ProveResult:
@@ -60,7 +72,7 @@ class GoedelProver:
             try:
                 c = await self.io.complete("prove", list(self.messages), a, temperature=sampling.temperature,
                                            max_tokens=max_tokens, extra={"top_p": sampling.top_p}, mode=self.mode,
-                                           stage="proof")
+                                           stage="proof", **({"only": self.model} if self.model else {}))
             except BrainError as e:
                 if is_context_error(e) and len(self.messages) > len(self._base):
                     # prompt too long for the context window: shorten the history, retry this same attempt
@@ -171,8 +183,10 @@ class FormalizeResult:
 class Formalizer:
     """Natural language → Lean statement: generation + Lean check of the statement, up to `tries` (D12)."""
 
-    def __init__(self, io: StageIO, mode: str = "local"):
-        self.io, self.mode = io, mode
+    def __init__(self, io: StageIO, mode: str = "local", prefer: str | None = None):
+        """`prefer`: Goedel-Formalizer-V2 served online (S-T) when a provider serves it — tried first, the router's
+        other models follow if it fails."""
+        self.io, self.mode, self.prefer = io, mode, prefer
 
     async def run(self, text: str, ws, tries: int, timeout_s: int, name: str = leancheck.DEFAULT_THEOREM_NAME,
                   profile: str = "", previous: str = "", request: str = "") -> FormalizeResult:
@@ -186,7 +200,8 @@ class Formalizer:
                 c = await self.io.complete("formalize", [{"role": "user", "content": leancheck.formalize_prompt(
                                                text + feedback, name)}],
                                            a, temperature=0.9, max_tokens=12000,
-                                           extra={"top_p": 0.95, "top_k": 20}, mode=self.mode, stage="statement")
+                                           extra={"top_p": 0.95, "top_k": 20}, mode=self.mode, stage="statement",
+                                           **({"prefer": self.prefer} if self.prefer else {}))
             except BrainError as e:
                 a.status, a.summary, a.errors_text = "error", msg("La traduction a échoué.")["text"], str(e)
                 self.io.update_attempt(a)

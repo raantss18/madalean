@@ -340,6 +340,13 @@ async def models_test(request: web.Request) -> web.Response:
         return ok({"provider": provider, "ok": bool(res.get("ok")), "login": res.get("login", ""),
                    "token_kind": res.get("token_kind", ""), "github": res, "models": 0,
                    "reason": "" if res.get("ok") else ("github:" + (first_bad or {}).get("code", "unknown"))})
+    if provider == "huggingface" and hasattr(ctx.brain, "hf_check"):
+        # S-T: a read-only identity check on the Hub (no inference, nothing billed), then the live Goedel models
+        try:
+            res = await asyncio.wait_for(ctx.brain.hf_check(), 60)
+        except Exception as e:  # noqa: BLE001
+            return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": 0})
+        return ok({"provider": provider, **res})
     fn = getattr(ctx.brain, "test", None)
     if fn is not None:
         try:

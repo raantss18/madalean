@@ -208,6 +208,22 @@ interface Publication {
   nodes: Node[];                                   // the blueprint, in reading order
   bibliography: { key: string; label?: string /* "HW08" */; csl: Csl /* CSL-JSON as in RESEARCH_SOURCES.md */ }[];
   files: { path: string /* "files/<name>" */; title: string; kind: "lake" | "pdf" | "tex" | "other" }[];
+  computations?: Computations;                     // S-P: Calcul notebooks (docs/CALCUL.md §6)
+}
+interface Computations {                           // producer: madalean.research.notebook.publication_computations
+  engine: { name: "SageMath" | "Python"; version: string };   // e.g. SageMath 10.10
+  documents: { id: string; title: string; language: "sage" | "python";
+    notebook: string;                              // "files/calcul/<doc>.ipynb" (downloadable, re-runnable)
+    cells: { id: string; kind: "code" | "ask" | "markdown" | "figure";
+      code?: string; prompt?: string /* ask */; language?: string; execution_count?: number | null;
+      origin?: "user" | "assistant"; status?: string /* ok | error | timeout | not_run … */;
+      stale?: boolean;                             // an earlier cell changed since this result: show it as such
+      markdown?: string;                           // Markdown + $maths$ (markdown cells)
+      outputs?: ({ kind: "text"; text: string; approx?: string } | { kind: "latex"; latex: string; approx?: string }
+               | { kind: "image"; path: string /* files/calcul/<sha>.png|svg */; mime: string; alt: string }
+               | { kind: "figure"; spec: object /* FigureSpec */ } | { kind: "error"; text: string })[];
+      figure?: { spec: object; svg?: string /* files/calcul/<sha>.svg */ };
+    }[] }[];
 }
 interface Node {
   id: string;                                      // ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ (dossier id or blueprint node id)

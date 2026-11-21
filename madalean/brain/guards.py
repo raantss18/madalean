@@ -16,7 +16,7 @@ FIRST_BYTE_LOCAL = 600.0  # model loading / long prompt processing
 # were thinking, not dead: they get a longer first-byte wait (their effort is also capped, engine.GEMINI_EFFORT).
 FIRST_BYTE_REASONING = 300.0
 _REASONING = re.compile(r"^gemini-(2\.5|[3-9])|^gemini-(flash|flash-lite|pro)-latest$|magistral|deepseek-r1|reasoner|"
-                        r"qwq|(^|[/-])o[134](-|$)|gpt-5|thinking|grok-[34].*(reason|mini)|kimi-k2-thinking", re.I)
+                        r"qwq|(^|[/-])o[134](-|$)|gpt-5|thinking|goedel-prover|grok-[34].*(reason|mini)|kimi-k2-thinking", re.I)
 
 
 def reasoning_model(model_id: str) -> bool:

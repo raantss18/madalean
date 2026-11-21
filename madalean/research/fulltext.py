@@ -1040,10 +1040,10 @@ async def semantic_rerank(query: str, hits: list[dict], enabled: bool = True) ->
     if not enabled or len(hits) < 3:
         return hits
     try:
-        from ..brain.rag import Embedder
+        from ..brain.rag import shared_embedder
     except Exception:  # noqa: BLE001
         return hits
-    emb = Embedder("http://127.0.0.1:11434")
+    emb = shared_embedder("http://127.0.0.1:11434")     # one instance: no re-detection, a warm vector cache
     try:
         docs = [{"name": h.get("locator") or h.get("section") or "", "signature": h["text"][:1500], "doc": "",
                  "score": h["score"], "_i": i} for i, h in enumerate(hits)]
@@ -1051,8 +1051,6 @@ async def semantic_rerank(query: str, hits: list[dict], enabled: bool = True) ->
         return [{**hits[d["_i"]], "score": d["score"], "semantic": d.get("semantic")} for d in ranked]
     except Exception:  # noqa: BLE001 (Ollama absent: lexical order kept)
         return hits
-    finally:
-        await emb.close()
 
 
 def chunk_dict(ch: Chunk) -> dict:

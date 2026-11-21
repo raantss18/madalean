@@ -372,10 +372,41 @@ absent; other files of the repository are left alone).
 Privacy: notes only when listed in `notes`; a source's file only when its `license` (PATCH the source
 `{license:"CC-BY-4.0"}`) is a Creative Commons / public-domain licence **and** it is listed in `source_files`;
 everything else is in `excluded` with the reason. Credentials: a token stored with `POST /models/keys
-{provider:"github", key}` (keyring) else `gh auth token`; sent only to the GitHub API and to git as an
-`http.extraHeader` (never in a URL, a command line or a log). Never `--force`: a remote that diverged or refuses is
-reported (`git_push_rejected`) and nothing is overwritten; pushing the same content again commits nothing.
+{provider:"github", key}` (keyring service `madalean`, attribute `provider=github`; whitespace of a copy-paste
+removed) else `gh auth token`; sent only to the GitHub API and to git through a GIT_ASKPASS helper that reads it
+from the environment (never in a URL, a command line, a config file or a log; no credential helper of the user is
+consulted). Never `--force`: a remote that diverged or refuses is reported (`git_push_rejected`) and nothing is
+overwritten; pushing the same content again commits nothing.
 
-Verified: everything above against a local fake GitHub API and a local bare git remote (`tests/test_article_publish.py`);
+GitHub permissions (session S-Q, 2026-11-21 — the user's « clé GitHub » failure was the key test of Réglages → Clés
+treating GitHub as a model provider and answering « aucun modèle trouvé : la clé est-elle valide ? »; publishing also
+needs the `workflow` right, which the old code reported as « historique différent »):
+
+| step | classic token (`ghp_`, `gho_`) | fine-grained token (`github_pat_`) |
+|---|---|---|
+| identity | — | — |
+| create the repository | `repo` (`public_repo` for a public one) | Administration: write, « All repositories » |
+| push | `repo` | Contents: write |
+| push `.github/workflows/*.yml` | `workflow` | Workflows: write |
+| enable Pages (`build_type: workflow`) | `repo` | Pages: write (+ Administration: write) |
+
+The push checks the identity first (`GET /user`: an expired / revoked token is `github_token_invalid`, never
+« repository not found »), then classic scopes before trying (`X-OAuth-Scopes`), and maps every refusal:
+`github_scope_missing {scope, settings}`, `github_permission_missing {permission: "Contents (Read and write)", …,
+settings}` (from GitHub's `X-Accepted-GitHub-Permissions`), `github_sso_required {org, url}` (`X-GitHub-SSO`),
+`github_2fa_required {org}`, `github_rate_limited`, `github_repo_not_granted` (exists but outside the fine-grained
+token's repositories), `github_org_not_found`, `github_unreachable`; git's own refusals likewise (`workflow` scope,
+403, 401, diverged history). Pages that cannot be enabled no longer fail the publication: `state.pages_error` +
+`state.pages_settings` (link to enable it by hand). The UI builds the preview itself when needed (a push without
+preview used to stop on `no_preview`).
+
+| | |
+|---|---|
+| `GET /research/github/check?repo=owner/name&private=1` | « Tester la connexion GitHub », read-only (GET requests only): `{ok, login, name, token_kind: classic\|fine_grained\|oauth\|app\|unknown, source: keyring\|gh, scopes, expires, checks:[{id: token\|identity\|expiry\|create\|push\|workflow\|pages\|org\|repo\|rate, ok: true\|false\|null, code, params}]}` — `ok: null` = GitHub cannot tell before trying (fine-grained) |
+| `POST /models/test {provider:"github"}` | the same identity check (Réglages → Clés), `{ok, login, token_kind, reason: "github:<code>"}` — never a model call |
+
+Verified: everything above against a local fake GitHub API and a local bare git remote (`tests/test_article_publish.py`,
+`tests/test_publish_github.py`: good classic token, classic token without `workflow`, fine-grained token without
+Pages, expired token, SAML-SSO and 2FA organisations, askpass over HTTP Basic);
 a generated project and the template sample were built with the real Lean 4.34.1 + Mathlib d13f23b (`lake build`,
 `lake env lean Verify.lean`). Not verified: a push to the real github.com and the Action running on GitHub.

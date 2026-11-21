@@ -7,6 +7,7 @@
   import { errorText } from '../../lib/ui/errors';
   import { toast } from '../../lib/ui/toasts.svelte';
   import Icon from '../../components/Icon.svelte';
+  import GithubCheck from '../../components/GithubCheck.svelte';
 
   interface P { id: string; name: string; url: string; prefix: RegExp | null; paid: boolean }
   const PROVIDERS: P[] = [
@@ -18,7 +19,9 @@
     { id: 'cerebras', name: 'Cerebras', url: 'https://cloud.cerebras.ai/', prefix: /^csk-/, paid: false },
     { id: 'openai', name: 'OpenAI', url: 'https://platform.openai.com/api-keys', prefix: /^sk-/, paid: true },
     { id: 'deepseek', name: 'DeepSeek', url: 'https://platform.deepseek.com/api_keys', prefix: /^sk-/, paid: true },
-    { id: 'github', name: 'GitHub (publication)', url: 'https://github.com/settings/tokens?type=beta', prefix: /^(ghp_|github_pat_|gho_)/, paid: false },
+    // S-T: Goedel-Prover-V2-32B online; the link preselects the « Make calls to Inference Providers » permission
+    { id: 'huggingface', name: 'Hugging Face (Goedel en ligne)', url: 'https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained', prefix: /^hf_/, paid: true },
+    { id: 'github', name: 'GitHub (publication)', url: 'https://github.com/settings/tokens/new?scopes=repo,workflow&description=Madalean', prefix: /^(ghp_|github_pat_|gho_)/, paid: false },
   ];
   const keys = $derived(app.m.models?.keys ?? {});
   let values = $state<Record<string, string>>({});
@@ -44,6 +47,27 @@
       await api.setKey(p.id, key);
       if (app.m.models) app.m.models.keys = { ...app.m.models.keys, [p.id]: true };
       status[p.id] = { level: 'busy', text: t('keys.testing') };
+      if (p.id === 'github') {
+        // GitHub is not a model provider: a read-only identity check, never « no model found »
+        const g = await api.testKey(p.id).catch(() => null) as { ok: boolean; login?: string; reason?: string } | null;
+        const code = (g?.reason ?? '').replace(/^github:/, '');
+        status[p.id] = g?.ok ? { level: 'ok', text: t('gh.as', { login: g.login ?? '' }) }
+          : { level: 'error', text: g ? tk(`gh.code.${code}`, t('gh.code.unknown')) : t('gh.code.github_unreachable') };
+        return;
+      }
+      if (p.id === 'huggingface') {
+        // a read-only identity check on the Hub (nothing billed), then which Goedel model is served online
+        const h = await api.testKey(p.id).catch(() => null) as { ok: boolean | null; login?: string; reason?: string; warning?: string; names?: string[]; model?: string } | null;
+        app.m.models = await api.refreshModels().catch(() => app.m.models);
+        if (!h || h.reason === 'network' || h.reason === 'offline') { status[p.id] = { level: 'warn', text: t('hf.unreachable') }; return; }
+        if (h.ok === null && h.reason === 'local_mode') { status[p.id] = { level: 'warn', text: t('keys.localMode') }; return; }
+        if (!h.ok) { status[p.id] = { level: 'error', text: t('keys.refused', { reason: tk(`keys.reason.${h.reason ?? ''}`, h.reason ?? '') }) + (oddShape ? ' ' + t('keys.wrongShape', { name: p.name }) : '') }; return; }
+        const goedel = (h.names ?? []).find((n) => /32B/.test(n)) ?? h.names?.[0];
+        const parts = [t('hf.as', { login: h.login ?? '' }), goedel ? t('hf.goedel', { name: goedel.replace(/ \(.*$/, '') }) : t('hf.noLive')];
+        if (h.warning === 'inference_permission') parts.push(t('hf.permission'));
+        status[p.id] = { level: h.warning || !goedel ? 'warn' : 'ok', text: parts.join(' ') };
+        return;
+      }
       const test = await api.testKey(p.id).catch(() => ({ ok: null as boolean | null, reason: 'not_supported', models: undefined as number | undefined, model: '' }));
       app.m.models = await api.refreshModels().catch(() => app.m.models);
       const n = test.models ?? countModels(p.id);
@@ -101,6 +125,7 @@
           </div>
         {:else}
           <div class="row"><button class="btn small" onclick={() => (confirmRemove = p.id)}>{t('keys.remove')}</button><span class="xs muted">{t('keys.neverShown')}</span></div>
+          {#if p.id === 'github'}<GithubCheck />{/if}
         {/if}
       {:else}
         <form class="row add" onsubmit={(e) => { e.preventDefault(); void save(p); }}>

@@ -46,6 +46,7 @@ class Model:
     paid: bool = False
     context: int = 0
     est: str = ""                   # how the quality was estimated when the model is not in the seed (family name)
+    price: list[float] = field(default_factory=list)   # [input, output] USD per million tokens when the provider says
 
     @property
     def key(self) -> str:
@@ -75,7 +76,40 @@ KEYED: list[Provider] = [
     Provider("openai", "OpenAI", "https://api.openai.com/v1", True, True, key_url="https://platform.openai.com/api-keys"),
     Provider("deepseek", "DeepSeek", "https://api.deepseek.com/v1", True, True,
              key_url="https://platform.deepseek.com/api_keys"),
+    # Hugging Face Inference Providers (session S-T, user decision 2026-11-22): OpenAI-compatible router; only the
+    # formal-maths specialists below are listed (never the router's general catalogue). Paid (HF credits, provider
+    # price without markup); the token also goes to huggingface.co for the identity check (engine.HF_HUB).
+    Provider("huggingface", "Hugging Face (Inference Providers)", "https://router.huggingface.co/v1", True, True,
+             key_url="https://huggingface.co/settings/tokens"),
 ]
+
+# Formal-maths specialists looked up on the Hub at each refresh (public API, no key): a model is listed only with a
+# provider whose mapping says « live » (GET https://huggingface.co/api/models/<repo>?expand[]=inferenceProviderMapping,
+# checked 2026-11-22: both provers live on featherless-ai, no provider for the formalizers). The router model id is
+# « <repo>:<provider> » (provider pinned: the router never swaps it for another one).
+HF_HUB = "https://huggingface.co"
+HF_SPECIALISTS: list[tuple[str, str, str]] = [        # (repo, role, display name)
+    ("Goedel-LM/Goedel-Prover-V2-32B", "prove", "Goedel-Prover-V2-32B"),
+    ("Goedel-LM/Goedel-Prover-V2-8B", "prove", "Goedel-Prover-V2-8B"),
+    ("Goedel-LM/Goedel-Formalizer-V2-32B", "formalize", "Goedel-Formalizer-V2-32B"),
+    ("Goedel-LM/Goedel-Formalizer-V2-8B", "formalize", "Goedel-Formalizer-V2-8B"),
+]
+HF_CONTEXT = 40960      # Qwen3 base of Goedel-Prover-V2 (max_position_embeddings); the provider may allow less
+
+
+def hf_live_providers(info) -> list[str]:
+    """Providers whose mapping is « live » for chat, from the Hub's model info (the mapping is a dict keyed by
+    provider for one model, a list of {provider, status…} in listings)."""
+    mp = (info or {}).get("inferenceProviderMapping") if isinstance(info, dict) else None
+    items = [{"provider": k, **v} for k, v in mp.items() if isinstance(v, dict)] if isinstance(mp, dict) \
+        else [x for x in (mp or []) if isinstance(x, dict)]
+    return [str(x["provider"]) for x in items if x.get("provider") and x.get("status") == "live"
+            and x.get("task", "conversational") in ("conversational", "text-generation")]
+
+
+def hf_specialist(model_id: str) -> tuple[str, str, str] | None:
+    repo = model_id.rsplit(":", 1)[0]
+    return next((x for x in HF_SPECIALISTS if x[0] == repo), None)
 
 # Claude models (claude-api skill, cached 2026-11-03). Paid: used only when chosen or with `paid_first`.
 ANTHROPIC_MODELS = [
@@ -360,6 +394,14 @@ def keyed_static(pid: str) -> list[Model]:
     return []
 
 
+def hf_model(repo: str, provider: str, name: str, price: list[float] | None = None) -> Model:
+    q = {"chat": 0.2, "writing": 0.1, "translation": 0.1, "search": 0.1, "agentic": 0.1, "code": 0.6, "math": 0.8,
+         "reasoning": 0.8, "lean": 0.97 if "32B" in repo else 0.9}
+    return Model("huggingface", f"{repo}:{provider}", f"{name} ({provider}, Hugging Face)", False, False, q,
+                 paid=True, context=HF_CONTEXT, est="Goedel-Prover-V2 (formal proofs)" if "Prover" in repo
+                 else "Goedel-Formalizer-V2", price=list(price or []))
+
+
 class CatalogueStore:
     """Current catalogue (refreshed copy if any, else the seed), refresh in the background."""
 
@@ -399,8 +441,10 @@ class CatalogueStore:
                         models.append(m)
         return Catalogue(self.cat.updated, provs, models)
 
-    async def refresh(self, http, get_key: Callable[[str], str | None], online: bool = True) -> int:
-        """Refresh from the providers (http: brain.net.Http). Returns the number of models found."""
+    async def refresh(self, http, get_key: Callable[[str], str | None], online: bool = True,
+                      hf_urls: tuple[str, str] | None = None) -> int:
+        """Refresh from the providers (http: brain.net.Http). Returns the number of models found. `hf_urls`: (Hub,
+        router) base URLs (tests only)."""
         async with self._lock:
             base = seed()
             provs = list(base.providers)
@@ -456,9 +500,14 @@ class CatalogueStore:
             for m in base.models:                       # unreachable providers keep their seed models
                 if m.provider not in seen and not any(x.key == m.key for x in models):
                     models.append(m)
+            if online:
+                hf = await refresh_hf(http, *(hf_urls or ()))
+                if hf:
+                    provs.append(next(p for p in KEYED if p.id == "huggingface"))
+                    models.extend(hf)
             for p in KEYED:
                 key = get_key(p.id)
-                if not key or not online:
+                if not key or not online or p.id == "huggingface":
                     continue
                 if p.api == "anthropic":
                     v = await http.get_json(f"{p.base_url}/models", mode="online", timeout=15, provider=p.id, key=key)
@@ -497,3 +546,24 @@ class CatalogueStore:
             self.cat = Catalogue(now(), provs, models)
             self.save()
             return len(models)
+
+
+async def refresh_hf(http, hub: str = HF_HUB, router: str = "https://router.huggingface.co/v1") -> list[Model]:
+    """The Goedel specialists that have a live provider now (public Hub API, sent WITHOUT the token), with the
+    router's price when it publishes one (GET /v1/models/<repo>: `providers[].pricing` in USD per million tokens —
+    absent for featherless-ai on 2026-11-22, spend.HF_ESTIMATE is then used)."""
+    async def one(repo: str, role: str, name: str) -> list[Model]:
+        info = await http.get_json(f"{hub}/api/models/{repo}", mode="online", timeout=10,
+                                   params={"expand[]": "inferenceProviderMapping"})
+        live = hf_live_providers(info)
+        if not live:
+            return []
+        prices: dict[str, list[float]] = {}
+        r = await http.get_json(f"{router}/models/{repo}", mode="online", timeout=10)
+        for pv in ((r or {}).get("data") or {}).get("providers") or [] if isinstance(r, dict) else []:
+            pr = pv.get("pricing") if isinstance(pv, dict) else None
+            if isinstance(pr, dict) and isinstance(pr.get("input"), (int, float)) and isinstance(pr.get("output"), (int, float)):
+                prices[str(pv.get("provider"))] = [float(pr["input"]), float(pr["output"])]
+        return [hf_model(repo, prov, name, prices.get(prov)) for prov in live]
+    res = await asyncio.gather(*(one(*x) for x in HF_SPECIALISTS), return_exceptions=True)
+    return [m for r in res if not isinstance(r, BaseException) for m in r]

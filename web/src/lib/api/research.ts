@@ -119,7 +119,9 @@ export interface PublishManifest {
   excluded: { what: string; why: string; license?: string }[]; warnings: string[];
   statuses: Record<string, string>; counts: Record<string, number>; not_included: string[];
 }
-export interface PublishState { repo: string; branch: string; commit: string; changed: boolean; created: boolean; pages: boolean; pages_url: string; pushed_at: number }
+export interface PublishState { repo: string; branch: string; commit: string; changed: boolean; created: boolean; pages: boolean; pages_url: string; pushed_at: number; login?: string; pages_error?: { error: string; message?: string; permission?: string; scope?: string; settings?: string }; pages_settings?: string }
+export interface GithubCheckItem { id: string; ok: boolean | null; code: string; params: Record<string, string> }
+export interface GithubCheck { ok: boolean; login?: string; name?: string; token_kind: string; source: string; scopes?: string[] | null; expires?: string; checks: GithubCheckItem[] }
 
 const sh = (shelf: string) => `/research/shelves/${enc(shelf)}`;
 const src = (shelf: string, id: string) => `${sh(shelf)}/sources/${enc(id)}`;
@@ -293,6 +295,7 @@ export const research = {
   publishPreview: (pid: string, manifest_id: string) => request<{ pages: number; url: string }>('POST', `/research/publish/${enc(pid)}/preview`, { manifest_id }),
   publishPush: (pid: string, p: { manifest_id: string; repo: string; create?: boolean; private?: boolean; branch?: string }) =>
     request<{ request_id: string }>('POST', `/research/publish/${enc(pid)}/push`, p),
+  githubCheck: (repo = '', priv = false) => request<GithubCheck>('GET', `/research/github/check?repo=${encodeURIComponent(repo)}${priv ? '&private=1' : ''}`),
 };
 
 /** Plain list of authors from CSL names. */

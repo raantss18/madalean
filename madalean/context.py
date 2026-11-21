@@ -36,7 +36,7 @@ LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), 
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
           "tournament_attempts_per_model": (1, 16), "claude_cap_proof_usd": (0, 100),
           "claude_cap_month_usd": (0, 1000), "plan_max_depth": (1, 5), "plan_budget_minutes": (10, 1440),
-          "local_idle_unload_minutes": (0, 1440)}
+          "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440)}
 
 
 class ServerContext:
@@ -66,12 +66,14 @@ class ServerContext:
         self.browser_sessions = BrowserSessions(lambda: self.settings.browser_session_idle_minutes * 60.0)
         self.browser_sessions.on_expire = self.close_credential
         self.monitor = Monitor([config.MODELS_DIR, paths.config, Path.home()], monitor_interval)
-        self.monitor.listeners.append(lambda snap: self.publish("system.status", {"system": self.system_light()}))
+        self.monitor.listeners.append(self._system_status)
+        self.monitor.wanted = self._monitor_wanted
+        self._last_system: dict | None = None
         self._fixed_workspaces = workspaces
         self.workspaces: list[Workspace] = list(workspaces or [])
         if local is None:
             local = LocalLlama(self.slots, self.monitor, paths.llama_pid, lambda: self.settings)
-            local.on_change = lambda: self.publish("models.status", {"local": local.status()})
+            local.on_change = lambda: (self.publish("models.status", {"local": local.status()}), self.monitor.wake())
         self.local = local
         self.lean = lean or LeanRunner(self.slots, paths.tmp)
         self.brain = brain
@@ -303,6 +305,26 @@ class ServerContext:
         return {"brain": self.brain_kind, "mode": self.settings.mode, "local": self.local.status()
                 if hasattr(self.local, "status") else {}, "local_files": local_files, "roles": roles,
                 "status": status, "keys": {p: True for p in self.keys.providers()}}
+
+    def _monitor_wanted(self) -> bool:
+        """The fast GPU / disk pace is useful only when someone looks or something uses the GPU / Lean."""
+        local = getattr(self, "local", None)
+        state = getattr(local, "state", None)
+        return bool(getattr(self.bus, "clients", 1)) or bool(getattr(self.lean, "running", None)) or \
+            (state is not None and state != getattr(local, "STOPPED", "stopped"))
+
+    def _system_status(self, _snap: dict) -> None:
+        """system.status only to an audience and only when it changed: at rest nothing enters the event ring."""
+        if not getattr(self.bus, "clients", 1):
+            self._last_system = None
+            return
+        cur = self.system_light()
+        key = {k: v for k, v in cur.items() if k != "monitor"} | {"m": {k: v for k, v in cur["monitor"].items()
+                                                                     if k != "t"}}
+        if key == self._last_system:
+            return
+        self._last_system = key
+        self.publish("system.status", {"system": cur})
 
     def system_light(self) -> dict:
         return {"monitor": self.monitor.snapshot(), "slots": self.slots.usage(),

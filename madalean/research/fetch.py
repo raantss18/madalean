@@ -40,6 +40,9 @@ DEFAULT_INTERVAL = 0.25
 MAX_REDIRECTS = 5
 DEFAULT_MAX_BYTES = 8 * 1024 * 1024
 CACHE_TTL = 600.0
+CACHE_MAX_ITEMS = 200
+CACHE_MAX_BYTES = 16 * 1024 * 1024
+CACHE_MAX_ITEM = 2 * 1024 * 1024              # PDFs / archives are stored on the shelf, never kept in memory
 
 
 class FetchError(Exception):
@@ -308,6 +311,19 @@ class Fetcher:
         self._cache: dict[str, tuple[float, Response]] = {}
         self.calls = 0
 
+    def _remember(self, key: str, r: Response) -> None:
+        """Bounded cache (session S-Q): at most CACHE_MAX_ITEMS answers and CACHE_MAX_BYTES of bodies (it was 500
+        answers of up to 8 MB each); expired entries go first, then the oldest."""
+        now = time.monotonic()
+        self._cache.pop(key, None)
+        self._cache[key] = (now, r)
+        for k in [k for k, (t, _r) in self._cache.items() if now - t >= CACHE_TTL]:
+            self._cache.pop(k, None)
+        total = sum(len(x.body) for _t, x in self._cache.values())
+        while self._cache and (len(self._cache) > CACHE_MAX_ITEMS or total > CACHE_MAX_BYTES):
+            _t, old = self._cache.pop(next(iter(self._cache)))
+            total -= len(old.body)
+
     async def _polite(self, host: str) -> None:
         lock = self._locks.setdefault(host, asyncio.Lock())
         async with lock:
@@ -346,10 +362,8 @@ class Fetcher:
                 raise FetchError("http", f"HTTP {r.status}", r.status, cur)
             if types and not any(r.content_type.startswith(t) for t in types):
                 raise FetchError("bad_type", f"unexpected content type {r.content_type!r}", r.status, cur)
-            if cache:
-                self._cache[key] = (time.monotonic(), r)
-                if len(self._cache) > 500:
-                    self._cache.pop(next(iter(self._cache)))
+            if cache and len(r.body) <= CACHE_MAX_ITEM:
+                self._remember(key, r)
             return r
         raise FetchError("blocked", "too many redirects", url=url)
 

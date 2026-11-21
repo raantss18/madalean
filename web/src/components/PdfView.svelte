@@ -6,10 +6,19 @@
   import { t } from '../lib/i18n/index.svelte';
   import type { Annotation } from '../lib/api/research';
 
-  let { url, annotations = [], target = null, onhighlight, label }: {
+  let { url, annotations = [], target = null, onhighlight, label, onpoint }: {
     url: string; annotations?: Annotation[]; target?: { page: number; bbox?: number[] | null; nonce: number } | null;
     onhighlight?: (page: number, quads: number[][], text: string) => void; label: string;
+    /** Double-click on a page → PDF point (top-left origin), e.g. SyncTeX inverse search in the article editor (S-R). */
+    onpoint?: (page: number, x: number, y: number) => void;
   } = $props();
+  function onDbl(e: MouseEvent) {
+    if (!onpoint) return;
+    const pageEl = (e.target as HTMLElement).closest<HTMLElement>('.page');
+    if (!pageEl) return;
+    const r = pageEl.getBoundingClientRect();
+    onpoint(Number(pageEl.dataset['page']), (e.clientX - r.left) / scale, (e.clientY - r.top) / scale);
+  }
 
   type PdfDoc = { numPages: number; getPage: (n: number) => Promise<PdfPage>; destroy: () => Promise<void> };
   type PdfPage = { getViewport: (o: { scale: number }) => { width: number; height: number; scale: number }; render: (o: object) => { promise: Promise<void> };
@@ -122,7 +131,7 @@
     <span class="xs muted">{t('reader.pages', { n: pages.length })}</span>
   </div>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (scrollable document reachable by keyboard; mouseup only reads the text selection) -->
-  <div class="scroll" bind:this={host} onmouseup={onMouseUp} role="document" aria-label={label} tabindex="0">
+  <div class="scroll" bind:this={host} onmouseup={onMouseUp} ondblclick={onDbl} role="document" aria-label={label} tabindex="0">
     {#if err}<p class="error-text">{t('reader.pdfError', { e: err })}</p>{/if}
     {#each pages as p (p.n)}
       <div class="page" data-page={p.n} style:width="{p.w}px" style:height="{p.h}px" aria-label={t('reader.page', { n: p.n })} role="region">

@@ -17,7 +17,7 @@ account. A key adds a provider's models, often stronger ones.
 | Mode | Who works | Network |
 |---|---|---|
 | *Local* | only the host computer's models (Goedel-Prover, Goedel-Formalizer, Qwen3, and Ollama if it is running) | nothing leaves the host; any non-local connection is refused before it is opened |
-| *Automatic* (default) | the best available model for each role, online first | no network, quota exhausted or error: automatic switch to the local models |
+| *Automatic* (default) | the online models (with a Hugging Face token, Goedel-Prover 32B opens every proof) | the local models **only** without Internet, or when no online model can work (all down, paused or refused); otherwise the local model is not loaded and the graphics card stays free |
 | *Online* | online models only | without network, the work fails with a clear message |
 
 A project can be switched to “local only” whatever the general mode. The indicator at the top of the screen
@@ -70,6 +70,24 @@ Gemini's free tier has quotas; when they are reached, Madalean moves on to the n
 may use the content sent to improve its products: read its terms before sending unpublished work.
 <!-- verify after integration: Gemini free-tier data-use terms at release time -->
 
+### Hugging Face token (Goedel-Prover 32B online)
+
+With a Hugging Face token, **Goedel-Prover-V2-32B** (served by a Hugging Face provider, today Featherless AI) opens
+every proof: the same loop as the local Goedel — same prompts, ≤ 2 corrections per line of attack, same sampling —,
+with the 32B model instead of the 8B, without using the graphics card. If it fails, the free models take over (the
+tournament). Goedel-Formalizer is used the same way as soon as a provider serves it online (none today).
+
+1. Create an account on <https://huggingface.co>. Free accounts must **buy credits**; a PRO account gets $2 of credits
+   a month. Hugging Face bills the provider's price, with no markup.
+2. “Settings › Keys › Hugging Face › Get a key” opens <https://huggingface.co/settings/tokens> with the “Make calls to
+   Inference Providers” permission preselected; create the token (it starts with `hf_`).
+3. Paste it: Madalean checks the token (nothing billed) and says whether Goedel 32B is available online.
+
+The token is only sent to `router.huggingface.co` (inference) and `huggingface.co` (the token check). The list of
+Goedel models served online is read from Hugging Face's public API, **without** the token. Without Internet, or when
+no online model can work, the local models take over; a proof the online models searched without success is **not**
+re-run on the local model. It can be turned off in “Settings › Models › Advanced”.
+
 ## What it costs
 
 Paid providers bill by the number of *tokens* (≈ ¾ of a word) sent and received. Orders of magnitude, Anthropic's
@@ -86,13 +104,19 @@ many attempts, more. The limits (number of steps, duration, tokens) are set in �
 paid model is used only if you chose it for a role, or if you enabled “paid first”.
 <!-- verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key -->
 
+**Goedel-Prover 32B online (Hugging Face).** The provider publishes no per-token price for this model: Madalean
+uses a **conservative estimate** of $1.00 (input) / $3.20 (output) per million tokens, replaced by the published
+price as soon as Hugging Face gives one. One Goedel attempt (up to 32,768 output tokens) costs at most ≈ $0.11; the 4
+attempts of a proof's first round at most ≈ $0.45. The real cost is on <https://huggingface.co/settings/billing>.
+
 ## Claude as paid reinforcement, with caps
 
 With an Anthropic key, Claude can join a proof's tournament **last**, only when all the free models failed
 (“Settings › Models › Claude as paid reinforcement”, on by default when the key exists). Two caps, editable there:
 
 - **per proof** ($1.00 by default);
-- **per calendar month** ($20 by default), for every Claude call, including a role where you chose it.
+- **per calendar month** ($20 by default), for every paid call — Claude, including a role where you chose it, and
+  Goedel online on Hugging Face (same caps, same ledger).
 
 Before each call, Madalean estimates the cost at list prices (request size and allowed answer length) and shortens
 the allowed answer if needed; if even a short answer would pass a cap, the call **is not made** and the proof says so.

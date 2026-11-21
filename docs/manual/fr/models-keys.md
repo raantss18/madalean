@@ -17,8 +17,13 @@ compte. Une clé ajoute les modèles d'un fournisseur, souvent plus forts.
 | Mode | Qui travaille | Réseau |
 |---|---|---|
 | *Local* | seulement les modèles de l'ordinateur hôte (Goedel-Prover, Goedel-Formalizer, Qwen3, et Ollama s'il tourne) | rien ne quitte l'hôte ; toute connexion non locale est refusée avant d'être ouverte |
-| *Automatique* (défaut) | le meilleur modèle disponible pour chaque rôle, en ligne d'abord | sans réseau, quota épuisé ou erreur : bascule automatique sur les modèles locaux |
+| *Automatique* (défaut) | les modèles en ligne (avec un jeton Hugging Face, Goedel-Prover 32B ouvre chaque preuve) | les modèles locaux **seulement** sans Internet, ou quand aucun modèle en ligne ne peut travailler (tous en panne, en pause ou refusés) ; sinon le modèle local n'est pas chargé et la carte graphique reste libre |
 | *En ligne* | uniquement des modèles en ligne | sans réseau, le travail échoue avec un message clair |
+
+Madalean distingue « pas d'Internet » (une sonde rapide, mise en cache) d'un « fournisseur en panne » (Internet
+répond mais pas lui) : sans Internet, il passe aussitôt aux modèles locaux ; un fournisseur en panne est seulement
+sauté pendant une minute. En mode *Automatique*, une preuve que les modèles en ligne ont cherchée sans la trouver
+n'est **pas** relancée sur le modèle local (le Goedel 32B en ligne est plus fort que le 8B local).
 
 Un projet peut être passé en « local uniquement » quel que soit le mode général. L'indicateur en haut de l'écran
 (« Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail. Chaque texte produit par un modèle
@@ -72,6 +77,24 @@ gratuite, Google peut utiliser les contenus envoyés pour améliorer ses produit
 envoyer un travail non publié.
 <!-- verify after integration: Gemini free-tier data-use terms at release time -->
 
+### Jeton Hugging Face (Goedel-Prover 32B en ligne)
+
+Avec un jeton Hugging Face, **Goedel-Prover-V2-32B** (servi par un fournisseur d'Hugging Face, aujourd'hui
+Featherless AI) ouvre chaque preuve : c'est la même boucle que le Goedel local — mêmes prompts, ≤ 2 corrections par
+piste, mêmes réglages d'échantillonnage —, avec le modèle 32B au lieu du 8B, sans occuper la carte graphique. S'il
+échoue, les modèles gratuits prennent le relais (tournoi). Le Goedel-Formalizer est utilisé de même dès qu'un
+fournisseur le sert en ligne (aucun aujourd'hui).
+
+1. Créez un compte sur <https://huggingface.co>. Les comptes gratuits doivent **acheter des crédits** ; un compte PRO
+   reçoit 2 $ de crédits par mois. Hugging Face facture le prix du fournisseur, sans marge.
+2. « Réglages › Clés › Hugging Face › Obtenir une clé » ouvre <https://huggingface.co/settings/tokens> avec la
+   permission « Make calls to Inference Providers » pré-cochée ; créez le jeton (il commence par `hf_`).
+3. Collez-le : Madalean vérifie le jeton (sans rien facturer) et dit si Goedel 32B est disponible en ligne.
+
+Le jeton n'est envoyé qu'à `router.huggingface.co` (les calculs) et `huggingface.co` (la vérification du jeton).
+La liste des modèles Goedel servis en ligne est lue sur l'API publique de Hugging Face, **sans** le jeton.
+Désactivable dans « Réglages › Modèles › Avancé » (« Goedel-Prover 32B en ligne… »).
+
 ## Ce que cela coûte
 
 Les fournisseurs payants facturent au nombre de *tokens* (≈ ¾ de mot) envoyés et reçus. Ordres de grandeur, prix
@@ -89,6 +112,12 @@ Une recherche de preuve en mode agent avec Claude Opus coûte typiquement de que
 avez activé « payants d'abord ».
 <!-- verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key -->
 
+**Goedel-Prover 32B en ligne (Hugging Face).** Le fournisseur ne publie pas de prix par jeton pour ce modèle :
+Madalean utilise une **estimation prudente** de 1,00 $ (entrée) / 3,20 $ (sortie) par million de tokens, remplacée
+par le prix publié dès qu'Hugging Face en donne un. Une tentative Goedel (jusqu'à 32 768 tokens de réponse) coûte donc
+au plus ≈ 0,11 $ ; les 4 tentatives du premier round d'une preuve, au plus ≈ 0,45 $. Le coût réel se voit sur
+<https://huggingface.co/settings/billing>.
+
 ## Claude en renfort payant, avec plafonds
 
 Avec une clé Anthropic, Claude peut entrer **en dernier** dans le tournoi d'une preuve, seulement quand les modèles
@@ -96,7 +125,8 @@ gratuits ont tous échoué (« Réglages › Modèles › Claude en renfort paya
 Deux plafonds, modifiables au même endroit :
 
 - **par preuve** (1,00 $ par défaut) ;
-- **par mois civil** (20 $ par défaut), pour tous les appels à Claude, y compris ceux d'un rôle où vous l'avez choisi.
+- **par mois civil** (20 $ par défaut), pour tous les appels payants — Claude, y compris dans un rôle où vous l'avez
+  choisi, et Goedel en ligne sur Hugging Face (mêmes plafonds, même registre).
 
 Avant chaque appel, Madalean estime le coût au tarif public (taille de la demande et longueur de réponse permise) et
 réduit la longueur de réponse si besoin ; si même une réponse courte dépasserait un plafond, l'appel **n'est pas

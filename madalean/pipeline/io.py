@@ -26,7 +26,8 @@ class StageIO(Protocol):
 
     async def complete(self, role: str, messages: list[dict], attempt: Attempt | None = None, *,
                        temperature: float | None = None, max_tokens: int | None = None, extra: dict | None = None,
-                       mode: str | None = None, stage: str = "") -> Completion: ...
+                       mode: str | None = None, stage: str = "", only: str | None = None,
+                       prefer: str | None = None) -> Completion: ...
 
     async def check(self, code: str, ws, timeout_s: int, strict_name: str | None) -> CompileResult: ...
 

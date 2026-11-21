@@ -23,7 +23,10 @@ export default async function setup(): Promise<void> {
   let remote = await freePort();
   while (remote === port) remote = await freePort();
   const child = spawn(join(root, 'bin', 'madalean'), ['serve', '--demo', '--port', String(port), '--remote-port', String(remote),
-    '--config-dir', join(dir, 'config'), '--cache-dir', join(dir, 'cache')], { stdio: ['ignore', 'pipe', 'pipe'], detached: false });
+    '--config-dir', join(dir, 'config'), '--cache-dir', join(dir, 'cache')], { stdio: ['ignore', 'pipe', 'pipe'], detached: false,
+    // never the real prefix (~/.local/share/madalean): an empty MADALEAN_HOME = development checkout (S-R: the article
+    // editor compiles with the prefix's tectonic, whose cache must not be the user's)
+    env: { ...process.env, MADALEAN_HOME: process.env['MADALEAN_E2E_HOME'] ?? join(dir, 'home') } });
   child.stdout?.on('data', () => {});
   child.stderr?.on('data', () => {});
   writeFileSync(join(dir, 'pid'), String(child.pid));

@@ -41,9 +41,14 @@ def parse_gpu(out: str, apps_out: str | None) -> dict | None:
 
 
 class Monitor:
-    def __init__(self, disk_paths: list[Path], interval: float = 3.0):
+    def __init__(self, disk_paths: list[Path], interval: float = 3.0, idle_interval: float = 60.0):
         self.disk_paths = disk_paths
         self.interval = interval
+        # nobody looking (no UI connected, no local model, no Lean check): poll every `idle_interval` instead of
+        # spawning nvidia-smi twice every 3 s for nothing (session S-Q, docs/PERFORMANCE.md); `wake()` on demand
+        self.idle_interval = max(interval, idle_interval)
+        self.wanted: Callable[[], bool] = lambda: True
+        self._wake = asyncio.Event()
         self.gpu: dict | None = None
         self.gpu_ok: bool | None = None      # None until the first poll answered (D9: never plan without it)
         self.gpu_error = ""
@@ -115,13 +120,27 @@ class Monitor:
         if self._task is None:
             self._task = asyncio.create_task(self._loop(), name="monitor")
 
+    def wake(self) -> None:
+        """Poll now (a client connected, a model is loading…) and go back to the fast pace if wanted."""
+        self._wake.set()
+
+    def pace(self) -> float:
+        try:
+            return self.interval if self.wanted() else self.idle_interval
+        except Exception:  # noqa: BLE001
+            return self.interval
+
     async def _loop(self) -> None:
         while True:
             try:
                 await self.poll()
             except Exception:  # noqa: BLE001
                 log.exception("monitor poll failed")
-            await asyncio.sleep(self.interval)
+            self._wake.clear()
+            try:
+                await asyncio.wait_for(self._wake.wait(), self.pace())
+            except asyncio.TimeoutError:
+                pass
 
     async def stop(self) -> None:
         if self._task:

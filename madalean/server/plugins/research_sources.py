@@ -1016,11 +1016,25 @@ async def article_export(request):
 PUBLISH_TASKS = web.AppKey("research_publish_tasks", dict)
 
 
+def _pub_params(e) -> dict:
+    return {k: v for k, v in e.info.items() if isinstance(v, (str, int)) and k != "log"}
+
+
+def _pub_message(e) -> dict | None:
+    key = PUBLISH_MESSAGES.get(e.kind)
+    if not key:
+        return None
+    params = _pub_params(e)
+    for k in re.findall(r"{(\w+)}", key):
+        params.setdefault(k, "")
+    return msg(key, **params)
+
+
 def _pub_err(e) -> web.Response:
     data = {"error": e.kind, **{k: v for k, v in e.info.items() if isinstance(v, (str, int, list, dict))}}
-    key = PUBLISH_MESSAGES.get(e.kind)
-    if key:
-        data["message"] = msg(key)
+    m = _pub_message(e)
+    if m:
+        data["message"] = m
     return web.json_response(data, status=e.status)
 
 
@@ -1031,6 +1045,29 @@ PUBLISH_MESSAGES = {
     "no_github_credentials": "Aucun accès GitHub : ajoutez un jeton (fournisseur « github ») ou connectez gh.",
     "git_push_rejected": "GitHub a refusé l'envoi (historique différent) : rien n'a été écrasé.",
     "nothing_to_publish": "Aucun résultat à publier dans ce projet.",
+    "github_token_invalid": "GitHub refuse le jeton : il est expiré, révoqué ou mal copié. Créez-en un nouveau et "
+                            "collez-le dans Réglages → Clés.",
+    "github_scope_missing": "Le jeton GitHub (classique) n'a pas le droit « {scope} ». Sur {settings}, modifiez le "
+                            "jeton, cochez « {scope} » (et « workflow »), enregistrez, puis réessayez.",
+    "github_permission_missing": "Le jeton GitHub (à accès précis) n'a pas la permission {permission}. Sur {settings}, "
+                                 "modifiez le jeton (Repository permissions), enregistrez, puis réessayez.",
+    "github_sso_required": "L'organisation {org} impose la connexion SSO (SAML) : autorisez ce jeton pour elle sur "
+                           "GitHub ({url}), puis réessayez.",
+    "github_2fa_required": "L'organisation {org} exige la double authentification (2FA) : activez-la sur votre compte "
+                           "GitHub, puis réessayez.",
+    "github_rate_limited": "GitHub limite le nombre de requêtes : réessayez dans quelques minutes.",
+    "github_repo_not_granted": "Le dépôt {repo} existe, mais ce jeton n'y a pas accès : ajoutez-le dans « Repository "
+                               "access » du jeton ({settings}).",
+    "github_org_not_found": "Organisation {org} introuvable, ou vous n'en êtes pas membre.",
+    "github_forbidden": "GitHub refuse l'opération : {message}",
+    "github_error": "GitHub a répondu une erreur ({status}) : {message}",
+    "github_unreachable": "Impossible de joindre GitHub : vérifiez la connexion Internet.",
+    "repo_not_found": "Dépôt {repo} introuvable : cochez « Créer le dépôt », ou vérifiez le nom (un jeton à accès "
+                      "précis ne voit que les dépôts qu'on lui a donnés).",
+    "git_clone_failed": "Impossible de récupérer le dépôt (git clone).",
+    "git_push_failed": "GitHub a refusé l'envoi (git push).",
+    "git_commit_failed": "Échec de la préparation de l'envoi (git commit).",
+    "bad_repo": "Nom de dépôt invalide : écrivez compte/nom.",
 }
 
 
@@ -1180,10 +1217,9 @@ async def publish_push(request):
         except asyncio.CancelledError:
             ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": "cancelled"})
         except publish.PublishError as e:
+            m = _pub_message(e)
             ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": e.kind,
-                                          **({"message": msg(PUBLISH_MESSAGES[e.kind])} if e.kind in PUBLISH_MESSAGES
-                                             else {}),
-                                          **{k: v for k, v in e.info.items() if isinstance(v, (str, int))}})
+                                          **({"message": m} if m else {}), **_pub_params(e)})
         except Exception as e:  # noqa: BLE001
             log.exception("publish failed")
             ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": "internal",
@@ -1192,6 +1228,17 @@ async def publish_push(request):
     tasks[key] = t
     t.add_done_callback(lambda _t: tasks.pop(key, None))
     return ok({"request_id": rid}, status=202)
+
+
+async def github_check(request):
+    """« Tester la connexion GitHub » (read-only: GET requests to GitHub, nothing created). ?repo=owner/name&private=1
+    → {ok, login, token_kind, source, scopes, expires, checks: [{id, ok, code, params}]}."""
+    from ...research import publish
+    repo = request.query.get("repo", "")
+    if repo and not re.fullmatch(r"[A-Za-z0-9_.-]{1,39}/[A-Za-z0-9_.-]{1,100}", repo):
+        return error(400, "bad_repo")
+    res = await publish.check(_ctx(request), repo, private=request.query.get("private") in ("1", "true"))
+    return ok(res)
 
 
 # ================================================================ registration
@@ -1258,11 +1305,15 @@ def register(app: web.Application, ctx) -> None:
     r.add_post(pub + "/preview", publish_preview_build)
     r.add_get(pub + "/preview/{path:.*}", publish_preview_file)
     r.add_post(pub + "/push", publish_push)
+    r.add_get(base + "/github/check", github_check)
 
     async def cleanup(_app):
         lib = getattr(ctx, "_research_library", None)
         if lib is not None:
             await lib.fetcher.close()
+        from ...brain.rag import _SHARED
+        for e in list(_SHARED.values()):
+            await e.close()
     app.on_cleanup.append(cleanup)
     if getattr(ctx, "demo", False):
         from ...research.demo_seed import install

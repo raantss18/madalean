@@ -122,7 +122,7 @@ for (const [size, scheme] of [['desktop', 'light'], ['desktop', 'dark'], ['phone
     if (size !== 'phone') await page.locator('svg .gn').filter({ hasText: 'Lemma 1.2' }).first().click();
     await shot(page, `${size}-${scheme}-blueprint`);
     await page.goto(`${U}/article`);
-    await expect(page.locator('li.block').first()).toBeVisible();
+    await expect(page.locator('.cm-editor').first()).toBeVisible();
     await shot(page, `${size}-${scheme}-article`);
     await page.evaluate((pid) => localStorage.setItem('madalean.project', pid), examples);
     await page.reload();

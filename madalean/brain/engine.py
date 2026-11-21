@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 from .. import leancheck
 from .api import (AgentResult, BrainError, Completion, LocalRuntime, Mode, ModelRef, OnChunk, Role, ToolSpec)
-from .catalogue import KEYED, OLLAMA_URL, CatalogueStore, Model, Provider
+from .catalogue import HF_HUB, KEYED, OLLAMA_URL, CatalogueStore, Model, Provider, hf_specialist
 from .guards import FIRST_BYTE_LOCAL, FIRST_BYTE_ONLINE, FIRST_BYTE_REASONING, gemini_thinking, reasoning_model
 from .net import CALL_MODE, Http, is_loopback_host
 from .providers import anthropic as anthropic_api
@@ -25,10 +25,16 @@ from .state import States
 
 log = logging.getLogger("madalean.brain")
 LOST_TIME_LIMIT = 240.0          # seconds lost in failures before giving up on the remaining online models
+PROVIDER_DOWN_SECS = 60.0        # a provider unreachable while the Internet works: its models are skipped this long
 
 
 def ref_of(m: Model, cat=None) -> ModelRef:
     return ModelRef(m.provider, m.model_id, m.name, m.local, m.paid)
+
+
+def spend_id(m: Model) -> str:
+    """The id the spend ledger prices and records: Claude's model id (as before), the full key otherwise."""
+    return m.model_id if m.provider == "anthropic" else m.key
 
 
 # Gemini thinking per role on the OpenAI-compatible API (`reasoning_effort`: minimal | low | medium | high): enough for
@@ -64,6 +70,7 @@ class MadaleanBrain:
         self._refresh_task: asyncio.Task | None = None
         self.last_error: dict[str, str] = {}
         self._first_done = False
+        self.down: dict[str, float] = {}           # provider -> monotonic time until which it is considered down
 
     # ------------------------------------------------------------------ settings / keys
     def update_settings(self, settings: dict) -> None:
@@ -71,8 +78,15 @@ class MadaleanBrain:
         self.settings = merged({**self.settings, **settings})
         self._sem = None
 
-    def _key_hosts(self) -> dict[str, str]:
-        return {p.id: (urlsplit(self.endpoints.get(p.id, p.base_url)).hostname or "").lower() for p in KEYED}
+    def _key_hosts(self) -> dict[str, str | set[str]]:
+        out: dict[str, str | set[str]] = {
+            p.id: (urlsplit(self.endpoints.get(p.id, p.base_url)).hostname or "").lower() for p in KEYED}
+        # the Hugging Face token: the router (inference) and the Hub (identity check) — those two exact hosts only
+        out["huggingface"] = {str(out["huggingface"]), (urlsplit(self.hub_url()).hostname or "").lower()}
+        return out
+
+    def hub_url(self) -> str:
+        return self.endpoints.get("huggingface_hub", HF_HUB).rstrip("/")
 
     def key(self, provider: str) -> str | None:
         if not any(p.id == provider for p in KEYED):
@@ -99,6 +113,9 @@ class MadaleanBrain:
     # ------------------------------------------------------------------ catalogue
     def _view(self):
         cat = self.store.with_keys(lambda pid: self.key(pid) is not None)
+        for m in cat.models:
+            if m.paid and m.price:
+                spend.set_price(m.key, m.price)
         if not self.settings.get("ollama", True):
             cat.models = [m for m in cat.models if m.provider != "ollama"]
         for pid, url in self.endpoints.items():          # test endpoints may be keyless fakes
@@ -142,12 +159,104 @@ class MadaleanBrain:
 
     def candidates(self, role: Role, mode: Mode = "auto") -> list[ModelRef]:
         self._maybe_refresh()
-        return [ref_of(c.model) for c in self.ranking(role, mode)]
+        return [ref_of(c.model) for c in self._shown(role, mode)]
 
     def explain(self, role: Role, mode: Mode = "auto", domain: str | None = None) -> list[dict]:
         """Ranking with the reason of each position (for the UI's « why this model? »)."""
         return [{"model": c.model.key, "name": c.model.name, "score": round(c.score, 3), "why": c.why}
-                for c in self.ranking(role, mode, domain=domain)]
+                for c in self._shown(role, mode, domain)]
+
+    def _shown(self, role: str, mode: str, domain: str | None = None) -> list[Candidate]:
+        """The chain as the pipeline really uses it: the online Goedel specialist (Hugging Face) leads `prove`
+        (tournament round 0) and `formalize` when it is available; local models come last, only as the fallback."""
+        chain = self.ranking(role, mode, domain=domain)
+        g = self.goedel_model(role, mode)
+        if g is None:
+            return chain
+        from ..i18n import language
+        cp, cm = self.caps()
+        price = spend.price_of(g.key)
+        est = spend.estimated_price(g.key)
+        if language() == "en":
+            why = (f"Goedel's own prover loop (verbatim prompts, ≤ 2 corrections), served online by {g.model_id.rsplit(':', 1)[-1]}"
+                   f" through Hugging Face; paid ({'estimated ' if est else ''}{price[0]:.2f} / {price[1]:.2f} $ per "
+                   f"million tokens), within your caps ({cp:.2f} $ per proof, {cm:.2f} $ per month)")
+        else:
+            why = (f"la boucle de Goedel (prompts d'origine, ≤ 2 corrections), servie en ligne par "
+                   f"{g.model_id.rsplit(':', 1)[-1]} via Hugging Face ; payant ({'estimé ' if est else ''}"
+                   f"{price[0]:.2f} / {price[1]:.2f} $ par million de jetons), dans vos plafonds ({cp:.2f} $ par "
+                   f"preuve, {cm:.2f} $ par mois)")
+        if role == "formalize":
+            why = why.replace("prover loop", "formalizer").replace("la boucle de Goedel", "le formaliseur de Goedel")
+        return [Candidate(g, 200.0, why)] + [c for c in chain if c.model.key != g.key]
+
+    # ------------------------------------------------------------------ Goedel online (Hugging Face, session S-T)
+    def goedel_model(self, role: str = "prove", mode: str = "auto") -> Model | None:
+        """The Goedel specialist served online for `role` (prove: Goedel-Prover-V2-32B, else -8B; formalize:
+        Goedel-Formalizer-V2), when: `hf_goedel` is on, the mode allows online models, the Hugging Face token is set,
+        a provider serves it live (catalogue), it is not paused, and the month's cap leaves room. None otherwise —
+        the pipeline then goes on with the free online models (and the local ones only offline)."""
+        if not self.settings.get("hf_goedel", True) or self.effective_mode(mode) == "local" \
+                or self.key("huggingface") is None:
+            return None
+        cp, cm = self.caps()
+        if cp <= 0 or self.ledger.month_room(cm) <= 0:
+            return None
+        if self.down.get("huggingface", 0) > time.monotonic():
+            return None
+        pool = [m for m in self._view().models if m.provider == "huggingface" and not self.states.pause_of(m.key)
+                and (hf_specialist(m.model_id) or ("", ""))[1] == role]
+        pool.sort(key=lambda m: ("32B" not in m.model_id, m.model_id))
+        return pool[0] if pool else None
+
+    def goedel_online(self, role: Role = "prove", mode: Mode = "auto") -> ModelRef | None:
+        m = self.goedel_model(role, mode)
+        return ref_of(m) if m is not None else None
+
+    async def internet(self) -> bool:
+        """Is the Internet reachable (cached probe)? False in local mode."""
+        if self.settings.get("mode") == "local":
+            return False
+        return await self.http.online()
+
+    async def hf_check(self) -> dict:
+        """Key test of the Hugging Face token (Réglages → Clés): a read-only identity check on the Hub
+        (GET /api/whoami-v2 — no inference, nothing billed), then the live Goedel specialists. Never echoes the token."""
+        key = self.key("huggingface")
+        if key is None:
+            return {"ok": False, "reason": "no_key", "models": 0}
+        if self.settings.get("mode") == "local":
+            return {"ok": None, "reason": "local_mode", "models": 0}
+        t0 = time.monotonic()
+        status, who = await self.http.request_json(f"{self.hub_url()}/api/whoami-v2", mode="online",
+                                                   provider="huggingface", key=key, timeout=15)
+        latency = round(time.monotonic() - t0, 2)
+        if status == 0:
+            return {"ok": False, "reason": "network" if await self.http.online() else "offline", "models": 0}
+        if status in (401, 403):
+            return {"ok": False, "reason": "key_refused", "models": 0}
+        if status >= 400 or not isinstance(who, dict):
+            return {"ok": False, "reason": f"http_{status}", "models": 0}
+        with self.states._lock:                    # a new, valid token: lift the « key refused » pause of the old one
+            for k, st in self.states.models.items():
+                if k.startswith("huggingface:") and st.reason == "key_refused":
+                    st.until, st.reason = 0.0, ""
+        self.down.pop("huggingface", None)
+        warning = ""
+        tok = ((who.get("auth") or {}).get("accessToken") or {}) if isinstance(who.get("auth"), dict) else {}
+        if tok.get("role") == "fineGrained":
+            perms = ((tok.get("fineGrained") or {}).get("global")) if isinstance(tok.get("fineGrained"), dict) else None
+            if isinstance(perms, list) and "inference.serverless.write" not in perms:
+                warning = "inference_permission"     # « Make calls to Inference Providers » is not ticked
+        try:
+            await asyncio.wait_for(self.refresh(), 30)
+        except Exception:  # noqa: BLE001
+            pass
+        hf = [m for m in self._view().models if m.provider == "huggingface"]
+        g = self.goedel_model("prove", "online")
+        return {"ok": True, "login": str(who.get("name") or ""), "latency_s": latency, "warning": warning,
+                "models": len(hf), "model": g.key if g else "", "names": [m.name for m in hf],
+                "reason": "" if hf else "no_live_model"}
 
     def test_model(self, provider: str) -> dict | None:
         """The model the key test calls for `provider`: cheap and stable, not the strongest (catalogue.test_model)."""
@@ -198,13 +307,14 @@ class MadaleanBrain:
     def _budget(self, m: Model, role: str, payload, max_tokens: int, on_chunk) -> tuple[int, float]:
         """Before a paid call: fit `max_tokens` to what the caps leave, reserve the estimate. Raises
         ProviderError("budget") when even a short answer would pass a cap (nothing is sent)."""
-        p = spend.price_of(m.model_id)
+        pid = spend_id(m)
+        p = spend.price_of(pid)
         if p is None:
             return max_tokens, 0.0
         scope = spend.SPEND_SCOPE.get()
         cp, cm = self.caps()
         n_in = spend.tokens_of(payload)
-        p = spend.price_of(m.model_id, n_in) or p
+        p = spend.price_of(pid, n_in) or p
         room = self.ledger.room(scope, cp, cm)
         affordable = int((room - n_in * p[0] / 1e6) / p[1] * 1e6) if p[1] else max_tokens
         floor_ = min(max_tokens, spend.MIN_OUTPUT)
@@ -223,7 +333,7 @@ class MadaleanBrain:
             emit(on_chunk, "info", why, event="budget", model=m.key, cap=e.which)
             raise ProviderError("budget", why) from None
         emit(on_chunk, "info", f"{m.name}: at most {est:.2f} $ for this call", event="cost", model=m.key,
-             estimate=round(est, 4))
+             estimate=round(est, 4), estimated_price=spend.estimated_price(pid))
         return mt, est
 
     def _maybe_refresh(self) -> None:
@@ -257,8 +367,18 @@ class MadaleanBrain:
             log.info("catalogue refresh failed: %s", e)
 
     async def refresh(self) -> None:
+        """Single flight (session S-Q): « Actualiser », a key test and the staleness check used to start parallel
+        catalogue refreshes (same provider requests twice); a caller arriving during a refresh waits for it."""
+        t = getattr(self, "_inflight_refresh", None)
+        if t is None or t.done():
+            t = self._inflight_refresh = asyncio.ensure_future(self._refresh_once())
+        await asyncio.shield(t)
+
+    async def _refresh_once(self) -> None:
         online = self.settings.get("mode") != "local" and await self.http.online()
-        await self.store.refresh(self.http, self.key, online=online)
+        router = self.endpoints.get("huggingface")
+        await self.store.refresh(self.http, self.key, online=online,
+                                 hf_urls=(self.hub_url(), router) if router or "huggingface_hub" in self.endpoints else None)
 
     # ------------------------------------------------------------------ status
     async def status(self) -> dict[str, Any]:
@@ -274,14 +394,21 @@ class MadaleanBrain:
                           "key_set": self.key(p.id) is not None if p.keyed else None,
                           "models": len(keys), "ok": bool(keys) and not all_paused,
                           "paused_until": max((u for u, _ in pauses), default=None) if all_paused else None,
+                          "down": self.down.get(p.id, 0) > time.monotonic(),
                           "reason": pauses[0][1] if all_paused else self.last_error.get(p.id, "")})
         loc = {"runtime": self.local is not None,
                "models": {r: (self.local.model_for(r).key if self.local and self.local.model_for(r) else None)
                           for r in ("understand", "route", "formalize", "prove", "explain", "assistant")}
                if self.local else {},
                "ollama": [m.model_id for m in cat.models if m.provider == "ollama"]}
-        return {"online": online, "catalogue_updated": self.store.cat.updated, "providers": provs, "local": loc,
-                "mode": self.settings.get("mode")}
+        g = self.goedel_model("prove", "auto") if online else None
+        return {"online": online, "internet": online, "catalogue_updated": self.store.cat.updated, "providers": provs,
+                "local": loc, "mode": self.settings.get("mode"),
+                # who receives what (S-T): local models only work when the Internet is missing or every online
+                # model failed — llama-server is not started in normal online use
+                "local_policy": "never" if self.settings.get("mode") == "online" else
+                ("only" if self.settings.get("mode") == "local" else ("now" if not online else "fallback")),
+                "goedel_online": {"key": g.key, "name": g.name} if g else None}
 
     async def close(self) -> None:
         if self._refresh_task and not self._refresh_task.done():
@@ -363,6 +490,8 @@ class MadaleanBrain:
                      month=round(self.ledger.month_total(), 4))
             return res
         msgs = messages if history is None else convo.to_openai(history, bool(tools))
+        if m.provider == "huggingface":
+            first = max(first, FIRST_BYTE_REASONING)     # a 32B prover thinks (and may queue) before its first token
         ex = {k: v for k, v in (extra or {}).items() if k not in ("effort",)}
         if not m.local:
             ex = {k: v for k, v in ex.items() if k in ("top_p", "seed", "stop", "presence_penalty", "frequency_penalty")}
@@ -377,19 +506,57 @@ class MadaleanBrain:
                     self.http, base_url=base, model=m.model_id, messages=msgs, mode="local", provider=p.id,
                     max_tokens=max_tokens, temperature=temperature, tools=oa_tools, extra=ex, on_chunk=on_chunk,
                     stall=stall, first_byte=first)
-        async with self.sem():
-            return await openai_compat.stream_chat(
-                self.http, base_url=base, model=m.model_id, messages=msgs, mode=mode, provider=p.id, key=key,
-                max_tokens=max_tokens, temperature=temperature, tools=oa_tools, extra=ex, on_chunk=on_chunk,
-                stall=stall, first_byte=first)
+        pid = spend_id(m)
+        if not (m.paid and spend.price_of(pid) is not None):
+            async with self.sem():
+                return await openai_compat.stream_chat(
+                    self.http, base_url=base, model=m.model_id, messages=msgs, mode=mode, provider=p.id, key=key,
+                    max_tokens=max_tokens, temperature=temperature, tools=oa_tools, extra=ex, on_chunk=on_chunk,
+                    stall=stall, first_byte=first)
+        # a paid OpenAI-compatible model with a known or estimated price (Hugging Face, S-T): the same caps and
+        # ledger as Claude — fitted max_tokens, refusal before sending, real usage recorded after
+        scope = spend.SPEND_SCOPE.get()
+        mt, est = self._budget(m, role, [msgs, oa_tools], max_tokens or MAX_TOKENS.get(role, 16000), on_chunk)
+        streamed = [0]
+
+        def counting(ch):
+            if ch.kind in ("text", "thinking"):
+                streamed[0] += len(ch.text or "")
+            if on_chunk is not None:
+                on_chunk(ch)
+        res = None
+        try:
+            async with self.sem():
+                res = await openai_compat.stream_chat(
+                    self.http, base_url=base, model=m.model_id, messages=msgs, mode=mode, provider=p.id, key=key,
+                    max_tokens=mt, temperature=temperature, tools=oa_tools, extra=ex, on_chunk=counting,
+                    stall=stall, first_byte=first)
+        except (ProviderError, asyncio.CancelledError) as e:
+            billed = isinstance(e, asyncio.CancelledError) or e.kind in ("network", "stall", "empty") or streamed[0]
+            if billed:
+                # sent (maybe billed) without a usage report: count the prompt and what was streamed (estimated)
+                self.ledger.record(pid, scope, spend.tokens_of([msgs, oa_tools]),
+                                   int(streamed[0] / spend.CHARS_PER_TOKEN) + 1)
+            raise
+        finally:
+            self.ledger.release(scope, est)
+        n_out = res.tokens_out or int(streamed[0] / spend.CHARS_PER_TOKEN) + 1
+        row = self.ledger.record(pid, scope, res.tokens_in or spend.tokens_of([msgs, oa_tools]), n_out)
+        emit(on_chunk, "info", f"{m.name}: {row.usd:.4f} $", event="spent", model=m.key, usd=row.usd,
+             month=round(self.ledger.month_total(), 4), estimated_price=spend.estimated_price(pid))
+        return res
 
     async def _on_failure(self, m: Model, e: ProviderError, mode: str) -> str:
         """Record a failure; returns a short reason. Detects a lost network."""
         if e.kind == "network" and not m.local:
             if not await self.http.online(mode):
                 return "offline"
+            # the Internet works but this provider does not answer: « provider down », not « no Internet »; its other
+            # models are skipped for a minute instead of each one waiting for its own connection timeout
+            self.down[m.provider] = time.monotonic() + PROVIDER_DOWN_SECS
+            self.last_error[m.provider] = "down"
             self.states.record(m.key, False, 0, e.message)
-            return f"network error: {e.message}"
+            return f"provider unreachable: {e.message}"
         if e.kind in ("unavailable", "budget"):
             return e.message
         if e.kind == "context":
@@ -428,19 +595,28 @@ class MadaleanBrain:
     async def complete(self, role: Role, messages: list[dict], *, mode: Mode = "auto",
                        temperature: float | None = None, max_tokens: int | None = None,
                        on_chunk: OnChunk | None = None, prefer: str | None = None,
-                       extra: dict | None = None) -> Completion:
+                       extra: dict | None = None, only: str | None = None) -> Completion:
+        """`only`: this model key alone, no fallback to another model (the online Goedel prover, S-T)."""
         mode = self.effective_mode(mode)
         token = CALL_MODE.set(mode)
         try:
             await self._first_refresh(mode)
             self._maybe_refresh()
-            chain = self.ranking(role, mode, prefer=prefer, messages=messages)
+            if only:
+                pinned = [c for c in self._rank(role, mode, only, messages, False, None) if c.model.key == only]
+                if not pinned:
+                    raise BrainError("no_model", f"{only} is not available ({mode} mode, paused, or no key)")
+                chain = pinned[:1]
+            else:
+                chain = self.ranking(role, mode, prefer=prefer, messages=messages)
             if mode == "online" and not chain:
                 raise BrainError("no_model", "online mode: no online model is available (all paused or none known)")
             if not chain:
                 raise BrainError("no_model", f"no model available for {role} in {mode} mode")
             if mode == "online" and not await self.http.online(mode):
                 raise BrainError("offline", "online mode: the Internet is not reachable", [c.model.key for c in chain])
+            if mode == "auto" and any(not c.model.local for c in chain) and any(c.model.local for c in chain):
+                await self.http.online(mode)       # cached probe (≤ 1.5 s once): offline → straight to the local models
             fallbacks: list[str] = []
             reasons: list[str] = []
             lost = 0.0
@@ -449,7 +625,7 @@ class MadaleanBrain:
             while True:
                 i += 1
                 if i >= len(chain):
-                    if extended or lost > LOST_TIME_LIMIT:
+                    if extended or lost > LOST_TIME_LIMIT or only:
                         break
                     extended = True                  # all failed: once more with models not tried yet
                     used = {x.model.key for x in chain}
@@ -461,6 +637,9 @@ class MadaleanBrain:
                 m = c.model
                 if not m.local and (self.http.known_offline() or lost > LOST_TIME_LIMIT):
                     fallbacks.append(f"{m.key}: skipped ({'offline' if self.http.known_offline() else 'too much time lost'})")
+                    continue
+                if not m.local and self.down.get(m.provider, 0) > time.monotonic():
+                    fallbacks.append(f"{m.key}: skipped (provider unreachable)")
                     continue
                 if fallbacks:
                     emit(on_chunk, "info", f"→ {m.name}", event="switch", model=m.key, reason=fallbacks[-1])

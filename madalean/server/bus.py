@@ -6,6 +6,7 @@ fast model does not flood the clients or the ring buffer."""
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections import deque
 from typing import Any
@@ -16,9 +17,15 @@ log = get("bus")
 
 
 class EventBus:
-    def __init__(self, ring: int = 5000, flush_s: float = 0.1):
+    def __init__(self, ring: int = 5000, flush_s: float = 0.1, ring_bytes: int = 24 * 1024 * 1024):
         self.seq = 0
-        self.ring: deque[dict] = deque(maxlen=ring)
+        self.ring: deque[dict] = deque()
+        self.ring_max = ring
+        # bounded in bytes too (session S-Q): article / blueprint / manifest events carry whole documents, 5000 of
+        # them could hold hundreds of MB; a client too late for the ring simply resyncs
+        self.ring_bytes = ring_bytes
+        self._sizes: deque[int] = deque()
+        self._bytes = 0
         self.subscribers: set[asyncio.Queue] = set()
         self.flush_s = flush_s
         self._tokens: dict[tuple, list[str]] = {}
@@ -29,13 +36,14 @@ class EventBus:
         # revoked or expired credential loses them at once
         self.sockets: dict[str, set] = {}
         self.owned: dict[str, set] = {}
+        self.clients = 0                             # open WebSockets (UI clients): the monitor's audience
 
     def publish(self, type_: str, payload: dict[str, Any] | None = None) -> dict:
         if type_ != "job.token":
             self._flush_tokens()                     # keep the order: tokens written before this event come first
         self.seq += 1
         ev = {"type": type_, "seq": self.seq, "ts": time.time(), **(payload or {})}
-        self.ring.append(ev)
+        self._keep(ev)
         for q in list(self.subscribers):
             try:
                 q.put_nowait(ev)
@@ -46,6 +54,18 @@ class EventBus:
                 except asyncio.QueueFull:
                     pass
         return ev
+
+    def _keep(self, ev: dict) -> None:
+        try:
+            size = len(json.dumps(ev, ensure_ascii=False, default=str))
+        except (TypeError, ValueError):
+            size = 1024
+        self.ring.append(ev)
+        self._sizes.append(size)
+        self._bytes += size
+        while self.ring and (len(self.ring) > self.ring_max or (self._bytes > self.ring_bytes and len(self.ring) > 1)):
+            self.ring.popleft()
+            self._bytes -= self._sizes.popleft()
 
     def token(self, job_id: str, stage: str, attempt: int, text: str, kind: str = "text") -> None:
         if not text:

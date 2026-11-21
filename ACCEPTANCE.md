@@ -202,3 +202,28 @@ revision shown as « — » for lean-prover49, the informal proof repeats « Th�
 2. F11: bump llama.cpp to ≥ b12556 (CVE-2026-133710, GGUF heap overflow; CVE-2026-107183).
 Not verified: strace of madalean-net log upload (code path verified: `logtail.Disable()` before start drops uploads);
 real tailnet requests; Gradle transitive dependencies; tesseract/tectonic CVEs (no CPE data).
+
+## 2.0 — article editor: LaTeX project, visual editor, compilation (session S-R, 2026-11-22) — docs/ARTICLE.md
+
+Verified for real:
+- `tests/test_texproject.py` (16 tests): byte-identical view round trip on a corpus (theorems, align, TikZ, macros,
+  comments, \verb, nested braces), v1 → LaTeX migration keeping block ids, managed regions, suggestions on stable ids
+  (accept / reject / stale / editor-applied, after moving blocks), guard (12 injection forms), package analysis, truth
+  rule, real PDF with the system XeLaTeX (dev engine) incl. SyncTeX both ways and a one-click fix, Overleaf zip round
+  trip + unsafe import refused + history, assistant producing suggestions only (unsafe model output refused, Sage cell
+  created as an unapproved assistant cell), remote listener 401.
+- The prefix's tectonic from a TEMPORARY prefix (env linked read-only, copied cache): analysis against the bundle
+  index, `bundle` files fetched once with « Télécharger une fois » (network shared only for that run), then the same
+  document compiled `--only-cached` (`MADALEAN_ONLINE_TESTS=1`); all five templates (amsart FR/EN, article, report,
+  beamer, elsarticle) compiled with tectonic, then again offline.
+- `web/e2e/article.spec.ts` 4/4, `e2e/a11y.spec.ts` 3/3 (axe 0 on article visual, preview, drawer, versions,
+  Overleaf, phone, dark), vitest 63/63, svelte-check 0 error / 0 warning.
+
+Not verified / limits:
+- The real Overleaf container was only detected read-only (docker ps + /status); upload into Overleaf CE and the zip it
+  gives back were not exercised by hand (CE has no API: the round trip is a manual upload/download by design).
+- The live install's tectonic cache predates the new templates: until `install tex-bundle` runs again (the warm-up now
+  compiles the article templates), the first compile of an article offers « Télécharger une fois » (needs network).
+- SyncTeX inverse search is approximate (nearest box); equation numbers are not shown in the visual mode; TikZ is not
+  rendered in the editor (raw block, drawn in the PDF).
+- `tests/test_i18n.py` reports 3 untranslated strings from the Calcul notebook (S-P), not from this session.

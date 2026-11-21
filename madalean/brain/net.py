@@ -22,8 +22,9 @@ CALL_MODE: contextvars.ContextVar[str] = contextvars.ContextVar("madalean_brain_
 
 USER_AGENT = "Madalean/2.0 (model engine)"
 CONNECT_TIMEOUT = 4.0          # seconds to open a TCP+TLS connection to an online provider
-PROBE_TTL = 30.0               # reachability cache
-PROBES = [("1.1.1.1", 443), ("8.8.8.8", 443)]
+PROBE_TTL = 30.0               # reachability cache (a positive answer)
+OFFLINE_TTL = 10.0             # a negative answer is re-checked sooner: back online within seconds (session S-T)
+PROBES = [("1.1.1.1", 443), ("8.8.8.8", 443), ("9.9.9.9", 443)]
 
 
 class LocalModeViolation(BrainError):
@@ -83,8 +84,9 @@ def error_message(body: str) -> str:
 
 
 class Http:
-    def __init__(self, key_hosts: dict[str, str]):
-        """key_hosts: provider id -> the only hostname its key may be sent to."""
+    def __init__(self, key_hosts: dict[str, "str | set[str] | frozenset[str]"]):
+        """key_hosts: provider id -> the only hostname(s) its key may be sent to (exact names, never subdomains:
+        Hugging Face's token goes to router.huggingface.co and huggingface.co, nowhere else)."""
         self.key_hosts = dict(key_hosts)
         self._session: aiohttp.ClientSession | None = None
         self._online: tuple[float, bool] | None = None
@@ -100,7 +102,8 @@ class Http:
             raise LocalModeViolation(host)
         if key:
             allowed = self.key_hosts.get(provider or "")
-            if not allowed or host != allowed:
+            ok = host in allowed if isinstance(allowed, (set, frozenset)) else (bool(allowed) and host == allowed)
+            if not host or not ok:
                 raise KeyHostError(provider or "?", host)
 
     def session(self) -> aiohttp.ClientSession:
@@ -124,20 +127,28 @@ class Http:
 
     # ------------------------------------------------------------------ reachability
     def known_offline(self) -> bool:
-        return self._online is not None and not self._online[1] and time.monotonic() - self._online[0] < PROBE_TTL
+        return self._online is not None and not self._online[1] and time.monotonic() - self._online[0] < OFFLINE_TTL
 
     def mark(self, online: bool) -> None:
         self._online = (time.monotonic(), online)
 
+    def _cached(self) -> bool | None:
+        if self._online is None:
+            return None
+        ttl = PROBE_TTL if self._online[1] else OFFLINE_TTL
+        return self._online[1] if time.monotonic() - self._online[0] < ttl else None
+
     async def online(self, mode: str = "auto") -> bool:
-        """Is the Internet reachable? (two public resolvers, 1.5 s each, cached 30 s; never probed in local mode)"""
+        """Is the Internet reachable? (three public resolvers in parallel, 1.5 s at most, any answer is enough; cached
+        30 s when online, 10 s when offline; never probed in local mode). « No Internet » is this probe failing;
+        « provider down » is a provider failing while this probe succeeds (engine: `MadaleanBrain.down`)."""
         if self.effective_mode(mode) == "local":
             return False
-        if self._online is not None and time.monotonic() - self._online[0] < PROBE_TTL:
-            return self._online[1]
+        if (c := self._cached()) is not None:
+            return c
         async with self._probe_lock:
-            if self._online is not None and time.monotonic() - self._online[0] < PROBE_TTL:
-                return self._online[1]
+            if (c := self._cached()) is not None:
+                return c
 
             async def one(h: str, p: int) -> bool:
                 try:
@@ -146,9 +157,18 @@ class Http:
                     return True
                 except (OSError, asyncio.TimeoutError):
                     return False
-            res = await asyncio.gather(*(one(h, p) for h, p in PROBES))
-            self.mark(any(res))
-            return self._online[1]
+            tasks = [asyncio.ensure_future(one(h, p)) for h, p in PROBES]
+            up = False
+            try:
+                for fut in asyncio.as_completed(tasks):
+                    if await fut:                   # the first success is enough: no waiting for a slow resolver
+                        up = True
+                        break
+            finally:
+                for t in tasks:
+                    t.cancel()
+            self.mark(up)
+            return up
 
     # ------------------------------------------------------------------ requests
     async def get_json(self, url: str, *, mode: str, timeout: float = 15, provider: str | None = None,
@@ -169,6 +189,26 @@ class Http:
                 return json.loads(await r.read())
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, OSError):
             return None
+
+    async def request_json(self, url: str, *, mode: str, timeout: float = 15, provider: str | None = None,
+                           key: str | None = None) -> tuple[int, Any]:
+        """GET → (HTTP status, parsed JSON or None); status 0 when the request could not be made (network, refused
+        by the local-mode or key-host guard). For checks that must tell « key refused » from « unreachable »."""
+        try:
+            self.check(url, mode, provider, key)
+        except BrainError:
+            return 0, None
+        h = auth_headers(provider or "", key) if key else {}
+        try:
+            async with self.session().get(url, headers=h, timeout=aiohttp.ClientTimeout(
+                    total=timeout, sock_connect=min(timeout, CONNECT_TIMEOUT))) as r:
+                raw = await r.read()
+                try:
+                    return r.status, json.loads(raw)
+                except ValueError:
+                    return r.status, None
+        except (aiohttp.ClientError, asyncio.TimeoutError, OSError):
+            return 0, None
 
     async def post_json(self, url: str, body: Any, *, mode: str, timeout: float = 20, headers: dict | None = None) -> Any:
         try:

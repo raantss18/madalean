@@ -1,6 +1,7 @@
 """Paid-model spending (session S-M, user decision 2026-11-21): Claude is a paid reinforcement, used only within the
 caps the user sets in Réglages → Modèles — a cap per proof (default 1.00 USD) and a cap per calendar month
-(default 20 USD).
+(default 20 USD). Session S-T (user decision 2026-11-22): the SAME caps and ledger cover every keyed paid provider
+with a known or estimated price — Hugging Face Inference Providers (Goedel-Prover-V2-32B online) included.
 
 - Before each call to a paid model, `estimate()` gives an upper bound from the request size (≈ 3.5 characters per
   token, nothing assumed cached) and the call's `max_tokens`, at list prices (claude-api skill, cached 2026-11-03).
@@ -29,6 +30,15 @@ PRICES: dict[str, tuple[float, float, float, float]] = {
     "claude-sonnet-5-5": (2.0, 10.0, 0.10, 2.5),
     "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
 }
+# Hugging Face Inference Providers bill the provider's price with no markup (huggingface.co/docs/inference-providers/
+# pricing, 2026-11-22: PRO accounts get 2 USD of credits a month, free accounts must buy credits, then pay-as-you-go).
+# The router publishes no price for Goedel on featherless-ai (GET router.huggingface.co/v1/models/<repo>: no
+# `pricing`), so this is a CONSERVATIVE ESTIMATE, not a real price: about the router's published price of a much
+# larger model on the same provider (GLM-5.3 on featherless-ai: 0.98 / 3.08 USD per MTok), rounded up. A price the
+# router publishes later (catalogue `Model.price`) replaces it. Featherless's own plans are flat-rate subscriptions;
+# how HF bills them per request is not documented.
+HF_ESTIMATE = (1.00, 3.20)
+DYNAMIC: dict[str, tuple[float, float, float, float]] = {}    # "provider:model_id" -> price published by a provider
 CHARS_PER_TOKEN = 3.5
 MAX_ROWS = 5000
 DEFAULT_CAP_PROOF = 1.0
@@ -41,7 +51,23 @@ SPEND_SCOPE: contextvars.ContextVar[str | None] = contextvars.ContextVar("madale
 LONG_PROMPT = {"claude-haiku-5-5": (100_000, 5.0)}   # prompts above 100K tokens: every price × 5 ($0.50 / $2.50)
 
 
+def set_price(key: str, price: list[float] | tuple | None) -> None:
+    """Record a price a provider publishes for one model (catalogue refresh), USD per million tokens (in, out)."""
+    if price and len(price) >= 2 and all(isinstance(x, (int, float)) and x >= 0 for x in price[:2]):
+        DYNAMIC[key] = (float(price[0]), float(price[1]), float(price[0]), float(price[0]))
+
+
+def estimated_price(model_id: str) -> bool:
+    """True when the price of this model is Madalean's estimate (no published price)."""
+    return model_id.startswith("huggingface:") and model_id not in DYNAMIC
+
+
 def price_of(model_id: str, prompt_tokens: int = 0) -> tuple[float, float, float, float] | None:
+    """`model_id`: a Claude model id (« claude-opus-5-5 ») or a full key (« huggingface:<repo>:<provider> »)."""
+    if model_id in DYNAMIC:
+        return DYNAMIC[model_id]
+    if model_id.startswith("huggingface:"):
+        return (HF_ESTIMATE[0], HF_ESTIMATE[1], HF_ESTIMATE[0], HF_ESTIMATE[0])
     mid = model_id.split(":", 1)[-1]
     base = PRICES.get(mid) or next((p for k, p in PRICES.items() if mid.startswith(k)), None)  # dated ids
     if base is None:
@@ -183,4 +209,5 @@ class Ledger:
                 "by_model": {k: round(v, 6) for k, v in sorted(by_model.items(), key=lambda x: -x[1])},
                 "recent": [asdict(r) for r in self.rows[-20:]][::-1],
                 "prices": {k: {"input": p[0], "output": p[1], "cache_read": p[2], "cache_write": p[3]}
-                           for k, p in PRICES.items()}}
+                           for k, p in PRICES.items()},
+                "hf_estimate": {"input": HF_ESTIMATE[0], "output": HF_ESTIMATE[1], "estimated": True}}

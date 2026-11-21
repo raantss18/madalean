@@ -412,3 +412,31 @@ Still open (the UI works around each):
   `/calcul` added to `e2e/a11y.spec.ts`).
 - Plots are shown with `<img>` from `/api/calcul/assets/{id}` (CSP `img-src 'self'`; SVG sanitised server-side and
   served with `sandbox` CSP); LaTeX outputs go through KaTeX (`renderMath`, trust off), never as HTML.
+
+## 11. Article editor (session S-R, docs/ARTICLE.md)
+
+- **Choice**: CodeMirror 6 (MIT, already in the bundle) used as a *live-preview* editor over the LaTeX source, not a
+  ProseMirror/TipTap tree. The document the user types in IS the `.tex` file: visual mode only adds decorations
+  (KaTeX maths, amsthm-style theorem boxes with numbers and the Lean state badge, `\cite`/`\ref` chips, figures,
+  footnotes, bullets, hidden markers and markup) and reveals the raw LaTeX where the cursor is; « Source LaTeX »
+  removes the decorations from the same EditorState (same selection, same undo history). Round trip is perfect by
+  construction; unknown environments (TikZ, tables, algorithms…) are protected raw blocks shown as written. A
+  ProseMirror model would have needed a lossy LaTeX ⇄ tree conversion.
+- Files: `lib/article/latex.ts` (pure scanner: maths, environments, commands, markers, numbering, KaTeX macros —
+  unit-tested), `lib/article/editor.ts` (lazy chunk: decorations, math live-preview tooltip, suggestions as track
+  changes, compile diagnostics, completion of commands/environments/labels/citation keys, protected managed regions,
+  Vim/Emacs keymaps loaded on demand), `lib/article/prefs.svelte.ts` (per-device personalisation),
+  `lib/api/article.ts`, `screens/research/Article.svelte` + `article/ArticleOptions.svelte` (side drawer) +
+  `article/ArticleDialogs.svelte`, `styles/article.css`. `PdfView` gained an optional `onpoint` (double-click →
+  SyncTeX inverse search).
+- Layout: toolbar (title · save state · Visuel/Source · Insérer · Suggestions · Aperçu PDF · Compiler · ⋯), outline
+  (sections = files, sub-headings of the current file), writing surface set like a page (Source Serif, 62/72/92 ch),
+  PDF preview on the right ≥ 1100 px (or below), diagnostics above the PDF with one-click fixes. Phone (< 760 px):
+  visual mode only, single column, outline as a select, PDF opened in a tab. The selection shows a small assistant
+  toolbar (Réécrire, Raccourcir, …, Vérifier avec Lean, Exemple avec Sage); results come back as suggestions.
+- New dependencies: `@replit/codemirror-vim` 6.4.0, `@replit/codemirror-emacs` 6.1.0 (MIT, lazy chunks, loaded only
+  when chosen), `@codemirror/search` 6.7.2 (MIT, their peer; also gives Ctrl+F). `npm audit --omit=dev`: 0.
+- Tests: `tests/unit/article.test.ts`, `e2e/article.spec.ts` (visual/source/autosave/insert, compile + fix, drawer,
+  versions, Overleaf, assistant suggestion accepted inline, phone, dark; axe on each state) →
+  `docs/screenshots/v2/article-*.png`. `e2e/global-setup.ts` now starts the demo server with a temporary
+  `MADALEAN_HOME` (it used to inherit the real prefix and therefore the user's tectonic cache).

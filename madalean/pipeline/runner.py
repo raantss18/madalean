@@ -91,7 +91,9 @@ class JobIO:
 
     async def complete(self, role: str, messages: list[dict], attempt: Attempt | None = None, *,
                        temperature: float | None = None, max_tokens: int | None = None, extra: dict | None = None,
-                       mode: str | None = None, stage: str = "") -> Completion:
+                       mode: str | None = None, stage: str = "", only: str | None = None,
+                       prefer: str | None = None) -> Completion:
+        """`only`: this model alone (online Goedel, S-T); `prefer`: tried first (the user's choice wins)."""
         ctx, job = self.ctx, self.job
         mode = mode or job.mode
         guard = LoopGuard()
@@ -135,7 +137,8 @@ class JobIO:
         try:
             inner = asyncio.create_task(ctx.brain.complete(
                 role, messages, mode=mode, temperature=temperature, max_tokens=max_tokens, on_chunk=on_chunk,
-                prefer=(ctx.settings.prefer or {}).get(role) or None, extra=extra))
+                prefer=(ctx.settings.prefer or {}).get(role) or prefer or None, extra=extra,
+                **({"only": only} if only else {})))
             try:
                 return await inner
             except asyncio.CancelledError:
@@ -315,7 +318,8 @@ class DossierPipeline:
         previous = d.statement if req else ""
         first = len(job.attempts)
         text = (d.understood or d.problem) + await self._mathlib_reference(job, d, ws, req)
-        f = await Formalizer(io, job.mode).run(text, ws, s.translate_attempts,
+        f = await Formalizer(io, job.mode, prefer=self._goedel_online_key("formalize", job.mode)).run(
+                                                text, ws, s.translate_attempts,
                                                 s.compile_timeout_s, name=d.theorem, profile=s.profile,
                                                 previous=previous, request=req)
         self._record_stage(job, d, first, "statement", "formalize")
@@ -517,6 +521,43 @@ class DossierPipeline:
             cands = []
         return "agent" if any(not c.local for c in cands) else "goedel"
 
+    def _goedel_online_key(self, role: str, mode: str) -> str | None:
+        """The Goedel specialist served online for `role` (Hugging Face, S-T), or None."""
+        fn = getattr(self.ctx.brain, "goedel_online", None)
+        if fn is None or mode == "local":
+            return None
+        try:
+            r = fn(role, mode)
+        except Exception:  # noqa: BLE001
+            return None
+        return r.key if r is not None else None
+
+    async def _internet(self, mode: str) -> bool:
+        """Reachability as the brain sees it (cached probe); a brain without a probe is trusted to be online."""
+        if mode == "local":
+            return False
+        fn = getattr(self.ctx.brain, "internet", None)
+        if fn is None:
+            return True
+        try:
+            return bool(await asyncio.wait_for(fn(), 5))
+        except Exception:  # noqa: BLE001
+            return True
+
+    async def _goedel_online(self, io, key: str, statement: str, ws, n: int, refine, hint: str) -> ProveResult:
+        """Goedel's own loop on Goedel-Prover-V2 served online (verbatim prompts, ≤ 2 corrections per line of attack,
+        pinned model, Goedel's sampling); paid within the spending caps (spend.py)."""
+        from ..brain.spend import SPEND_SCOPE
+        from .goedel import ONLINE_CTX, ONLINE_SAMPLING
+        tok = SPEND_SCOPE.set(f"{io.job.dossier_id}:{io.job.id}") if hasattr(io, "job") else None
+        try:
+            return await GoedelProver(io, "online", model=key).run(statement, ws, n, ONLINE_SAMPLING,
+                                                                   self.settings.compile_timeout_s, ONLINE_CTX,
+                                                                   refine=refine, hint=hint)
+        finally:
+            if tok is not None:
+                SPEND_SCOPE.reset(tok)
+
     async def _proof(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         ws = await self.workspace(d)
         if not d.statement:
@@ -553,12 +594,16 @@ class DossierPipeline:
         refine = (d.proof, req) if (req and d.proof_is_current) else None
         hint = req if (req and not d.proof_is_current) else ""
         strategy = self._choose_strategy(job)
+        if job.mode == "auto" and strategy == "agent" and not await self._internet(job.mode):
+            # no Internet (S-T): the local models do the work, without waiting for every online model to time out
+            strategy = "goedel"
+            await self.event(d, job, "info", "Pas d'accès à Internet : la preuve est cherchée avec le modèle local.")
         res: ProveResult | None = None
         try:
             statement = leancheck.prepare_statement(statement)
         except leancheck.StatementError as e:
             raise Failed("{why}", "statement", why=str(e)) from e
-        goedel_tried = False
+        local_ok = True              # may the local prover still run? (S-T: only offline or when no online model could)
         mf: MathlibResult | None = None
         if s.mathlib_first and refine is None:
             mf = await self._mathlib(job, d, io, ws, statement)
@@ -574,21 +619,43 @@ class DossierPipeline:
             tcfg = tourn.Config.from_settings(s)
             if tcfg.enabled:
                 # best model first, then races of untried models (S-J, pipeline/tournament.py): bounded, recorded
-                res, strategy, goedel_tried = await self._tournament(job, d, io, ws, statement, hint or req, refine,
-                                                                     tcfg)
+                res, strategy, local_ok = await self._tournament(job, d, io, ws, statement, hint or req, refine,
+                                                                 tcfg)
             else:
                 # an agent run is one attempt; free providers often fail transiently (quota, overload), so retry
                 # with a fresh run up to the attempt budget, keeping the user's hint
                 res = None
+                ran = False
                 for _i in range(max(1, min(s.prove_attempts, 4))):
+                    st: dict = {}
                     res = await self._agent(job, d, io, ws, statement,
-                                            ((hint or req) + "\n\n" + job.mathlib_hint).strip())
+                                            ((hint or req) + "\n\n" + job.mathlib_hint).strip(), stats=st)
+                    ran = ran or (res is not None and not st.get("unavailable"))
                     if res is None or res.ok:
                         break
-            if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto" and not goedel_tried:
+                local_ok = not ran or not await self._internet(job.mode)
+            if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto" and local_ok \
+                    and job.mode != "online":
                 strategy = "goedel"
                 res = None
+                await self.event(d, job, "info", "Aucun modèle en ligne n'a pu travailler : repli sur le modèle local.")
+        if res is None and job.mode != "local" and (key := self._goedel_online_key("prove", job.mode)) \
+                and await self._internet(job.mode):
+            # « Goedel » strategy with a Hugging Face token: the same loop on Goedel-Prover-V2-32B online (S-T)
+            try:
+                res = await self._goedel_online(io, key, statement, ws, s.prove_attempts, refine, hint)
+                self._record(res.model or key, "prove", d, ok=res.ok, attempts=len(res.attempts),
+                             seconds=res.seconds,
+                             lean_errors=sum(1 for x in res.attempts if x.status == "rejected" and x.code))
+            except InfraError as e:
+                if e.kind == "workspace":
+                    raise
+                res = None             # could not run at all (cap, credits, provider down): the local prover may
+                await self.event(d, job, "info", "Goedel en ligne indisponible ({why}).", why=str(e.details)[:200])
         if res is None:
+            if job.mode == "online":
+                raise Failed("Aucun modèle en ligne n'a pu travailler (mode « en ligne » : pas de modèle local).",
+                             "no_model")
             ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
             res = await GoedelProver(io, "local").run(statement, ws, s.prove_attempts, s.sampling, s.compile_timeout_s,
                                                       ctx_len, refine=refine, hint=hint)
@@ -621,7 +688,12 @@ class DossierPipeline:
 
     async def _tournament(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, hint: str, refine,
                           cfg: "tourn.Config") -> tuple[ProveResult | None, str, bool]:
-        """Returns (result, strategy of the winner, whether the local Goedel prover took part)."""
+        """Returns (result, strategy of the winner, whether the local prover may still run afterwards).
+
+        S-T (user decision 2026-11-22): round 0 starts with Goedel-Prover-V2-32B served online (Hugging Face) when its
+        token is set — Goedel's own loop and prompts, paid within the caps —, then the free online models as before.
+        The local models are never contestants while online: they run after the tournament only when no online
+        contestant could work at all (all unavailable: no Internet, every provider down or refusing)."""
         from ..brain.leaderboard import domain_of
         ctx, s = self.ctx, self.settings
         brain = ctx.brain
@@ -632,13 +704,13 @@ class DossierPipeline:
         chosen = (s.prefer or {}).get("prove") or (bset.get("models") or {}).get("prove") or ""
         fn = _agent_fn()
         pins = fn is not None and _accepts(fn, "only")
-        gref = None
-        if job.mode != "online":
-            try:
-                gref = ctx.local.model_for("prove")
-            except Exception:  # noqa: BLE001
-                gref = None
-        goedel = tourn.Contestant(gref.key, gref.name or gref.model_id, "goedel", local=True) if gref else None
+        gkey = self._goedel_online_key("prove", job.mode) if pins else None
+        gonline = None
+        if gkey:
+            gref = brain.goedel_online("prove", job.mode)
+            gonline = tourn.Contestant(gkey, getattr(gref, "name", "") or gkey.split(":", 1)[-1], "goedel_online",
+                                       paid=True)
+        goedel = None                  # the local prover is no tournament contestant (S-T): only the fallback
 
         def candidates() -> list[tourn.Contestant]:
             try:
@@ -647,9 +719,11 @@ class DossierPipeline:
             except Exception:  # noqa: BLE001
                 refs = []
             out = [tourn.Contestant(r.key, r.name or r.model_id, "agent", bool(r.paid)) for r in refs
-                   if not r.local and (not r.paid or paid_ok or r.key == chosen)]
+                   if not r.local and r.provider != "huggingface" and (not r.paid or paid_ok or r.key == chosen)]
             if not pins:
                 out = out[:1]              # an agent that cannot be pinned to a model is one contestant (the router)
+            if gonline is not None:
+                out.insert(0, gonline)     # leads round 0 (S-T); « tried » keeps it out of later rounds
             if goedel is not None:
                 g = lb.entry(goedel.key, "prove")
                 first = out[0].key if out else ""
@@ -673,7 +747,12 @@ class DossierPipeline:
             if k >= 1:
                 await self.event(d, job, "info", "Tournoi, round {k} : {models}.", k=k, models=names)
             for c in cs:
-                if c.paid and c.key in reinforced:
+                if c.kind == "goedel_online":
+                    cap_p, cap_m = brain.caps() if hasattr(brain, "caps") else (1.0, 20.0)
+                    await self.event(d, job, "info", "Goedel-Prover en ligne : {name}, la boucle de Goedel servie par "
+                                     "Hugging Face (payant, plafonds : {cap_p} $ pour cette preuve, {cap_m} $ par mois).",
+                                     name=c.name, cap_p=f"{cap_p:.2f}", cap_m=f"{cap_m:.2f}")
+                elif c.paid and c.key in reinforced:
                     cap_p, cap_m = brain.caps() if hasattr(brain, "caps") else (1.0, 20.0)
                     await self.event(d, job, "info", "Renfort payant : {name} entre au tournoi car les modèles gratuits "
                                      "ont échoué (plafonds : {cap_p} $ pour cette preuve, {cap_m} $ par mois).",
@@ -693,6 +772,8 @@ class DossierPipeline:
             try:
                 if c.kind == "goedel":
                     return await self._goedel_contestant(c, k, n, rio, ws, statement, hint, refine, t0)
+                if c.kind == "goedel_online":
+                    return await self._goedel_contestant(c, k, n, rio, ws, statement, hint, refine, t0, online=True)
                 o = tourn.Outcome(c, k)
                 for i in range(n):
                     left = deadline - time.monotonic()
@@ -753,19 +834,26 @@ class DossierPipeline:
             else:
                 await self.event(d, job, "info", "Tournoi terminé sans preuve : {n} modèles essayés en {m} min.",
                                  n=len(res.tried), m=state["minutes"])
-        goedel_tried = goedel is not None and goedel.key in res.tried
+        # the local prover may run afterwards only when no online contestant could work at all (S-T)
+        local_ok = not any(not o.unavailable and not o.cancelled for o in res.outcomes)
         if w is None:
-            return ProveResult(False), "agent", goedel_tried
-        return w.result, ("goedel" if w.contestant.kind == "goedel" else "agent"), goedel_tried
+            return ProveResult(False), "agent", local_ok
+        return w.result, ("goedel" if w.contestant.kind in ("goedel", "goedel_online") else "agent"), False
 
     async def _goedel_contestant(self, c, k: int, n: int, rio: "_RoundIO", ws, statement: str, hint: str, refine,
-                                 t0: float):
+                                 t0: float, online: bool = False):
         s = self.settings
-        ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
-        prover = GoedelProver(rio, "local")
+        if online:
+            from .goedel import ONLINE_CTX, ONLINE_SAMPLING
+            prover = GoedelProver(rio, "online", model=c.key)
+            sampling, ctx_len = ONLINE_SAMPLING, ONLINE_CTX
+        else:
+            ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
+            prover = GoedelProver(rio, "local")
+            sampling = s.sampling
         o = tourn.Outcome(c, k)
         try:
-            r = await prover.run(statement, ws, n, s.sampling, s.compile_timeout_s, ctx_len, refine=refine, hint=hint)
+            r = await prover.run(statement, ws, n, sampling, s.compile_timeout_s, ctx_len, refine=refine, hint=hint)
             o.ok, o.result = r.ok, (r if r.ok else None)
         except InfraError as e:
             if e.kind == "workspace":

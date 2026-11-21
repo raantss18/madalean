@@ -293,6 +293,56 @@ CSS url, no DOCTYPE/ENTITY) and served with a `sandbox` CSP, shown via `<img>`. 
 `start: false`, `extra.calcul_origin`), article (`prose` block; images are not embedded in the PDF yet). Sage missing:
 the screen offers the on-demand install (`POST /api/deps/sage/install`, host only, progress `deps.progress`).
 
+## 5c. « Consigne de recherche » and suggestions (session S-Q)
+
+Module `madalean/research/agent_research.py`, plugin `madalean/server/plugins/research_agent.py`, UI: « Consigne »
+and « Chercher dans le projet » panels in the project hub, « Suggestions » in Article. User decision (2026-11-21):
+Madalean PROPOSES, the user validates EACH change.
+
+An instruction in natural language on a source of the project (« vérifie les résultats avec Lean, ajoute des
+exemples et des graphiques avec Sage, améliore la rédaction, généralise le théorème 2 ») is parsed by code (FR/EN,
+clause by clause: « généralise le théorème 2 » targets only the generalisation) into a fixed vocabulary of steps,
+each one an EXISTING feature: `blueprint` (papers.extract) → `context` (qa.grounded on the source's passages) →
+`import` (only when « rédaction » is asked and the article has no text: the paper's sections copied verbatim) →
+`verify` (papers.create_dossiers + normal pipeline jobs: statement check, Mathlib first, tournament, proof plans as
+configured; waited for within the time budget, they keep running after it) → `examples` / `figures` (Sage cells in
+Calcul, origin « assistant »: they run only once approved or with `experiments_auto`; from a paired device only with
+`experiments_remote`) → `improve` (wording edits: an exact excerpt → its replacement, dropped by code when the excerpt
+is not in the text; formula changes flagged) → `generalise` (litsearch titles + the grounded context → a statement
+created as a CONJECTURE in the conjecture workshop, a Sage test cell, a Lean job on it; written « Conjecture » until
+Lean proves it, then the accepted text says « Théorème … vérifiée par Lean »). The plan is shown before anything runs
+(`dry_run`). Bounds: `max_steps` (12), `max_minutes` (30), `max_cost_usd` (0.5; the run is its own spend scope, so
+Claude also stays inside the per-proof and monthly caps), `max_targets` (3), `max_suggestions` (30). One run at a time
+per project; cancel / resume (steps done are not redone; a run interrupted by a restart shows `paused`; `POST …/resume {limits}` raises the limit that stopped it). `verify` waits for its Lean jobs at most half of the remaining time (≤ 20 min) so the later steps still run; one model call is abandoned after 5 min. A Lean statement whose conclusion is empty (`True`, `x = x`) never counts as a verification (`evidence.lean[].vacuous`). Every step
+is a line of the research journal, a project note « Journal de recherche — <date> (<id>) ».
+
+Suggestion: `{id, run_id, type: correction|exemple|figure|generalisation|verification, title, before, after,
+rationale, target: {mode: replace_excerpt {block_id} | insert_after {near: dossier id} | add_dossier {dossier_id}},
+evidence: {lean: [{dossier_id, title, proved, statement_ok, running}], calcul: [{cell_id, approved, run: {ok, text,
+error, assets}}], citations: [{key, locator} | {title, url, year}]}, touches_math, conjecture?, proved?,
+after_if_proved?, status: proposed|accepted|rejected|stale}` — evidence is resolved when read (live Lean status,
+latest Calcul run). Accepting re-checks that `before` is still in the block (else `409 stale`, nothing applied),
+writes a new version of the block (the previous text stays in its history; source « user », note « suggestion …
+acceptée »), and may use the user's edited text. `[[calcul:<cell>]]` in a proposal becomes the printed result (or a
+figure reference) in the article.
+
+| | |
+|---|---|
+| `POST /research/projects/{pid}/consignes {source:{shelf?, id}, instruction, limits?, mode?, dry_run?}` | `200 {run}` (dry run: the plan, nothing saved) / `202 {run}`; `422 nothing_understood`, `409 busy` |
+| `GET /research/projects/{pid}/consignes` · `GET …/consignes/{rid}` | `{runs}` · `{run}` |
+| `POST …/consignes/{rid}/cancel` · `POST …/consignes/{rid}/resume` | `{run}` |
+| `GET /research/projects/{pid}/suggestions?type=&status=` | `{suggestions, counts (proposed, by type)}` |
+| `POST …/suggestions/{sid}/accept {after?}` · `POST …/suggestions/{sid}/reject` | `{suggestion}`; `409 stale`, `409 already_decided` |
+| `GET /research/projects/{pid}/search?q=` | one search: `{results:[{kind: dossier\|note\|calcul\|figure\|passage\|suggestion, id, title, snippet, …}]}` |
+| `POST /research/projects/{pid}/to-article {kind, id, …}` | the result as a new article block (explicit user action) |
+| `GET\|POST /research/projects/{pid}/basket {kind, id, remove?}` | what « Publier » preselects (dossiers, notes, Calcul cells) |
+
+Events: `research.run {project_id, run}`, `research.suggestion {project_id, suggestion}`, `publish.basket`.
+
+**S-P (2026-11-21): Calcul is now a notebook** — `.ipynb` documents in JupyterLab's tree, one kernel per document
+shared with JupyterLab, natural-language cells, figures, publication producer: see docs/CALCUL.md. The S-M routes
+above act on the default document; the worksheet JSON is migrated on first use.
+
 ## 6. WebSocket events
 
 | type | payload |
