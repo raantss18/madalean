@@ -12,3 +12,7 @@ This project uses or includes material from:
   mradermacher — downloaded by
   scripts/download_model.sh, not included in this repository.
 - Lean 4 and Mathlib (Apache-2.0) — installed by elan / lake, not included.
+- L Katta (https://github.com/raantss18/L-Katta, Apache-2.0) and Tontolo (https://github.com/raantss18/tontolo,
+  Apache-2.0), by the same author: the model engine in madalean/brain/ (catalogue, classifier, router, quotas) is
+  ported from L Katta's src/moteur.rs (itself ported from Tontolo), and madalean/brain/assets/seed.json (fallback
+  catalogue of free models) comes from Tontolo.

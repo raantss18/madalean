@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from lean_ai_station import leancheck as lc
+from madalean import leancheck as lc
 
 REF = Path(__file__).resolve().parent.parent / "docs" / "goedel_utils_reference.py"
 

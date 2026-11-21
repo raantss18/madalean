@@ -1,7 +1,7 @@
 import json
 
-from lean_ai_station import dossiers as ds
-from lean_ai_station import leancheck as lc
+from madalean import dossiers as ds
+from madalean import leancheck as lc
 
 
 def test_slug_and_title():

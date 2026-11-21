@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# One-command test suite. Fast tests by default; --all adds slow end-to-end tests (model + Lean + GPU).
+# One-command test suite for Madalean 2.0 (no GPU needed). Options:
+#   --all     also the slow tests (real models + GPU; integrator only)
+#   --legacy  the tests of the old PySide6 app (tests/legacy, needs PySide6 + pytest-qt), run separately
 set -e
 cd "$(dirname "$0")"
-if [ "${1:-}" = "--all" ]; then
-  exec .venv/bin/python -m pytest -v -p no:cacheprovider tests/
-else
-  exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" tests/
-fi
+case "${1:-}" in
+  --all)    exec .venv/bin/python -m pytest -v -p no:cacheprovider tests/ ;;
+  --legacy) exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" --rootdir tests/legacy -c /dev/null tests/legacy ;;
+  *)        exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" tests/ ;;
+esac

@@ -25,9 +25,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "app"))
-from lean_ai_station import config, updates  # noqa: E402
-from lean_ai_station.workspaces import Workspace  # noqa: E402
+sys.path.insert(0, str(ROOT))
+from madalean import config, updates  # noqa: E402
+from madalean.workspaces import Workspace  # noqa: E402
 
 ELAN = config.ELAN_BIN
 ENV = {**os.environ, "PATH": f"{ELAN}:{os.environ.get('PATH', '')}"}

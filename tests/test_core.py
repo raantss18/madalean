@@ -3,9 +3,9 @@ import struct
 
 import pytest
 
-from lean_ai_station import config
-from lean_ai_station.gguf import GGUFError, read_info
-from lean_ai_station.services import plan_launch
+from madalean import config
+from madalean.gguf import GGUFError, read_info
+from madalean.runtime.llama import oom_fallback, plan_launch
 
 
 def _gguf(path, arch="qwen3", n_layers=36, file_type=15, extra_tokens=1000):
@@ -82,12 +82,40 @@ def test_settings_roundtrip_and_corrupt_recovery(tmp_path, monkeypatch):
     assert s4.server.port == 1234 and s4.prove_attempts == config.Settings().prove_attempts
 
 
-def test_free_vram_ignores_own_server_even_with_stale_snapshot(qapp):
-    from lean_ai_station.services import GpuMonitor
-    g = GpuMonitor()
-    # snapshot taken while our server (pid 4242) held 6400 MiB, desktop 484 MiB
-    g.last = {"name": "RTX", "total": 8188, "used": 6884, "free": 1304, "temp": 60, "util": 0,
-              "apps": {4242: 6400, 77: 94}}
+def test_free_vram_ignores_own_server_even_with_stale_snapshot():
+    from madalean.runtime.monitor import Monitor
+    g = Monitor([])
+    g.gpu = {"name": "RTX", "total": 8188, "used": 6884, "free": 1304, "temp": 60, "util": 0,
+             "apps": {4242: 6400, 77: 94}}
     assert g.free_excluding(4242) == 7704          # what a reload of our model can use
     assert g.free_excluding(None) == 1304
     assert g.free_excluding(999) == 1304
+
+
+def test_parse_nvidia_smi():
+    from madalean.runtime.monitor import parse_gpu
+    d = parse_gpu("NVIDIA GeForce RTX 4060 Laptop GPU, 8188, 484, 45, 3\n", "4242, 6400\n77, 94\n")
+    assert d["free"] == 7704 and d["apps"] == {4242: 6400, 77: 94}
+    assert parse_gpu("garbage", None) is None
+
+
+def test_oom_fallback_shrinks_context_then_layers(tmp_path):
+    from madalean.runtime.llama import LaunchPlan
+    p = LaunchPlan(tmp_path / "m.gguf", None, 99, 24576, "q8_0")
+    p1 = oom_fallback(p)
+    assert p1.ctx == 12288 and p1.gpu_layers == 99
+    p2 = oom_fallback(oom_fallback(p1))
+    assert p2.ctx == 8192 and p2.gpu_layers == 25        # min(99, 36) * 0.7
+
+
+def test_model_choice_per_role(tmp_path):
+    from madalean.gguf import GGUFInfo
+    from madalean.runtime.llama import pick_model
+    def info(name, quant="Q4_K_M", size=5):
+        return GGUFInfo(tmp_path / name, size, name, "qwen3", quant, 36, 40960, 4096, 8, 128)
+    ms = [info("Goedel-Prover-V2-8B.Q4_K_M.gguf"), info("Goedel-Prover-V2-8B.Q5_K_M.gguf", "Q5_K_M", 6),
+          info("Goedel-Formalizer-V2-8B.Q4_K_M.gguf"), info("Qwen3-8B-Q4_K_M.gguf")]
+    assert pick_model("prover", ms).name == "Goedel-Prover-V2-8B.Q4_K_M.gguf"
+    assert pick_model("formalizer", ms).name.startswith("Goedel-Formalizer")
+    assert pick_model("explainer", ms).name.startswith("Qwen3")
+    assert pick_model("explainer", ms[:3]) is None

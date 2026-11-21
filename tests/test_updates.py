@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from lean_ai_station import updates
+from madalean import updates
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import updater  # noqa: E402
@@ -201,60 +201,48 @@ def test_cli_reports_failure_protocol(capsys):
     assert capsys.readouterr().out.startswith("FAIL bad_tag")
 
 
-# ---------------------------------------------------------------- GUI
-@pytest.fixture
-def ctx_win(qtbot, qapp):
-    from lean_ai_station import config
-    from lean_ai_station.ui.context import AppContext
-    from lean_ai_station.ui.main_window import MainWindow
-    s = config.Settings()
-    s.wizard_done = True
-    ctx = AppContext(s, {})
-    w = MainWindow(ctx)
-    qtbot.addWidget(w)
-    return ctx, w
+# ---------------------------------------------------------------- async manager (port of the GUI card logic)
+def _mgr(tmp_path, events, busy=False):
+    from madalean.runtime.updates_mgr import UpdatesManager
+    return UpdatesManager(tmp_path / "u.json", lambda t, p: events.append((t, p)), lambda res: events.append(("applied", res)),
+                          lambda: busy)
 
 
-def test_card_lists_updates_and_reports_install(ctx_win, monkeypatch, tmp_path):
-    ctx, w = ctx_win
-    monkeypatch.setattr(updates, "STATE_FILE", tmp_path / "u.json")
+async def test_manager_notifies_once_and_lists(tmp_path, monkeypatch):
+    events = []
+    m = _mgr(tmp_path, events)
     c = updates.Candidate("mathlib", "mathlib", "Lean + Mathlib v4.35.0", "v4.34.1", "v4.35.0", spec={"tag": "v4.35.0"})
-    shown = []
-    ctx.banner.connect(lambda f, d: shown.append(f))
-    monkeypatch.setattr("shutil.which", lambda n: None)          # no desktop notification during tests
-    m = ctx.updates
-    m._checked({"t": 1.0e9, "candidates": [c.__dict__], "errors": []}, manual=False)
-    assert shown and shown[-1].actions == [(shown[-1].actions[0][0], "goto_system")]
-    card = w.pages["system"].updates_card
-    texts = [card.list.itemAt(i).widget().findChildren(type(card.status))[0].text() for i in range(card.list.count())]
-    assert any("v4.35.0" in t for t in texts)
-    # same candidate again: no second notification
-    n = len(shown)
-    m._checked({"t": 1.0e9 + 5, "candidates": [c.__dict__], "errors": []}, manual=False)
-    assert len(shown) == n
-    # a finished install removes it from the list and reports what was deleted
-    m.current, m.proc = c, None
-    m.output = ["STEP cleanup", "DONE " + json.dumps({"kind": "mathlib", "removed": ["Mathlib v4.34.1"]})]
-    monkeypatch.setattr(ctx, "refresh_workspaces", lambda then=None: None)
-    m._finished(0, None)
-    assert not m.candidates and shown[-1].level == "ok" and "v4.34.1" in shown[-1].message
-    # a failed one keeps the old version and says so
-    m.current = c
-    m.output = ["STEP verify", "FAIL verify error"]
-    m.step = "verify"
-    m._finished(1, None)
-    assert shown[-1].level == "warn"
+    monkeypatch.setattr(updates, "check_all", lambda state_file=None: {"t": 1.0e9, "candidates": [c.__dict__], "errors": []})
+    st = await m.check(manual=False)
+    assert [e for e in events if e[0] == "toast"] and "v4.35.0" in st["candidates"][0]["description"]
+    n = len([e for e in events if e[0] == "toast"])
+    await m.check(manual=False)
+    assert len([e for e in events if e[0] == "toast"]) == n        # same candidate: no second notification
 
 
-def test_install_runs_the_updater_process(ctx_win, qtbot, monkeypatch, tmp_path):
-    """Real QProcess round trip: the updater refuses a bad tag, the GUI reports it and keeps the old version."""
-    ctx, _w = ctx_win
-    monkeypatch.setattr(updates, "STATE_FILE", tmp_path / "u.json")
-    shown = []
-    ctx.banner.connect(lambda f, d: shown.append((f, d)))
+async def test_manager_checkers_are_data_driven(tmp_path, monkeypatch):
+    extra = updates.Candidate("system", "sagemath", "SageMath 10.9", "10.7", "10.9", installable=False,
+                              note="sudo pacman -Syu sagemath")
+    monkeypatch.setattr(updates, "CHECKERS", [("Fake", lambda: [extra]), ("Broken", lambda: 1 / 0)])
+    st = updates.check_all(tmp_path / "u.json")
+    assert st["candidates"][0]["key"] == "sagemath" and st["errors"][0].startswith("Broken:")
+    with pytest.raises(ValueError):
+        extra.args()
+
+
+async def test_install_runs_the_updater_process(tmp_path, monkeypatch):
+    """Real subprocess round trip: the updater refuses a bad tag, the manager reports it and keeps the old version."""
+    events = []
+    m = _mgr(tmp_path, events)
     bad = updates.Candidate("mathlib", "mathlib", "Lean + Mathlib vX", "v4.34.1", "vX", spec={"tag": "vX"})
-    ctx.updates.install(bad)
-    assert ctx.updates.busy
-    qtbot.waitUntil(lambda: not ctx.updates.busy, timeout=30000)
-    f, details = shown[-1]
-    assert f.level == "warn" and "FAIL bad_tag" in details
+    m.state = {"t": 1, "candidates": [bad.__dict__]}
+    assert await m.install("mathlib") is None and m.busy
+    import asyncio
+    for _i in range(600):
+        if not m.busy:
+            break
+        await asyncio.sleep(0.05)
+    assert not m.busy and m.last_result["ok"] is False and "FAIL bad_tag" in m.last_result["details"]
+    m2 = _mgr(tmp_path, [], busy=True)
+    m2.state = {"t": 1, "candidates": [bad.__dict__]}
+    assert await m2.install("mathlib") == "jobs_running"

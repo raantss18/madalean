@@ -10,3 +10,12 @@ export_test/
 .update-test/
 workspaces/lean-current.next/
 workspaces/lean-current.old/
+# Madalean 2.0 build outputs
+**/.dart_tool/
+**/build/
+**/.gradle/
+**/node_modules/
+**/target/
+shells/android/android/local.properties
+*.jks
+*.keystore

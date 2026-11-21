@@ -1,0 +1,274 @@
+"""Everything the server runs, wired together: settings, stores, event bus, slots, children, brain, orchestrator."""
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import socket
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+from . import __version__, config, i18n
+from .brain.api import ModelRef
+from .dossiers import DossierStore, Library
+from .jobs import Job, JobHistory
+from .keys import KeyStore
+from .logs import get
+from .paths import Paths
+from .projects import ProjectStore
+from .repo import DossierRepo, ProjectRepo
+from .runtime.lean import LeanRunner
+from .runtime.llama import LocalLlama
+from .runtime.monitor import Monitor
+from .runtime.updates_mgr import UpdatesManager
+from .security import Devices, Pairing
+from .server.bus import EventBus
+from .slots import Slots
+from .workspaces import Workspace, all_workspaces
+
+log = get("context")
+ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agent", "auto"), "language": tuple(i18n.LANGS)}
+HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec"}
+LIMITS = {"prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
+          "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535)}
+
+
+class ServerContext:
+    def __init__(self, paths: Paths, *, demo: bool = False, brain=None, retriever=None, lean=None, local=None,
+                 workspaces: list[Workspace] | None = None, caps: dict | None = None, legacy_dir: Path | None = None,
+                 jupyter_root: Path | None = None, monitor_interval: float = 3.0, use_keyring: bool | None = None):
+        self.paths = paths
+        self.demo = demo
+        self.legacy_dir = legacy_dir
+        self.version = __version__
+        self.host_name = socket.gethostname()
+        self.bus = EventBus()
+        self.slots = Slots(caps)
+        self.settings = config.Settings()
+        self.settings_corrupt = False
+        self.repo = DossierRepo(DossierStore(paths.dossiers), self.publish)
+        self.projects = ProjectRepo(ProjectStore(paths.projects), self.publish)
+        self.library = Library(paths.library)
+        self.history = JobHistory(paths.jobs)
+        self.keys = KeyStore(paths.keys, use_keyring)
+        self.devices = Devices(paths.devices)
+        self.pairing = Pairing()
+        self.monitor = Monitor([config.MODELS_DIR, paths.config, Path.home()], monitor_interval)
+        self.monitor.listeners.append(lambda snap: self.publish("system.status", {"system": self.system_light()}))
+        self._fixed_workspaces = workspaces
+        self.workspaces: list[Workspace] = list(workspaces or [])
+        if local is None:
+            local = LocalLlama(self.slots, self.monitor, paths.llama_pid, lambda: self.settings)
+            local.on_change = lambda: self.publish("models.status", {"local": local.status()})
+        self.local = local
+        self.lean = lean or LeanRunner(self.slots, paths.tmp)
+        self.brain = brain
+        self.retriever = retriever
+        self.brain_kind = "custom" if brain is not None else ""
+        self.updates = UpdatesManager(paths.config / "updates.json", self.publish, self._update_applied,
+                                      lambda: bool(self.orchestrator.active()))
+        from .jupyter import JupyterManager
+        self.jupyter = JupyterManager(jupyter_root or (Path.home() / "Documents" / "Madalean" / "notebooks"),
+                                      paths.cache / "jupyter", self.publish)
+        from .orchestrator import Orchestrator
+        self.orchestrator = Orchestrator(self, self.history)
+        self.migration: dict = {}
+        self._bg: set[asyncio.Task] = set()
+
+    # ------------------------------------------------------------ events
+    def publish(self, type_: str, payload: dict[str, Any] | None = None) -> dict:
+        return self.bus.publish(type_, payload)
+
+    def publish_job(self, job: Job) -> None:
+        self.bus.publish("job.updated", {"job": job.to_dict()})
+
+    def toast(self, key: str, level: str = "info", **params) -> None:
+        self.publish("toast", {"level": level, **i18n.msg(key, **params)})
+
+    def spawn(self, coro) -> asyncio.Task:
+        t = asyncio.create_task(coro)
+        self._bg.add(t)
+        t.add_done_callback(self._bg.discard)
+        return t
+
+    # ------------------------------------------------------------ lifecycle
+    async def start(self) -> None:
+        self.paths.ensure()
+        if self.legacy_dir is not None:
+            from .migrate import migrate
+            try:
+                self.migration = await asyncio.to_thread(migrate, self.legacy_dir, self.paths)
+            except Exception:  # noqa: BLE001 (never block the start on 1.x data)
+                log.exception("migration failed")
+        await asyncio.to_thread(self._load_settings)
+        await self.repo.load_all()
+        await self.projects.load_all()
+        await asyncio.to_thread(self.library.load)
+        await self.refresh_workspaces()
+        if isinstance(self.local, LocalLlama):
+            await self.local.refresh_models()
+            self.monitor.start()
+        if self.brain is None:
+            self._make_brain()
+        if not self.demo:
+            self.spawn(self.updates.maybe_check(self.settings.check_updates))
+
+    def _make_brain(self) -> None:
+        try:
+            from .brain import create_brain, create_retriever  # type: ignore[attr-defined]
+            self.brain = create_brain(self.paths.config, self.local, self.keys.get, asdict(self.settings))
+            self.retriever = create_retriever(self.paths.cache)
+            self.brain_kind = "real"
+        except Exception as e:  # noqa: BLE001 (S-B engine absent or broken: scripted fake, clearly reported)
+            from .brain.fake import FakeBrain, FakeRetriever
+            log.warning("model engine unavailable (%s): using the scripted fake brain", e)
+            self.brain = FakeBrain(local=self.local, online=False)
+            self.retriever = FakeRetriever()
+            self.brain_kind = "fake"
+
+    async def stop(self) -> None:
+        await self.orchestrator.shutdown()
+        if hasattr(self.lean, "kill_all"):
+            self.lean.kill_all()
+        await self.updates.cancel()
+        try:
+            await self.jupyter.stop()
+        except Exception:  # noqa: BLE001
+            log.exception("jupyter stop failed")
+        if isinstance(self.local, LocalLlama):
+            await self.local.stop()
+        await self.monitor.stop()
+        if self.brain is not None:
+            try:
+                await self.brain.close()
+            except Exception:  # noqa: BLE001
+                pass
+        for t in list(self._bg):
+            t.cancel()
+
+    # ------------------------------------------------------------ settings
+    def _load_settings(self) -> None:
+        data, self.settings_corrupt = config.read_json(self.paths.settings)
+        self.settings = config._from_dict(config.Settings, data)
+        i18n.set_language(self.settings.language)
+
+    async def save_settings(self) -> None:
+        text = json.dumps(asdict(self.settings), indent=2, ensure_ascii=False)
+        await asyncio.to_thread(config.atomic_write_text, self.paths.settings, text)
+
+    def settings_public(self) -> dict:
+        return asdict(self.settings)
+
+    async def patch_settings(self, patch: dict, local: bool) -> tuple[dict, list[str]]:
+        """Apply a partial update. Returns (settings, errors). Host-only keys are refused from remote devices."""
+        errors = []
+        cur = asdict(self.settings)
+        for k, v in patch.items():
+            if k not in cur:
+                errors.append(f"unknown:{k}")
+                continue
+            if k in HOST_ONLY_SETTINGS and not local:
+                errors.append(f"host_only:{k}")
+                continue
+            if k in ENUMS and v not in ENUMS[k]:
+                errors.append(f"invalid:{k}")
+                continue
+            if k in LIMITS and isinstance(v, (int, float)) and not isinstance(v, bool):
+                lo, hi = LIMITS[k]
+                if not lo <= v <= hi:
+                    errors.append(f"range:{k}")
+                    continue
+            if isinstance(cur[k], dict) and isinstance(v, dict) and k in ("server", "sampling"):
+                cur[k] = {**cur[k], **v}
+            else:
+                cur[k] = v
+        if errors:
+            return asdict(self.settings), errors
+        new = config._from_dict(config.Settings, cur)
+        self.settings = new
+        i18n.set_language(new.language)
+        await self.save_settings()
+        if self.brain is not None and hasattr(self.brain, "update_settings"):
+            try:
+                self.brain.update_settings(asdict(new))
+            except Exception:  # noqa: BLE001
+                log.exception("brain.update_settings failed")
+        self.publish("settings.updated", {"settings": asdict(new)})
+        return asdict(new), []
+
+    # ------------------------------------------------------------ workspaces
+    async def refresh_workspaces(self) -> None:
+        if self._fixed_workspaces is not None:
+            ws = self._fixed_workspaces
+            for w in ws:
+                await asyncio.to_thread(w.check) if not self.demo else None
+        else:
+            ws = await asyncio.to_thread(all_workspaces)
+        self.workspaces = list(ws)
+        if not self.settings.workspace or not self.workspace(self.settings.workspace):
+            ready = [w for w in self.workspaces if not w.problems]
+            pref = [w for w in ready if w.key == "lean-prover49"] or ready
+            if pref:
+                self.settings.workspace = pref[0].key
+
+    def workspace(self, key: str | None = None) -> Workspace | None:
+        key = key or self.settings.workspace
+        return next((w for w in self.workspaces if w.key == key), None)
+
+    def workspaces_public(self) -> list[dict]:
+        return [{"key": w.key, "label": i18n._(w.label), "path": config.tilde(w.path), "toolchain": w.toolchain,
+                 "readonly": w.readonly, "description": i18n._(w.description), "problems": w.problems,
+                 "ready": not w.problems} for w in self.workspaces]
+
+    # ------------------------------------------------------------ models / system
+    def _update_applied(self, res: dict) -> None:
+        if res.get("kind") == "model":
+            if res.get("role") == "prover" and res.get("path"):
+                self.settings.model_path = res["path"]
+                self.spawn(self.save_settings())
+            if isinstance(self.local, LocalLlama):
+                loaded = self.local.model_path
+                if loaded and loaded.name in (res.get("removed") or []):
+                    self.spawn(self.local.stop())
+                self.spawn(self.local.refresh_models())
+        else:
+            self.spawn(self.refresh_workspaces())
+
+    async def models_public(self) -> dict:
+        local_files = []
+        if isinstance(self.local, LocalLlama):
+            for m in self.local.models:
+                if isinstance(m, tuple):
+                    local_files.append({"file": m[0].name, "path": config.tilde(m[0]), "error": m[1]})
+                else:
+                    local_files.append({"file": m.path.name, "path": config.tilde(m.path), "size": m.size,
+                                        "quant": m.quant, "arch": m.arch, "n_layers": m.n_layers})
+        roles = {}
+        for role in ("understand", "route", "formalize", "prove", "explain", "assistant"):
+            try:
+                cands = self.brain.candidates(role, self.settings.mode) if self.brain else []
+            except Exception:  # noqa: BLE001
+                cands = []
+            roles[role] = {"preferred": (self.settings.prefer or {}).get(role, ""),
+                           "candidates": [_ref(c) for c in cands]}
+        try:
+            status = await self.brain.status() if self.brain else {}
+        except Exception as e:  # noqa: BLE001
+            status = {"error": str(e)}
+        return {"brain": self.brain_kind, "mode": self.settings.mode, "local": self.local.status()
+                if hasattr(self.local, "status") else {}, "local_files": local_files, "roles": roles,
+                "status": status, "keys": {p: True for p in self.keys.providers()}}
+
+    def system_light(self) -> dict:
+        return {"monitor": self.monitor.snapshot(), "slots": self.slots.usage(),
+                "lean_running": len(getattr(self.lean, "running", {}) or {})}
+
+
+def _ref(m: ModelRef) -> dict:
+    return {"key": m.key, "provider": m.provider, "model_id": m.model_id, "name": m.name, "local": m.local,
+            "paid": m.paid}
+
+
+def env_flag(name: str) -> bool:
+    return os.environ.get(name, "") not in ("", "0", "false")

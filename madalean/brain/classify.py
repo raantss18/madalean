@@ -1,0 +1,54 @@
+"""Kind of request (code, math, writing…) from weighted keywords, ported from L Katta's moteur.rs `classify`, and
+the mapping from Madalean roles to quality categories."""
+from __future__ import annotations
+
+import re
+
+_RULES: list[tuple[str, re.Pattern, float]] = [(c, re.compile(p, re.I), w) for c, p, w in [
+    ("code", r"```", 3.0),
+    ("code", r"\b(python|javascript|typescript|java|rust|golang|kotlin|dart|flutter|c\+\+|sql|bash|regex|html|css|react|django|fastapi|docker)\b", 2.0),
+    ("code", r"\b(code|coder|fonction|function|bug|d[ée]bogue|debug|compile|script|classe|m[ée]thode|api|refactor|stack ?trace|exception|traceback)\b", 1.5),
+    ("code", r"(def |class |import |#include|console\.log|public static)", 3.0),
+    ("math", r"\$[^$]+\$|\\\(|\\\[|\\frac|\\int|\\sum|\\sqrt", 3.0),
+    ("math", r"\b([ée]quation|int[ée]grale|d[ée]riv[ée]e|th[ée]or[èe]me|d[ée]montre|d[ée]monstration|matrice|probabilit[ée]|limite|polyn[ôo]me|calcule|r[ée]sous|lemme)\b", 2.0),
+    ("math", r"\b(equation|integral|derivative|theorem|lemma|prove|proof|matrix|probability|solve|calculate|compute)\b", 2.0),
+    ("math", r"\d+\s*[-+*/^]\s*\d+", 1.0),
+    ("math", r"\b(lean|mathlib|tactic|tactique|alg[èe]bre|latex)\b|[∀∃ℕℤℝ≤≥∑∏]", 2.0),
+    ("translation", r"\b(tradui[st]|traduction|traduire|en anglais|en fran[çc]ais|translate|translation)\b", 4.0),
+    ("writing", r"\b(r[ée]dige|[ée]cris|po[èe]me|lettre|histoire|article|discours|dissertation|r[ée]sum[ée]|courriel|e-?mail|write|poem|letter|story|essay|explique|explain)\b", 2.0),
+    ("writing", r"\b(dossier|manuel|cours|rapport|m[ée]moire|document|chapitres?)\b", 1.5),
+    ("search", r"\b(actualit[ée]s?|aujourd'hui|derni[èe]res? (nouvelles|infos)|cette semaine|m[ée]t[ée]o|news|today|latest|weather)\b", 3.0),
+    ("reasoning", r"\b(pourquoi|analyse|compare|raisonne|logique|[ée]nigme|strat[ée]gie|[ée]tape par [ée]tape|why|analy[sz]e|reason|step by step)\b", 1.5),
+]]
+
+
+def classify(text: str) -> str:
+    scores: dict[str, float] = {}
+    for cat, rx, w in _RULES:
+        if rx.search(text):
+            scores[cat] = scores.get(cat, 0.0) + w
+    best = max(((c, s) for c, s in scores.items() if s >= 1.5), key=lambda x: x[1], default=None)
+    return best[0] if best else "chat"
+
+
+# role -> (main category, weight of the main category, secondary category, wants a fast model)
+ROLE_CATEGORIES: dict[str, tuple[str, str, bool]] = {
+    "prove": ("lean", "reasoning", False),
+    "formalize": ("lean", "math", False),
+    "explain": ("writing", "math", False),
+    "understand": ("math", "chat", True),
+    "route": ("chat", "reasoning", True),
+}
+
+
+def role_categories(role: str, messages: list[dict] | None = None) -> tuple[str, str, bool]:
+    if role in ROLE_CATEGORIES:
+        return ROLE_CATEGORIES[role]
+    last = ""
+    for m in reversed(messages or []):
+        if m.get("role") == "user":
+            c = m.get("content")
+            last = c if isinstance(c, str) else " ".join(b.get("text", "") for b in c if isinstance(b, dict))
+            break
+    cat = classify(last)
+    return (cat, "chat", False)
