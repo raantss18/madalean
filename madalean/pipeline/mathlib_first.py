@@ -31,6 +31,8 @@ BATCH_TIMEOUT = 120
 EXACT_TIMEOUT = 60
 STRICT_TIMEOUT = 90
 ADAPT_CALLS = 2
+ADAPT_TIMEOUT = 240
+MAX_STRICT = 6                  # batch successes re-checked alone at most
 INDEX_WAIT = 90
 KINDS = {"theorem", "lemma", "def", "abbrev", "alias", "structure", ""}
 TEMPLATES = ["exact {n}", "exact {n} _", "exact ⟨{n} _⟩", "simpa using {n}",
@@ -68,6 +70,14 @@ def lemma_in(tactic: str, names: list[str]) -> str:
             return n
     m = re.search(r"\b([A-Z][\w']*(?:\.[\w'₀-₉]+)+|[a-z][\w']*_[\w'₀-₉.]+)", tactic)
     return m.group(1) if m else ""
+
+
+def proof_text(name: str, tactic: str) -> str:
+    """`theorem NAME := by` with EVERY tactic line indented (a multi-line template such as `apply N` followed by
+    `all_goals try assumption` used to keep its later lines at column 0: Lean then rejected the proof that the batch
+    had just accepted — Riesz, 2026-11-21)."""
+    body = "\n".join("  " + line if line.strip() else "" for line in tactic.strip("\n").split("\n"))
+    return f"theorem {name} := by\n{body}"
 
 
 async def candidates(retriever, ws_key: str, statement: str, texts: list[str], k: int = K) -> list[dict]:
@@ -180,7 +190,15 @@ class MathlibFirst:
         for p in exq:
             if p.suggestion and "?" not in p.suggestion:
                 tries.append((p.suggestion, "exact?", lemma_in(p.suggestion, [c["name"] for c in cands])))
-        for tac, src, lemma in tries[:4]:
+        # every batch success is re-checked alone (strict verdict), in order, until one passes; the same tactic is
+        # never tried twice
+        seen: set[str] = set()
+        for tac, src, lemma in tries:
+            if tac in seen:
+                continue
+            seen.add(tac)
+            if len(seen) > MAX_STRICT:
+                break
             ok = await self._accept(res, statement, name, ws, tac, src, lemma, timeout_s)
             if ok:
                 break
@@ -198,7 +216,7 @@ class MathlibFirst:
     async def _accept(self, res: MathlibResult, statement: str, name: str, ws, tac: str, src: str, lemma: str,
                       timeout_s: int) -> bool:
         try:
-            code = leancheck.assemble_proof(statement, f"theorem {name} := by\n  {tac}")
+            code = leancheck.assemble_proof(statement, proof_text(name, tac))
         except leancheck.StatementError:
             return False
         r = await self.io.check(leancheck.with_axiom_probe(code, name), ws, min(timeout_s, STRICT_TIMEOUT), name)
@@ -215,10 +233,20 @@ class MathlibFirst:
             a = self.io.new_attempt("proof", "mathlib")
             try:
                 c = await asyncio.wait_for(self.io.complete("prove", messages, a, temperature=0.3, max_tokens=4000,
-                                                            extra={"top_p": 0.95}, mode=self.mode, stage="proof"), 240)
-            except (asyncio.TimeoutError, BrainError) as e:
+                                                            extra={"top_p": 0.95}, mode=self.mode, stage="proof"),
+                                           ADAPT_TIMEOUT)
+            except asyncio.TimeoutError:
+                # no answer in time (queue for the online slot, 429 cascades, stalled models): say so, with the model
+                # that was being tried when known, instead of an empty « La génération a échoué. »
+                a.status = "error"
+                a.summary = msg("Pas de réponse des modèles en {s} s : adaptation d'un résultat de Mathlib abandonnée.",
+                                s=ADAPT_TIMEOUT)["text"]
+                a.errors_text = f"timeout after {ADAPT_TIMEOUT} s" + (f" (last model: {a.model})" if a.model else "")
+                self.io.update_attempt(a)
+                return
+            except BrainError as e:
                 a.status, a.summary = "error", msg("La génération a échoué.")["text"]
-                a.errors_text = str(e)[:500]
+                a.errors_text = str(e)[:500] or type(e).__name__
                 self.io.update_attempt(a)
                 return
             a.raw, a.model, a.finish, a.gen_seconds, a.tokens = c.text, c.model.key, c.finish, c.seconds, c.tokens_out

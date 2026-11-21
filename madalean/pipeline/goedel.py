@@ -237,7 +237,9 @@ class Formalizer:
             # on the same small mistake: `aeval` without `Polynomial.`, `CompleteSpace 𝕜 E`)
             errs = "\n".join(f"line {m.line}: {m.text[:400]}" for m in r.verdict.errors[:4])
             feedback = (f"\n\nA previous attempt was:\n```lean4\n{leancheck._body(a.code)}\n```\nLean rejected it:\n"
-                        f"{errs}\nAvoid this mistake (write fully qualified Mathlib names, e.g. `Polynomial.aeval`, and "
+                        f"{errs}\nAvoid this mistake (write fully qualified Mathlib names, e.g. `Polynomial.aeval`, "
+                        "`Polynomial R` "
+                        "instead of `R[X]` — only the header's namespaces are open — and "
                         "check the number of arguments of each class).\n")
         res.summary = msg("La traduction ne compile pas encore : corrigez-la dans l'éditeur ou reformulez le problème.")
         return res

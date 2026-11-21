@@ -30,6 +30,8 @@ CAYLEY = ("theorem t {K V : Type*} [Field K] [AddCommGroup V] [Module K V] [Fini
           "Polynomial.aeval f (LinearMap.charpoly f) = 0 := by sorry")
 QUOT = ("theorem t {K E F : Type*} [Field K] [AddCommGroup E] [Module K E] [AddCommGroup F] [Module K F] "
         "(f : E →ₗ[K] F) : Nonempty ((E ⧸ LinearMap.ker f) ≃ₗ[K] LinearMap.range f) := by sorry")
+RIESZ = ("theorem t (X : Type*) [NormedAddCommGroup X] [NormedSpace ℝ X] [CompleteSpace X] "
+         "(h : IsCompact (Metric.closedBall (0 : X) 1)) : FiniteDimensional ℝ X := by sorry")
 EASY = "theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry"
 
 SUBSEQ_CEX = """intro h
@@ -159,6 +161,19 @@ async def test_mathlib_first_cayley_hamilton_and_first_isomorphism(tmp_path, ws,
     d2, job2 = await prove(ctx, QUOT, "E/ker f ≅ Im f, premier théorème d'isomorphisme")
     assert d2.proof_is_current and d2.proofs[-1].meta["mathlib_lemma"] == "LinearMap.quotKerEquivRange", \
         [(a.kind, a.summary) for a in job2.attempts]
+    await ctx.stop()
+
+
+async def test_mathlib_first_riesz_by_a_multiline_template(tmp_path, ws, retr49):
+    """2026-11-21: « Rien de directement applicable (12 candidats essayés) » although `apply
+    FiniteDimensional.of_isCompact_closedBall₀` + `all_goals try …` closed the goal in the batch: the strict re-check
+    put the later template lines at column 0."""
+    ctx = await setup(tmp_path, ws, retriever=retr49, check=False)
+    d, job = await prove(ctx, RIESZ, "si la boule unité d'un espace de Banach est compacte, il est de dimension finie")
+    assert d.proof_is_current, [(a.kind, a.summary, a.errors_text[:300]) for a in job.attempts]
+    p = d.proofs[d.cur_proof]
+    assert p.meta["mathlib_lemma"].startswith("FiniteDimensional.of_isCompact_closedBall"), p.meta
+    assert "\n  all_goals try assumption" in d.proof and "prove" not in roles(ctx)
     await ctx.stop()
 
 

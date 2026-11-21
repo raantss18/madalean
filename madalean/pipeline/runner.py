@@ -121,6 +121,8 @@ class JobIO:
                     streamed["model"] = str(data["model"])
                 elif data.get("event") == "model" and data.get("model"):
                     streamed["model"] = str(data["model"])
+                if attempt is not None and streamed["model"] and data.get("event") in ("switch", "model"):
+                    attempt.model = streamed["model"]      # known even if the call never returns (timeouts)
                 ctx.bus.publish("job.info", {"job_id": job.id, "stage": stage, "text": ch.text, "data": ch.data})
 
         need_online = mode != "local"

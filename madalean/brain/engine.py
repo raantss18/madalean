@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -11,7 +12,7 @@ from urllib.parse import urlsplit
 from .. import leancheck
 from .api import (AgentResult, BrainError, Completion, LocalRuntime, Mode, ModelRef, OnChunk, Role, ToolSpec)
 from .catalogue import KEYED, OLLAMA_URL, CatalogueStore, Model, Provider
-from .guards import FIRST_BYTE_LOCAL, FIRST_BYTE_ONLINE
+from .guards import FIRST_BYTE_LOCAL, FIRST_BYTE_ONLINE, FIRST_BYTE_REASONING, gemini_thinking, reasoning_model
 from .net import CALL_MODE, Http, is_loopback_host
 from .providers import anthropic as anthropic_api
 from .providers import openai_compat
@@ -28,6 +29,22 @@ LOST_TIME_LIMIT = 240.0          # seconds lost in failures before giving up on 
 
 def ref_of(m: Model, cat=None) -> ModelRef:
     return ModelRef(m.provider, m.model_id, m.name, m.local, m.paid)
+
+
+# Gemini thinking per role on the OpenAI-compatible API (`reasoning_effort`: minimal | low | medium | high): enough for
+# Lean work, short enough to answer before the first-byte timeout
+GEMINI_EFFORT = {"prove": "medium", "formalize": "medium", "explain": "low", "assistant": "low", "understand": "low",
+                 "route": "low"}
+UNUSABLE_PAUSE = 120 * 86400.0          # ≈ 4 months
+_UNUSABLE = re.compile(r"only supports? (real-time|bidi|bidirectional)|bidiGenerateContent|live api|"
+                       r"not supported for (generatecontent|chat|this (method|endpoint))|"
+                       r"(is not|isn't) a (chat|text generation) model|does not support (chat|generatecontent|"
+                       r"text generation)|only supports? (embedding|audio|image|speech|tts)", re.I)
+
+
+def unusable_model(status: int, message: str) -> bool:
+    """A 400/404 that says the MODEL cannot be used for text chat at all (not a bad parameter)."""
+    return status in (400, 404) and bool(_UNUSABLE.search(message or ""))
 
 
 class MadaleanBrain:
@@ -280,7 +297,8 @@ class MadaleanBrain:
         from . import convo
         oa_tools = [{"type": "function", "function": t} for t in tools] if tools else None
         stall = float(self.settings.get("stall_local" if m.local else "stall_online") or 90)
-        first = FIRST_BYTE_LOCAL if m.local else FIRST_BYTE_ONLINE
+        first = FIRST_BYTE_LOCAL if m.local else (FIRST_BYTE_REASONING if reasoning_model(m.model_id)
+                                                   else FIRST_BYTE_ONLINE)
         if m.provider == "local":
             if self.local is None:
                 raise ProviderError("unavailable", "no local runtime")
@@ -348,6 +366,11 @@ class MadaleanBrain:
         ex = {k: v for k, v in (extra or {}).items() if k not in ("effort",)}
         if not m.local:
             ex = {k: v for k, v in ex.items() if k in ("top_p", "seed", "stop", "presence_penalty", "frequency_penalty")}
+        if p.id == "gemini" and gemini_thinking(m.model_id):
+            # documented OpenAI-compatible parameter (ai.google.dev/gemini-api/docs/openai): bounds the thinking that
+            # happens before the first byte; refused values are dropped by stream_chat (HTTP 400 → retry without)
+            ex["reasoning_effort"] = (self.settings.get("gemini_effort") or {}).get(role) \
+                or GEMINI_EFFORT.get(role, "medium")
         if m.local:
             async with _nullctx():
                 return await openai_compat.stream_chat(
@@ -387,6 +410,11 @@ class MadaleanBrain:
                 return f"key refused (HTTP {e.status})"
             self.states.pause_provider(m.provider, [m.key], "needs_key")   # keyless provider: this model needs a key
             return f"needs a key (HTTP {e.status})"
+        if unusable_model(e.status, e.message):
+            # not a text chat model (Live API, audio, image, embeddings…): it will never answer generateContent /
+            # chat completions — out of every role for months, not a short pause (seen: gemini-*-live-preview)
+            self.states.pause_provider(m.provider, [m.key], "unsupported", UNUSABLE_PAUSE)
+            return f"model unusable here (HTTP {e.status})"
         if e.status == 404 or (e.status == 400 and ("does not exist" in e.message.lower() or "unavailable" in e.message.lower()
                                                     or "not found" in e.message.lower())):
             self.states.pause_provider(m.provider, [m.key], "not_found", 6 * 3600.0)
@@ -436,6 +464,8 @@ class MadaleanBrain:
                     continue
                 if fallbacks:
                     emit(on_chunk, "info", f"→ {m.name}", event="switch", model=m.key, reason=fallbacks[-1])
+                else:                      # the caller knows which model is working even if the call never returns
+                    emit(on_chunk, "info", "", event="model", model=m.key)
                 t0 = time.monotonic()
                 try:
                     res = await self._generate(m, role, mode=mode, messages=messages, temperature=temperature,

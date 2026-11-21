@@ -112,6 +112,7 @@ class Tournament:
         self.used_attempts = 0
         self.used_tokens = 0
         self.tried: set[str] = set()
+        self._names: dict[str, str] = {}          # key → display name (alias identity of tried contestants)
 
     # ------------------------------------------------------------ helpers
     def _record(self, o: Outcome) -> None:
@@ -144,11 +145,17 @@ class Tournament:
         return ""
 
     def _fresh(self) -> list[Contestant]:
+        """Untried contestants, one per underlying model: the same key never twice, and aliases of one model
+        (Mistral lists `mistral-medium-latest`, `mistral-medium-2604`… under one name) count as one (2026-11-21:
+        round 3 raced « mistral-medium-latest, mistral-medium-latest »)."""
         out, seen = [], set()
+        tried_ids = {_ident_of_key(k, self._names.get(k, "")) for k in self.tried}
         for c in self.candidates():
-            if c.key in self.tried or c.key in seen:
+            ident = ident_of(c)
+            if c.key in self.tried or c.key in seen or ident in tried_ids or ident in seen:
                 continue
-            seen.add(c.key)
+            seen.update((c.key, ident))
+            self._names[c.key] = c.name
             out.append(c)
         return out
 
@@ -304,6 +311,17 @@ class Tournament:
         self.res.winner, self.res.stop = winner, stop
         self.res.tried = sorted(self.tried)
         return self.res
+
+
+def _ident_of_key(key: str, name: str) -> str:
+    provider = key.split(":", 1)[0]
+    n = " ".join((name or "").split()).lower()
+    return f"{provider}:{n}" if n else key
+
+
+def ident_of(c: Contestant) -> str:
+    """The underlying model of a contestant: provider + catalogue name (aliases share it), else the key."""
+    return _ident_of_key(c.key, c.name)
 
 
 def _fatal(e: BaseException) -> bool:

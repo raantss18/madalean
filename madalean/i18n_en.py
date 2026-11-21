@@ -159,6 +159,8 @@ EN: dict[str, str] = {
     "Recherche de preuve arrêtée.": "Proof search stopped.",
     "Aucune preuve trouvée après {n} essais.": "No proof found after {n} attempts.",
     "La génération a échoué.": "Generation failed.",
+    "Pas de réponse des modèles en {s} s : adaptation d'un résultat de Mathlib abandonnée.":
+        "No answer from the models in {s} s: adapting a Mathlib result abandoned.",
     "Réponse trop longue, coupée avant le code Lean.": "Answer too long, cut off before the Lean code.",
     "Le modèle n'a pas produit de code Lean.": "The model produced no Lean code.",
     "L'IA tournait en rond : essai interrompu, nouvel essai.": "The AI was going round in circles: attempt stopped, new attempt.",
@@ -911,6 +913,76 @@ EN.update({
     "GitHub a refusé l'envoi (historique différent) : rien n'a été écrasé.":
         "GitHub refused the push (diverging history): nothing was overwritten.",
     "Aucun résultat à publier dans ce projet.": "No result to publish in this project.",
+    # ---- publish: precise GitHub errors (session S-Q)
+    "GitHub refuse le jeton : il est expiré, révoqué ou mal copié. Créez-en un nouveau et collez-le dans Réglages → "
+    "Clés.": "GitHub refuses the token: it is expired, revoked or mis-pasted. Create a new one and paste it in "
+             "Settings → Keys.",
+    "Le jeton GitHub (classique) n'a pas le droit « {scope} ». Sur {settings}, modifiez le jeton, cochez « {scope} » "
+    "(et « workflow »), enregistrez, puis réessayez.":
+        "The GitHub token (classic) lacks the « {scope} » scope. On {settings}, edit the token, tick « {scope} » "
+        "(and « workflow »), save, then try again.",
+    "Le jeton GitHub (à accès précis) n'a pas la permission {permission}. Sur {settings}, modifiez le jeton "
+    "(Repository permissions), enregistrez, puis réessayez.":
+        "The GitHub token (fine-grained) lacks the permission {permission}. On {settings}, edit the token "
+        "(Repository permissions), save, then try again.",
+    "L'organisation {org} impose la connexion SSO (SAML) : autorisez ce jeton pour elle sur GitHub ({url}), puis "
+    "réessayez.": "The organisation {org} enforces SSO (SAML): authorise this token for it on GitHub ({url}), then "
+                  "try again.",
+    "L'organisation {org} exige la double authentification (2FA) : activez-la sur votre compte GitHub, puis "
+    "réessayez.": "The organisation {org} requires two-factor authentication (2FA): enable it on your GitHub "
+                  "account, then try again.",
+    "GitHub limite le nombre de requêtes : réessayez dans quelques minutes.":
+        "GitHub is rate-limiting requests: try again in a few minutes.",
+    "Le dépôt {repo} existe, mais ce jeton n'y a pas accès : ajoutez-le dans « Repository access » du jeton "
+    "({settings}).": "The repository {repo} exists but this token cannot access it: add it under « Repository "
+                     "access » of the token ({settings}).",
+    "Organisation {org} introuvable, ou vous n'en êtes pas membre.":
+        "Organisation {org} not found, or you are not a member.",
+    "GitHub refuse l'opération : {message}": "GitHub refuses the operation: {message}",
+    "GitHub a répondu une erreur ({status}) : {message}": "GitHub answered an error ({status}): {message}",
+    "Impossible de joindre GitHub : vérifiez la connexion Internet.":
+        "Cannot reach GitHub: check the Internet connection.",
+    "Dépôt {repo} introuvable : cochez « Créer le dépôt », ou vérifiez le nom (un jeton à accès précis ne voit que "
+    "les dépôts qu'on lui a donnés).": "Repository {repo} not found: tick « Create the repository », or check the "
+                                      "name (a fine-grained token only sees the repositories it was given).",
+    "Impossible de récupérer le dépôt (git clone).": "Cannot fetch the repository (git clone).",
+    "GitHub a refusé l'envoi (git push).": "GitHub refused the push (git push).",
+    "Échec de la préparation de l'envoi (git commit).": "Preparing the push failed (git commit).",
+    "Nom de dépôt invalide : écrivez compte/nom.": "Invalid repository name: write account/name.",
+    # ---- « consigne de recherche » and suggestions (session S-Q)
+    "(Calcul : cellule {id}, pas encore exécutée)": "(Calcul: cell {id}, not run yet)",
+    "(Figure : carnet Calcul, cellule {id})": "(Figure: Calcul notebook, cell {id})",
+    "Ajoute le résultat à l'article avec son statut Lean (énoncé et preuve vérifiés par le pipeline normal).":
+        "Adds the result to the article with its Lean status (statement and proof checked by the normal pipeline).",
+    "Arrêt : limite atteinte ({why}).": "Stopped: limit reached ({why}).",
+    "Calcul Sage proposé ; le résultat affiché est celui du carnet Calcul.":
+        "Proposed Sage computation; the result shown is the one of the Calcul notebook.",
+    "Conjecture (généralisation de {what})": "Conjecture (generalisation of {what})",
+    "Consigne : {text}": "Instruction: {text}",
+    "Contexte (réponse sourcée) : {text}": "Context (sourced answer): {text}",
+    "Exemple ({what})": "Example ({what})",
+    "Figure ({what})": "Figure ({what})",
+    "Fin : {n} suggestion(s) à relire dans Article → Suggestions.":
+        "End: {n} suggestion(s) to review in Article → Suggestions.",
+    "Généralisation de {what}": "Generalisation of {what}",
+    "Journal de recherche — {date} ({id})": "Research journal — {date} ({id})",
+    "Résumé": "Abstract",
+    "Test de la conjecture « {t} »": "Test of the conjecture « {t} »",
+    "Théorème (généralisation de {what}, vérifiée par Lean)": "Theorem (generalisation of {what}, verified by Lean)",
+    "{what} : pas encore vérifié par Lean (dossier « {title} »).": "{what}: not verified by Lean yet (dossier « {title} »).",
+    "{what} : preuve vérifiée par Lean (dossier « {title} »).": "{what}: proof verified by Lean (dossier « {title} »).",
+    "Écrivez une consigne (par exemple : « vérifie le théorème 2 avec Lean »).":
+        "Write an instruction (for example: « check theorem 2 with Lean »).",
+    "Consigne non comprise : demandez une vérification Lean, des exemples, des figures, une amélioration de la "
+    "rédaction ou une généralisation.": "Instruction not understood: ask for a Lean check, examples, figures, better "
+                                       "wording or a generalisation.",
+    "Une consigne est déjà en cours dans ce projet : arrêtez-la ou attendez la fin.":
+        "An instruction is already running in this project: stop it or wait for the end.",
+    "Le texte visé a changé depuis la suggestion : elle n'a pas été appliquée.":
+        "The targeted text changed since the suggestion: it was not applied.",
+    "Cette suggestion a déjà été traitée.": "This suggestion was already handled.",
+    "Cette consigne est terminée : lancez-en une nouvelle.": "This instruction is finished: start a new one.",
+    "Déjà dans l'article.": "Already in the article.",
 })
 
 # ---- research workshop: notes, conjectures, proof plans, learning, update checkers (session S-G)

@@ -18,6 +18,7 @@ DEFAULTS: dict[str, Any] = {
     "ollama": True,                 # use models of a running Ollama (127.0.0.1:11434)
     "anthropic_thinking": True,     # adaptive thinking (summarised, streamed as `thinking` chunks)
     "anthropic_effort": {},         # {role: low|medium|high|xhigh|max}; defaults below
+    "gemini_effort": {},            # {role: minimal|low|medium|high} (Gemini reasoning_effort); engine.GEMINI_EFFORT
     "anthropic_fallbacks": True,    # server-side refusal fallback (beta) on the models that accept it
     "local_native_tools": False,    # local llama-server: OpenAI tools (needs --jinja) instead of the text protocol
     "stall_online": 90,             # seconds without data before an online stream is abandoned

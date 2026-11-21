@@ -503,36 +503,61 @@ def _inline(s: str, f: Fonts, cites=None) -> str:
     return "".join(res)
 
 
+_LIST_ITEM = re.compile(r"(\s*)(?:(\d+)[.)]|[-*•+])\s+(.*)")
+_ENUM_COUNTERS = ("enumi", "enumii", "enumiii", "enumiv")
+MAX_LIST_DEPTH = 4
+
+
+def _list_item(line: str) -> tuple[int, str, int, str] | None:
+    """(indent, env, number, text) of a Markdown list line, None otherwise (`**bold**` is not a bullet)."""
+    m = _LIST_ITEM.match(line)
+    if not m or (m.group(2) is None and re.match(r"\s*\*\*", line)):
+        return None
+    ind = len(m.group(1).expandtabs(4))
+    return (ind, "enumerate", int(m.group(2)), m.group(3)) if m.group(2) else (ind, "itemize", 0, m.group(3))
+
+
 def sanitize_markdown(text: str, f: Fonts | None = None, cites=None) -> str:
     """Model Markdown (headings, lists, tables, code fences, quotes, HTML tags, $math$) → LaTeX that compiles.
-    `cites`: keys that exist (set/dict) → `[@key, loc]` becomes `\\cite[loc]{key}`; None = printed literally."""
+    `cites`: keys that exist (set/dict) → `[@key, loc]` becomes `\\cite[loc]{key}`; None = printed literally.
+
+    Lists: items separated by blank lines stay in ONE list, indented bullets under a numbered step are a nested
+    list, and a list that resumes after other text keeps the model's own numbers (`\\setcounter`): the PDF annex
+    « tactique par tactique » used to restart at 1 for every step (2026-11-21)."""
     f = f or fonts()
     text = re.sub(r"<think>.*?(</think>|$)", "", text or "", flags=re.DOTALL)
     text = re.sub(r"(?is)<(script|style)\b.*?</\1\s*>", "", text)
     text = re.sub(r"(?i)<br\s*/?>", "\n", text)
     text = _TAG_RE.sub("", text)
     out: list[str] = []
-    state: str | None = None
+    stack: list[tuple[str, int]] = []               # open lists: (environment, indent)
     lines = text.strip().split("\n")
     i = 0
 
-    def close():
-        nonlocal state
-        if state:
-            out.append(f"\\end{{{state}}}")
-            state = None
+    def close(to: int = 0):
+        while len(stack) > to:
+            out.append(f"\\end{{{stack.pop()[0]}}}")
+
+    def next_nonblank(j: int) -> str | None:
+        while j < len(lines) and not lines[j].strip():
+            j += 1
+        return lines[j] if j < len(lines) else None
     while i < len(lines):
         line = lines[i].rstrip()
         fence = re.match(r"\s*```+\s*([A-Za-z0-9]*)", line)
         if fence:
-            close()
             body = []
             i += 1
             while i < len(lines) and not re.match(r"\s*```", lines[i]):
                 body.append(lines[i])
                 i += 1
             i += 1
-            out.append(lean_listing("\n".join(body), numbers=fence.group(1).lower().startswith("lean"), f=f))
+            listing = lean_listing("\n".join(body), numbers=fence.group(1).lower().startswith("lean"), f=f)
+            if stack and line[:len(line) - len(line.lstrip())]:
+                out.append(listing)                 # an indented code block belongs to the current item
+            else:
+                close()
+                out.append(listing)
             continue
         if line.lstrip().startswith("|"):
             close()
@@ -548,8 +573,7 @@ def sanitize_markdown(text: str, f: Fonts | None = None, cites=None) -> str:
             out.append("\\end{quote}")
             continue
         h = re.match(r"\s{0,3}#{1,6}\s+(.*)", line)
-        num = re.match(r"\s*\d+[.)]\s+(.*)", line)
-        bul = re.match(r"\s*[-*•+]\s+(.*)", line)
+        item = _list_item(line)
         quote = re.match(r"\s*>\s?(.*)", line)
         if re.fullmatch(r"\s*([-*_])(\s*\1){2,}\s*", line):
             close()
@@ -557,21 +581,39 @@ def sanitize_markdown(text: str, f: Fonts | None = None, cites=None) -> str:
         elif h:
             close()
             out.append(f"\\par\\medskip\\noindent\\textbf{{{_inline(h.group(1).strip('# '), f, cites)}}}\\par\\nopagebreak")
-        elif num or bul:
-            env = "enumerate" if num else "itemize"
-            if state != env:
-                close()
+        elif item:
+            ind, env, n, body = item
+            # leave the lists that are deeper than this item, or at its level with another kind
+            while stack and (stack[-1][1] > ind or (stack[-1][1] == ind and stack[-1][0] != env)):
+                close(len(stack) - 1)
+            if stack and stack[-1][1] < ind and len(stack) >= MAX_LIST_DEPTH:
+                ind = stack[-1][1]                  # too deep for LaTeX: same level
+                if stack[-1][0] != env:
+                    close(len(stack) - 1)
+            if not stack or stack[-1][1] < ind:
                 out.append(f"\\begin{{{env}}}")
-                state = env
-            out.append(f"\\item {_inline((num or bul).group(1), f, cites)}")
+                stack.append((env, ind))
+                depth = sum(1 for e, _ in stack if e == "enumerate")
+                if env == "enumerate" and n > 1 and depth <= len(_ENUM_COUNTERS):
+                    out.append(f"\\setcounter{{{_ENUM_COUNTERS[depth - 1]}}}{{{n - 1}}}")
+            out.append(f"\\item {_inline(body, f, cites)}")
         elif quote:
             close()
             out.append(f"\\begin{{quote}}{_inline(quote.group(1), f, cites)}\\end{{quote}}")
         elif not line.strip():
-            close()
-            out.append("")
-        elif state:
-            out[-1] += " " + _inline(line.strip(), f, cites)
+            nxt = next_nonblank(i + 1)
+            # a blank line between two items (or before an indented continuation) does not end the list
+            if not (stack and nxt is not None and (_list_item(nxt) is not None or
+                                                  len(nxt) - len(nxt.lstrip()) >= 2)):
+                close()
+                out.append("")
+            elif stack and _list_item(nxt) is None:
+                out.append("\\par")
+        elif stack:
+            if out and out[-1] == "\\par":
+                out.append(_inline(line.strip(), f, cites))
+            else:
+                out[-1] += " " + _inline(line.strip(), f, cites)
         else:
             out.append(_inline(line.strip(), f, cites))
         i += 1
@@ -635,7 +677,8 @@ def markdown_to_html(text: str, keep_tex: bool = False) -> str:
             tag = "ol" if num else "ul"
             if state != tag:
                 close()
-                out.append(f"<{tag}>")
+                n = int(re.match(r"\s*(\d+)", line).group(1)) if num else 1
+                out.append(f'<ol start="{n}">' if num and n > 1 else f"<{tag}>")
                 state = tag
             out.append(f"<li>{inline((num or bul).group(1))}</li>")
         elif line.lstrip().startswith("|"):
@@ -644,7 +687,12 @@ def markdown_to_html(text: str, keep_tex: bool = False) -> str:
             if not all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
                 out.append("<p class=\"row\">" + " | ".join(inline(c) for c in cells) + "</p>")
         elif not line.strip():
-            close()
+            j = i + 1
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            nxt = lines[j] if j < len(lines) else ""
+            if not (state and re.match(r"\s*(\d+[.)]|[-*•+])\s+", nxt)):
+                close()                    # items separated by blank lines stay in one list
         else:
             close()
             out.append(f"<p>{inline(line.strip())}</p>")

@@ -8,6 +8,7 @@ import asyncio
 import itertools
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -56,7 +57,49 @@ def workspace_info(ws: Workspace | None) -> dict:
                 break
     except (OSError, ValueError, AttributeError):
         pass
+    if not info["mathlib"] and _is_mathlib_checkout(ws.path):
+        # the workspace IS a Mathlib checkout (lean-prover49: Goedel's Mathlib fork): its manifest lists only
+        # Mathlib's own dependencies; the revision is the checkout's git HEAD (read from .git, no `git` process)
+        rev = git_head(ws.path)
+        info["mathlib"] = (rev[:12] + " (checkout)") if rev else ""
     return info
+
+
+def _is_mathlib_checkout(path: Path) -> bool:
+    try:
+        lf = (path / "lakefile.lean").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        lf = ""
+    try:
+        lf += (path / "lakefile.toml").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        pass
+    return bool(re.search(r"(?m)^\s*package\s+«?mathlib»?\b|^\s*name\s*=\s*\"mathlib\"", lf)) \
+        and (path / "Mathlib.lean").is_file()
+
+
+def git_head(path: Path) -> str:
+    """Commit of HEAD of the git checkout at `path` (detached HEAD, loose ref or packed-refs); "" when unknown."""
+    g = path / ".git"
+    try:
+        if g.is_file():                       # worktree / submodule: « gitdir: … »
+            t = g.read_text(encoding="utf-8").strip()
+            if t.startswith("gitdir:"):
+                g = (path / t.split(":", 1)[1].strip()).resolve()
+        head = (g / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return head if all(ch in "0123456789abcdef" for ch in head.lower()) and len(head) >= 7 else ""
+        ref = head.split(":", 1)[1].strip()
+        loose = g / ref
+        if loose.is_file():
+            return loose.read_text(encoding="utf-8").strip()
+        for line in (g / "packed-refs").read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[1] == ref:
+                return parts[0]
+    except OSError:
+        pass
+    return ""
 
 
 class LeanRunner:

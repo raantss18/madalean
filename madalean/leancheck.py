@@ -611,9 +611,21 @@ def is_unknown(understood: str) -> bool:
     return parse_understood(understood)[0].strip().strip(".").upper() == "UNKNOWN"
 
 
+# Appended to every formalization request: Goedel's fixed header opens only these namespaces, so scoped notation
+# (`R[X]` needs `open Polynomial`, `atTop`/`∀ᶠ` need `open Filter`…) and unqualified names fail (the integrator saw
+# Cayley-Hamilton refused 3/3 on `R[X]`, 2026-11-21).
+HEADER_NOTE = (
+    "\n\nLean context: the file header is fixed: `import Mathlib`, `import Aesop`, "
+    "`open BigOperators Real Nat Topology Rat`. No other namespace is open (no `open Polynomial`, `open Filter`, "
+    "`open Matrix`, `open Finset`, `open MeasureTheory`, `open Set`, `open Metric`, `open Function`…): write fully "
+    "qualified names and no scoped notation — `Polynomial R` (never `R[X]`), `Polynomial.aeval`, `Polynomial.X`, "
+    "`Polynomial.eval`, `Filter.Tendsto u Filter.atTop (𝓝 l)`, `Filter.Eventually`, `Matrix.det`, `Finset.range`, "
+    "`Metric.closedBall`, `MeasureTheory.volume`, `Set.univ`, `Function.Injective`.\n")
+
+
 def formalize_input(problem: str, profile: str = "", previous: str = "", request: str = "") -> str:
     """The « natural language statement » given to Goedel-Formalizer (whose prompt template stays verbatim)."""
-    text = problem.strip()
+    text = problem.strip() + HEADER_NOTE
     if profile.strip():
         text += f"\n\nConventions to respect (from the user): {profile.strip()}"
     if previous.strip() and request.strip():

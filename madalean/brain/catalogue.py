@@ -231,12 +231,48 @@ def lean_quality(m: Model) -> float:
     return min(1.0, base + lean_bonus(m)[0])
 
 
+_NOT_CHAT_WORD = re.compile(r"(^|[-_./ ])(live|aqa|genie|imagen|antigravity)([-_./ ]|$)", re.I)
+
+
 def is_text_chat(model_id: str) -> bool:
+    """A plain text chat / generateContent model. Live API (bidiGenerateContent only), native audio, TTS, image,
+    video, embeddings, computer use, robotics, AQA, agents (Deep Research, Antigravity), world models (Genie) are
+    not — for every role (2026-11-21: `gemini-3.1-flash-live-preview` was picked by the tournament, HTTP 400)."""
     low = model_id.lower()
+    if _NOT_CHAT_WORD.search(low):
+        return False
     return not any(w in low for w in (
         "embed", "bge", "guard", "whisper", "diffusion", "tts", "flux", "lyria", "rerank", "moderation", "image",
         "veo", "dall-e", "audio", "realtime", "transcribe", "sora", "babbage", "davinci", "voxtral", "-vl", "vl-",
-        "ocr", "nano-banana", "computer-use", "robotics", "-live", "gemini-live", "aqa", "deep-research"))
+        "ocr", "nano-banana", "computer-use", "robotics", "-live", "gemini-live", "aqa", "deep-research",
+        "bidi", "speech"))
+
+
+def alias_id(m: "Model") -> str:
+    """Identity of the underlying model: providers such as Mistral list every alias (`mistral-medium-latest`,
+    `mistral-medium-2604`, `mistral-medium-3`…) with the canonical name; the catalogue name is then the identity."""
+    name = (m.name or "").strip().lower()
+    if name and name != m.model_id.lower() and re.fullmatch(r"[\w.:/-]+", name):
+        return f"{m.provider}:{name}"
+    return f"{m.provider}:{m.model_id.lower()}"
+
+
+def dedupe_aliases(models: list["Model"]) -> list["Model"]:
+    """One entry per underlying model (the one whose id IS the canonical name first, else a dated id, else the
+    first listed)."""
+    groups: dict[str, list[Model]] = {}
+    order: list[str] = []
+    for m in models:
+        k = alias_id(m)
+        if k not in groups:
+            groups[k] = []
+            order.append(k)
+        groups[k].append(m)
+
+    def rank(m: Model) -> tuple:
+        return (m.model_id.lower() != (m.name or "").lower(), "latest" in m.model_id.lower(), 0)
+    keep = {id(min(g, key=rank)) for g in groups.values()}
+    return [m for m in models if id(m) in keep]
 
 
 def estimate(name: str, known: list[Model]) -> dict[str, float]:
@@ -351,7 +387,9 @@ class CatalogueStore:
     def with_keys(self, has_key: Callable[[str], bool]) -> Catalogue:
         """The catalogue as the router sees it: keyed providers only when their key is set (static lists added)."""
         provs = [p for p in self.cat.providers if not p.keyed or has_key(p.id)]
-        models = [_with_family(m) for m in self.cat.models if any(p.id == m.provider for p in provs)]
+        # a catalogue saved by an older version may still hold non-chat models and aliases: filter on every read
+        models = dedupe_aliases([_with_family(m) for m in self.cat.models if any(p.id == m.provider for p in provs)
+                                 and (m.local or is_text_chat(m.model_id))])
         for p in KEYED:
             if has_key(p.id):
                 if not any(x.id == p.id for x in provs):

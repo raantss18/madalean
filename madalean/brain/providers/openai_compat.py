@@ -35,6 +35,9 @@ async def stream_chat(http: Http, *, base_url: str, model: str, messages: list[d
                                stall=stall, first_byte=first_byte)
         except HttpStatusError as e:
             low = e.message.lower()
+            if e.status in (400, 422) and "reasoning_effort" in body and ("reasoning" in low or "thinking" in low):
+                body.pop("reasoning_effort")           # this model refuses the effort (or this value): its default
+                continue
             if e.status == 400 and "temperature" in low and "temperature" in body:
                 body.pop("temperature")
                 continue

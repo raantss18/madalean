@@ -86,7 +86,9 @@ async def test_formalizer_retries_until_lean_accepts(tmp_path, ws):
     assert f.statement.startswith("import Mathlib\nimport Aesop")
     first = brain.requests[0]["messages"][0]["content"]
     assert first.startswith("Please autoformalize the following natural language problem statement in Lean 4.")
-    assert "Montrer que la somme de deux entiers pairs est paire.Think before you provide the lean statement." in first
+    # S-O: the header note (which namespaces are open) follows the problem, before Goedel's verbatim ending
+    assert "Montrer que la somme de deux entiers pairs est paire.\n\nLean context: the file header is fixed" in first
+    assert first.endswith("`Function.Injective`.Think before you provide the lean statement.")
     assert brain.requests[0]["extra"]["top_k"] == 20 and brain.requests[0]["role"] == "formalize"
 
 

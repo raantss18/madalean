@@ -99,6 +99,30 @@ class Content:
     bib_backend: str = ""                            # biblatex | bibtex | manual ("" = choose)
 
 
+_LABEL = r"[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__|\*|_)?[ \t]*"
+_THM_HEAD = re.compile(r"^" + _LABEL + r"(?:Théorème|Theoreme|Theorem|Énoncé|Enoncé|Statement|Proposition|Lemme|Lemma|"
+                       r"Corollaire|Corollary)\b", re.I)
+_PROOF_HEAD = re.compile(r"(?m)^" + _LABEL + r"(?:Démonstration|Demonstration|Preuve|Proof)\b[ \t]*"
+                         r"(?:\([^)\n]*\))?[ \t]*[.:]?[ \t]*(?:\*\*|__|\*|_)?[ \t]*[.:]?[ \t]*")
+
+
+def strip_restated_theorem(text: str) -> str:
+    """The informal proof without the model's restatement of the theorem (« **Théorème.** … ») and without its own
+    « Démonstration. » label: the document already prints the statement block and a « Démonstration » heading
+    (2026-11-21: the PDF repeated the theorem right before the proof)."""
+    t = (text or "").strip()
+    if not t:
+        return t
+    m = _PROOF_HEAD.search(t)
+    if m is None:
+        return t
+    before = t[:m.start()].strip()
+    if not before or not _THM_HEAD.match(before):
+        return t                          # no restated theorem before the label (or a label inside the text)
+    rest = t[m.end():].strip()
+    return rest or t
+
+
 def collect(d: Dossier, lang: str = "fr", ws_info: dict | None = None, bib_keys: list[str] | None = None,
             bib_path: Path | None = None, bib_entries: list | None = None) -> Content:
     proved = d.proof_is_current
@@ -112,7 +136,8 @@ def collect(d: Dossier, lang: str = "fr", ws_info: dict | None = None, bib_keys:
                  "date": _dt.datetime.fromtimestamp(float(checked)).date() if checked else None,
                  "axioms": meta.get("axioms"), "model": v.model, "strategy": meta.get("strategy", ""),
                  "seconds": meta.get("seconds")}
-    informal = d.informal_proof if proved else ""
+    has_statement_block = bool((d.understood_display or d.problem or d.understood or "").strip())
+    informal = (strip_restated_theorem(d.informal_proof) if has_statement_block else d.informal_proof) if proved else ""
     return Content(
         title=d.title or "Sans titre", kind=d.kind or "theorem", theorem=d.theorem,
         nl_statement=(d.understood_display or d.problem or d.understood or "").strip(),
