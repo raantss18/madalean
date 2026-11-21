@@ -15,18 +15,20 @@
 8. ✅ Énoncé refusé compté valide ; carte graphique non détectée ; un seul essai en ligne → tournoi (corrigés, installés)
 
 ### P0 bis — demandes du 21/11 au soir
-- 🔄 « Publier » ne marche pas avec ta clé GitHub : cause, message clair, bouton « Tester la connexion GitHub » (session S-Q)
+- ⚠️ « Publier » ne marche pas avec ta clé GitHub (S-Q) : cause trouvée — le test de la clé dans Réglages → Clés traitait GitHub comme un fournisseur de modèles (« aucun modèle trouvé : la clé est-elle valide ? ») ; l'envoi demandait aussi le droit « workflow », signalé à tort comme « historique différent ». Corrigé : test d'identité GitHub, bouton « Tester la connexion GitHub », message précis pour chaque droit manquant (classique ou à accès précis, SSO, 2FA, jeton expiré), aperçu construit automatiquement. Testé contre un faux GitHub ; à vérifier avec ta vraie clé après mise à jour (bouton « Tester »)
 - 🔄 Calcul = vrai carnet Sage façon JupyterLab : cellules qui se suivent (un seul noyau partagé avec JupyterLab, fichier .ipynb), demandes en langage naturel → code Sage, graphes, courbes et géométrie dynamique inspirés de Fikajiana, export vers Publier (S-P)
-- 🔄 Consigne de recherche sur un article : vérifications Lean, exemples et figures Sage, améliorations et généralisations proposées une par une, tu valides chaque changement (S-Q)
-- 🔄 Mémoire : noyaux gardés chauds (~1,5–2 Go au repos), aucun doublon de processus, d'index ou de tâche (S-Q)
+- ⚠️ Consigne de recherche sur un article (S-Q) : panneau « Consigne » du projet (plan affiché avant de lancer, limites, arrêt/reprise, journal), « Suggestions » dans Article (avant/après, preuves Lean, calculs Sage, citations, accepter/refuser une par une), recherche unique dans le projet (→ Article, → Publier). Essai réel sur arXiv 1504.02718 avec modèles gratuits
+- ✅ Mémoire (S-Q, docs/PERFORMANCE.md) : au repos 63 Mo sans processus inutile (avant : nvidia-smi lancé 40 fois/min et un événement toutes les 3 s même sans écran ouvert) ; noyaux Sage gardés chauds 2 h, 3 au plus ; caches bornés (réseau, vecteurs, file d'événements) ; un seul moteur d'embeddings ; actualisation du catalogue sans doublon
 - 🔄 Défauts vus sur tes vrais dossiers : Riesz manqué par la recherche Mathlib, modèle Gemini « Live » choisi, doublon dans une course, Gemini qui se bloque, PDF (S-O)
 - 🔄 Écriture d'articles : éditeur visuel (formules, théorèmes, figures, citations) avec source LaTeX à un clic, aperçu PDF, assistant en suggestions, paquets gérés par le moteur interne sans doublon, Overleaf en option, interface épurée + options avancées et personnalisation (S-R)
-- ⬜ Relancer Cayley-Hamilton et Riesz après mise à jour
+- ✅ Tes 5 théorèmes prouvés sur ton installation (Cayley-Hamilton, Riesz, compact, sous-suites, E/ker f)
+- 🔄 Appairage de la tablette : port 443 au lieu de 10500, QR code en lien https avec bouton « Ouvrir dans l'application », nouvel APK à réinstaller (S-C)
+- 🔄 Goedel-Prover-V2-32B en ligne (Hugging Face, ta clé à ajouter) en tête du tournoi ; modèles locaux seulement hors connexion (S-T)
 
 ### P1 — à faire avant la publication
 - 🔄 Outil à part « fitantanana » (`~/GitHub/fitantanana`) : inventaire des services, ports, carte graphique, modèles, Lean, environnements Python, Jupyter, TeX ; doublons proposés (liens physiques de préférence, rien sans ton accord) ; prêt automatique de la carte graphique entre Ollama et Madalean (Madalean rend la carte après 10 min d'inactivité)
 9. 🔄 Glossaire par catégories et niveaux ; bibliothèque des résultats par domaine, projet, étiquette
-10. 🔄 Écran « Calcul » Sage intégré : calculs et conjectures, reliés aux notes, dossiers Lean et articles (objectif : publier)
+10. ⚠️ Écran « Calcul » = vrai carnet Sage (S-P, docs/CALCUL.md) : cellules qui s'enchaînent dans un seul noyau partagé avec JupyterLab (même fichier .ipynb), « Demander » en langage naturel, courbes et géométrie dynamique (outils de Fikajiana), exact/approché, reliés aux conjectures, notes, dossiers Lean, article et Publier — testé avec de vrais noyaux Sage et Python ; reste : branchement de la section « computations » dans le site par S-Q, essai par toi
 11. ⬜ Défauts du PDF : version de Mathlib « — », « Théorème. » répété, numérotation de l'annexe
 12. ⬜ Interfaces téléphone et tablette pour l'APK et l'AppImage (épuré, complet, sans chevauchement)
 13. ⬜ Suite de tests complète verte ; 44 points du manuel ; README et notes de version 2.0.0 ; essai prolongé de 2 h
