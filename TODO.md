@@ -5,7 +5,7 @@
 ## ⭐ Priorités avant la release 2.0.0 (mis à jour le 21/11/2026)
 
 ### P0 — bloquant
-1. 🔄 Revue de sécurité indépendante (session S-H) et ses corrections ; verdict « publiable »
+1. ✅ Revue de sécurité : publiable sous conditions — ✅ clés chiffrées ; 🔄 llama.cpp à mettre à jour (failles connues)
 2. ⬜ Vérification de l'énoncé avant la preuve : signaler un énoncé faux ou incomplet (hypothèse manquante comme « K non vide », « limites égales ») et proposer la correction — tes dossiers « compact » et « sous-suites » étaient improuvables
 3. ⬜ Recherche Mathlib d'abord : si le théorème existe déjà (Cayley-Hamilton, Riesz, valeurs extrêmes, 1er théorème d'isomorphisme…), le trouver et l'utiliser avant de lancer les modèles
 4. ✅ Énoncé refusé par le filtre de sécurité compté comme « valide » (corrigé, installé)
@@ -18,7 +18,7 @@
 9. ⬜ Défauts du PDF : version de Mathlib « — », « Théorème. » répété, numérotation de l'annexe
 10. ⬜ Interfaces adaptées téléphone et tablette pour l'APK et l'AppImage (épuré, complet, sans chevauchement), à partir de tes autres projets et des meilleures pratiques de conception
 11. ⬜ Suite de tests complète verte ; 44 points du manuel à vérifier ; README et notes de version 2.0.0
-12. ⬜ Sauvegarde de `~/.config/madalean/release-keys/` (toi)
+12. ✅ Clés de signature chiffrées et déplacées dans `~/Documents/madalean-cles/` (vérifiées) — ⬜ copie hors ligne (toi)
 
 ### P2 — publication (sur ton accord)
 13. ⬜ Fusion `v2` → `main`, tag `v2.0.0`, release signée (AppImage, APK, canal de mises à jour), site GitHub Pages
