@@ -295,7 +295,13 @@ Updates:
 - The real channel on GitHub Pages does not exist yet (only local test channels); HTTPS download from GitHub
   Releases (redirects to objects.githubusercontent.com) not exercised; an update from an *actually newer* build
   (tests used the same build plus a marker); the 20-minute "quiet moment" restart (only the immediate restart hook
-  ran); a read-only AppImage folder (code path only). Android: see the Android list.
+  ran); a read-only AppImage folder (code path only).
+- Android updates, verified on the API 36 emulator with debug builds 2.0.0 → 2.0.1 and a local signed test
+  channel: invalid signature refused; APK signed with another key refused (« not signed with the same certificate »);
+  good update downloaded, banner « Update 2.0.1 ready — Install », system installer « Do you want to update this
+  app? » → installed version 2.0.1, downloaded APK deleted at next start; unsigned / downgrade / same version were
+  exercised by the earlier run (manifest fetched, nothing offered) and by 45 Dart unit tests. Not verified: the
+  "allow unknown apps" settings round trip by hand (granted with `appops` in the test), Android 8–9, a real phone.
 
 Desktop:
 - Over the real tailnet HTTPS/port 10500
