@@ -462,9 +462,15 @@ def _engines() -> list[list[str]]:
     return out
 
 
+TEX_ENV_ALLOW = ("PATH", "LANG", "LANGUAGE", "TZ", "HOME", "TEXMFHOME", "TEXMFVAR", "TEXMFCONFIG", "TEXINPUTS",
+                 "SOURCE_DATE_EPOCH", "FONTCONFIG_FILE", "FONTCONFIG_PATH", "TECTONIC_CACHE_DIR")
+
+
 def tex_env() -> dict:
-    """Our generated TeX only: no shell escape, TeX may only read/write files below the working directory."""
-    env = dict(os.environ)
+    """Our generated TeX only: no shell escape, TeX may only read/write files below the working directory
+    (kpathsea engines; tectonic ignores openin_any/openout_any — S-H: the sandbox of `_run` is the boundary).
+    No API key or token in the environment."""
+    env = {k: v for k, v in os.environ.items() if k in TEX_ENV_ALLOW or k.startswith("LC_")}
     env.update({"openin_any": "p", "openout_any": "p", "shell_escape": "f"})
     if deps.installed():
         env.setdefault("TECTONIC_CACHE_DIR", str(deps.tectonic_cache()))
@@ -473,12 +479,35 @@ def tex_env() -> dict:
     return env
 
 
+def tex_confine(cmd: list[str], cwd: Path, env: dict) -> list[str]:
+    """S-H finding F5: model/paper/BibTeX text reaches TeX; `^^5c` (TeX's hex notation for a backslash) rebuilt
+    `\\input`/`\\openout` past the sanitiser, and tectonic --untrusted read /etc/… and wrote files at absolute
+    paths. Every TeX run is therefore confined: the build directory writable, the prefix (tectonic bundle, fonts)
+    and the TeX/font system trees read-only, the rest of the home directory absent, no network."""
+    from . import leansandbox
+    if not leansandbox.bwrap():
+        return cmd
+    home = Path.home()
+    ro = [deps.home(), home / ".local" / "share" / "fonts", home / ".fonts", Path("/var/lib/texmf"),
+          Path("/var/cache/fontconfig"), Path(cmd[0]).resolve().parent.parent]
+    for k in ("FONTCONFIG_FILE", "TEXMFHOME"):
+        if env.get(k):
+            ro.append(Path(env[k]).parent if k == "FONTCONFIG_FILE" else Path(env[k]))
+    rw = [cwd]
+    if env.get("TECTONIC_CACHE_DIR"):
+        rw.append(Path(env["TECTONIC_CACHE_DIR"]))     # formats may be (re)generated; TeX-only content
+    env["HOME"] = "/tmp"                               # empty tmpfs inside the sandbox (font caches, TEXMFVAR)
+    return leansandbox.confine(cmd, ro, rw, cwd)
+
+
 async def _run(cmd: list[str], cwd: Path, timeout: float) -> tuple[int | None, str]:
     """Run a TeX command; returns (returncode or None on timeout, output tail). Kills the whole group on timeout."""
+    env = tex_env()
+    cmd = tex_confine(cmd, cwd, env)
     try:
         proc = await asyncio.create_subprocess_exec(*cmd, cwd=str(cwd), stdout=asyncio.subprocess.PIPE,
                                                     stderr=asyncio.subprocess.STDOUT, stdin=asyncio.subprocess.DEVNULL,
-                                                    start_new_session=True, env=tex_env())
+                                                    start_new_session=True, env=env)
     except OSError as e:
         return 127, str(e)
 

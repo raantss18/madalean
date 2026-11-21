@@ -1,0 +1,23 @@
+# S-H review: dependency update PRs (ARCHITECTURE §15). Security updates also need « Dependabot alerts » and
+# « secret scanning » switched on in the repository settings (cannot be done from a file).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+  - package-ecosystem: npm
+    directory: /web
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+  - package-ecosystem: cargo
+    directory: /shells/desktop/src-tauri
+    schedule: {interval: weekly}
+  - package-ecosystem: gomod
+    directory: /net
+    schedule: {interval: weekly}
+  - package-ecosystem: pub
+    directory: /shells/android
+    schedule: {interval: weekly}
+  - package-ecosystem: gradle
+    directory: /shells/android/android
+    schedule: {interval: weekly}

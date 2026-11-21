@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-from .. import config, updates
+from .. import config, deps, updates
 from ..i18n import _, msg
 from ..logs import get
 from . import guarded
@@ -44,6 +44,36 @@ def describe(c: updates.Candidate) -> str:
         return f"{c.title}: {c.current} → {c.latest}" + (f" — {c.note}" if c.note else "")
     return _("{name} : nouvelle version du {role} ({cur} → {new}), {gb} Go.").format(
         name=c.title, role=_(ROLE.get(c.key, c.key)), cur=c.current, new=c.latest, gb=gb)
+
+
+LEAN_KINDS = ("mathlib", "toolchain", "lake-package")
+
+
+def prefix_elan_ok() -> bool:
+    """D29: Lean installs only into the prefix's ELAN_HOME, never ~/.elan (the user's own toolchains)."""
+    try:
+        eh = config.ELAN_HOME.resolve()
+        return (eh != (Path.home() / ".elan").resolve() and eh == deps.elan_home().resolve()
+                and (deps.elan_home() / "bin" / "elan").exists())
+    except OSError:
+        return False
+
+
+def auto_install_blocked(config_dir: Path) -> str | None:
+    """D29 (incident 2026-11-21): reason why AUTOMATIC installs are off for this server, None when allowed.
+    Allowed only for an installed Madalean (code under MADALEAN_HOME, i.e. <prefix>/versions/<v>), with the default
+    config directory, and with the prefix's own elan. A dev checkout, a test server with --config-dir/--demo,
+    or a machine without the prefix elan only notifies."""
+    try:
+        if deps.home().resolve() not in config.STATION_DIR.resolve().parents:
+            return "dev_checkout"
+        if Path(config_dir).resolve() != (Path.home() / ".config" / "madalean").resolve():
+            return "custom_config_dir"
+    except OSError:
+        return "unknown_layout"
+    if not prefix_elan_ok():
+        return "no_prefix_elan"
+    return None
 
 
 class UpdatesManager:
@@ -126,8 +156,12 @@ class UpdatesManager:
             return "busy"
         if self.is_busy():
             return "jobs_running"
+        if c.kind in LEAN_KINDS and not prefix_elan_ok():
+            return "no_prefix_elan"                    # D29: never install into ~/.elan (notify only)
         self.current, self.step, self.progress, self.output = c, "", "", []
         env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+        if c.kind in LEAN_KINDS:
+            env["ELAN_HOME"] = str(config.ELAN_HOME)  # explicit: elan/lake never fall back to ~/.elan
         self.proc = await asyncio.create_subprocess_exec(*guarded(sys.executable, [str(self.updater), *c.args()]),
                                                          stdout=asyncio.subprocess.PIPE,
                                                          stderr=asyncio.subprocess.STDOUT, env=env)

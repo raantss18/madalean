@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .. import config, leancheck
+from .. import config, leancheck, leansandbox
 from ..workspaces import Workspace
 from .common import CheckError, git_env, safe_git_url
 
@@ -107,8 +107,8 @@ def verify(ws_dir: Path, toolchain: str, test_lean: str, proofs: list[dict], tim
         if test_lean.strip():
             f = Path(td) / "Check.lean"
             f.write_text(test_lean, encoding="utf-8")
-            r = subprocess.run([str(ws.lean_bin), "--json", str(f)], env=ws.env(), cwd=ws_dir, capture_output=True,
-                               text=True, timeout=timeout)
+            r = subprocess.run(leansandbox.wrap(ws, [str(ws.lean_bin), "--json", str(f)], [f]),
+                               env=leansandbox.lean_env(ws), cwd=ws_dir, capture_output=True, text=True, timeout=timeout)
             msgs = leancheck.parse_lean_json(r.stdout)
             if r.returncode != 0 or any(m.severity == "error" for m in msgs):
                 raise Fail("verify", (r.stdout + r.stderr)[-1500:])
@@ -117,9 +117,16 @@ def verify(ws_dir: Path, toolchain: str, test_lean: str, proofs: list[dict], tim
             code = leancheck.with_axiom_probe(p["code"], name)
             f = Path(td) / f"P{i}.lean"
             f.write_text(code, encoding="utf-8")
+            # D28 in the re-verifier too (S-H F1); imports are the workspace's own business here (a library the
+            # host added to this managed workspace), the sandbox below still applies
+            risks = [r for r in leancheck.exec_risks(p["code"]) if not r.startswith("import")]
+            if risks:                                  # D28: never compiled, whoever stored it
+                regressions.append({"name": name, "dossier": p.get("dossier", ""), "summary": ", ".join(risks)})
+                continue
             try:
-                r = subprocess.run([str(ws.lean_bin), "--json", str(f)], env=ws.env(), cwd=ws_dir,
-                                   capture_output=True, text=True, timeout=timeout)
+                r = subprocess.run(leansandbox.wrap(ws, [str(ws.lean_bin), "--json", str(f)], [f]),
+                                   env=leansandbox.lean_env(ws), cwd=ws_dir, capture_output=True, text=True,
+                                   timeout=timeout)
                 v = leancheck.judge(code, leancheck.parse_lean_json(r.stdout), name, r.returncode)
                 ok, summary = v.ok, v.summary
             except subprocess.TimeoutExpired:

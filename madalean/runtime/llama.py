@@ -96,8 +96,11 @@ def pick_model(kind: str, models: list[GGUFInfo], preferred: str = "", vram_tota
         c = [m for m in good if is_explainer(m.path)]
         return max(c, key=lambda m: ("Q4_K_M" in m.path.name, -m.size)).path if c else None
     provers = [m for m in good if not is_formalizer(m.path) and not is_explainer(m.path)]
-    if preferred and Path(preferred).exists() and not is_formalizer(preferred) and not is_explainer(preferred):
-        return Path(preferred)
+    # S-H: `model_path` is a setting a paired device may change; only a model of the scanned list is loaded
+    # (never an arbitrary file handed to llama.cpp's GGUF parser, e.g. an uploaded attachment)
+    known = {str(m.path.resolve()): m.path for m in provers}
+    if preferred and str(Path(preferred).expanduser().resolve()) in known:
+        return known[str(Path(preferred).expanduser().resolve())]
     goedel = [m for m in provers if "goedel" in m.path.name.lower()]
     cands = goedel or provers
     if not cands:

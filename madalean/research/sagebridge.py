@@ -49,10 +49,14 @@ def launcher_env(cfg: dict, environ: dict[str, str]) -> dict[str, str]:
     return env
 
 
-def bwrap_argv(cfg: dict, argv: list[str]) -> list[str]:
+def bwrap_argv(cfg: dict, argv: list[str], isolate_net: bool = False) -> list[str]:
     wd = cfg["workdir"]
     out = [cfg["bwrap"], "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--die-with-parent",
-           "--new-session", "--unshare-ipc"]
+           "--new-session", "--unshare-ipc", "--unshare-pid",
+           # S-H: no session bus, systemd --user, X11/Wayland or madalean-net control sockets inside the sandbox
+           "--tmpfs", "/run", "--tmpfs", "/tmp", "--tmpfs", "/dev/shm"]
+    if isolate_net:
+        out += ["--unshare-net"]          # S-H F6: no network at all (no exfiltration, no 127.0.0.1:11500)
     for p in cfg.get("hide", []):
         if os.path.isdir(p):
             out += ["--tmpfs", p]
@@ -60,6 +64,106 @@ def bwrap_argv(cfg: dict, argv: list[str]) -> list[str]:
             out += ["--ro-bind", "/dev/null", p]
     out += ["--bind", wd, wd, "--chdir", wd, "--"]
     return out + argv
+
+
+PORTS = ("shell_port", "iopub_port", "stdin_port", "control_port", "hb_port")
+
+
+def ipc_connection(conn: dict, ipc_dir: str) -> dict:
+    """The kernel's connection info moved from TCP to unix sockets `<ipc_dir>/k-<port>` (same ports, same key)."""
+    out = dict(conn)
+    out.update({"transport": "ipc", "ip": os.path.join(ipc_dir, "k")})
+    return out
+
+
+def relay_tcp_to_ipc(conn: dict, ipc_dir: str, stop) -> list:
+    """S-H F6: the kernel runs in its own network namespace (`--unshare-net`); JupyterLab still talks TCP to the
+    ports of the original connection file. One listener per port on 127.0.0.1 (outside the sandbox) relays bytes
+    to the kernel's unix socket (ZMTP is the same over TCP and IPC). Daemon threads; returns the listeners."""
+    import socket
+    import threading
+
+    def pump(a, b):
+        try:
+            while True:
+                d = a.recv(65536)
+                if not d:
+                    break
+                b.sendall(d)
+        except OSError:
+            pass
+        for x in (a, b):
+            try:
+                x.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def serve(lsock, path):
+        while not stop.is_set():
+            try:
+                c, _ = lsock.accept()
+            except OSError:
+                return
+            u = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            for _ in range(600):                       # the kernel may still be starting
+                try:
+                    u.connect(path)
+                    break
+                except OSError:
+                    if stop.wait(0.05):
+                        return
+            else:
+                c.close()
+                continue
+            threading.Thread(target=pump, args=(c, u), daemon=True).start()
+            threading.Thread(target=pump, args=(u, c), daemon=True).start()
+
+    out = []
+    for k in PORTS:
+        port = int(conn[k])
+        ls = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        ls.bind((conn.get("ip") or "127.0.0.1", port))
+        ls.listen(16)
+        threading.Thread(target=serve, args=(ls, os.path.join(ipc_dir, f"k-{port}")), daemon=True).start()
+        out.append(ls)
+    return out
+
+
+def _isolated_run(cfg: dict, argv: list[str], env: dict) -> int:   # pragma: no cover (kernel process tree)
+    """Fork: the child execs the sandboxed kernel (own netns, IPC transport), the parent relays TCP → IPC and
+    forwards signals; the parent's exit code is the kernel's."""
+    import signal
+    import tempfile
+    import threading
+    i = argv.index("-f") + 1 if "-f" in argv else None
+    if i is None:
+        os.execvpe(bwrap_argv(cfg, argv)[0], bwrap_argv(cfg, argv), env)
+    conn = json.load(open(argv[i], encoding="utf-8"))
+    ipc_dir = tempfile.mkdtemp(prefix=".ipc-", dir=cfg["workdir"])
+    new_conn = os.path.join(ipc_dir, "connection.json")
+    with open(new_conn, "w", encoding="utf-8") as f:
+        json.dump(ipc_connection(conn, ipc_dir), f)
+    argv = list(argv)
+    argv[i] = new_conn
+    stop = threading.Event()
+    listeners = relay_tcp_to_ipc(conn, ipc_dir, stop)
+    pid = os.fork()
+    if pid == 0:
+        for ls in listeners:
+            ls.close()
+        full = bwrap_argv(cfg, argv, isolate_net=True)
+        os.execvpe(full[0], full, env)
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT, signal.SIGUSR1, signal.SIGUSR2):
+        signal.signal(sig, lambda s, _f: os.kill(pid, s))
+    while True:
+        try:
+            _p, status = os.waitpid(pid, 0)
+            break
+        except InterruptedError:
+            continue
+    stop.set()
+    return os.waitstatus_to_exitcode(status)
 
 
 def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside the kernel process tree)
@@ -79,6 +183,9 @@ def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside 
         resource.setrlimit(resource.RLIMIT_FSIZE, (fsize, fsize))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     os.chdir(wd)
+    if cfg.get("bwrap") and cfg.get("isolate_net", True):
+        rc = _isolated_run(cfg, argv, env)
+        sys.exit(rc if rc >= 0 else 128 - rc)
     if cfg.get("bwrap"):
         argv = bwrap_argv(cfg, argv)
     os.execvpe(argv[0], argv, env)
@@ -190,7 +297,13 @@ class SageBridge:
     # ------------------------------------------------------------ kernelspecs
     def hidden_paths(self) -> list[str]:
         home = Path.home()
+        jm = getattr(self.ctx, "jupyter", None)
         cands = [self.ctx.paths.config, home / ".config" / "madalean", home / ".config" / "madalean-demo",
+                 # S-H: JupyterLab's token (config) and the other kernels' connection files (HMAC keys)
+                 *([Path(jm.runtime_dir)] if jm is not None and getattr(jm, "runtime_dir", None) else []),
+                 home / ".mozilla", home / ".config" / "chromium", home / ".config" / "google-chrome",
+                 home / ".config" / "BraveSoftware", home / ".local" / "share" / "madalean" / "tailscale",
+                 home / ".password-store", home / ".config" / "Signal", home / ".thunderbird",
                  home / ".config" / "lean-ai-station", home / ".ssh", home / ".gnupg", home / ".local/share/keyrings",
                  home / ".aws", home / ".netrc", home / ".git-credentials", home / ".config" / "gh",
                  home / ".docker" / "config.json", home / ".pypirc", home / ".kube"]

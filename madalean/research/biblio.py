@@ -445,7 +445,7 @@ def _safe_ident(s: str) -> str:
 
 def _safe_url(s: str) -> str:
     s = s.strip()
-    return re.sub(r"[\s{}\\%#]", lambda m: "%" + format(ord(m.group(0)), "02X"), s) if re.match(r"https?://", s) else ""
+    return re.sub(r"[\s{}\\%#^~$&]", lambda m: "%" + format(ord(m.group(0)), "02X"), s) if re.match(r"https?://", s) else ""
 
 
 def _bib_name(n: dict) -> str:

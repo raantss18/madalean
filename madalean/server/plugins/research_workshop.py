@@ -1025,6 +1025,9 @@ async def auto_step(ctx, rs: "Research") -> str | None:
     manager's toast + last_result tell the user); lean-prover49 is never installable (pinned)."""
     if not getattr(ctx.settings, "updates_auto", True) or ctx.demo or not quiet(ctx):
         return None
+    from ...runtime.updates_mgr import auto_install_blocked
+    if auto_install_blocked(ctx.paths.config):     # D29: dev checkout / temp config dir / no prefix elan
+        return None
     for c in ctx.updates.candidates:
         tag = f"{c.key}:{c.latest}"
         if not c.installable or c.kind not in AUTO_KINDS or tag in rs.auto_tried:

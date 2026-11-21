@@ -13,6 +13,19 @@ DIR=${1:?usage: sign_release.sh DIR}
 KEY=${MADALEAN_RELEASE_KEY:-$HOME/.config/madalean/release-keys/ed25519.pem}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 [ -f "$KEY" ] || { echo "missing private key $KEY" >&2; exit 1; }
+# S-H review (docs/SECURITY.md F7): the key that every installed Madalean trusts must not sit unencrypted next to
+# the running server (whose Jupyter kernels run arbitrary code as the same user). Keep it encrypted
+# (openssl pkey -in ed25519.pem -aes256 -out ed25519.enc.pem) and/or off this machine.
+case "$(realpath "$KEY")" in
+  "$HOME"/.config/madalean/*) LOC_BAD=1 ;; *) LOC_BAD=0 ;;
+esac
+if ! grep -q "ENCRYPTED" "$KEY" || [ "$LOC_BAD" = 1 ]; then
+  echo "WARNING: release key $KEY is $( grep -q ENCRYPTED "$KEY" && echo encrypted || echo NOT encrypted )" \
+       "and $( [ "$LOC_BAD" = 1 ] && echo "inside Madalean's config dir" || echo "outside the config dir" )." >&2
+  [ "${MADALEAN_ALLOW_WEAK_RELEASE_KEY:-0}" = 1 ] || {
+    echo "refused: encrypt it and move it out of ~/.config/madalean (or set MADALEAN_ALLOW_WEAK_RELEASE_KEY=1)" >&2
+    exit 2; }
+fi
 cd "$DIR"
 rm -f SHA256SUMS SHA256SUMS.sig
 files=$(find . -maxdepth 1 -type f ! -name 'SHA256SUMS*' -printf '%f\n' | sort)

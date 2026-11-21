@@ -90,7 +90,7 @@ const defaultLinkOpen = md.renderer.rules.link_open ?? ((tokens, idx, options, _
 md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   const tok = tokens[idx]!;
   const href = String(tok.attrGet('href') ?? '');
-  if (!/^(https?:|mailto:|\/(?!\/)|#)/i.test(href)) tok.attrSet('href', '#');
+  if (!/^(https?:|mailto:|\/(?![\/\\])|#)/i.test(href)) tok.attrSet('href', '#');
   if (/^https?:/i.test(href)) {
     tok.attrSet('target', '_blank');
     tok.attrSet('rel', 'noopener noreferrer');

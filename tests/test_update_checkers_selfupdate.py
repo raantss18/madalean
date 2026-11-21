@@ -82,6 +82,9 @@ def test_sign_release_script_uses_private_key_outside_git(tmp_path):
     (d / "madalean-9.9.9.tar.gz").write_bytes(b"x")
     r = subprocess.run([str(ROOT / "scripts" / "sign_release.sh"), str(d)], capture_output=True, text=True,
                        env={**os.environ, "MADALEAN_RELEASE_KEY": str(key)})
+    assert r.returncode == 2 and "NOT encrypted" in r.stderr          # S-H F7: a plaintext key is refused
+    r = subprocess.run([str(ROOT / "scripts" / "sign_release.sh"), str(d)], capture_output=True, text=True,
+                       env={**os.environ, "MADALEAN_RELEASE_KEY": str(key), "MADALEAN_ALLOW_WEAK_RELEASE_KEY": "1"})
     # signed with a key that is not the embedded one: the script itself refuses it
     assert r.returncode == 1 and "does NOT match" in r.stdout
     assert su.signature_valid(pub, (d / "SHA256SUMS").read_bytes(), (d / "SHA256SUMS.sig").read_text())
@@ -261,6 +264,9 @@ async def test_system_install_action_and_auto_policy(tmp_path, monkeypatch):
             return None
         monkeypatch.setattr(ctx.updates, "install", fake_install)
         ctx.demo = False
+        assert await rw.auto_step(ctx, rs) is None and started == []      # D29: test config dir, dev checkout
+        import madalean.runtime.updates_mgr as um
+        monkeypatch.setattr(um, "auto_install_blocked", lambda cfg: None)
         ctx.settings.updates_auto = False
         assert await rw.auto_step(ctx, rs) is None and started == []
         ctx.settings.updates_auto = True

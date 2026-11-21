@@ -446,6 +446,9 @@ def sanitize_math(src: str, f: Fonts | None = None) -> str:
     ok = ok and all(c in MATH_COMMANDS for c in cmds)
     ok = ok and ("&" not in m.replace("\\&", "") or bool(envs)) and "$" not in m.replace("\\$", "")
     ok = ok and bool(m.strip())
+    # S-H F5: TeX's `^^xx` hex notation makes any character, e.g. `^^5c` = backslash (`\\input`, `\\openout`…)
+    # past the command allow-list. Two superscript marks in a row never come from real mathematics.
+    ok = ok and "^^" not in re.sub(r"\s+", "", m) and "\\csname" not in m
     if ok and "\\\\" in m and not envs:
         ok = False
     if not ok:

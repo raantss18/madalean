@@ -169,3 +169,36 @@ Real server (`bin/madalean serve`, test config dir), RTX 4060, local mode, strat
 | « 6 divise n(n+1)(n+2) » (started at the same time) | proved on attempt 1 | 18 min 41 |
 Two jobs shared the single GPU slot with model swaps; no error or warning in the server log. PDF defects seen: Mathlib
 revision shown as « — » for lean-prover49, the informal proof repeats « Théorème. … », annex numbering restarts.
+
+## 2.0 — independent security & robustness review (session S-H, 2026-11-21) — details in docs/SECURITY.md
+| Item | Evidence | Status |
+|---|---|---|
+| Remote listener as unpaired client | every route enumerated from the router (core + plugins + static + `/jupyter`) → 401/200-static (`test_auth`, `test_sources_security`); host-only routes and host-only settings → 403 with a valid device token (`test_paired_device_reaches_no_host_only_route`); forged `X-Forwarded-*` grant nothing | ✅ |
+| Local listener vs malicious web page (CSRF / rebinding / CORS) | every state-changing route × 6 foreign origins (other loopback ports included) × 3 content types → 403; Fetch Metadata blocks cross-site sub-resources and navigations to the API / Jupyter; WebSocket from another port refused; no CORS / PNA headers (`test_security_review.py`) | ✅ fixed (F2) |
+| Lean code execution (D28) | bypass found (`attribute [command_elab …]` + `#check` wrote a file with real Lean 4.36); deny list extended (17 bypass forms tested) and every `lean` sandboxed with bubblewrap (no network/home, read-only), proof by test | ✅ fixed (F1) |
+| TeX injection | `^^5c` rebuilt `\input`/`\openout` past the sanitiser; tectonic read `/etc/hostname` into the PDF and wrote a file at an absolute path; sanitiser + TeX sandbox → literal text / `Read-only file system` | ✅ fixed (F5) |
+| Experiment sandbox | kernel could reach 127.0.0.1:11500 (trusted) and JupyterLab's token; now own network namespace (TCP→IPC relay), `/run` `/tmp` empty, Jupyter runtime hidden; real sage + python kernel tests pass | ✅ fixed (F6) |
+| D29 | automatic installs blocked from a dev checkout / non-default config dir / without the prefix elan; Lean installs never with `~/.elan` (tests) | ✅ fixed (F4) |
+| Fault injection on storage | ENOSPC (fsync), real EFBIG (RLIMIT_FSIZE), 12 × kill -9 during writes → target always complete (`test_robustness.py`) | ✅ |
+| Load | 300 slow-loris sockets + 200 WebSockets + 50-event burst: API answers < 5 s, all sockets served, all subscribers released; bodies > 4/16 MiB → 413 | ✅ |
+| Scaled soak (20 min, demo, ~6 parallel jobs, 5 paired devices on WebSockets, reconnect storms every 60 s, PATCH bursts) | 1088 jobs, 627 949 WS events, 3 091 reconnects, 0 errors; threads 4 and fds 14–20 flat; RSS 59 → 127 MB linear → cause: demo `FakeBrain.requests` unbounded (F14, fixed); re-soak 10 min after the fix: 761 jobs, 285 298 events, 1 659 reconnects, 0 errors, RSS 61 → 76 MB in the first 2 min (warm-up) then +0.6 MB/min while the bounded caches fill (jobs ≤ 200, event ring 5000, demo request log ≤ 4000), fds/threads flat. A plateau was not observed within 10 min; a 2-hour soak remains to be run by the integrator | ✅ |
+| Dependency audit | pip-audit main env 0; npm audit 0; cargo audit 0 vulns; govulncheck 0 called; osv-scanner pubspec/Maven 0; llama.cpp b11375 has CVE-2026-133710 / CVE-2026-107183 (**open, blocking**) | ⚠️ |
+
+### Accepted risks (S-H) — see docs/SECURITY.md §8
+- R-1 Every local process (any user) that can reach 127.0.0.1:11500 has full host rights (single-user host design).
+- R-2 JupyterLab and the user's own kernels run code unsandboxed and share the UI origin (host-only unless `remote_jupyter`).
+- R-3 Without a working bubblewrap, Lean, TeX and experiments run unsandboxed (health page shows it).
+- R-4 pillow 12.3.0 in the Sage env (sage pin; Sage kernels sandboxed and offline).
+- R-5 libssh2 / libexpat advisories in the main conda env (not reachable in Madalean's flows).
+- R-6 Global pairing lockout can be triggered by an unpaired tailnet node (DoS, 10 min).
+- R-7 Paired devices see each other's names and last IPs.
+- R-8 Update channel has no expiry (freeze attack delays updates, integrity unaffected).
+- R-9 Online Lean search / literature search send model-chosen query text to public services (`local` mode disables).
+- R-10 The D28 deny list may refuse legitimate files (10/87 Mathlib Archive files, 0/493 miniF2F) and cannot be complete.
+
+### Release blockers (S-H verdict: GO with conditions)
+1. F7: release signing key unencrypted in `~/.config/madalean/release-keys/` on the host that runs notebooks → encrypt
+   and move it out (sign_release.sh now refuses otherwise).
+2. F11: bump llama.cpp to ≥ b12556 (CVE-2026-133710, GGUF heap overflow; CVE-2026-107183).
+Not verified: strace of madalean-net log upload (code path verified: `logtail.Disable()` before start drops uploads);
+real tailnet requests; Gradle transitive dependencies; tesseract/tectonic CVEs (no CPE data).

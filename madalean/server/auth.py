@@ -71,13 +71,30 @@ def origin_ok(request: web.Request, local: bool) -> bool:
     o = urlsplit(origin)
     if not o.netloc:
         return False
-    hosts = {request.headers.get("Host", ""), request.headers.get("X-Forwarded-Host", "")}
-    if o.netloc in hosts:
+    # Exact host:port only. S-H: « any loopback origin » let every other web server of the machine
+    # (http://127.0.0.1:8888, a dev server, a page of another local app) drive the trusted listener.
+    # X-Forwarded-Host is the madalean-net sidecar's (it overwrites the client's); never trusted on the local port.
+    hosts = {request.headers.get("Host", "")}
+    if not local:
+        hosts.add(request.headers.get("X-Forwarded-Host", ""))
+    hosts.discard("")
+    return o.netloc.lower() in {h.lower() for h in hosts}
+
+
+# Cross-site requests a browser may still send without an Origin check biting (Fetch Metadata): <img>/<script>/
+# <link> GETs, no-cors fetches, cross-site navigations. Only a top-level navigation to the UI (or to the shells'
+# /api/session ticket exchange) may come from another site; everything else must be same-origin.
+NAV_OK_API = {"/api/session", "/api/hello"}
+
+
+def fetch_metadata_ok(request: web.Request) -> bool:
+    site = request.headers.get("Sec-Fetch-Site", "").lower()
+    if site in ("", "same-origin", "none"):
         return True
-    if local and _host_name(o.netloc) in LOOPBACK_HOSTS:
-        return True
-    extra = getattr(request.app[CTX].settings, "allowed_origins", None) or []
-    return origin in extra
+    if request.method in ("GET", "HEAD") and request.headers.get("Sec-Fetch-Mode", "").lower() == "navigate":
+        path = request.path
+        return is_static(path) or path in NAV_OK_API
+    return False
 
 
 def remote_host_ok(request: web.Request) -> bool:
@@ -104,6 +121,9 @@ async def security_middleware(request: web.Request, handler):
     elif _sock_port(request) in request.app.get(REMOTE_PORTS, set()) and not remote_host_ok(request):
         return error(403, "bad_host")
     is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
+    if not fetch_metadata_ok(request):
+        log.warning("refused cross-site %s %s (%s)", request.method, path, request.headers.get("Sec-Fetch-Site"))
+        return error(403, "cross_site")
     how = ""
     if not local:
         public = (request.method, path) in PUBLIC_API or (request.method in ("GET", "HEAD") and is_static(path))
