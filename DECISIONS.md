@@ -340,3 +340,9 @@
   `import Mathlib.…` lines; the guard stopped them (right) and the formalizer threw the whole answer away (wrong). The
   last complete ```lean4 block before the loop is now a candidate (Lean decides); the pipeline's guard is reset when
   the engine restarts with another model; loop-finished attempts record streamed tokens and time (were 0).
+
+## D32 — LAN listener kept (user decision, 2026-11-21)
+- The user keeps the LAN listener (port 11502, plain HTTP) for devices without Tailscale. Browsers there need a code at
+  every visit and get a temporary session; app shells keep their device token. Accepted risk: on the LAN the code and
+  the session cookie travel unencrypted on the Wi-Fi (no `Secure` flag possible over HTTP); Tailscale (HTTPS) stays
+  the recommended path. Listed in docs/SECURITY.md accepted risks.

@@ -134,6 +134,8 @@ A boundary is crossed in four places, and each place must hold:
     of inactivity (default 120, host-only) and after 12 h at most, and on server restart. A browser-session secret is
     accepted only as the cookie: never as a Bearer token, never for `/api/session/ticket`, so it cannot be turned into
     a device token (tested). The LAN listener follows the same rules.
+  - Revocation, logout, self-forget and browser-session expiry close that credential's open WebSockets at once
+    (code 4401, tracked per credential in the event bus) and cancel the assistant streaming it started (tested).
   - App web views get their cookie through a one-time session ticket (below); app cookies are `HttpOnly;
     SameSite=Strict` (`Secure` over HTTPS) and revoked with the device.
 - **Session tickets.** 192 bits, 60 s, single use, in memory only. `next` accepts same-origin relative paths only.
@@ -310,3 +312,5 @@ style-src 'unsafe-inline'; img-src data:; sandbox`, displayed via `<img>`. Spend
 Non-blocking but recommended for 2.0.x: R-1 capability for the local door, `MADALEAN_HOME` isolation in
 `tests/conftest.py`, `expires` in the update channel, Dependabot alerts
 and secret scanning switched on, and an investigation of the flaky test F13.
+
+- **R-11 (accepted by the user, D32)** — LAN listener over plain HTTP: pairing code and browser session cookie are unencrypted on the local network while a session is open. Mitigations: code at every browser visit, short sessions (2 h idle / 12 h max), host-only switch; Tailscale recommended.
