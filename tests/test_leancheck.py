@@ -173,3 +173,11 @@ def test_exec_risks_blocks_host_code_execution_before_compiling():
                 'import Lean.Elab', 'initialize r : IO.Ref Nat ← IO.mkRef 0', 'example : 2 ∣ 4 := by native_decide',
                 'run_cmd Lean.logInfo "x"', '/- unterminated #eval 1']:
         assert lc.exec_risks(ok + "\n" + bad), bad
+
+
+def test_model_statement_with_stray_eval_is_cleaned_and_gate_reports_an_error():
+    """Real case (2026-11-21): the translator added `#eval "Lean 4"`; the D28 gate refused the file but the statement
+    was still marked valid because the refusal carried no positioned error."""
+    from madalean import leancheck as lc
+    st = lc.normalize_formal_statement('import Mathlib\n#eval "Lean 4"\ntheorem t : 1 = 1 := by sorry')
+    assert "#eval" not in st and "theorem" in st

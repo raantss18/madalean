@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .. import leancheck
+from .. import leancheck, leansandbox
 from ..i18n import _
 from ..logs import get
 from ..slots import Slots, current_owner
@@ -77,7 +77,9 @@ class LeanRunner:
         owner = owner or current_owner()
         risks = leancheck.exec_risks(code.rsplit("#print axioms", 1)[0] if strict_name else code)
         if risks:          # never compile code that could run on the host (DECISIONS D28), whoever wrote it
-            v = leancheck.Verdict(False, _("Refusé avant compilation : {why}.").format(why=", ".join(risks)),
+            why = _("Refusé avant compilation : {why}.").format(why=", ".join(risks))
+            # a positioned error too: every caller that looks at `errors` (statement checks…) must see a failure
+            v = leancheck.Verdict(False, why, errors=[leancheck.LeanMessage("error", 1, 0, None, None, why)],
                                   reasons=risks)
             return CompileResult(v, code, 0.0, "", job=job)
         problems = await asyncio.to_thread(ws.check)
@@ -90,9 +92,10 @@ class LeanRunner:
         f = self.tmp_dir / f"check_{os.getpid()}_{job}_{int(time.time() * 1000)}.lean"
         await asyncio.to_thread(self._write, f, code)
         t0 = time.monotonic()
-        cmd = guarded(str(ws.lean_bin), ["--json", str(f)])
+        argv = leansandbox.wrap(ws, [str(ws.lean_bin), "--json", str(f)], [f])     # D28: the boundary
+        cmd = guarded(argv[0], argv[1:])
         try:
-            proc = await asyncio.create_subprocess_exec(*cmd, cwd=str(ws.path), env=ws.env(),
+            proc = await asyncio.create_subprocess_exec(*cmd, cwd=str(ws.path), env=leansandbox.lean_env(ws),
                                                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                                                         start_new_session=True)
         except OSError as e:

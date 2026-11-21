@@ -31,8 +31,18 @@ EXEC_RISKS = [
     (r"\b(builtin_)?initialize\b", "code exécuté au chargement (initialize)"),
     (r"\b(elab|elab_rules|macro|macro_rules|syntax|notation3?|infix[lr]?|prefix|postfix|run_cmd|run_tac|run_elab|run_meta|declare_syntax_cat)\b",
      "méta-programmation (élaborateur, macro, syntaxe)"),
-    (r"@\[[^\]]*\b(tactic|command_elab|term_elab|init|builtin_init|env_extension|extern|implemented_by|export|macro|delab|app_unexpander)\b",
+    # both attribute syntaxes: `@[attr] def …` and `attribute [attr] name` (S-H bypass: `attribute [command_elab …]`)
+    (r"(@\[|\battribute\s*\[)[^\]]*\b(tactic|command_elab|term_elab|init|builtin_init|env_extension|extern|"
+     r"implemented_by|export|macro|delab|app_unexpander|simproc|dsimproc|builtin_simproc|norm_num|positivity|"
+     r"command_code_action|hole_code_action|tactic_code_action|code_action_provider|widget_module|"
+     r"builtin_tactic|builtin_command_elab|builtin_term_elab|builtin_macro|aesop|grind_ext)\b",
      "attribut qui enregistre du code exécutable"),
+    # the elaborator framework itself: a definition of one of these types is host code that an attribute, a
+    # simproc or an extension point can run during elaboration (defence in depth; the sandbox is the boundary)
+    (r"\b(Elab|Meta|Parser|Compiler|CommandElab\w*|TermElab\w*|TacticM|MetaM|CoreM|SimpM|MacroM|DelabM|"
+     r"Simproc|DSimproc|NormNumExt|PositivityExt|simproc\w*|dsimproc\w*|evalExpr\w*|evalConst\w*|elabCommand\w*|"
+     r"runParserCategory|loadDynlib|saveModuleData|readModuleData|unsafe\w+|withImportModules|importModules)\b",
+     "méta-programmation (élaborateur, macro, syntaxe)"),
     (r"\b(unsafe|implemented_by|IO|EIO|BaseIO|System\.FilePath|IO\.Process|ST\.Ref)\b", "accès au système (IO, unsafe)"),
     (r"\bnative_decide\b|\bLean\.ofReduceBool\b", "code natif (native_decide)"),
     (r"(?m)^\s*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible)(\.|\s|$))", "import d'un module non autorisé"),
@@ -384,8 +394,8 @@ def normalize_formal_statement(code: str) -> str:
     """Model output -> a Lean file with the standard header and a single `theorem … := by sorry`."""
     std_open = GOEDEL_HEADER.split("open ")[1].split("\n")[0].strip()     # "BigOperators Real Nat Topology Rat"
     lines = [l for l in code.replace("\r\n", "\n").split("\n")
-             if not re.match(r"\s*(import\s|set_option\s+maxHeartbeats)", l)
-             and l.strip() != "open " + std_open]
+             if not re.match(r"\s*(import\s|set_option\s+maxHeartbeats|#(eval|check|print|reduce)\b)", l)
+             and l.strip() != "open " + std_open]       # stray #eval/#check lines from the model are dropped (D28)
     return prepare_statement("\n".join(lines).strip())
 
 
