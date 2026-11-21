@@ -18,6 +18,7 @@ papers,article,fetch,safety,demo_seed}.py`.
 - [Security](#9-security-hostile-input)
 - [Measured quality and limits](#10-measured-quality-and-honest-limits)
 - [Demo mode and tests](#11-demo-mode-and-tests)
+- [« Publier »](#12-publier--publish-to-github-pages)
 
 ## 1. Data model
 
@@ -323,3 +324,58 @@ recorded answer), so literature search works offline.
 Tests (no network): `tests/test_sources_security.py`, `test_sources_api.py`, `test_biblio.py`, `test_article.py`;
 `tests/test_sources_online.py` (marker `online`, `MADALEAN_ONLINE_TESTS=1`; `MADALEAN_RECORD=1` re-records
 `tests/data/research/http/`).
+
+## 12. « Publier » — publish to GitHub Pages
+
+ARCHITECTURE §17 role 1; template and `publication.json` schema: docs/SITE.md §4 (session S-F). Code:
+`madalean/research/publish.py`. Files: `<config>/projects/<pid>/publish/{input/, lean/, preview/, manifest.json,
+state.json}`.
+
+| | |
+|---|---|
+| `GET /research/publish/{pid}` | `{manifest \| null, state, preview: bool, running: bool}` (`state` = last push, see below) |
+| `POST /research/publish/{pid}/plan` `{dossiers?:[ids], notes?:[note ids], source_files?:[{shelf, id, sha256}], include_pdf?:false, lang?, license?:"CC-BY-4.0", authors?, title?}` | builds `input/publication.json` + `lean/` and returns `{manifest}` — **nothing is sent** |
+| `POST /research/publish/{pid}/preview` `{manifest_id}` | renders with `site/build.py publication` → `{pages, url}`; `409 manifest_changed` when the plan changed since the user reviewed it, `422 build_failed {log}` |
+| `GET /research/publish/{pid}/preview/{path}` | the static site (CSP `script-src 'none'` + `sandbox allow-same-origin allow-popups`; paths confined to the preview) |
+| `POST /research/publish/{pid}/push` **host** `{manifest_id, repo:"owner/name", create?:false, private?:false, branch?:"main"}` | `202 {request_id}`; events `publish.progress {project, request_id, step: repository\|created\|fetch\|commit\|push\|pages, …}`, then `publish.done {project, request_id, state}` or `publish.error {project, request_id, error, message?}`. `409 busy`, `409 local_mode`, `409 manifest_changed` |
+
+```ts
+interface PublishManifest {
+  id: string;                     // give it back to preview / push: the user confirmed exactly this list
+  project: string; created: number; workspace: string; toolchain: string; mathlib: string /* full commit */;
+  items: { path: string /* publication.json | files/… | lean/… | .github/… */; kind: "metadata"|"lake"|"pdf"|
+           "lean"|"ci"|"other"|"file"; size: number; sha256: string; origin: string /* project | lean | article |
+           note:<id> | source:<key> | template */; note: string }[];
+  excluded: { what: string; why: "not_found" | "no_such_file" | "license_not_redistributable"; license?: string }[];
+  warnings: string[];             // dependency_added:<dossier id>, other_workspace:<id>
+  statuses: Record<string, "verified"|"proved"|"defined"|"statement"|"stated"|"blocked">;  // what the site will show
+  counts: Record<string, number>;
+  not_included: string[];         // never published: sources' full texts, unselected notes, dossier threads, …
+}
+interface PublishState { repo: string; branch: string; commit: string; changed: boolean /* false = already up to
+  date, nothing committed */; created: boolean; pages: boolean; pages_url: string; pushed_at: number }
+```
+
+Content: nodes = the article's dossier blocks in order (or `dossiers`), plus every transitive `uses` dependency
+(added automatically and reported: a result is never published without what it relies on), sections from the
+article blocks, abstract, bibliography = cited CSL records only. Facts: `statement_ok` = current Lean statement
+accepted; `proof_ok` = current proof proves the current statement under the strict verdict **and** its recorded
+axioms ⊆ {propext, Classical.choice, Quot.sound} (a `sorryAx` proof is never `proof_ok`); the template recomputes
+the statuses (a node with any unverified transitive dependency is never « verified »). Lean: a Lake project with the
+workspace's `lean-toolchain`, `require mathlib … @ "<exact commit>"` (URL identical to the manifest's),
+the workspace's `lake-manifest.json` re-targeted (every dependency pinned), one module per result
+(`<Root>/M01….lean`, code inside `namespace <Root>.M01…` so helper names never clash), a root module importing
+all, and `Verify.lean` (`#print axioms` of every result the site calls verified). The repository gets `site/`,
+`lean/`, `.github/workflows/verify-and-publish.yml`, `.github/madalean/make_badge.py` (+ README/.gitignore if
+absent; other files of the repository are left alone).
+
+Privacy: notes only when listed in `notes`; a source's file only when its `license` (PATCH the source
+`{license:"CC-BY-4.0"}`) is a Creative Commons / public-domain licence **and** it is listed in `source_files`;
+everything else is in `excluded` with the reason. Credentials: a token stored with `POST /models/keys
+{provider:"github", key}` (keyring) else `gh auth token`; sent only to the GitHub API and to git as an
+`http.extraHeader` (never in a URL, a command line or a log). Never `--force`: a remote that diverged or refuses is
+reported (`git_push_rejected`) and nothing is overwritten; pushing the same content again commits nothing.
+
+Verified: everything above against a local fake GitHub API and a local bare git remote (`tests/test_article_publish.py`);
+a generated project and the template sample were built with the real Lean 4.34.1 + Mathlib d13f23b (`lake build`,
+`lake env lean Verify.lean`). Not verified: a push to the real github.com and the Action running on GitHub.

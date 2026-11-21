@@ -224,8 +224,15 @@ _FB_NAMES = "ABCDEFGH"
 
 
 def _run_out(cmd: list[str]) -> str:
+    import os as _os
+    env = dict(_os.environ)
+    try:                       # detect fonts with the SAME fontconfig the TeX engine gets (export.tex_env, §18)
+        if _deps.installed() and _deps.fontconfig_file().exists():
+            env.setdefault("FONTCONFIG_FILE", str(_deps.fontconfig_file()))
+    except Exception:  # noqa: BLE001
+        pass
     try:
-        r = _subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        r = _subprocess.run(cmd, capture_output=True, text=True, timeout=20, env=env)
         return r.stdout if r.returncode == 0 else ""
     except (OSError, _subprocess.SubprocessError):
         return ""

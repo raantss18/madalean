@@ -17,7 +17,7 @@ from ...research import biblio, litsearch, papers, qa
 from ...research.fetch import FetchError, effective_mode
 from ...research.safety import MAX_UPLOAD
 from ...research.sources import GLOBAL, MATHLIB, SourceError, library, summary
-from ..common import CTX, body, error, ok, valid_id
+from ..common import CTX, body, error, host_only, ok, valid_id
 from ..helpers import complete_once
 
 log = get("research")
@@ -1012,6 +1012,188 @@ async def article_export(request):
                                  "X-Madalean-Fallback": fallback})
 
 
+# ================================================================ « Publier » (ARCHITECTURE §17)
+PUBLISH_TASKS = web.AppKey("research_publish_tasks", dict)
+
+
+def _pub_err(e) -> web.Response:
+    data = {"error": e.kind, **{k: v for k, v in e.info.items() if isinstance(v, (str, int, list, dict))}}
+    key = PUBLISH_MESSAGES.get(e.kind)
+    if key:
+        data["message"] = msg(key)
+    return web.json_response(data, status=e.status)
+
+
+PUBLISH_MESSAGES = {
+    "manifest_changed": "Le contenu à publier a changé : relisez la nouvelle liste avant de confirmer.",
+    "no_plan": "Préparez d'abord la publication (liste de ce qui sera publié).",
+    "no_preview": "Construisez d'abord l'aperçu local.",
+    "no_github_credentials": "Aucun accès GitHub : ajoutez un jeton (fournisseur « github ») ou connectez gh.",
+    "git_push_rejected": "GitHub a refusé l'envoi (historique différent) : rien n'a été écrasé.",
+    "nothing_to_publish": "Aucun résultat à publier dans ce projet.",
+}
+
+
+def _publish_guard(handler):
+    async def wrapped(request):
+        from ...research.publish import PublishError
+        try:
+            return await handler(request)
+        except PublishError as e:
+            return _pub_err(e)
+        except (SourceError, art_mod.ArticleError, FetchError) as e:
+            return _err(e)
+    wrapped.__name__ = handler.__name__
+    if getattr(handler, "__madalean_host_only__", False):
+        wrapped.__madalean_host_only__ = True
+    return wrapped
+
+
+def _note_getter(request):
+    try:
+        from .research_workshop import RW
+        rw = request.app[RW]
+    except Exception:  # noqa: BLE001 (notes plugin absent)
+        return None
+
+    def get_note(nid: str):
+        n = rw.notes.get(nid, include_deleted=False)
+        return n.to_dict() if n is not None else None
+    return get_note
+
+
+@_publish_guard
+async def publish_plan(request):
+    """Build the publication input + the manifest of everything that would leave the machine (nothing is sent)."""
+    from ...research import publish
+    ctx = _ctx(request)
+    p = _project(request)
+    data = await body(request)
+    opts = {k: data[k] for k in ("dossiers", "notes", "source_files", "lang", "license", "authors", "title")
+            if k in data}
+    for k in ("dossiers", "notes"):
+        if k in opts and not (isinstance(opts[k], list) and all(isinstance(x, str) for x in opts[k])):
+            return error(400, "bad_fields", "Champs refusés : {fields}.", fields=k)
+    if "source_files" in opts and not (isinstance(opts["source_files"], list) and
+                                       all(isinstance(x, dict) for x in opts["source_files"])):
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="source_files")
+    opts["_notes"] = _note_getter(request)
+    if data.get("include_pdf"):
+        art = await asyncio.to_thread(art_mod.load, ctx, p.id)
+        name, ctype, pdf, fb = await art_mod.export(ctx, p.id, art, "pdf", ctx.paths.exports)
+        if ctype == "application/pdf":
+            opts["_pdf"] = pdf
+    manifest = await asyncio.to_thread(publish.plan, ctx, p.id, opts)
+    ctx.publish("publish.updated", {"project": p.id, "manifest": manifest})
+    return ok({"manifest": manifest})
+
+
+@_publish_guard
+async def publish_get(request):
+    from ...research import publish
+    ctx = _ctx(request)
+    p = _project(request)
+    base = publish.pub_dir(ctx, p.id)
+    try:
+        manifest = json.loads((base / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        manifest = None
+    return ok({"manifest": manifest, "state": publish.state(ctx, p.id),
+               "preview": (base / "preview" / "index.html").exists(),
+               "running": f"pub:{p.id}" in request.app[PUBLISH_TASKS]})
+
+
+@_publish_guard
+async def publish_preview_build(request):
+    """{manifest_id} → render the site locally (site/build.py publication)."""
+    from ...research import publish
+    ctx = _ctx(request)
+    p = _project(request)
+    data = await body(request)
+    publish.confirmed(ctx, p.id, str(data.get("manifest_id", "")))
+    res = await asyncio.to_thread(publish.render, ctx, p.id)
+    url = f"/api/research/publish/{p.id}/preview/index.html"
+    ctx.publish("publish.updated", {"project": p.id, "preview": url})
+    return ok({"pages": res["pages"], "url": url})
+
+
+PREVIEW_TYPES = {".html": "text/html", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json",
+                 ".woff2": "font/woff2", ".pdf": "application/pdf", ".zip": "application/zip", ".png": "image/png",
+                 ".lean": "text/plain", ".txt": "text/plain", ".md": "text/plain"}
+
+
+@_publish_guard
+async def publish_preview_file(request):
+    from ...research import publish
+    from ...research.safety import safe_join
+    ctx = _ctx(request)
+    p = _project(request)
+    root = publish.pub_dir(ctx, p.id) / "preview"
+    rel = request.match_info.get("path") or "index.html"
+    try:
+        path = safe_join(root, rel)
+    except ValueError:
+        return error(400, "bad_path")
+    if path.is_dir():
+        path = path / "index.html"
+    if not path.is_file() or path.is_symlink():
+        return error(404, "not_found")
+    data = await asyncio.to_thread(path.read_bytes)
+    ctype = PREVIEW_TYPES.get(path.suffix.lower(), "application/octet-stream")
+    return web.Response(body=data, content_type=ctype, charset="utf-8" if ctype.startswith("text") else None,
+                        headers={"Content-Security-Policy": "default-src 'self'; script-src 'none'; style-src 'self'; "
+                                 "img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; "
+                                 "frame-ancestors 'self'; sandbox allow-same-origin allow-popups "
+                                 "allow-popups-to-escape-sandbox",
+                                 "Cache-Control": "no-store"})
+
+
+@host_only
+@_publish_guard
+async def publish_push(request):
+    """{manifest_id, repo: "owner/name", create?, private?, branch?:"main"} → 202 {request_id} (host only)."""
+    from ...research import publish
+    ctx = _ctx(request)
+    p = _project(request)
+    data = await body(request)
+    publish.confirmed(ctx, p.id, str(data.get("manifest_id", "")))
+    if effective_mode(ctx, p) == "local":
+        return error(409, "local_mode", MESSAGES["local_mode"])
+    key = f"pub:{p.id}"
+    tasks = request.app[PUBLISH_TASKS]
+    if key in tasks:
+        return error(409, "busy", MESSAGES["busy"])
+    repo = str(data.get("repo", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,39}/[A-Za-z0-9_.-]{1,100}", repo):
+        return error(400, "bad_repo")
+    rid = "g-" + uuid.uuid4().hex[:10]
+
+    def progress(step, **kw):
+        ctx.publish("publish.progress", {"project": p.id, "request_id": rid, "step": step, **kw})
+
+    async def run():
+        try:
+            st = await publish.push(ctx, p.id, repo, create=bool(data.get("create")),
+                                    private=bool(data.get("private")), branch=str(data.get("branch") or "main"),
+                                    progress=progress)
+            ctx.publish("publish.done", {"project": p.id, "request_id": rid, "state": st})
+        except asyncio.CancelledError:
+            ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": "cancelled"})
+        except publish.PublishError as e:
+            ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": e.kind,
+                                          **({"message": msg(PUBLISH_MESSAGES[e.kind])} if e.kind in PUBLISH_MESSAGES
+                                             else {}),
+                                          **{k: v for k, v in e.info.items() if isinstance(v, (str, int))}})
+        except Exception as e:  # noqa: BLE001
+            log.exception("publish failed")
+            ctx.publish("publish.error", {"project": p.id, "request_id": rid, "error": "internal",
+                                          "text": str(e)[:300]})
+    t = ctx.spawn(run())
+    tasks[key] = t
+    t.add_done_callback(lambda _t: tasks.pop(key, None))
+    return ok({"request_id": rid}, status=202)
+
+
 # ================================================================ registration
 def register(app: web.Application, ctx) -> None:
     app[TASKS] = {}
@@ -1069,6 +1251,13 @@ def register(app: web.Application, ctx) -> None:
     r.add_post(proj + "/article/blocks/{bid}/generate", block_generate)
     r.add_post(proj + "/article/blocks/{bid}/versions/{index}/restore", block_version_restore)
     r.add_get(proj + "/article/export", article_export)
+    app[PUBLISH_TASKS] = {}
+    pub = base + "/publish/{pid}"
+    r.add_get(pub, publish_get)
+    r.add_post(pub + "/plan", publish_plan)
+    r.add_post(pub + "/preview", publish_preview_build)
+    r.add_get(pub + "/preview/{path:.*}", publish_preview_file)
+    r.add_post(pub + "/push", publish_push)
 
     async def cleanup(_app):
         lib = getattr(ctx, "_research_library", None)

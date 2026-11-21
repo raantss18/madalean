@@ -255,6 +255,10 @@ def apply_patch(src: dict, data: dict, taken_keys: set[str]) -> list[str]:
                 if v not in STATUSES:
                     raise SourceError("bad")
                 new["status"] = v
+            elif k == "license":                  # e.g. "CC-BY-4.0": decides whether files may be published
+                if not isinstance(v, str):
+                    raise SourceError("bad")
+                new["license"] = v.strip()[:200]
             elif k == "notes":
                 if not isinstance(v, str):
                     raise SourceError("bad")

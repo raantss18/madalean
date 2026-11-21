@@ -296,4 +296,6 @@ async def test_generated_tex_runs_with_paranoid_file_access():
     from madalean import export
     env = export.tex_env()
     assert env["openin_any"] == "p" and env["openout_any"] == "p" and env["shell_escape"] == "f"
-    assert all("-no-shell-escape" in " ".join(cmd) for cmd in export._engines())
+    # XeLaTeX via latexmk: -no-shell-escape; the prefix's tectonic (§18): --untrusted (no shell escape either)
+    assert all("-no-shell-escape" in cmd or "-latexoption=-no-shell-escape" in cmd or "--untrusted" in cmd
+               for cmd in export._engines())
