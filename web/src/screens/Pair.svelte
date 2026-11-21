@@ -14,6 +14,17 @@
   let err = $state('');
   let codeEl: HTMLInputElement | undefined = $state();
   const reason = $derived(route.query.get('reason') ?? '');
+  // QR code of the host = https://<host>/pair?code=XXXXXX: prefill, and on Android offer the app (intent:// link,
+  // camera apps ignore custom schemes). Inside the app itself (window.madaleanShell) the shell takes over.
+  const qrCode = (route.query.get('code') ?? '').replace(/\D/g, '').slice(0, 6);
+  if (qrCode.length === 6) code = qrCode;
+  const isAndroid = typeof navigator !== 'undefined' && /Android/.test(navigator.userAgent)
+    && !(typeof window !== 'undefined' && (window as unknown as { madaleanShell?: unknown }).madaleanShell);
+  const appLink = $derived(isAndroid
+    ? `intent://pair?host=${encodeURIComponent(location.host)}&code=${qrCode.length === 6 ? qrCode : ''}`
+      + `#Intent;scheme=madalean;package=mg.madalean.app;`
+      + `S.browser_fallback_url=${encodeURIComponent('https://raantss18.github.io/madalean/download.html')};end`
+    : '');
 
   function defaultName(): string {
     if (typeof navigator === 'undefined') return '';
@@ -69,6 +80,11 @@
     {:else}
       {#if reason === 'auth'}<p class="notice" role="status">{t('pair.reasonAuth')}</p>{/if}
       <p>{t('pair.lead', { host: hello?.host_name ?? '…' })}</p>
+      {#if appLink}
+        <a class="btn primary wide app" href={appLink}>{t('pair.openApp')}</a>
+        <p class="small muted">{t('pair.openAppHint')}</p>
+        <p class="small">{t('pair.orBrowser')}</p>
+      {/if}
       <p class="notice small" role="note"><strong>{t('pair.everyTime')}</strong> {t('pair.everyTimeHint', { h: 2 })}</p>
       <ol class="steps small">
         <li>{t('pair.step1')}</li>
@@ -105,5 +121,6 @@
   .steps { padding-left: 1.2em; color: var(--text-2); }
   .notice { background: var(--running-soft); color: var(--running); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); font-weight: 600; }
   .wide { width: 100%; min-height: 48px; }
+  .app { display: flex; align-items: center; justify-content: center; font-size: 1.1rem; margin: var(--s-3) 0 var(--s-1); text-decoration: none; }
   .lang { justify-content: center; margin-top: var(--s-4); }
 </style>

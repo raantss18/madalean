@@ -28,11 +28,11 @@ class S {
   String get cancel => _t('Annuler', 'Cancel');
   String get newServer => _t('Nouveau serveur', 'New server');
   String get addressLabel => _t('Adresse du serveur', 'Server address');
-  String get addressHint => 'nom-du-pc.tailnet.ts.net';
+  String get addressHint => 'madalean.tailnet.ts.net';
   String get addressHelp => _t(
-    'Nom Tailscale complet (port 10500 par défaut), '
+    'Adresse Tailscale complète (ex. madalean.votre-tailnet.ts.net), '
         'ou collez un lien madalean://pair',
-    'Full Tailscale name (port 10500 by default), '
+    'Full Tailscale address (e.g. madalean.your-tailnet.ts.net), '
         'or paste a madalean://pair link',
   );
   String get pasteLink => _t('Coller un lien', 'Paste link');
@@ -50,10 +50,11 @@ class S {
   String get pair => _t('Appairer et ouvrir', 'Pair and open');
   String get connecting => _t('Connexion…', 'Connecting…');
   String get scanHint => _t(
-    'Astuce : scannez le QR code de l’hôte avec l’appareil photo, '
-        'il ouvre cette appli directement.',
-    'Tip: scan the host’s QR code with the camera app, '
-        'it opens this app directly.',
+    'Astuce : scannez le QR code de l’hôte avec l’appareil photo, puis '
+        'touchez « Ouvrir dans l’application Madalean » : adresse et code '
+        'sont remplis ici.',
+    'Tip: scan the host’s QR code with the camera, then tap “Open in the '
+        'Madalean app”: address and code are filled in here.',
   );
   String get languageSwitch => _t('English', 'Français');
 

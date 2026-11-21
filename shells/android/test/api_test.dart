@@ -81,7 +81,11 @@ void main() {
     expect(r.deviceId, 'd1');
     expect(seen.method, 'POST');
     expect(seen.url.path, '/api/pair');
-    expect(jsonDecode(seen.body), {'code': '123456', 'device_name': 'Pixel', 'client': 'app-android'});
+    expect(jsonDecode(seen.body), {
+      'code': '123456',
+      'device_name': 'Pixel',
+      'client': 'app-android',
+    });
     expect(seen.headers['Authorization'], isNull);
 
     status = 401;
@@ -103,9 +107,7 @@ void main() {
     status = 430;
     await expectLater(
       api.pair(origin, code: '000000', deviceName: 'x'),
-      throwsA(
-        isA<ApiException>().having((e) => e.retryAfter, 'retry', 60),
-      ),
+      throwsA(isA<ApiException>().having((e) => e.retryAfter, 'retry', 60)),
     );
     status = 429;
     await expectLater(

@@ -6,7 +6,10 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 /// Default HTTPS port of the remote listener published by `tailscale serve`.
-pub const DEFAULT_REMOTE_PORT: u16 = 10500;
+/// Madalean's embedded Tailscale node (tsnet) serves HTTPS on the standard port: https://madalean.<tailnet>.ts.net
+pub const DEFAULT_REMOTE_PORT: u16 = 443;
+/// Port of the former `tailscale serve --https=10500` design: saved `*.ts.net:10500` servers are migrated to 443.
+pub const LEGACY_REMOTE_PORT: u16 = 10500;
 /// Trusted local listener of the server on the host itself.
 pub const DEFAULT_LOCAL_URL: &str = "http://127.0.0.1:11500";
 /// Hosts reached over plain HTTP (the host machine itself). Everything else must be HTTPS.
@@ -78,17 +81,28 @@ pub fn normalise_address(input: &str) -> Result<Url, AddrError> {
             if !host.contains('.') && !host.contains(':') {
                 return Err(AddrError::NeedFullName);
             }
-            let port = u.port().unwrap_or(DEFAULT_REMOTE_PORT);
+            let port = u.port_or_known_default().unwrap_or(DEFAULT_REMOTE_PORT);
             Url::parse(&format!("https://{host}:{port}/")).map_err(|_| AddrError::Invalid)
         }
         _ => Err(AddrError::Invalid),
     }
 }
 
-/// Canonical text form of an origin: `https://host:10500` (always with the port).
+/// Canonical text form of an origin: `https://host` for the default 443, `scheme://host:port` otherwise.
 pub fn origin_key(origin: &Url) -> String {
     let port = origin.port_or_known_default().unwrap_or(0);
-    format!("{}://{}:{}", origin.scheme(), host_str(origin), port)
+    if origin.scheme() == "https" && port == 443 {
+        format!("https://{}", host_str(origin))
+    } else {
+        format!("{}://{}:{}", origin.scheme(), host_str(origin), port)
+    }
+}
+
+/// Saved origin of the former design (`https://<x>.ts.net:10500`) → its new canonical form (`https://<x>.ts.net`).
+pub fn migrate_legacy_origin(origin: &str) -> Option<String> {
+    let u = Url::parse(origin).ok()?;
+    let host = host_str(&u);
+    (u.scheme() == "https" && u.port() == Some(LEGACY_REMOTE_PORT) && host.ends_with(".ts.net")).then(|| format!("https://{host}"))
 }
 
 /// Display form: drops the default remote port.
@@ -128,29 +142,44 @@ pub struct PairLink {
     pub code: Option<String>,
 }
 
-/// Parse a `madalean://pair?host=…&code=…` link, also when embedded in pasted text.
+/// Parse a pairing link, also when embedded in pasted text: `madalean://pair?host=…&code=…`, or the https form shown
+/// by the host as a QR code, `https://<host>/pair?code=…` (the host is then the link's own host[:port]).
 pub fn parse_pair_link(text: &str) -> Option<PairLink> {
     let lower = text.to_lowercase();
-    let start = lower.find("madalean://pair")?;
+    if let Some(start) = lower.find("madalean://pair") {
+        let rest = &text[start..];
+        let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+        let u = Url::parse(&rest[..end]).ok()?;
+        if u.host_str().map(str::to_lowercase).as_deref() != Some("pair") {
+            return None;
+        }
+        let mut host = String::new();
+        let mut code = None;
+        for (k, v) in u.query_pairs() {
+            match k.as_ref() {
+                "host" => host = v.trim().to_string(),
+                "code" if is_valid_code(v.trim()) => code = Some(v.trim().to_string()),
+                _ => {}
+            }
+        }
+        if host.is_empty() || host.contains('/') || host.contains('@') || host.chars().any(char::is_whitespace) {
+            return None;
+        }
+        return Some(PairLink { host, code });
+    }
+    let start = lower.find("https://")?;
     let rest = &text[start..];
     let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
     let u = Url::parse(&rest[..end]).ok()?;
-    if u.host_str().map(str::to_lowercase).as_deref() != Some("pair") {
+    if u.path() != "/pair" || !u.username().is_empty() {
         return None;
     }
-    let mut host = String::new();
-    let mut code = None;
-    for (k, v) in u.query_pairs() {
-        match k.as_ref() {
-            "host" => host = v.trim().to_string(),
-            "code" if is_valid_code(v.trim()) => code = Some(v.trim().to_string()),
-            _ => {}
-        }
-    }
-    if host.is_empty() || host.contains('/') || host.contains('@') || host.chars().any(char::is_whitespace) {
-        return None;
-    }
-    Some(PairLink { host, code })
+    let code = u.query_pairs().find(|(k, _)| k == "code").map(|(_, v)| v.trim().to_string()).filter(|c| is_valid_code(c))?;
+    let host = match u.port() {
+        Some(p) => format!("{}:{p}", host_str(&u)),
+        None => host_str(&u),
+    };
+    Some(PairLink { host, code: Some(code) })
 }
 
 /// Origin of a pair-link host: https (port 10500 by default) except loopback hosts (http).
@@ -337,15 +366,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn address_defaults_to_https_10500() {
-        let u = normalise_address("antsa-nitroanv1541.tail804764.ts.net").unwrap();
-        assert_eq!(origin_key(&u), "https://antsa-nitroanv1541.tail804764.ts.net:10500");
-        assert_eq!(display_address(&u), "antsa-nitroanv1541.tail804764.ts.net");
+    fn address_defaults_to_https_443() {
+        let u = normalise_address("madalean.tail804764.ts.net").unwrap();
+        assert_eq!(origin_key(&u), "https://madalean.tail804764.ts.net");
+        assert_eq!(display_address(&u), "madalean.tail804764.ts.net");
+        assert_eq!(u.as_str(), "https://madalean.tail804764.ts.net/");
+        let u = normalise_address("https://madalean.tail804764.ts.net:443/pair?code=123456").unwrap();
+        assert_eq!(origin_key(&u), "https://madalean.tail804764.ts.net");
         let u = normalise_address("  HTTPS://Pc.Tail.ts.net:8443/some/path?x=1 ").unwrap();
         assert_eq!(origin_key(&u), "https://pc.tail.ts.net:8443");
         assert_eq!(display_address(&u), "pc.tail.ts.net:8443");
+        // explicit ports are kept
         let u = normalise_address("pc.tail.ts.net:10500").unwrap();
         assert_eq!(origin_key(&u), "https://pc.tail.ts.net:10500");
+        assert_eq!(display_address(&u), "pc.tail.ts.net:10500");
     }
 
     #[test]
@@ -373,9 +407,11 @@ mod tests {
         let l = parse_pair_link("madalean://pair?host=pc.tail.ts.net:10500&code=123456").unwrap();
         assert_eq!(l, PairLink { host: "pc.tail.ts.net:10500".into(), code: Some("123456".into()) });
         assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "https://pc.tail.ts.net:10500");
+        let l = parse_pair_link("madalean://pair?host=madalean.tail.ts.net&code=123456").unwrap();
+        assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "https://madalean.tail.ts.net");
         let l = parse_pair_link("Scan: MADALEAN://pair?host=pc.tail.ts.net&code=12a456 thanks").unwrap();
         assert_eq!(l.code, None);
-        assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "https://pc.tail.ts.net:10500");
+        assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "https://pc.tail.ts.net");
         let l = parse_pair_link("madalean://pair?host=127.0.0.1:11601&code=000001").unwrap();
         assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "http://127.0.0.1:11601");
         assert!(parse_pair_link("madalean://pair?code=123456").is_none());
@@ -383,6 +419,20 @@ mod tests {
         assert!(parse_pair_link("madalean://pair?host=a@b.c").is_none());
         assert!(parse_pair_link("madalean://other?host=pc.tail.ts.net").is_none());
         assert!(parse_pair_link("https://pc.tail.ts.net").is_none());
+        // https form of the host's QR code
+        let l = parse_pair_link("https://madalean.tail804764.ts.net/pair?code=654321").unwrap();
+        assert_eq!(l, PairLink { host: "madalean.tail804764.ts.net".into(), code: Some("654321".into()) });
+        assert_eq!(origin_key(&pair_link_origin(&l).unwrap()), "https://madalean.tail804764.ts.net");
+        assert!(parse_pair_link("https://madalean.tail.ts.net/pair?code=12").is_none());
+        assert!(parse_pair_link("https://madalean.tail.ts.net/other?code=123456").is_none());
+    }
+
+    #[test]
+    fn legacy_10500_migration() {
+        assert_eq!(migrate_legacy_origin("https://antsa-pc.tail804764.ts.net:10500").as_deref(), Some("https://antsa-pc.tail804764.ts.net"));
+        assert_eq!(migrate_legacy_origin("https://pc.example.org:10500"), None);
+        assert_eq!(migrate_legacy_origin("https://pc.tail.ts.net"), None);
+        assert_eq!(migrate_legacy_origin("http://127.0.0.1:10500"), None);
     }
 
     #[test]
@@ -421,12 +471,13 @@ mod tests {
     #[test]
     fn origins_and_session_url() {
         let o = normalise_address("pc.tail.ts.net").unwrap();
-        assert!(is_pair_page(&Url::parse("https://pc.tail.ts.net:10500/pair?reason=auth").unwrap(), &o));
-        assert!(!is_pair_page(&Url::parse("https://pc.tail.ts.net:10500/pairing").unwrap(), &o));
-        assert!(!is_pair_page(&Url::parse("https://other.ts.net:10500/pair").unwrap(), &o));
-        assert!(!same_origin(&Url::parse("https://pc.tail.ts.net/").unwrap(), &o));
+        assert!(is_pair_page(&Url::parse("https://pc.tail.ts.net/pair?reason=auth").unwrap(), &o));
+        assert!(is_pair_page(&Url::parse("https://pc.tail.ts.net:443/pair").unwrap(), &o));
+        assert!(!is_pair_page(&Url::parse("https://pc.tail.ts.net/pairing").unwrap(), &o));
+        assert!(!is_pair_page(&Url::parse("https://other.ts.net/pair").unwrap(), &o));
+        assert!(!same_origin(&Url::parse("https://pc.tail.ts.net:10500/").unwrap(), &o));
         let s = session_url(&o, "t+k/=", "/");
-        assert_eq!(s.as_str(), "https://pc.tail.ts.net:10500/api/session?ticket=t%2Bk%2F%3D&next=%2F");
+        assert_eq!(s.as_str(), "https://pc.tail.ts.net/api/session?ticket=t%2Bk%2F%3D&next=%2F");
     }
 
     #[test]

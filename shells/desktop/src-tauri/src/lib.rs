@@ -85,6 +85,32 @@ fn now_ms() -> u128 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
 }
 
+/// Saved `https://<x>.ts.net:10500` servers (former `tailscale serve` design) → `https://<x>.ts.net` (tsnet, 443),
+/// token moved along with them.
+fn migrate_legacy_servers(shell: &Shell) {
+    let mut changed = false;
+    {
+        let mut st = shell.settings.lock().unwrap();
+        for s in st.servers.iter_mut() {
+            if let Some(new) = migrate_legacy_origin(&s.origin) {
+                if let Ok(Some(t)) = shell.tokens.get(&s.origin) {
+                    if shell.tokens.set(&new, &t).is_ok() {
+                        let _ = shell.tokens.delete(&s.origin);
+                    }
+                }
+                shell.log("migrated_origin", serde_json::json!({ "from": s.origin, "to": new }));
+                s.origin = new;
+                changed = true;
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        st.servers.retain(|s| seen.insert(s.origin.clone()));
+    }
+    if changed {
+        shell.save_settings();
+    }
+}
+
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
 }
@@ -764,6 +790,7 @@ pub fn run() {
                 "version": env!("CARGO_PKG_VERSION"),
                 "update_key": update::embedded_pubkey().is_some(),
             }));
+            migrate_legacy_servers(&shell);
             app.manage(shell.clone());
 
             let h_nav = app.handle().clone();

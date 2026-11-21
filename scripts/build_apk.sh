@@ -5,13 +5,13 @@
 #   scripts/build_apk.sh             build release APKs (universal + one per ABI), verify the signature
 #   scripts/build_apk.sh --debug     build the debug APK (cleartext allowed to 10.0.2.2 for the mock server)
 #
-# Update channel public key: derived at build time from the Ed25519 release key
-# (~/.config/madalean/release-keys/ed25519.pem, or $MADALEAN_RELEASE_KEY; override with
-# MADALEAN_UPDATE_PUBKEY=<base64 32 bytes>) and embedded with --dart-define. A release build refuses to run
+# Update channel public key: read at build time from PUBLIC_KEY in madalean/update_checkers/selfupdate.py (override
+# with MADALEAN_UPDATE_PUBKEY=<base64 32 bytes>) and embedded with --dart-define; the (encrypted) private key is
+# never read. A release build refuses to run
 # without it. Only the PUBLIC key enters the APK. Debug builds may also set MADALEAN_UPDATE_CHANNEL=<url of a
 # test channel> (ignored by release builds) and BUILD_NAME / BUILD_NUMBER (version) for update tests.
 #
-# Signing material: ~/.config/madalean/release-keys/ (override with MADALEAN_KEYSTORE_PROPERTIES).
+# Signing material: <repo>/release-keys/ (git-ignored; override with MADALEAN_KEY_DIR / MADALEAN_KEYSTORE_PROPERTIES).
 # BACK IT UP: without this keystore no update of the installed app can ever be published.
 set -euo pipefail
 
@@ -64,15 +64,18 @@ PROPS
 }
 
 update_pubkey() {
+  # Source of truth: PUBLIC_KEY of madalean/update_checkers/selfupdate.py (the private key file may be encrypted:
+  # it is never read here, no passphrase is ever asked).
   if [ -n "${MADALEAN_UPDATE_PUBKEY:-}" ]; then echo "$MADALEAN_UPDATE_PUBKEY"; return; fi
-  [ -f "$RELEASE_ED25519" ] || return 0
-  openssl pkey -in "$RELEASE_ED25519" -pubout -outform DER 2>/dev/null | tail -c 32 | base64 -w0
+  python3 -c 'import re,sys,base64
+m = re.search(r"PUBLIC_KEY\s*=\s*bytes\.fromhex\(\"([0-9a-fA-F]{64})\"\)", open(sys.argv[1]).read())
+print(base64.b64encode(bytes.fromhex(m.group(1))).decode() if m else "")' "$ROOT/madalean/update_checkers/selfupdate.py"
 }
 
 define_args() { # $1 = release|debug
   local pk; pk="$(update_pubkey)"
   if [ -z "$pk" ] || [ "$(printf '%s' "$pk" | base64 -d 2>/dev/null | wc -c)" != 32 ]; then
-    [ "$1" = release ] && die "no Ed25519 update public key (expected $RELEASE_ED25519 or MADALEAN_UPDATE_PUBKEY)"
+    [ "$1" = release ] && die "no Ed25519 update public key (PUBLIC_KEY in selfupdate.py or MADALEAN_UPDATE_PUBKEY)"
     echo "warning: no update public key, updates disabled in this build" >&2
     return 0
   fi
@@ -105,7 +108,7 @@ build_release() {
   cd "$APP"
   "$FLUTTER" pub get >/dev/null
   local defs; mapfile -t defs < <(define_args release)
-  [[ "${defs[0]:-}" == --dart-define=MADALEAN_UPDATE_PUBKEY=* ]] || die "no Ed25519 update public key (expected $RELEASE_ED25519)"
+  [[ "${defs[0]:-}" == --dart-define=MADALEAN_UPDATE_PUBKEY=* ]] || die "no Ed25519 update public key (PUBLIC_KEY in selfupdate.py or MADALEAN_UPDATE_PUBKEY)"
   echo "update public key: ${defs[0]#--dart-define=MADALEAN_UPDATE_PUBKEY=}"
   rm -rf "$DIST"; mkdir -p "$DIST"
   "$FLUTTER" build apk --release --split-per-abi "${defs[@]}"

@@ -139,7 +139,11 @@ class MadaleanApi {
       () => _client.post(
         origin.replace(path: '/api/pair'),
         headers: _headers(null, json: true),
-        body: jsonEncode({'code': code, 'device_name': deviceName, 'client': 'app-android'}),
+        body: jsonEncode({
+          'code': code,
+          'device_name': deviceName,
+          'client': 'app-android',
+        }),
       ),
     );
     final j = _json(r);

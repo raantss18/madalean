@@ -73,6 +73,28 @@ void main() {
     now = DateTime(2026, 11, 21, 12);
   });
 
+  test(
+    'saved *.ts.net:10500 servers migrate to 443 with their token',
+    () async {
+      final old = Uri.parse('https://pc.tail.ts.net:10500');
+      prefs.values['servers'] =
+          '[{"origin":"https://pc.tail.ts.net:10500","host_name":"pc",'
+          '"device_name":"Tab","last_used":1}]';
+      final tok = server.tokens.isEmpty ? 'tok-legacy' : server.tokens.first;
+      server.tokens.add(tok);
+      await tokens.write(old, tok);
+      final c = make();
+      await c.init();
+      expect(
+        c.servers.servers.single.origin,
+        Uri.parse('https://pc.tail.ts.net'),
+      );
+      expect(tokens.values.keys, ['token:https://pc.tail.ts.net']);
+      expect(prefs.values['servers'], contains('"https://pc.tail.ts.net"'));
+      expect(c.state, isA<WebState>());
+    },
+  );
+
   test('first start shows the connect screen', () async {
     final c = make();
     await c.init();
@@ -90,7 +112,7 @@ void main() {
     expect(st.url.queryParameters['next'], '/');
     expect(st.server.deviceName, 'Pixel 9');
     expect(st.server.hostName, 'host-pc');
-    expect(tokens.values.keys, ['token:https://pc.tail.ts.net:10500']);
+    expect(tokens.values.keys, ['token:https://pc.tail.ts.net']);
     // The server list (shared_preferences) holds no secret.
     expect(prefs.values['servers'], isNot(contains('token-')));
     expect(prefs.values['servers'], contains('pc.tail.ts.net'));
@@ -180,10 +202,7 @@ void main() {
     await c.reauth();
     expect(c.state, isA<ConnectState>());
     expect(msg(c.state), isNotEmpty);
-    expect(
-      await tokens.read(Uri.parse('https://pc.tail.ts.net:10500')),
-      isNotNull,
-    );
+    expect(await tokens.read(Uri.parse('https://pc.tail.ts.net')), isNotNull);
   });
 
   test('web load failure → unreachable', () async {
@@ -242,7 +261,7 @@ void main() {
     ]);
     await c.forgetServer(c.servers.servers.first);
     expect(c.servers.servers.map((s) => s.origin.host), ['a.tail.ts.net']);
-    expect(tokens.values.keys, ['token:https://a.tail.ts.net:10500']);
+    expect(tokens.values.keys, ['token:https://a.tail.ts.net']);
   });
 
   test('release mode refuses an http pair link', () async {

@@ -2,6 +2,21 @@
 
 Owner: session S-C. Sources in `shells/`, build/setup scripts in `scripts/`.
 
+## Addresses and pairing links (current design, 2026-11-21)
+
+- Madalean runs its own embedded Tailscale node (tsnet, session S-I): the remote address is
+  **`https://madalean.<tailnet>.ts.net`** on the standard port **443**. Both shells default to 443 and store origins
+  without the port (`https://madalean.x.ts.net`); explicit ports (`host:8443`) are still accepted. Saved servers of
+  the former design (`https://<x>.ts.net:10500`, `tailscale serve`) are migrated automatically to 443 at start-up,
+  token included. `scripts/tailscale_setup.sh` (port 10500) is only for the old design / setups without tsnet.
+- **QR code** (Réglages › Appareils on the host): `https://<remote host>/pair?code=XXXXXX`, with the plain address and
+  code printed under it. Camera apps open https links (they often ignore custom schemes). That URL is the web
+  pairing page (public on the remote listener): it pre-fills the code; on Android (outside the app) it shows a big
+  « Ouvrir dans l'application Madalean » button =
+  `intent://pair?host=<host>&code=<code>#Intent;scheme=madalean;package=mg.madalean.app;S.browser_fallback_url=<site download page>;end`,
+  which opens the app with address and code filled (the app's `madalean://pair` filter); otherwise the browser
+  pairs itself. Both shells also accept the https link pasted in the address field. Desktop: `madalean://` as before.
+
 ## Required server endpoints (contract for S-A, and for S-D where noted)
 
 The shells never put the long-lived device token in a URL. They talk to the server natively (Rust / Dart HTTP
@@ -61,11 +76,12 @@ shells accept both the shapes below and the server's: `403 wrong|expired|no_code
 8. **Optional `POST /api/devices/self/forget`** (Bearer) → `204`: revokes the calling device ("Forget this server"
    in the shells). The current `POST /api/logout` does the same and would also do: the shells try
    `/api/devices/self/forget` and otherwise just delete their token locally.
-9. **Pair link** shown by the host UI (text + QR code): `madalean://pair?host=<host>[:<port>]&code=<6 digits>`,
-   e.g. `madalean://pair?host=antsa-nitroanv1541.tail804764.ts.net:10500&code=123456`. Scheme is always `https`
-   (port 10500 when omitted), except loopback hosts (`127.0.0.1`, `localhost`) which use `http`. Scanning the QR
-   with the phone's camera app opens the Android app directly (deep link), so the app needs no camera permission;
-   on desktop the link opens the AppImage when the launcher is installed (`scripts/install_desktop_entry.sh`).
+9. **Pair link**: the QR code is `https://<remote host>/pair?code=<6 digits>` (see "Addresses and pairing links");
+   the app link is `madalean://pair?host=<host>[:<port>]&code=<6 digits>`, e.g.
+   `madalean://pair?host=madalean.tail804764.ts.net&code=123456`. Scheme is always `https` (port 443 when
+   omitted), except loopback hosts (`127.0.0.1`, `localhost`) which use `http`. The camera opens the https
+   page, whose button hands over to the app (no camera permission in the app); on desktop `madalean://` links open
+   the AppImage when the launcher is installed (`scripts/install_desktop_entry.sh`).
 
 `shells/dev/mock_server.py` implements exactly this contract (plus test helpers: `/mock/events`,
 `/mock/revoke_all`, `/mock/new_code` on its local listener) and is the reference for S-A.

@@ -31,7 +31,8 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- madalean://pair?host=…&code=… (QR code shown by the host) -->
+            <!-- madalean://pair?host=…&code=…: opened by the « Ouvrir dans l’application Madalean » button of the https pairing page
+                 (intent://pair…#Intent;scheme=madalean;package=mg.madalean.app;end) and by pasted links. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

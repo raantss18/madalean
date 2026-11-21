@@ -9,8 +9,8 @@ const T = {
     title: 'Connectez-vous à votre Madalean',
     intro: 'L’ordinateur hôte fait tout le travail ; cette fenêtre affiche son interface.',
     retry: 'Réessayer', saved: 'Serveurs enregistrés', newServer: 'Nouveau serveur',
-    address: 'Adresse du serveur', placeholder: 'nom-du-pc.votre-tailnet.ts.net',
-    addressHelp: 'Nom Tailscale complet (port 10500 par défaut), ou collez ici un lien madalean://pair.',
+    address: 'Adresse du serveur', placeholder: 'madalean.votre-tailnet.ts.net',
+    addressHelp: 'Adresse Tailscale complète, par ex. madalean.votre-tailnet.ts.net, ou collez ici le lien d’appairage (https://…/pair?code=… ou madalean://pair…).',
     code: 'Code d’appairage', device: 'Nom de cet appareil',
     codeHelp: 'Les 6 chiffres affichés sur l’ordinateur hôte (Réglages → Appareils), valables 5 minutes.',
     pairBtn: 'Appairer et ouvrir', openBtn: 'Ouvrir', forgetBtn: 'Oublier', other: 'English',
@@ -47,7 +47,7 @@ const T = {
     err: {
       address: { empty: 'Indiquez l’adresse du serveur.', invalid: 'Adresse invalide.',
         cleartext_forbidden: 'Seules les adresses https:// sont acceptées (http seulement vers cet ordinateur).',
-        need_full_name: 'Utilisez le nom complet, par ex. mon-pc.mon-tailnet.ts.net (le certificat HTTPS est émis pour ce nom).' },
+        need_full_name: 'Utilisez le nom complet, par ex. madalean.mon-tailnet.ts.net (le certificat HTTPS est émis pour ce nom).' },
       unreachable: 'Serveur injoignable. L’ordinateur hôte est-il allumé, Madalean lancé et Tailscale connecté sur les deux appareils ?',
       tls: 'Connexion sécurisée impossible (certificat). Utilisez le nom complet *.ts.net et vérifiez que HTTPS est activé dans Tailscale.',
       not_madalean: 'Cette adresse ne répond pas comme un serveur Madalean.',
@@ -63,8 +63,8 @@ const T = {
     title: 'Connect to your Madalean',
     intro: 'The host computer does all the work; this window shows its interface.',
     retry: 'Retry', saved: 'Saved servers', newServer: 'New server',
-    address: 'Server address', placeholder: 'your-pc.your-tailnet.ts.net',
-    addressHelp: 'Full Tailscale name (port 10500 by default), or paste a madalean://pair link here.',
+    address: 'Server address', placeholder: 'madalean.your-tailnet.ts.net',
+    addressHelp: 'Full Tailscale address, e.g. madalean.your-tailnet.ts.net, or paste the pairing link here (https://…/pair?code=… or madalean://pair…).',
     code: 'Pairing code', device: 'Name of this device',
     codeHelp: 'The 6 digits shown on the host computer (Settings → Devices), valid for 5 minutes.',
     pairBtn: 'Pair and open', openBtn: 'Open', forgetBtn: 'Forget', other: 'Français',
@@ -101,7 +101,7 @@ const T = {
     err: {
       address: { empty: 'Enter the server address.', invalid: 'Invalid address.',
         cleartext_forbidden: 'Only https:// addresses are accepted (http only to this computer).',
-        need_full_name: 'Use the full name, e.g. my-pc.my-tailnet.ts.net (the HTTPS certificate is issued for that name).' },
+        need_full_name: 'Use the full name, e.g. madalean.my-tailnet.ts.net (the HTTPS certificate is issued for that name).' },
       unreachable: 'Server unreachable. Is the host computer on, Madalean running and Tailscale connected on both devices?',
       tls: 'Secure connection failed (certificate). Use the full *.ts.net name and check that HTTPS is enabled in Tailscale.',
       not_madalean: 'This address does not answer like a Madalean server.',
@@ -239,7 +239,7 @@ async function onSubmit(ev) {
   setFormError('');
   const address = $('address').value.trim();
   const code = $('code').value.replace(/\s+/g, '');
-  if (/madalean:\/\/pair/i.test(address)) { await fillFromLink(address); return onSubmit(ev); }
+  if (/madalean:\/\/pair|\/pair\?code=/i.test(address)) { if (await fillFromLink(address)) return onSubmit(ev); }
   if (!/^[0-9]{6}$/.test(code)) {
     // Maybe already paired: try to connect without a code.
     if (!code && address) {
@@ -291,7 +291,7 @@ async function main() {
   $('pair').addEventListener('submit', onSubmit);
   $('address').addEventListener('paste', (e) => {
     const text = (e.clipboardData || window.clipboardData).getData('text');
-    if (/madalean:\/\/pair/i.test(text)) { e.preventDefault(); fillFromLink(text); }
+    if (/madalean:\/\/pair|\/pair\?code=/i.test(text)) { e.preventDefault(); fillFromLink(text); }
   });
   $('code').addEventListener('input', () => { $('code').value = $('code').value.replace(/\D/g, '').slice(0, 6); });
 

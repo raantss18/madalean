@@ -98,6 +98,7 @@ class ShellController extends ChangeNotifier {
     if (l == 'en') lang = Lang.en;
     if (l == 'fr') lang = Lang.fr;
     servers = ServerList.decode(await prefs.getString(_kServers));
+    await _migrateLegacyServers();
     if (initialLink != null && parsePairLink(initialLink) != null) {
       handleLink(initialLink);
       return;
@@ -107,6 +108,37 @@ class ShellController extends ChangeNotifier {
       await openServer(last);
     } else {
       _connect();
+    }
+  }
+
+  /// Saved `https://<x>.ts.net:10500` servers (former `tailscale serve`
+  /// design) → `https://<x>.ts.net` (embedded tsnet node, 443), token moved.
+  Future<void> _migrateLegacyServers() async {
+    var changed = false;
+    var list = servers;
+    for (final s in servers.servers) {
+      final to = migrateLegacyOrigin(s.origin);
+      if (to == null) continue;
+      final t = await tokens.read(s.origin);
+      if (t != null) {
+        await tokens.write(to, t);
+        await tokens.delete(s.origin);
+      }
+      list = list
+          .remove(s.origin)
+          .upsert(
+            SavedServer(
+              origin: to,
+              hostName: s.hostName,
+              deviceName: s.deviceName,
+              lastUsed: s.lastUsed,
+            ),
+          );
+      changed = true;
+    }
+    if (changed) {
+      servers = list;
+      await prefs.setString(_kServers, servers.encode());
     }
   }
 

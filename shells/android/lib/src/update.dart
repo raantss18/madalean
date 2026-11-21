@@ -423,13 +423,7 @@ class Updater extends ChangeNotifier {
       _delete(path);
       throw const UpdateException(UpdateError.certificate);
     }
-    _set(
-      UpdateReady(
-        version: m.version,
-        path: path,
-        required: false,
-      ),
-    );
+    _set(UpdateReady(version: m.version, path: path, required: false));
   }
 
   Future<Manifest> _fetchManifest() async {

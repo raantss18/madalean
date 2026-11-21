@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Devices: start pairing (big code + countdown + QR madalean://pair?...), list, revoke. Host only.
+  // Devices: start pairing (big code + countdown + QR https://<remote>/pair?code=…), list, revoke. Host only.
   import { onDestroy } from 'svelte';
   import { api, shell } from '../../lib/api/client';
   import type { Device } from '../../lib/api/types';
@@ -36,7 +36,7 @@
   async function start() {
     try {
       const r = await api.pairingStart();
-      if (r.remote_url) address = r.remote_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (r.remote_url) { address = r.remote_url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''); saveJSON('pair.address', address); }
       code = { code: r.code, expires: Date.now() / 1000 + r.expires_in };
       left = r.expires_in;
       if (timer) clearInterval(timer);
@@ -48,7 +48,10 @@
     try { await api.revokeDevice(d.id); devices = (devices ?? []).filter((x) => x.id !== d.id); browsers = (browsers ?? []).filter((x) => x.id !== d.id); toast('ok', t('devices.revoked', { name: d.name })); }
     catch (e) { toast('error', errorText(e)); }
   }
-  const link = $derived(code && address.trim() ? `madalean://pair?host=${encodeURIComponent(address.trim()).replace(/%3A/gi, ':')}&code=${code.code}` : '');
+  // The QR code is an https link served by Madalean itself (camera apps open it; custom schemes are often ignored).
+  // Its pairing page offers « Ouvrir dans l'application Madalean » on Android (intent://) or pairs the browser.
+  const host = $derived(address.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:443$/, ''));
+  const link = $derived(code && host ? `https://${host}/pair?code=${code.code}` : '');
   async function forget() {
     try { await api.forgetSelf(); } catch { /* we leave anyway */ }
     location.assign('/pair');
@@ -89,12 +92,15 @@
           <p class="small" role="timer" aria-live="off">{t('devices.expiresIn', { m: Math.floor(left / 60), s: String(left % 60).padStart(2, '0') })}</p>
           <div class="field">
             <label for="pair-addr">{t('devices.address')}</label>
-            <input id="pair-addr" class="input" bind:value={address} onchange={() => saveJSON('pair.address', address)} placeholder="nitro.tailXXXX.ts.net:10500" />
+            <input id="pair-addr" class="input" bind:value={address} onchange={() => saveJSON('pair.address', address)} placeholder="madalean.tailXXXX.ts.net" />
             <p class="hint">{t('devices.addressHint')}</p>
           </div>
           <button class="btn small" onclick={start}>{t('devices.newCode')}</button>
         </div>
-        {#if link}<div class="qr-box"><QrCode text={link} label={t('devices.qrLabel')} /><p class="xs mono link">{link}</p></div>{/if}
+        {#if link}<div class="qr-box"><QrCode text={link} label={t('devices.qrLabel')} />
+          <p class="xs muted">{t('devices.qrScan')}</p>
+          <p class="small">{t('devices.qrAddr')} : <strong class="mono">{host}</strong><br />{t('devices.qrCode')} : <strong class="mono">{code.code}</strong></p>
+          <p class="xs mono link">{link}</p></div>{/if}
       </div>
     {:else}
       {#if code}<p class="small muted">{t('devices.expired')}</p>{/if}
