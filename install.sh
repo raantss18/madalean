@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# install.sh — reproducible, idempotent, user-level install of Lean AI Station (Arch/Fedora/Debian/Ubuntu/openSUSE).
+# install.sh — reproducible, idempotent, user-level install of Madalean (Arch/Fedora/Debian/Ubuntu/openSUSE):
+# the server (`bin/madalean serve`, systemd user unit `madalean.service`) + models + Lean workspaces.
+# The old PySide6 app (app/, bin/lean-ai-station) is still installed until 2.0 is validated.
 #
 #   ./install.sh [options]
 #     --install-deps      install the base build packages with your package manager (uses sudo; drivers and CUDA
@@ -10,12 +12,13 @@
 #     --no-prover49       skip the Lean 4.9 workspace (long: builds Mathlib from source, ≈ 1.5 h)
 #     --no-current        skip the recent-Lean workspace
 #     --q5                also download the Q5_K_M prover
+#     --no-service        do not install/start the systemd user unit madalean.service
 # Needs Internet once; afterwards everything runs offline.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 export LAS_STATION_DIR="$ROOT"
 LLAMA_COMMIT=436f6f89e1e581249900b37a5b8a12a36a6d0912
-DEPS=0; BACKEND=auto; MODELS=1; P49=1; CUR=1; QUANTS=(Q4_K_M formalizer explainer)
+DEPS=0; BACKEND=auto; MODELS=1; P49=1; CUR=1; SERVICE=1; QUANTS=(Q4_K_M formalizer explainer)
 drop() { local out=() q; for q in "${QUANTS[@]}"; do [ "$q" = "$1" ] || out+=("$q"); done; QUANTS=("${out[@]}"); }
 while [ $# -gt 0 ]; do case "$1" in
   --install-deps) DEPS=1 ;;
@@ -26,7 +29,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --no-prover49) P49=0 ;;
   --no-current) CUR=0 ;;
   --q5) QUANTS+=(Q5_K_M) ;;
-  -h|--help) sed -n 2,14p "$0"; exit 0 ;;
+  --no-service) SERVICE=0 ;;
+  -h|--help) sed -n 2,17p "$0"; exit 0 ;;
   *) echo "Option inconnue : $1 (voir --help)"; exit 2 ;;
 esac; shift; done
 step() { printf '\n==> %s\n' "$*"; }
@@ -133,7 +137,11 @@ fi
 "$ROOT/.venv/bin/python" -m pip install -q --upgrade pip
 "$ROOT/.venv/bin/python" -c "import PySide6" 2>/dev/null || "$ROOT/.venv/bin/python" -m pip install -q PySide6-Essentials
 "$ROOT/.venv/bin/python" -m pip install -q psutil pytest pytest-qt
-"$ROOT/.venv/bin/python" -c "import PySide6, psutil; print('PySide6', PySide6.__version__)"
+"$ROOT/.venv/bin/python" -c "import aiohttp" 2>/dev/null || "$ROOT/.venv/bin/python" -m pip install -q "aiohttp>=3.9,<4"
+"$ROOT/.venv/bin/python" -c "import PySide6, psutil, aiohttp; print('PySide6', PySide6.__version__, '· aiohttp', aiohttp.__version__)"
+# fonts used by the PDF export (DejaVu Sans Mono for Lean code, Noto Sans Math for missing glyphs): report only
+for f in "DejaVu Sans Mono" "Noto Sans Math"; do fc-list "$f" 2>/dev/null | grep -q . || echo "⚠️  Police « $f » absente : installez-la (paquet ttf-dejavu / noto-fonts) pour des PDF lisibles."; done
+have latexmk && have xelatex || echo "⚠️  latexmk/xelatex absents : l'export PDF sera une page HTML à imprimer (installez texlive)."
 
 step "5/8 Modèles d'IA (SHA-256 vérifié)"
 if [ $MODELS = 1 ]; then
@@ -147,14 +155,35 @@ step "6/8 Espaces Lean"
 [ $CUR = 1 ] && "$ROOT/scripts/setup_current.sh"
 [ $P49 = 1 ] && "$ROOT/scripts/build_prover49.sh"   # long: builds Mathlib from source
 
-step "7/8 Raccourci du menu des applications"
+step "7/8 Service Madalean et raccourcis du menu"
 mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$ROOT/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
+cp "$ROOT/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/madalean.svg"
 sed "s|@ROOT@|$ROOT|" "$ROOT/packaging/lean-ai-station.desktop.in" > "$HOME/.local/share/applications/lean-ai-station.desktop"
+sed "s|@ROOT@|$ROOT|" "$ROOT/packaging/madalean.desktop.in" > "$HOME/.local/share/applications/madalean.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+if [ $SERVICE = 1 ] && have systemctl; then
+  mkdir -p "$HOME/.config/systemd/user"
+  sed "s|@ROOT@|$ROOT|g" "$ROOT/packaging/madalean.service" > "$HOME/.config/systemd/user/madalean.service"
+  systemctl --user daemon-reload && systemctl --user enable --now madalean.service \
+    && echo "Service madalean actif : http://127.0.0.1:11500/" || echo "⚠️  systemctl --user indisponible : lancez $ROOT/bin/madalean serve"
+else
+  echo "(service non installé : lancez $ROOT/bin/madalean serve)"
+fi
 
 step "8/8 Contrôle"
+PROBE="$(mktemp -d)"
+"$ROOT/bin/madalean" serve --demo --port 0 --remote-port 0 --config-dir "$PROBE/c" --cache-dir "$PROBE/k" >/dev/null 2>&1 &
+PROBE_PID=$!
+for _ in $(seq 1 100); do [ -f "$PROBE/c/server.json" ] && break; sleep 0.1; done
+if [ -f "$PROBE/c/server.json" ] && "$ROOT/bin/madalean" status --config-dir "$PROBE/c" >/dev/null 2>&1; then
+  echo "Le serveur Madalean démarre correctement."
+else
+  echo "⚠️  Le démarrage de contrôle du serveur a échoué : lancez $ROOT/bin/madalean serve pour voir l'erreur."
+fi
+kill "$PROBE_PID" 2>/dev/null; wait "$PROBE_PID" 2>/dev/null; rm -rf "$PROBE"
 LAS_CONFIG_DIR="$(mktemp -d)" LAS_STARTUP_PROBE=exit QT_QPA_PLATFORM=offscreen "$ROOT/bin/lean-ai-station" 2>/dev/null | grep STARTUP \
   && echo "L'application démarre correctement." || echo "⚠️  Le démarrage de contrôle a échoué : lancez $ROOT/bin/lean-ai-station pour voir l'erreur."
 
-echo; echo "Installation terminée. Lancez « Lean AI Station » depuis le menu, ou : $ROOT/bin/lean-ai-station"
+echo; echo "Installation terminée. Madalean : http://127.0.0.1:11500/ (service « madalean »), ou : $ROOT/bin/madalean serve"
+echo "Ancienne application (jusqu'à la validation de 2.0) : $ROOT/bin/lean-ai-station"

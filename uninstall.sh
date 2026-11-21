@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# uninstall.sh — removes exactly what the Lean AI Station setup installed. Nothing else.
+# uninstall.sh — removes exactly what the Madalean / Lean AI Station setup installed. Nothing else.
 # Usage: ./uninstall.sh          (shows the list, asks for confirmation)
 #        ./uninstall.sh --yes    (no question)
 # Never touched / never removed: system packages (no root change was made), your own Lean projects
@@ -10,6 +10,13 @@ ITEMS=(
   "$(cd "$(dirname "$0")" && pwd)"                       # this folder: app, venvs, llama.cpp build, Lean workspaces
   "$H/.config/lean-ai-station"                           # settings + session
   "$H/.cache/lean-ai-station"                            # temporary check files
+  "$H/.config/madalean"                                  # Madalean 2.0: settings, projects, dossiers, devices, keys.json
+  "$H/.cache/madalean"                                   # Madalean 2.0: caches (names/RAG index, exports, jupyter)
+  "$H/.config/madalean-demo"                             # demo mode data
+  "$H/.cache/madalean-demo"
+  "$H/.config/systemd/user/madalean.service"             # systemd user unit
+  "$H/.local/share/applications/madalean.desktop"
+  "$H/.local/share/icons/hicolor/scalable/apps/madalean.svg"
   "$H/.local/share/applications/lean-ai-station.desktop" # menu entry
   "$H/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
   "$H/models/Goedel-Prover-V2-8B.Q4_K_M.gguf"            # model files (+ checksums)
@@ -41,9 +48,14 @@ if [[ " $* " != *" --yes "* ]]; then
   read -r -p "Confirmer la suppression ? [o/N] " a
   [[ "$a" =~ ^[oOyY]$ ]] || { echo "Annulé."; exit 0; }
 fi
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user disable --now madalean.service 2>/dev/null || true
+fi
+command -v secret-tool >/dev/null 2>&1 && secret-tool clear service madalean 2>/dev/null || true   # API keys in the keyring
 pkill -f "^$(cd "$(dirname "$0")" && pwd)/vendor/llama.cpp/build/bin/llama-server" 2>/dev/null || true
 for p in "${ITEMS[@]}"; do rm -rf -- "$p"; done
 [ $WITH_TC = 1 ] && for p in "${TOOLCHAINS[@]}"; do rm -rf -- "$p"; done
 rmdir "$H/models/src" 2>/dev/null || true
 update-desktop-database "$H/.local/share/applications" 2>/dev/null || true
-echo "Lean AI Station a été désinstallé."
+command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/null
+echo "Madalean (et Lean AI Station) a été désinstallé. Les carnets de ~/Documents/Madalean sont conservés."

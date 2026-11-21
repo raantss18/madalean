@@ -118,7 +118,7 @@ class ServerContext:
         try:
             from .brain import create_brain, create_retriever  # type: ignore[attr-defined]
             self.brain = create_brain(self.paths.config, self.local, self.keys.get, asdict(self.settings))
-            self.retriever = create_retriever(self.paths.cache)
+            self.retriever = create_retriever(self.paths.cache, resolve=self.workspace)
             self.brain_kind = "real"
         except Exception as e:  # noqa: BLE001 (S-B engine absent or broken: scripted fake, clearly reported)
             from .brain.fake import FakeBrain, FakeRetriever

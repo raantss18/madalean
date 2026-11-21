@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# export_offline.sh — pack everything needed to run Lean AI Station on another OFFLINE machine
-# (same OS family, NVIDIA GPU with a working driver + CUDA runtime, python + pyside6 installed).
+# export_offline.sh — pack everything needed to run Madalean (and the old Lean AI Station app) on another OFFLINE
+# machine (same OS family, NVIDIA GPU with a working driver + CUDA runtime, python3; the Python dependencies of the
+# server are bundled as wheels).
 #
 # Usage: ./export_offline.sh DEST_DIR [--no-models] [--no-current]
 # Produces DEST_DIR/*.tar.zst + SIZES.txt + import_offline.sh. Restore on the target with:
@@ -25,8 +26,11 @@ pack() { # name, base dir, paths...
 }
 # 1. application + llama.cpp binaries (no sources, no venv: recreated by import)
 N="$(basename "$S")"; B="$(dirname "$S")"
-(cd "$B" && pack app "$B" "$N/app" "$N/bin" "$N/scripts" "$N/tests" "$N/docs" "$N/packaging" "$N/data" \
+(cd "$B" && pack app "$B" "$N/madalean" "$N/app" "$N/bin" "$N/scripts" "$N/tests" "$N/docs" "$N/packaging" "$N/data" \
   "$N/vendor/llama.cpp/build/bin" $(cd "$B" && ls -d "$N"/*.md "$N"/*.sh "$N"/pytest.ini "$N"/LICENSE "$N"/NOTICE))
+# 1b. Python wheels of the server (aiohttp & deps) for an offline venv
+rm -rf "$DEST/wheels"; mkdir -p "$DEST/wheels"
+"$S/.venv/bin/python" -m pip download -q -d "$DEST/wheels" "aiohttp>=3.9,<4" || echo "!! pip download failed: install python-aiohttp on the target"
 # 2. elan + toolchains (restored under $HOME)
 TCS=(".elan/toolchains/$TC49")
 [ $CURRENT = 1 ] && TCS+=(".elan/toolchains/$TCCUR")
@@ -41,20 +45,24 @@ if [ $MODELS = 1 ]; then
 fi
 cat > "$DEST/import_offline.sh" <<'EOF'
 #!/usr/bin/env bash
-# Restore Lean AI Station from this folder (offline). Requires: python3, pyside6, NVIDIA driver + CUDA runtime.
+# Restore Madalean from this folder (offline). Requires: python3, NVIDIA driver + CUDA runtime (pyside6 only for the old app).
 set -euo pipefail
 D="$(cd "$(dirname "$0")" && pwd)"
-# app + workspaces go to ~/lean-ai-station (or $1); elan and models go to $HOME
+# app + workspaces go to $HOME/<clone name> (or $1/<clone name>); elan and models go to $HOME
 DST="${1:-$HOME}"
 for f in app workspaces; do [ -f "$D/$f.tar.zst" ] && tar -C "$DST" -I zstd -xf "$D/$f.tar.zst"; done
 for f in elan models; do [ -f "$D/$f.tar.zst" ] && tar -C "$HOME" -I zstd -xf "$D/$f.tar.zst"; done
-R="$DST/lean-ai-station"
+R="$DST/$(tar -I zstd -tf "$D/app.tar.zst" | head -1 | cut -d/ -f1)"
 python3 -m venv --system-site-packages "$R/.venv"
+"$R/.venv/bin/python" -c "import aiohttp" 2>/dev/null || "$R/.venv/bin/python" -m pip install -q --no-index --find-links "$D/wheels" aiohttp
+mkdir -p "$HOME/.config/systemd/user"
+sed "s|@ROOT@|$R|g" "$R/packaging/madalean.service" > "$HOME/.config/systemd/user/madalean.service"
+systemctl --user daemon-reload 2>/dev/null && systemctl --user enable --now madalean.service 2>/dev/null || echo "Lancez : $R/bin/madalean serve"
 mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$R/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
 sed "s|@ROOT@|$R|" "$R/packaging/lean-ai-station.desktop.in" > "$HOME/.local/share/applications/lean-ai-station.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-echo "Terminé. Lancez « Lean AI Station » depuis le menu des applications."
+echo "Terminé. Madalean : http://127.0.0.1:11500/ — ancienne application : « Lean AI Station » dans le menu."
 EOF
 chmod +x "$DEST/import_offline.sh"
 { echo "Export du $(date -Is)"; du -h "$DEST"/*.tar.zst; du -ch "$DEST"/*.tar.zst | tail -1; } | tee "$DEST/SIZES.txt"

@@ -6,6 +6,6 @@ set -e
 cd "$(dirname "$0")"
 case "${1:-}" in
   --all)    exec .venv/bin/python -m pytest -v -p no:cacheprovider tests/ ;;
-  --legacy) exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" --rootdir tests/legacy -c /dev/null tests/legacy ;;
+  --legacy) exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" -c tests/legacy/pytest.ini --rootdir tests/legacy tests/legacy ;;
   *)        exec .venv/bin/python -m pytest -v -p no:cacheprovider -m "not slow" tests/ ;;
 esac

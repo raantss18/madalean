@@ -62,7 +62,7 @@ class Settings:
     compile_timeout_s: int = 180
     autoload_model: bool = True
     # ---- Madalean 2.0
-    mode: str = "local"                     # local (nothing leaves the machine) | auto | online
+    mode: str = "auto"                      # user choice 2026-11-21: online by default; local | auto | online
     prove_strategy: str = "auto"            # goedel | agent | auto
     prefer: dict = field(default_factory=dict)   # role -> model key forced by the user ("provider:model_id")
     statement_notes: bool = True            # gloss of the Lean statement for learners (role explain)

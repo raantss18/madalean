@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "connect-screen",
+  "description": "Only the bundled connect screen (local origin) may call the shell's commands. Remote server pages get no IPC.",
+  "windows": ["main"],
+  "local": true,
+  "permissions": [
+    "allow-init-state",
+    "allow-probe-local",
+    "allow-connect",
+    "allow-pair",
+    "allow-parse-link",
+    "allow-forget",
+    "allow-set-lang"
+  ]
+}

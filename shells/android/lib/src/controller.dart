@@ -84,6 +84,7 @@ class ShellController extends ChangeNotifier {
   int _loads = 0;
   int _rev = 0;
   DateTime? _pausedAt;
+  final List<DateTime> _reauths = [];
 
   S get s => S(lang);
 
@@ -271,9 +272,25 @@ class ShellController extends ChangeNotifier {
 
   /// The web view navigated to `<origin>/pair…` (401 in the web UI, expired
   /// cookie, bad ticket): new session if the token is valid, else pairing.
+  ///
+  /// Guard: three re-authentications within a minute mean the server keeps
+  /// refusing fresh sessions (e.g. cookies blocked) — stop looping and show
+  /// the pairing screen with an explanation instead.
   Future<void> reauth() async {
     final st = state;
-    if (st is WebState) await openServer(st.server);
+    if (st is! WebState) return;
+    final now = _now();
+    _reauths.removeWhere((t) => now.difference(t).inSeconds > 60);
+    _reauths.add(now);
+    if (_reauths.length > 3) {
+      _reauths.clear();
+      _connect(
+        message: (s) => s.errProtocol,
+        address: displayAddress(st.server.origin),
+      );
+      return;
+    }
+    await openServer(st.server);
   }
 
   /// The main frame failed to load (network lost).

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Madalean mark (baobab whose crown is ∀), from shells/branding/madalean-mark-mono.svg,
+     scaled into the 66dp safe zone of a 108dp adaptive icon. Also used as monochrome layer and splash icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+  <group android:scaleX="0.0703" android:scaleY="0.0703"
+      android:translateX="18" android:translateY="18">
+    <path android:pathData="M512,610 L300,230 M512,610 L724,230"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="80"
+        android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M370,418 H654"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="66" android:strokeLineCap="round"/>
+    <path android:pathData="M300,230 l-62,-38 M300,230 l12,-80 M724,230 l62,-38 M724,230 l-12,-80"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="42"
+        android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M458,596 C420,660 404,740 412,836 H612 C620,740 604,660 566,596 Z"
+        android:fillColor="#FFFFFFFF"/>
+    <path android:pathData="M300,836 H724"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="42" android:strokeLineCap="round"/>
+  </group>
+</vector>

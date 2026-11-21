@@ -6,7 +6,7 @@ import pytest
 
 from lean_ai_station import leancheck as lc
 
-REF = Path(__file__).resolve().parent.parent / "docs" / "goedel_utils_reference.py"
+REF = Path(__file__).resolve().parents[2] / "docs" / "goedel_utils_reference.py"
 
 
 def _goedel_fn(name):

@@ -38,7 +38,9 @@ class CompileResult:
         return {"ok": v.ok, "summary": v.summary, "errors": [{"line": m.line, "col": m.col, "text": m.text,
                                                               "severity": m.severity} for m in v.errors],
                 "axioms": v.axioms, "has_sorry": v.has_sorry, "reasons": v.reasons, "seconds": round(self.seconds, 2),
-                "timed_out": self.timed_out, "cancelled": self.cancelled, "infra_error": self.infra_error}
+                "timed_out": self.timed_out, "cancelled": self.cancelled, "infra_error": self.infra_error,
+                # a statement (with `sorry`) is valid when Lean reports no error (1.1.4 formalizer rule)
+                "statement_ok": not v.errors and not self.timed_out and not self.infra_error}
 
 
 def workspace_info(ws: Workspace | None) -> dict:

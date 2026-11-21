@@ -75,3 +75,78 @@ No root change was needed (D1) → no timeshift snapshot taken. Latest existing:
 - NOT pushed to GitHub yet (local WIP commits on branch main).
 
 - 2026-10-04: catalogue EN done (629 keys), full suite 109 passed on real models, screenshots FR/EN. Next: push + tag v1.1.0 + release.
+
+## S-A — Madalean 2.0 server (session S-A, 2026-11-21)
+
+### What exists
+- `madalean/` package (Python ≥ 3.11, asyncio, aiohttp 3.x):
+  - `server/` app (`app.py` listeners + `make_app` + plugin hook `register(app, ctx)` / `server/plugins/*.py`),
+    `auth.py` (security middleware), `routes_core.py` (hello, pair, devices, state, settings, models, system,
+    updates), `routes_work.py` (projects, dossiers, jobs, library, check, import, export, split), `routes_misc.py`
+    (assistant, Jupyter endpoints + proxy, WebSocket, static UI with SPA fallback/placeholder), `bus.py` (seq + ring
+    buffer 5 000 + resume/resync, tokens coalesced every 100 ms).
+  - `context.py` (wiring, settings validation, host-only keys), `orchestrator.py` (jobs, parallel dossiers, cancel,
+    history, sub-dossier parent retry), `slots.py` (gpu 1 / online 3 / lean 2, priority then FIFO, job id in a
+    ContextVar), `jobs.py`, `repo.py`, `projects.py` (one directory per project), `paths.py`, `migrate.py` (1.x COPY),
+    `security.py` (pairing, devices, rate limiter), `keys.py` (secret-tool else 0600 keys.json), `logs.py` (JSON logs
+    `<config>/logs/server.log`, 2 MB × 5, secrets redacted), `prompts.py` (notes / informal proof / split / assistant),
+    `demo.py`, `cli.py` (`serve [--demo]`, `pair`, `status`), `export.py` + `texio.py` (PDF/tex/lean/md/zip/html),
+    `jupyter.py` (manager + reverse proxy).
+  - `runtime/` `llama.py` (LocalRuntime: plan_launch verbatim, OOM fallback ×3, swap per role, orphan cleanup via our
+    own pid file only, port ≥ 8765 skipping busy ones), `lean.py` (async `lean --json`, timeout, kill on cancel, lean
+    slot), `monitor.py` (nvidia-smi + disk), `updates_mgr.py` (weekly check, install through scripts/updater.py).
+  - `pipeline/` `goedel.py` (1.1.4 prove loop + formalizer, behaviour identical, tests ported), `runner.py`
+    (stages understand/route/statement/notes/proof/explanation/informal, strategies goedel/agent/auto, agent code
+    always re-checked), `io.py` (loop/rambling guard on streamed text → finish "loop").
+  - `brain/fake.py` (FakeBrain, FakeRetriever, FakeLocal, FakeLean) — used by tests and `--demo` only; the real
+    engine `madalean.brain.create_brain` (S-B) is used when importable (it is now), else the fake with `brain:"fake"`
+    shown in /state and /system.
+  - Core modules extended: `dossiers.py` (project_id, understood_display, statement_notes, informal_proofs, status,
+    parent_id, retry_parent, kind/refs/source/uses, unknown fields round-tripped; 1.x files load unchanged),
+    `config.py` (new settings), `updates.py` (data-driven `CHECKERS` + `register_checker`), `i18n.py` (`msg()`),
+    `i18n_en.py` (+40 server strings).
+- `docs/API.md`: full reference (endpoints, WS events, TypeScript types, plugins, demo).
+- `bin/madalean`, `packaging/madalean.service` (systemd user unit), `packaging/madalean.desktop.in`; `install.sh`
+  (aiohttp, font/TeX report, unit install + start, `--no-service`, server probe), `uninstall.sh` (unit, keyring,
+  ~/.config|cache/madalean*), `export_offline.sh` (madalean/ + aiohttp wheels + unit). `scripts/updater.py` now imports
+  `madalean`. `scripts/dev/madalean_i18n_keys.py` (catalogue check).
+- Tests: `./run_tests.sh` → 179 passed, 2 skipped (S-B online tests) in ~3 min, no GPU. S-A tests: 145 (api 8,
+  auth 7, cli 2, core 8, dossiers 8, export 10, goedel 15, i18n 4, jupyter 3, leancheck 23, llama 5, names 3,
+  orchestrator 7, pipeline 12, texio 13, updates 17). Old app tests moved to `tests/legacy/` (own conftest +
+  pytest.ini): `./run_tests.sh --legacy` → 122 passed, 22 deselected (slow).
+
+### How to run
+- `bin/madalean serve` (or `systemctl --user start madalean` after install.sh) → http://127.0.0.1:11500/;
+  remote listener 127.0.0.1:11501 for `tailscale serve`. `bin/madalean pair` prints a pairing code,
+  `bin/madalean status` a summary. `--config-dir/--cache-dir` for isolated runs.
+- `bin/madalean serve --demo --port 11600 --remote-port 11601` (data in ~/.config/madalean-demo): fake models + fake
+  Lean, seeded project; a new dossier runs the whole chain in ≈ 15 s.
+
+### Verified
+- Real Lean (lean-prover49) in the prove loop, formalizer, pipeline, free check, dossier check; real XeLaTeX PDFs
+  (Unicode Lean glyphs checked with pdftotext, pages looked at as PNG); real jupyter-lab behind the proxy (HTTP +
+  kernel WebSocket executing `print(6*7)`); real child processes for a FAKE llama-server binary (swap, OOM fallback,
+  orphan kill); `serve --demo` as a process (pair, status, single instance, SIGTERM, jupyter-lab dies after SIGKILL of
+  the server); non-demo start with the real S-B brain (candidates per role, health checks all green) — no job run.
+- Every route of the remote listener refuses requests without/with a bad token (enumerated from the router), pairing
+  lockout, revoked token, WS auth + Origin, DNS-rebinding Host check, static/export/notebook path traversal.
+
+### NOT verified (honestly)
+- No real model was loaded (brief: GPU reserved for the integrator): LocalLlama never ran the real llama-server;
+  the pipeline never ran with the real brain (local or online), so prompts reaching real models through S-B's
+  engine, real streaming/loop detection timings and the agent strategy with a real model are untested end to end.
+- `tailscale serve` in front of the remote listener not tested (Origin rule assumes the Host header is the ts.net
+  name or `X-Forwarded-Host` is set; if tailscale rewrites Host to 127.0.0.1, set the UI origin in a future
+  `allowed_origins` setting — the hook exists in auth.origin_ok).
+- Updates install path only tested with a refused tag (no real Mathlib/model download). LAN listener not tested.
+- secret-tool backend not exercised by tests (tests force keys.json); install.sh / uninstall.sh / export_offline.sh
+  only syntax-checked, not run.
+- LuaLaTeX fallback: luaotfload can't load OpenType fonts on this machine → XeLaTeX only; emoji/∎ glyphs dropped.
+
+### Open questions
+- Default `mode` is `local` (privacy first, 1.x was offline by default); 1.x users with offline=false migrate to
+  `auto`. Confirm with the user.
+- Jupyter kernels run in their own session: a SIGKILL of the server leaves kernels running (jupyter-lab itself dies).
+- Lean 4 Jupyter kernel: not installed (lean4_jupyter 0.0.x / xeus-lean prototypes are not reliable); documented in
+  `/api/jupyter` `lean_kernel.note`.
+- Job attempts keep raw model answers (capped 200 k chars) in jobs/<dossier>.json history (last 50 jobs): watch size.

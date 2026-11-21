@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Madalean launcher: `madalean serve [--demo]`, `madalean pair`, `madalean status` (see `madalean --help`).
+# Works from any clone location; used by the systemd user unit packaging/madalean.service.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export MADALEAN_DIR="$ROOT"
+exec "$ROOT/.venv/bin/python" -m madalean "$@"

@@ -7,7 +7,7 @@ import pytest
 
 from lean_ai_station import updates
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import updater  # noqa: E402
 
 SHA_OLD, SHA_NEW = "a" * 64, "b" * 64

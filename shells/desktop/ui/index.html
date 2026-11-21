@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Madalean</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="card" aria-labelledby="title">
+    <header class="top">
+      <picture><source srcset="mark-dark.svg" media="(prefers-color-scheme: dark)"><img class="mark" src="mark.svg" alt="" width="44" height="44"></picture>
+      <div>
+        <h1 id="title" data-t="title">Connectez-vous à votre Madalean</h1>
+        <p class="sub" data-t="intro">L’ordinateur hôte fait tout le travail ; cette fenêtre affiche son interface.</p>
+      </div>
+      <button type="button" id="lang" class="link" aria-label="Language">English</button>
+    </header>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden>
+      <span id="status-text"></span>
+      <span class="actions">
+        <button type="button" id="retry" class="btn small" hidden data-t="retry">Réessayer</button>
+      </span>
+    </div>
+
+    <section id="saved" hidden aria-labelledby="saved-h">
+      <h2 id="saved-h" data-t="saved">Serveurs enregistrés</h2>
+      <ul id="servers" class="servers"></ul>
+    </section>
+
+    <section aria-labelledby="new-h">
+      <h2 id="new-h" data-t="newServer">Nouveau serveur</h2>
+      <form id="pair" novalidate>
+        <label for="address" data-t="address">Adresse du serveur</label>
+        <input id="address" name="address" list="suggestions" autocomplete="off" spellcheck="false"
+               placeholder="nom-du-pc.votre-tailnet.ts.net" required aria-describedby="address-help">
+        <datalist id="suggestions"></datalist>
+        <p id="address-help" class="help" data-t="addressHelp">Nom Tailscale complet (port 10500 par défaut), ou collez ici un lien madalean://pair.</p>
+
+        <div class="row">
+          <div>
+            <label for="code" data-t="code">Code d’appairage</label>
+            <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+                   pattern="[0-9]{6}" placeholder="123456" aria-describedby="code-help" class="code">
+          </div>
+          <div class="grow">
+            <label for="device" data-t="device">Nom de cet appareil</label>
+            <input id="device" name="device" maxlength="64" autocomplete="off">
+          </div>
+        </div>
+        <p id="code-help" class="help" data-t="codeHelp">Les 6 chiffres affichés sur l’ordinateur hôte (Réglages → Appareils), valables 5 minutes.</p>
+        <p id="form-error" class="error" role="alert" hidden></p>
+        <button type="submit" id="submit" class="btn primary" data-t="pairBtn">Appairer et ouvrir</button>
+      </form>
+    </section>
+
+    <footer class="foot">
+      <span id="local-hint" data-t="localHint">Sur l’ordinateur hôte, l’interface s’ouvre directement, sans code.</span>
+      <span id="version"></span>
+    </footer>
+  </main>
+</body>
+</html>

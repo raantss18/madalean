@@ -6,7 +6,7 @@ from pathlib import Path
 from lean_ai_station import i18n
 from lean_ai_station.i18n_en import EN
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("i18n_keys", ROOT / "scripts" / "dev" / "i18n_keys.py")
 keys_mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(keys_mod)

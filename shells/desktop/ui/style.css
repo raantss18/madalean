@@ -1,0 +1,43 @@
+:root {
+  --bg: #f6f3ec; --card: #ffffff; --ink: #1f2a44; --muted: #55607a; --line: #d9d4c7;
+  --accent: #b4472a; --focus: #2f6fdb; --err-bg: #fbe9e4; --err: #8f2a12; --ok: #1f6b3a;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12182a; --card: #1b2338; --ink: #ece3d0; --muted: #a9b0c2; --line: #33405e;
+    --accent: #e8875f; --focus: #8fb4ff; --err-bg: #3a1e18; --err: #ffb39b; --ok: #8fd6a5;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+body { font: 15px/1.5 system-ui, "Noto Sans", "DejaVu Sans", sans-serif; display: grid; place-items: start center; padding: 6vh 16px 32px; }
+.card { width: 100%; max-width: 560px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 24px 16px; }
+.top { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; margin-bottom: 18px; }
+.mark { color: var(--ink); width: 44px; height: 44px; }
+h1 { font-family: "Source Serif 4", "Noto Serif", "DejaVu Serif", Georgia, serif; font-weight: 600; font-size: 1.45rem; line-height: 1.2; margin: 2px 0 4px; }
+h2 { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 600; }
+.sub, .help { color: var(--muted); margin: 0; font-size: .88rem; }
+.help { margin: 4px 0 10px; }
+label { display: block; font-weight: 600; font-size: .9rem; margin: 10px 0 4px; }
+input { width: 100%; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+input.code { font-family: "DejaVu Sans Mono", ui-monospace, monospace; letter-spacing: .25em; width: 9.5em; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.row { display: flex; gap: 14px; flex-wrap: wrap; } .grow { flex: 1; min-width: 180px; }
+.btn { font: inherit; border-radius: 8px; padding: 9px 16px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--card); border-color: var(--ink); font-weight: 600; margin-top: 6px; }
+.btn.small { padding: 4px 10px; font-size: .88rem; }
+.btn[disabled] { opacity: .6; cursor: progress; }
+.link { font: inherit; font-size: .88rem; background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 4px; }
+.status { display: flex; gap: 12px; align-items: center; justify-content: space-between; border-radius: 10px; padding: 10px 12px; border: 1px solid var(--line); margin-bottom: 6px; }
+.status.error { background: var(--err-bg); color: var(--err); border-color: transparent; }
+.status .actions { display: flex; gap: 8px; flex-shrink: 0; }
+.error { color: var(--err); background: var(--err-bg); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.servers { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+.servers li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.servers li + li { border-top: 1px solid var(--line); }
+.servers .name { flex: 1; min-width: 0; } .servers .name b { display: block; overflow-wrap: anywhere; }
+.servers .name small { color: var(--muted); overflow-wrap: anywhere; }
+.foot { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .8rem; margin-top: 22px; border-top: 1px solid var(--line); padding-top: 10px; }
+[hidden] { display: none !important; }

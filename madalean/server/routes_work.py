@@ -277,7 +277,7 @@ async def dossiers_statement(request: web.Request) -> web.Response:
         if ws is not None:
             r = await ctx.lean.check(st, ws, ctx.settings.compile_timeout_s, None, owner=f"check-{d.id}")
             result = r.to_dict()
-    idx = d.add_statement(st, source="user", ok=bool(result is None or (not result["errors"] and not result["timed_out"])))
+    idx = d.add_statement(st, source="user", ok=bool(result is None or result["statement_ok"]))
     m = msg("Énoncé modifié à la main.")
     d.add_event("statement", m["text"], ref=idx, key=m["key"])
     await ctx.repo.save(d)

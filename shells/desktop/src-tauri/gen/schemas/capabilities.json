@@ -1,0 +1,1 @@
+{"connect-screen":{"identifier":"connect-screen","description":"Only the bundled connect screen (local origin) may call the shell's commands. Remote server pages get no IPC.","local":true,"windows":["main"],"permissions":["allow-init-state","allow-probe-local","allow-connect","allow-pair","allow-parse-link","allow-forget","allow-set-lang"]}}

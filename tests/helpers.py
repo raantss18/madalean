@@ -31,13 +31,14 @@ def make_ctx(tmp: Path, ws=None, brain=None, fake_lean: bool = False, caps=None,
     ctx.retriever = FakeRetriever()
     ctx.brain_kind = "fake"
     ctx.settings.workspace = ws.key
+    ctx.settings.mode = "local"            # tests describe the local (Goedel) path unless they set a mode themselves
     return ctx
 
 
 async def started(ctx: ServerContext) -> ServerContext:
-    key = ctx.settings.workspace
+    key, mode = ctx.settings.workspace, ctx.settings.mode
     await ctx.start()
-    ctx.settings.workspace = key
+    ctx.settings.workspace, ctx.settings.mode = key, mode
     return ctx
 
 

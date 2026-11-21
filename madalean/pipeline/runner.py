@@ -432,7 +432,8 @@ class DossierPipeline:
         t0 = time.monotonic()
         try:
             out = await fn(self.ctx.brain, self.ctx.retriever, statement=statement, workspace_key=ws.key, check=check,
-                           library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode)
+                           library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode,
+                           max_steps=self.settings.agent_max_steps, max_seconds=self.settings.agent_max_seconds)
         except BrainError as e:
             a.status, a.summary, a.errors_text = "error", msg("La génération a échoué.")["text"], str(e)
             io.update_attempt(a)

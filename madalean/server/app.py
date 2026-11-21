@@ -10,6 +10,7 @@ import json
 import os
 import pkgutil
 import signal
+import warnings
 from pathlib import Path
 from typing import Callable
 
@@ -25,6 +26,8 @@ from .routes_misc import ASSIST, STATIC_DIR, jupyter_proxy, routes as misc_route
 from .routes_work import routes as work_routes
 
 log = get("server")
+# request["local"] / request["device"] are plain string keys on purpose (documented for plugins)
+warnings.filterwarnings("ignore", category=getattr(web, "NotAppKeyWarning", Warning), message=".*RequestKey.*")
 DEFAULT_STATIC = Path(__file__).resolve().parents[1] / "static"
 Plugin = Callable[[web.Application, object], None]
 

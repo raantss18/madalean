@@ -169,6 +169,23 @@ void main() {
     expect(c.state, isA<ConnectState>());
   });
 
+  test('reauth loop is broken after 3 attempts within a minute', () async {
+    final c = make();
+    await c.init();
+    await c.pair(address: 'pc.tail.ts.net', code: '123456', deviceName: '');
+    for (var i = 0; i < 3; i++) {
+      await c.reauth();
+      expect(c.state, isA<WebState>());
+    }
+    await c.reauth();
+    expect(c.state, isA<ConnectState>());
+    expect(msg(c.state), isNotEmpty);
+    expect(
+      await tokens.read(Uri.parse('https://pc.tail.ts.net:10500')),
+      isNotNull,
+    );
+  });
+
   test('web load failure → unreachable', () async {
     final c = make();
     await c.init();

@@ -1,0 +1,24 @@
+# systemd user unit — installed by install.sh as ~/.config/systemd/user/madalean.service (@ROOT@ = the clone).
+#   systemctl --user enable --now madalean      journalctl --user -u madalean
+# Children (llama-server, lean, jupyter-lab) are started with setpriv --pdeathsig and in the unit's cgroup:
+# stopping the unit stops all of them.
+[Unit]
+Description=Madalean — Lean 4 proving assistant (server for the web UI)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=@ROOT@/bin/madalean serve
+Restart=on-failure
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=20
+Environment=PYTHONUNBUFFERED=1
+# The local listener is 127.0.0.1:11500, the remote one 127.0.0.1:11501 (published on the tailnet only by
+# `tailscale serve`, see scripts/tailscale*). Nothing listens on other interfaces unless the host enables the LAN
+# listener in the settings.
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target
