@@ -266,3 +266,24 @@ The site plays no part in synchronisation (that is host ⇄ devices over Tailsca
    themselves stay on GitHub Releases. Install page with APK/AppImage links and a QR code for phones.
 3. **Reference manual**: one Markdown source (`docs/manual/`, FR + EN) rendered both as the in-app help and as the
    site — guides, Lean glossary, tutorials, pairing and security guide. Built by a GitHub Action from the repo.
+
+## 18. Self-contained installation (user requirement, 2026-11-21) — supersedes system-tool assumptions
+
+Madalean installs and manages **all** its dependencies in one prefix, `MADALEAN_HOME` = `~/.local/share/madalean`
+(config stays in `~/.config/madalean`, models may stay in `~/models` if they already exist — referenced, never moved).
+No system package is required except the NVIDIA driver (and CUDA toolkit only if building the GPU engine), a C
+toolchain is NOT required at runtime. One systemd user unit (`madalean.service`); every child process dies with it;
+`madalean uninstall` removes the prefix, the unit, the desktop entry and nothing else; nothing is left running.
+
+| Component | How it is provided inside the prefix |
+|---|---|
+| Python + Madalean's Python deps | micromamba (single static binary, pinned + SHA-256) creating `env/` from a **conda-lock** file (exact versions + hashes, conda-forge only) |
+| JupyterLab, kernels, poppler (pdftotext/pdfinfo), LaTeX engine | same locked env (LaTeX: **tectonic** with a vendored, pinned bundle cache — offline after first install; fallback xelatex only if present on the system) |
+| SageMath | separate locked env `envs/sage/`, installed **on demand** the first time a Sage feature is used, then updated by Madalean |
+| Lean / Mathlib | elan with `ELAN_HOME=$MADALEAN_HOME/elan` (never touches `~/.elan`), workspaces under `$MADALEAN_HOME/workspaces` (existing ones reused read-only if present) |
+| llama.cpp | prebuilt pinned release asset (CUDA or CPU) verified by SHA-256, or built from the pinned commit if no matching binary |
+| Network to devices | **embedded Tailscale node** (tsnet, Go sidecar `madalean-net`, pinned, built by us, single static binary): the server is reachable at `https://madalean.<tailnet>.ts.net` with its own certificate; state in `$MADALEAN_HOME/tailscale/`; first start shows the Tailscale login URL; no `tailscale serve` entries on the host; the host's tailscaled is not required (if it runs, both coexist). Remote listener is bound to the tsnet listener only. |
+| Web UI | built static files shipped in the package (no Node at runtime) |
+
+All component versions live in one manifest (`madalean/deps/manifest.toml`) with hashes; the update system (§16)
+updates them; the health page lists every component, its version, where it lives, and a repair button.
