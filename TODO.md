@@ -32,13 +32,17 @@
 - ⚠️ Jamais essayé : vrai serveur, vrai Tailscale en HTTPS, vrai téléphone ou tablette, trousseau du bureau
 - ⚠️ À faire par toi : sauvegarder `~/.config/madalean/release-keys/` (clé de signature des APK)
 
-## 4. Interface web (session S-D, Opus) — 🔄 en cours
-- ⬜ Écran 1 : écrire l'énoncé (langage naturel / LaTeX, import .tex)
-- ⬜ Écran 2 : traduction Lean avec explication ligne par ligne (apprendre)
-- ⬜ Écran 3 : prouver, vérifier, expliquer, exporter en PDF
-- ⬜ Projets et dossiers en parallèle, historique clair, bibliothèque de résultats
-- ⬜ Modes « Apprendre » (indices progressifs, exercices) et « Recherche »
-- ⬜ Réglages : modèles, clés, appareils, mises à jour ; français / anglais ; clair / sombre ; téléphone
+## 4. Interface web (session S-D, Opus) — terminé en mode démonstration
+- ✅ Écran 1 : écrire l'énoncé (langage naturel / LaTeX avec aperçu, import .tex, exemples)
+- ✅ Écran 2 : traduction Lean côte à côte avec le texte, lecture guidée ligne par ligne, survol des symboles
+- ✅ Écran 3 : essais en direct, preuve vérifiée, preuve rédigée, explication, découpage en lemmes, versions, export
+- ✅ Projets et dossiers en parallèle, centre d'activité, indicateur « qui reçoit quoi »
+- ✅ Modes « Apprendre » (indices progressifs, explication à reformuler, exercices) et « Recherche »
+- ✅ Réglages façon L Katta (clés, modèles, appareils avec QR code, mises à jour, santé) ; français / anglais ; clair / sombre ; téléphone et tablette
+- ✅ Accessibilité AA (0 violation sur 14 écrans), 60 images/s sur 10 000 lignes, 1,3 s sur téléphone (cache chaud)
+- 🔄 11 demandes au serveur (versions des corrections manuelles, test réel des clés, survol Mathlib…)
+- ⬜ Écrans de l'atelier de recherche (sources, notes, graphe, conjectures, plans de preuve, articles) — session suivante
+- ⚠️ Jamais essayé avec les vrais modèles, dans les applications, sur un vrai téléphone ou un lecteur d'écran
 
 ## 5. Recherche : bibliographie et articles (session S-E, Opus) — 🔄 en cours
 - ⬜ Bibliographie par projet (DOI, arXiv, zbMATH, BibTeX), citations dans les preuves, jamais de référence inventée
