@@ -145,6 +145,8 @@ async def _once(http: Http, url: str, body: dict, *, mode: str, provider: str, k
         res.text, res.thinking = "".join(text_parts), "".join(think_parts)
     if guard.tripped:
         res.finish = "loop"
+        if not res.tokens_out:          # the usage report never arrives on a stream we stopped: ≈ 1 token per piece
+            res.tokens_out = guard.pieces
         res.text = guard.cut(res.text) if res.text else res.text
         res.thinking = guard.cut(res.thinking) if not res.text else res.thinking
     for k, c in enumerate(calls):

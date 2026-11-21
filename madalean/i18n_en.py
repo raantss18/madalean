@@ -1113,4 +1113,14 @@ EN.update({
         'GPU lent by Ollama: {models} unloaded (Ollama reloads them on demand).',
     'Modèle local arrêté après {m} min sans utilisation : la carte graphique est rendue aux autres applications.':
         'Local model stopped after {m} min without use: the GPU is given back to the other applications.',
+    # session S-M: Calcul, library catalogue
+    'Calcul du {d}': 'Computation of {d}',
+    "Ce code a été écrit par l'assistant : relisez-le et approuvez-le d'abord.":
+        'This code was written by the assistant: read it and approve it first.',
+    "Exécutez d'abord la cellule.": 'Run the cell first.',
+    "Le modèle n'a pas proposé de code ; reformulez la demande.": 'The model proposed no code; rephrase the request.',
+    'Résultat de calcul': 'Computation result',
+    'conditionnel (lemmes admis : {a})': 'conditional (admitted lemmas: {a})',
+    'vérifié par Lean': 'verified by Lean',
+    'Bibliothèque de résultats': 'Library of results',
 })

@@ -321,9 +321,18 @@ FAMOUS: list[tuple[str, list[str]]] = [
     (r"wilson", ["ZMod.wilsons_lemma", "Nat.prime_iff_fac_equiv_neg_one"]),
     (r"euclid'?s? lemma", ["Nat.Prime.dvd_mul", "Prime.dvd_mul"]),
     (r"lagrange'?s? theorem", ["Subgroup.card_subgroup_dvd_card"]),
-    (r"cayley.?hamilton", ["Matrix.aeval_self_charpoly"]),
+    (r"cayley.?hamilton", ["LinearMap.aeval_self_charpoly", "Matrix.aeval_self_charpoly"]),
     (r"bolzano.?weierstrass", ["tendsto_subseq_of_bounded", "IsCompact.tendsto_subseq"]),
-    (r"extreme value theorem", ["IsCompact.exists_isMaxOn", "IsCompact.exists_isMinOn"]),
+    (r"extreme value theorem|th[ée]or[èe]me des bornes|bornes atteintes|atteint ses bornes|attains (its )?(bounds|max)"
+     r"|continuous .{0,40}compact .{0,80}(bounded|attains)|compact.{0,60}continu.{0,80}born[ée]",
+     ["IsCompact.exists_isMaxOn", "IsCompact.exists_isMinOn", "IsCompact.exists_forall_ge", "IsCompact.exists_forall_le",
+      "IsCompact.bddAbove_image", "IsCompact.bddBelow_image", "IsCompact.exists_bound_of_continuousOn"]),
+    # S-K: results the user could not prove although Mathlib has them (names checked in lean-prover49 AND lean-current)
+    (r"\briesz\b|unit ball.{0,60}compact|compact.{0,40}unit ball|boule unit[ée].{0,60}compacte",
+     ["FiniteDimensional.of_isCompact_closedBall", "FiniteDimensional.of_isCompact_closedBall₀"]),
+    (r"first isomorphism|premier th[ée]or[èe]me d.isomorphisme|quotient .{0,30}kernel .{0,40}(image|range)"
+     r"|ker\w* .{0,30}(≅|isomorph).{0,30}(im|range)|e ?/ ?ker",
+     ["LinearMap.quotKerEquivRange", "QuotientGroup.quotientKerEquivRange", "RingHom.quotientKerEquivRange"]),
     (r"incomplete basis|extend(ed)? to a basis|basis extension", ["exists_linearIndependent_extension", "Basis.extend"]),
     (r"rank.?nullity", ["LinearMap.finrank_range_add_finrank_ker"]),
     (r"am.?gm|arithmetic.{0,8}geometric mean", ["Real.inner_le_nnorm_mul_nnorm", "Real.geom_mean_le_arith_mean2_weighted",

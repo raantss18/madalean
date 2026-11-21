@@ -104,7 +104,10 @@ export const api = {
     request<{ dossier: Dossier; check: CheckResult | null }>('POST', `/dossiers/${enc(id)}/statement`, { code, check }),
   checkDossier: (id: string, what?: 'statement' | 'proof', o?: ReqOpts) =>
     request<{ what: string; check: CheckResult }>('POST', `/dossiers/${enc(id)}/check`, what ? { what } : {}, o),
-  run: (id: string, plan: (Stage | { stage: Stage; request?: string })[], extra: { mode?: Mode; strategy?: Strategy } = {}) =>
+  /** « Vérifier l'énoncé » (S-K): the verdict arrives as a `check` event in the thread. */
+  verify: (id: string, learn = false, extra: { mode?: Mode } = {}) =>
+    request<{ job: Job }>('POST', `/dossiers/${enc(id)}/verify`, { learn, ...extra }),
+  run: (id: string, plan: (Stage | { stage: Stage; request?: string; force?: boolean; learn?: boolean })[], extra: { mode?: Mode; strategy?: Strategy } = {}) =>
     request<{ job: Job }>('POST', `/dossiers/${enc(id)}/run`, { plan, ...extra }),
   stop: (id: string) => request<{ stopped: boolean }>('POST', `/dossiers/${enc(id)}/stop`, {}),
   /** Manual edit as a new user version (proof re-checked strictly by Lean). */

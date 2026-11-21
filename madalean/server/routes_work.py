@@ -116,7 +116,10 @@ def _plan_arg(raw) -> list[dict] | None:
         if st not in STAGES:
             return None
         req = item.get("request", "") if isinstance(item, dict) else ""
-        out.append({"stage": st, "request": str(req)[:4000]})
+        step = {"stage": st, "request": str(req)[:4000]}
+        if isinstance(item, dict):           # « Prouver quand même » (skip the statement check), Learn mode (S-K)
+            step.update({k: True for k in ("force", "learn") if item.get(k) is True})
+        out.append(step)
     return out
 
 
@@ -317,6 +320,21 @@ async def dossiers_run(request: web.Request) -> web.Response:
         return error(400, "bad_plan")
     try:
         job = ctx.orchestrator.submit(d.id, plan, **_opts(data))
+    except DossierBusy as e:
+        return _busy(e)
+    return ok({"job": job.to_dict()}, status=202)
+
+
+@routes.post("/api/dossiers/{id}/verify")
+async def dossiers_verify(request: web.Request) -> web.Response:
+    """« Vérifier l'énoncé » on demand: {learn?: bool, mode?}. The verdict arrives as a `check` event (S-K)."""
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    data = await body(request)
+    if not d.statement:
+        return error(409, "no_statement")
+    try:
+        job = ctx.orchestrator.submit(d.id, [{"stage": "verify", "learn": data.get("learn") is True}], **_opts(data))
     except DossierBusy as e:
         return _busy(e)
     return ok({"job": job.to_dict()}, status=202)

@@ -89,7 +89,7 @@ class Result:
     winner: Outcome | None = None
     outcomes: list[Outcome] = field(default_factory=list)
     rounds: int = 0
-    stop: str = ""            # won | exhausted | rounds | time | attempts | tokens
+    stop: str = ""            # won | exhausted | rounds | time | attempts | tokens | reinforcement (paid round failed)
     tried: list[str] = field(default_factory=list)
 
 
@@ -101,8 +101,10 @@ class Tournament:
                  record: Callable[[Outcome], None] | None = None,
                  on_round: Callable[[int, list[Contestant]], Any] | None = None,
                  on_join: Callable[[int, Contestant], Any] | None = None, online_slots: int = 3,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic,
+                 reinforce: Callable[[], list[Contestant]] | None = None):
         self.cfg, self.candidates, self.run_one = cfg, candidates, run
+        self.reinforce = reinforce            # paid reinforcement (S-M): final round when every free model failed
         self.record_fn, self.on_round, self.on_join = record, on_round, on_join
         self.online_slots = max(1, online_slots)
         self.clock = clock
@@ -166,9 +168,35 @@ class Tournament:
 
     # ------------------------------------------------------------ main
     async def run(self) -> Result:
+        res = await self._free_rounds()
+        if res.winner is not None or self.reinforce is None or res.stop == "time":
+            return res
+        return await self._reinforcement(res.stop)
+
+    async def _reinforcement(self, stop: str) -> Result:
+        """Final round (user decision 2026-11-21): the free models failed, the paid reinforcement (Claude) gets one
+        run, bounded by the remaining wall time and by the spending caps the engine enforces on every call. It is
+        not bound by the attempt/token budgets of the free rounds (they are what ran out)."""
+        try:
+            cs = [c for c in (self.reinforce() or []) if c.key not in self.tried][:1]
+        except Exception:  # noqa: BLE001
+            log.exception("reinforcement candidates failed")
+            cs = []
+        deadline = self._deadline
+        if not cs or self.clock() >= deadline - 30:
+            return self._done(None, stop)
+        k = self.res.rounds
+        await self._announce(k, cs)
+        self.tried.add(cs[0].key)
+        o = await self._guarded(cs[0], k, EXPLORE_RUNS, deadline)
+        self._record(o)
+        return self._done(o if o.ok else None, "won" if o.ok else "reinforcement")
+
+    async def _free_rounds(self) -> Result:
         cfg = self.cfg
         start = self.clock()
         deadline = start + cfg.max_minutes * 60.0
+        self._deadline = deadline
         # ---- round 0: the best model, then the second best only if the best could not run at all
         r0_deadline = start + cfg.max_minutes * 60.0 * ROUND0_TIME_SHARE
         best = self._fresh()[:2]

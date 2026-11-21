@@ -21,5 +21,6 @@ export const PROJECT_SECTIONS = [
   { path: '/blueprint', label: 'nav.blueprint', icon: 'tree', name: 'blueprint' },
   { path: '/article', label: 'nav.article', icon: 'file', name: 'article' },
   { path: '/conjectures', label: 'nav.conjectures', icon: 'bulb', name: 'conjectures' },
+  { path: '/calcul', label: 'nav.calcul', icon: 'terminal', name: 'calcul' },
   { path: '/publier', label: 'nav.publish', icon: 'globe', name: 'publish' },
 ] as const;

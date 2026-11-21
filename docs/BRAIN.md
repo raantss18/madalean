@@ -296,3 +296,83 @@ Real run (2026-11-21, S-J; test server on spare ports with a temporary config, m
   model within the same race (≤ 2 × K replacements per round) and no longer uses the attempt budget, so a race is
   not wasted on rate-limited providers.
 
+
+## 12. Statement check and Mathlib first (session S-K, DECISIONS D31)
+
+Two bounded stages before any prover model (settings `statement_check`, `mathlib_first`, both on by default):
+
+**« Vérifier l'énoncé »** (`madalean/pipeline/verify.py`, endpoint `POST /api/dossiers/{id}/verify`, run automatically
+before the first proof search of each statement). In parallel: (a) fidelity — role `understand`, JSON issues with
+severity and a one-line fix in the user's language (pedagogical wording when the step carries `learn`); (b) truth —
+ONE Lean compilation (`probes.py`: each probe is its own `set_option autoImplicit false in set_option maxHeartbeats
+20000 in theorem …`, messages mapped back by line) of short proofs of `¬ (∀ BINDERS, CONCL)` (decide, norm_num, simp,
+push_neg + witnesses 0/1, degenerate instances ∅ / 0 / 1 / `fun _ => 0` on the explicit binders, closed with
+`simp at this`/`norm_num at this`/`exact this (by fun_prop|continuity|simp)`) and of quick proofs of the statement
+(decide, norm_num, simp, omega, aesop), plus `exact?` (60 000 heartbeats) in its own file; (c) the model's
+counterexamples, as tactic proofs of the same pinned negation (the server writes the proposition, the model only the
+tactics). A probe that closes its goal is re-compiled alone with the strict verdict before it counts. Verdict: `false`
+only on a Lean proof of the negation; `doubtful` on a high-severity model issue without Lean evidence; `faithful`;
+`unknown` when nothing could be checked. `false`/`doubtful` stop the automatic chain with the reasons, the evidence,
+« Corriger l'énoncé avec : … » (one click = statement follow-up with the fix) and « Prouver quand même » (`proof`
+step with `force`). Caps: model 150 s, Lean batches 90 s / 60 s / 60 s, strict re-checks 60 s; the demo's fake
+Lean is never used for probes (it would « prove » any negation).
+
+**Mathlib first** (`madalean/pipeline/mathlib_first.py`, inside the proof stage, not for refinements of an existing
+proof): ≤ 12 candidates = famous table (`rag.FAMOUS`, extended with Cayley-Hamilton → `LinearMap.aeval_self_charpoly`,
+Riesz → `FiniteDimensional.of_isCompact_closedBall`, first isomorphism theorem → `LinearMap.quotKerEquivRange`, extreme
+values → `IsCompact.exists_isMaxOn`… — French and English patterns; names checked in both lean-prover49 and
+lean-current), premises of the Lean statement, search with the understood text; names that the D28 gate would refuse
+are dropped. Templates `exact N`, `exact N _`, `exact ⟨N _⟩`, `simpa using N`, `apply N` (+ `intros` first) then side goals by `assumption` / `norm_num` for all
+candidates in ONE compilation (40 000 heartbeats each, 120 s), `exact?` in parallel unless the statement check already
+found a quick proof; then ≤ 2 calls of role `prove` asking for a 1–5 line proof with the 6 best candidates. Success →
+proof model `mathlib:<name>`, `meta.strategy = "mathlib"`, `meta.mathlib_lemma`, thread event « Ce théorème est dans
+Mathlib sous le nom … », explanation prompt told to cite it. Failure → the candidates are appended to the agent
+contestants' hint. The translator also receives Mathlib's own statement (name, section variables, signature) when
+the request names a famous result.
+
+## 12. Keyed model families, key test, Claude as paid reinforcement (session S-M)
+
+**Bug seen on the live install (read-only GET /api/models, 2026-11-21):** Gemini key set (40 models), yet no Gemini
+model among the `prove` candidates; the key test picked `gemini:gemma-4-31b-it` (503 overloaded); Mistral (23 models)
+only ranked `ministral-14b`. Cause: the seed knows only the keyless providers, so every keyed model got the size-based
+estimate (0.41 when the name has no size): « gemma-4-31b » (0.48) and « ministral-14b » (0.44) beat Gemini Pro and
+Mistral Large. Fix (`catalogue.FAMILIES`, `family_quality`): quality per family on the seed's scale, first match wins
+— Gemini 3 Pro ≈ 0.88 maths, Gemini 3 Flash ≈ 0.80, 2.5 Pro ≈ 0.82, 2.5 Flash ≈ 0.72, Flash-Lite ≈ 0.55–0.62, 2.0
+Flash ≈ 0.48, Gemma 4 ≈ 0.40; Magistral Medium ≈ 0.76, Mistral Large ≈ 0.64, Devstral (code 0.78), Mistral Medium ≈
+0.60, Mistral Small ≈ 0.46, Ministral 14B ≈ 0.40… (plus GPT-5 / DeepSeek). Applied at refresh *and* when the router
+reads a catalogue saved by an older version (`_with_family`), so the live install is fixed without waiting 12 h. The
+« why » says it: `(estimated: Gemini 3 Pro family)`; the leaderboard and observed reliability then correct it.
+`is_text_chat` also drops computer-use, robotics, live, AQA and deep-research models. Magistral / Devstral get the
+Lean « good at maths and code » bonus. **To verify with the user's keys:** the exact ids of their 40 Gemini / 23 Mistral
+models (patterns cover `gemini-2.x/3.x-pro|flash|flash-lite[-preview]`, `gemini-(pro|flash|flash-lite)-latest`,
+`*-latest` and dated Mistral ids), and that the ranking feels right on real proofs.
+
+**Key test** (`MadaleanBrain.test_model`, `catalogue.key_test_model`): one tiny call (≤ 256 tokens) to the provider's
+cheap, stable model — Gemini 2.5 Flash-Lite → Flash-Lite latest → 2.5 Flash → Flash latest → 2.0 Flash (never Gemma);
+Mistral Small latest → Ministral 8B; Claude Haiku; Groq 8B instant… — else the first stable (non-preview) model.
+
+**Claude as paid reinforcement** (user decision 2026-11-21): the tournament (§11) gets a **final round** after the
+free rounds failed (not after a time stop): one paid contestant from `brain.reinforcements("prove")` — Claude, only
+with its key, `claude_reinforce` on, outside local mode, while the month's cap leaves room; model `claude_model` or
+the best Claude for the role. It is bounded by the remaining wall time, not by the free rounds' attempt/token budgets.
+
+**Spending caps** (`brain/spend.py`): every paid Claude call goes through `MadaleanBrain._budget` before it is sent:
+input tokens estimated (≈ 3.5 characters per token, nothing assumed cached) at list price + the allowed output at
+output price; `max_tokens` is reduced to what the caps leave (per proof scope `SPEND_SCOPE` = `dossier:job`, set by
+the runner around the tournament; and per calendar month); if fewer than 2,048 output tokens fit, the call is refused
+(`ProviderError("budget")`, chunk `event: budget`, not a model failure, nothing sent). Calls in flight are reserved.
+After the call, the real cost from the API usage (input, output, cache read at 0.1×, cache write at 1.25× input; Haiku
+5.5 × 5 above 100 K prompt tokens) is written to `<config>/brain-spend.json` (0600, no prompt, ≤ 5,000 rows) and
+emitted (`event: spent`). A network error / stall after sending records the estimated prompt cost. Prices
+(claude-api skill, cached 2026-11-03): Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 $0.10/$0.50, Fable 5.2 $8/$40
+per MTok. Defaults: 1.00 USD per proof, 20 USD per month (Réglages › Modèles). Tests: `tests/test_spend_keyed.py`
+(fake Anthropic server: fitted `max_tokens`, recorded usage incl. cache, refusal without request, month cap,
+reinforcement round, pipeline with the runner).
+
+**Unfit models** (integrator report: `ovh:Olala-v1.0-summarise` was given `prove` twice, its Lean never compiled):
+`catalogue.unfit_reason` flags task-specific families (summarise, embed, rerank, guard, moderation, classifier, TTS,
+transcription, caption, OCR, vision-language `-VL`, translation) and small models (`nano`, `tiny`, `e1b…e4b`, or a
+largest size in the name < 7 B). The router never offers them for `prove` / `formalize` (unless the user picked one
+explicitly) and gives them −0.30 for `route`; Madalean's own local models are exempt. The leaderboard adds a « junk »
+penalty (up to −0.25) to a model that ran ≥ 2 tasks, never succeeded and whose Lean was rejected at every attempt, so
+it sinks below an unknown model. Test: `tests/test_spend_keyed.py::test_summariser_and_tiny_models_never_prove_or_formalize`.

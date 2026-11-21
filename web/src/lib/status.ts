@@ -29,13 +29,14 @@ export function modelLabel(key: string): { name: string; provider: string; local
   name = name.replace(/\.gguf$/i, '').replace(/[-.]Q\d_K(_[MS])?$/i, '').replace(/:free$/, '');
   const slash = name.lastIndexOf('/');
   if (slash >= 0) name = name.slice(slash + 1);
+  if (provider === 'mathlib') return { name: `Mathlib : ${key.slice(i + 1)}`, provider, local: true };   // S-K
   return { name, provider, local: provider === 'local' || provider === 'ollama' };
 }
 
 export const PROVIDER_NAMES: Record<string, string> = {
   local: 'Madalean (local)', ollama: 'Ollama', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter',
   groq: 'Groq', mistral: 'Mistral', cerebras: 'Cerebras', openai: 'OpenAI', deepseek: 'DeepSeek', llm7: 'LLM7',
-  ovh: 'OVHcloud', kilo: 'Kilo', pollinations: 'Pollinations', fake: 'Démo', 'lean': 'Lean',
+  ovh: 'OVHcloud', kilo: 'Kilo', pollinations: 'Pollinations', fake: 'Démo', 'lean': 'Lean', mathlib: 'Mathlib',
 };
 
 export function providerName(p: string): string {
@@ -47,6 +48,7 @@ export function roleOfStage(stage: string): string {
   switch (stage) {
     case 'understand': return 'understand';
     case 'route': return 'route';
+    case 'verify': return 'understand';
     case 'statement': return 'formalize';
     case 'proof': return 'prove';
     case 'notes':

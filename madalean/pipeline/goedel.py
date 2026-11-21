@@ -7,6 +7,7 @@ names rejected by Lean recalled in every fresh sample, real-name suggestions aft
 answers ended as « loop » and followed by a fresh sample."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from .. import config, leancheck, names
@@ -178,10 +179,12 @@ class Formalizer:
         text = leancheck.formalize_input(text, profile, previous, request)
         n = max(1, tries)
         res = FormalizeResult(False)
+        feedback = ""
         for i in range(n):
             a = self.io.new_attempt("statement", "translation")
             try:
-                c = await self.io.complete("formalize", [{"role": "user", "content": leancheck.formalize_prompt(text, name)}],
+                c = await self.io.complete("formalize", [{"role": "user", "content": leancheck.formalize_prompt(
+                                               text + feedback, name)}],
                                            a, temperature=0.9, max_tokens=12000,
                                            extra={"top_p": 0.95, "top_k": 20}, mode=self.mode, stage="statement")
             except BrainError as e:
@@ -190,7 +193,12 @@ class Formalizer:
                 raise InfraError("no_model" if e.kind == "no_model" else "generation", str(e)) from e
             a.raw, a.model, a.finish, a.gen_seconds, a.tokens = c.text, c.model.key, c.finish, c.seconds, c.tokens_out
             res.model = c.model.key
-            code = None if c.finish == "loop" else leancheck.extract_code(a.raw)
+            # a model that degenerates at the end (seen with free reasoning models: endless `import Mathlib.…` lines
+            # after a complete statement) is stopped by the loop guard; a complete ```lean4 block written before
+            # the loop is still a candidate statement — Lean decides, as for any other answer (S-K)
+            code = leancheck.extract_code(a.raw)
+            if code is not None and c.finish == "loop" and not re.search(r"\btheorem\b", code):
+                code = None
             if code is None:
                 a.status = "rejected"
                 a.summary = (msg("L'IA tournait en rond : nouvel essai.") if c.finish == "loop" else
@@ -225,5 +233,11 @@ class Formalizer:
             a.errors_text = "\n".join(msg("ligne {line} : {text}", line=m.line, text=m.text)["text"]
                                       for m in r.verdict.errors)
             self.io.update_attempt(a)
+            # the next attempt sees what Lean said (S-K: the user's Cayley-Hamilton / Riesz translations failed 3×
+            # on the same small mistake: `aeval` without `Polynomial.`, `CompleteSpace 𝕜 E`)
+            errs = "\n".join(f"line {m.line}: {m.text[:400]}" for m in r.verdict.errors[:4])
+            feedback = (f"\n\nA previous attempt was:\n```lean4\n{leancheck._body(a.code)}\n```\nLean rejected it:\n"
+                        f"{errs}\nAvoid this mistake (write fully qualified Mathlib names, e.g. `Polynomial.aeval`, and "
+                        "check the number of arguments of each class).\n")
         res.summary = msg("La traduction ne compile pas encore : corrigez-la dans l'éditeur ou reformulez le problème.")
         return res

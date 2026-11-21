@@ -6,9 +6,9 @@
 
 ### P0 — bloquant
 1. ✅ Revue de sécurité : publiable sous conditions — ✅ clés chiffrées (copies : dépôt `release-keys/` ignoré par git, `~/Documents/madalean-cles`, NAS `Cles-Signature-Releases/madalean`) ; ✅ llama.cpp b12608 (failles corrigées, testé sur la carte graphique) — à installer sur ton PC
-2. 🔄 Vérification de l'énoncé avant la preuve (énoncé faux ou incomplet → correction proposée)
-3. 🔄 Recherche Mathlib d'abord (Cayley-Hamilton, Riesz, valeurs extrêmes, 1er théorème d'isomorphisme…)
-4. 🔄 Faux « l'IA tourne en rond » pendant la traduction (bloquait Cayley-Hamilton)
+2. ✅ Vérification de l'énoncé avant la preuve (S-K) : « fidèle / douteux / faux », preuve Lean du contraire (K = ∅ trouvé tout seul ; contre-exemple (-1)ⁿ des sous-suites), « Corriger l'énoncé avec : … » / « Prouver quand même » — essai réel : sous-suites signalé douteux → correction en un clic → prouvé
+3. ✅ Recherche Mathlib d'abord (S-K) + énoncé Mathlib donné au traducteur — essai réel : Cayley-Hamilton (LinearMap.aeval_self_charpoly) et E/ker f ≅ Im f (LinearMap.quotKerEquivRange) prouvés par Mathlib ; ⚠️ Banach : énoncé traduit sans `CompleteSpace 𝕜`, pas prouvé
+4. ✅ « L'IA tourne en rond » pendant la traduction (S-K) : vrai bouclage du modèle (lignes `import` sans fin) après un énoncé complet — l'énoncé est maintenant gardé, jetons comptés, garde remise à zéro au changement de modèle
 5. ✅ Découpage en lemmes en carte mentale : analyse → lemmes indépendants → tu valides le plan → preuves automatiques → combinaison ; autre piste ou nouveau découpage si échec ; limites (profondeur 3, 6 lemmes, 30 nœuds), arrêt sur les évidences, « sorry » en dernier recours (résultat conditionnel, jamais « vérifié ») — fait (S-L) : vrai essai « fonction continue sur un compact » prouvé de bout en bout (2 lemmes évidents, 1 par Mathlib, combinaison vérifiée par Lean) ; ⚠️ polynôme de degré 3 : plans refusés par Lean avec les modèles gratuits du moment
 6. ⚠️ Modèles à clé réellement utilisés : Gemini (clé OK, mais modèles mal classés), Mistral ; Claude en renfort après échec des gratuits, avec plafond par preuve (1 $) et par mois (20 $) réglables — fait par S-M (classement par famille, test sur Flash-Lite, renfort + registre des dépenses), à vérifier avec tes clés
 7. ⬜ Relancer tes dossiers échoués avec ces corrections : Cayley-Hamilton, Banach, compact, sous-suites, E/ker f ≅ Im f

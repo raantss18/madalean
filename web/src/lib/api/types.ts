@@ -3,7 +3,7 @@
 export type Message = { key: string; params: Record<string, unknown>; text: string };
 export type Mode = 'local' | 'auto' | 'online';
 export type Strategy = 'goedel' | 'agent' | 'auto';
-export type Stage = 'understand' | 'route' | 'statement' | 'notes' | 'proof' | 'explanation' | 'informal';
+export type Stage = 'understand' | 'route' | 'statement' | 'notes' | 'verify' | 'proof' | 'explanation' | 'informal';
 export type FollowStage = 'auto' | 'statement' | 'proof' | 'explanation';
 export type Role = 'understand' | 'route' | 'formalize' | 'prove' | 'explain' | 'assistant';
 export const ROLES: Role[] = ['prove', 'formalize', 'understand', 'explain', 'route', 'assistant'];
@@ -17,7 +17,9 @@ export interface Project {
 
 export interface VersionMeta {
   axioms?: string[] | null; lean?: string; mathlib?: string; workspace?: string; seconds?: number;
-  strategy?: Strategy; attempts?: number; checked?: number;
+  strategy?: Strategy | 'mathlib'; attempts?: number; checked?: number;
+  /** S-K: statement check verdict (statement versions); Mathlib lemma used (proof versions) */
+  check?: Record<string, unknown>; mathlib_lemma?: string; mathlib_source?: string;
 }
 export interface Version {
   code: string; t: number; source: 'ai' | 'user'; ok: boolean; parent: number | null; note: string;
@@ -25,7 +27,10 @@ export interface Version {
 }
 export type VersionKind = 'statement' | 'proof' | 'explanation';
 
-export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'proof' | 'explanation' | 'informal' | 'info' | 'error';
+export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'check' | 'proof' | 'explanation' | 'informal' | 'info' | 'error';
+/** `check` event params (statement check, S-K). */
+export interface CheckIssue { kind: string; severity: 'high' | 'low'; explanation: string; fix: string; checked: string }
+export type CheckVerdict = 'faithful' | 'doubtful' | 'false' | 'unknown';
 export interface DossierEvent {
   kind: EventKind; text: string; t: number; ref: number | null; stage: string; model: string; key: string;
   params: Record<string, unknown>; job: string;
@@ -102,6 +107,7 @@ export interface Settings {
   language: 'fr' | 'en'; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;
   workspace: string; model_path: string; prove_attempts: number; translate_attempts: number;
   pause_after_translation: boolean; profile: string; statement_notes: boolean; informal_proof: boolean;
+  statement_check: boolean; mathlib_first: boolean;
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;

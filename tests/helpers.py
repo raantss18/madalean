@@ -32,13 +32,19 @@ def make_ctx(tmp: Path, ws=None, brain=None, fake_lean: bool = False, caps=None,
     ctx.brain_kind = "fake"
     ctx.settings.workspace = ws.key
     ctx.settings.mode = "local"            # tests describe the local (Goedel) path unless they set a mode themselves
+    # the statement check and the Mathlib-first search (S-K) add model calls and Lean probes: tests of the older
+    # chain keep their exact sequences; tests/test_statement_check.py turns them on
+    ctx.settings.statement_check = False
+    ctx.settings.mathlib_first = False
     return ctx
 
 
 async def started(ctx: ServerContext) -> ServerContext:
     key, mode = ctx.settings.workspace, ctx.settings.mode
+    sk = (ctx.settings.statement_check, ctx.settings.mathlib_first)
     await ctx.start()
     ctx.settings.workspace, ctx.settings.mode = key, mode
+    ctx.settings.statement_check, ctx.settings.mathlib_first = sk
     return ctx
 
 

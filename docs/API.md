@@ -204,7 +204,25 @@ version (`source:"user"`), event; with `check` (default) Lean compiles it first 
 (proof = strict verdict with the axiom probe). Does not modify the dossier.
 
 `POST /dossiers/{id}/run` `{"plan":["proof",{"stage":"explanation","request":"plus simple"}],"mode"?,"strategy"?}`
-→ `202 {"job":Job}`. Stages: `understand route statement notes proof explanation informal`.
+→ `202 {"job":Job}`. Stages: `understand route statement notes verify proof explanation informal`. A step object may
+carry `"force":true` (`proof`: skip the statement-check gate — the « Prouver quand même » button) and `"learn":true`
+(`verify`: explanations written for a student).
+
+`POST /dossiers/{id}/verify` `{"learn"?:bool,"mode"?}` → `202 {"job":Job}` (409 `no_statement`, 409 `busy`) —
+« Vérifier l'énoncé » (S-K, `madalean/pipeline/verify.py`). Runs in parallel, bounded (≈ 1–3 min): (a) the general
+model (role `understand`) compares the user's words with the Lean statement and answers JSON issues
+(`wrong_object | missing_hypothesis | extra_hypothesis | wrong_quantifier | wrong_direction | false_statement`, each
+`severity` high/low, `explanation`, `fix`); (b) ONE Lean compilation of short proofs of the negation
+`¬ (∀ BINDERS, CONCL)` (`decide`, `norm_num`, `simp`, `push_neg` + small witnesses, degenerate instances: ∅ for sets,
+0/1 for numbers, constant functions) and of quick proofs of the statement (`simp`, `norm_num`, `omega`, `aesop`;
+`exact?` in its own file); (c) the model's counterexamples as tactic proofs of that pinned negation. Every success is
+re-compiled alone with the strict verdict. Result: event `check` (below) and `statements[i].meta.check` =
+`{verdict, issues, fix, evidence:{kind,code,idea}, proof, proof_source, model, model_verdict, summary, seconds,
+lean_seconds, probes, statement_index}`. `verdict`: `false` only when Lean proved the negation; `doubtful` when the
+model reports a high-severity issue (or « false » without a Lean proof); `faithful`; `unknown` when nothing could be
+checked. The same check runs automatically before the first proof search of each statement (`statement_check`);
+`false`/`doubtful` stop the automatic chain (job `error` = `statement_false` / `statement_doubtful`) until the
+statement changes, the user sends an explicit proof request, or a `proof` step with `force` is run.
 
 `POST /dossiers/{id}/stop` → `{"stopped":true|false}` (cancels the active job: model request aborted, Lean killed;
 event `Arrêté à votre demande.`; dossier status `stopped`, or `proved` if the current proof is still valid).
@@ -321,6 +339,16 @@ Proof tournament settings (all in `Settings`, docs/BRAIN.md §11): `tournament_e
 `tournament_contestants` (3), `tournament_max_rounds` (3), `tournament_max_minutes` (40),
 `tournament_attempts_per_model` (4).
 
+Mathlib first (S-K, `mathlib_first`, `madalean/pipeline/mathlib_first.py`): before the tournament / Goedel, the proof
+stage takes ≤ 12 candidates from the RAG index (famous-results table, premises of the Lean statement, search with the
+understood text), tries `exact N`, `exact N _`, `exact ⟨N _⟩`, `simpa using N`, `apply N` (+ `intros` first) then side goals by `assumption` / `norm_num` for all of
+them in ONE compilation (+ `exact?` once, in parallel), then lets the general model (role `prove`, ≤ 2 calls) write a
+1–5 line proof with the candidates; every proof is strict-checked. Success: proof version with `model`
+`"mathlib:<name>"`, `meta.strategy` `"mathlib"`, `meta.mathlib_lemma`, info event « Ce théorème est dans Mathlib sous le
+nom … », and the explanation cites the lemma. Failure: the candidates go to the agent provers as hints. The attempts
+of this phase have `kind` `"mathlib"`. When the request names a known theorem, the translator also gets Mathlib's
+statement as a reference (info event « Résultat connu de Mathlib donné au traducteur… »).
+
 ### 3.10 System, updates
 
 `GET /system` → `{"monitor":Monitor,"slots":Slots,"lean_running":[{pid,workspace,started}],"workspaces":[WorkspaceInfo],
@@ -431,10 +459,13 @@ interface Version {
   note: string;            // the request that produced it
   model: string;           // "provider:model_id", "" for user versions
   meta: { axioms?: string[] | null; lean?: string; mathlib?: string; workspace?: string; seconds?: number;
-          strategy?: Strategy; attempts?: number; checked?: number };   // proofs
+          strategy?: Strategy | "mathlib"; attempts?: number; checked?: number;   // proofs
+          mathlib_lemma?: string; mathlib_source?: "template" | "exact?" | "adapted" | "check";   // proofs (S-K)
+          check?: StatementCheck };                                                         // statements (S-K)
 }
 
-type EventKind = "user" | "understood" | "statement" | "notes" | "proof" | "explanation" | "informal" | "info" | "error";
+type EventKind = "user" | "understood" | "statement" | "notes" | "check" | "proof" | "explanation" | "informal" | "info" | "error";
+// "check" (S-K): ref = statement index; params = {verdict, fix, issues, evidence, proved, seconds, detail}
 interface DossierEvent {
   kind: EventKind; text: string; t: number;
   ref: number | null;      // index of the version it produced (statements / proofs / explanations / statement_notes / informal_proofs by kind)
@@ -506,6 +537,8 @@ interface Settings {
   language: "fr" | "en"; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;
   workspace: string; model_path: string; prove_attempts: number; translate_attempts: number;
   pause_after_translation: boolean; profile: string; statement_notes: boolean; informal_proof: boolean;
+  statement_check: boolean;  // (true) « Vérifier l'énoncé » before the first proof search of a statement (S-K)
+  mathlib_first: boolean;    // (true) look for the theorem in Mathlib before the prover models; Mathlib reference for the translator
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;   // host-only
@@ -549,6 +582,32 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 `bib_keys=[...], bib_path=Path`) prints the cited references; citations `[@key, loc]` in texts. Research layer
 (sources, literature search, grounded answers, blueprint, article, bibliography): see
 [RESEARCH_SOURCES.md](RESEARCH_SOURCES.md) (`/api/research/…`).
+
+## 6b. Calcul, library catalogue, glossary, spending (session S-M, plugin `workbench.py`)
+
+| Method | Path | Body → answer |
+|---|---|---|
+| GET | `/api/calcul/{pid}` | → `{sheet: {cells, rev}, trash, status: {available{sage,python}, sandbox, auto, remote_allowed, local, running}}` |
+| POST | `/api/calcul/{pid}/cells` | `{code, language: sage\|python, after?}` → 201 `{cell}` (origin `user`) |
+| PATCH | `/api/calcul/{pid}/cells/{cid}` | `{code?, language?, note?}` → `{cell}`; an assistant cell keeps its origin and loses its approval |
+| DELETE / POST | `…/cells/{cid}` · `…/cells/{cid}/restore` · `…/cells/{cid}/move {to}` | undo-able delete, reorder |
+| POST | `…/cells/{cid}/approve` | `{code_hash}` (sha256 of the code read) → `{cell}`; 409 `stale_code`; 403 from devices unless `experiments_remote` |
+| POST | `…/cells/{cid}/run` | `{timeout?≤600}` → `{run}`; 403 `not_approved` (assistant code not approved, `experiments_auto` off), 403 `experiments_host_only`, 409 `busy`; output streamed as `calcul.output` |
+| POST | `/api/calcul/{pid}/interrupt` | interrupts the project's kernel |
+| POST | `/api/calcul/{pid}/assist` | `{action: write\|fix\|explain, cell_id?, prompt?, language?}` → 201 `{cell, approval_required}` or `{text}`; 502 `no_code` |
+| POST | `…/cells/{cid}/to` | `{target: conjecture\|note\|dossier\|article, text?, title?}` → 201 with the created object |
+| GET | `/api/calcul/assets/{aid}` | plot (PNG, sanitised SVG), `Content-Security-Policy: default-src 'none'; …; sandbox` |
+| GET | `/api/library/catalog` | → `{entries: [{name, title, statement, nl, code, workspace, dossier, t, project_id, project, domain, domain_auto, domain_manual, tags, status: verified\|conditional, admitted, model, by_user, axioms, uses, used_by}], domains}` |
+| PATCH | `/api/library/meta/{name}` | `{domain?: one of domains or "" (automatic), tags?: [str ≤ 40]}` (stored in `<config>/library-meta.json`) |
+| GET | `/api/library/catalog/export?format=md\|json\|lean&name=` | attachment (`lean`: the entry with its dependencies, `import Mathlib` first) |
+| GET | `/api/glossary/uses?term=` | → `{term, dossiers: [{id, title, project_id, status, in: statement\|proof}]}` (≤ 30) |
+| GET | `/api/models/spend` | → `{month, spent_month, cap_month, cap_proof, calls_month, by_model, recent[{ts, model, scope, tokens_in, tokens_out, cache_read, cache_write, usd}], prices, enabled, key_set, model, models}` |
+
+`POST /api/models/test` now calls the provider's cheap, stable model (`brain.test_model`: Gemini Flash-Lite / Flash,
+Mistral Small, Claude Haiku…) and answers `tested` (model key) and `why`. Settings added: `claude_reinforce` (bool,
+true), `claude_model` ("auto" or a Claude key), `claude_cap_proof_usd` (0–100, 1.0), `claude_cap_month_usd` (0–1000,
+20.0). WebSocket events: `calcul.updated {project_id, cell? | cell_id + run | removed}`, `calcul.output {project_id,
+cell_id, kind, text}`, `calcul.running {project_id, cell_id}`.
 
 ## 7. Demo mode
 
