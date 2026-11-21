@@ -8,7 +8,10 @@ export type FollowStage = 'auto' | 'statement' | 'proof' | 'explanation';
 export type Role = 'understand' | 'route' | 'formalize' | 'prove' | 'explain' | 'assistant';
 export const ROLES: Role[] = ['prove', 'formalize', 'understand', 'explain', 'route', 'assistant'];
 
-export interface Device { id: string; name: string; created: number; last_seen: number; last_ip: string }
+export interface Device {
+  id: string; name: string; created: number; last_seen: number; last_ip: string;
+  kind?: 'app' | 'browser'; client?: string; sessions?: number; expires_in?: number;   // browser: seconds left
+}
 
 export interface Project {
   id: string; title: string; description: string; workspace: string; created: number; updated: number;

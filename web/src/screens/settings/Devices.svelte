@@ -17,13 +17,19 @@
   let left = $state(0);
   let timer: ReturnType<typeof setInterval> | null = null;
   let devices = $state<Device[] | null>(null);
+  let browsers = $state<Device[] | null>(null);
+  let idleMin = $state(120);
   let address = $state(loadJSON<string>('pair.address', ''));
   let confirmRevoke = $state<string | null>(null);
 
   $effect(() => { if (app.m.devices) devices = app.m.devices; });
+  $effect(() => { if (app.m.browsers) browsers = app.m.browsers; });
   $effect(() => {
     if (!local) return;
-    api.devices().then((r) => { devices = r.devices; app.m.devices = r.devices; }).catch((e) => { if (!isHostOnly(e)) toast('error', errorText(e)); });
+    api.devices().then((r) => {
+      devices = r.apps ?? r.devices; app.m.devices = devices; browsers = r.browsers ?? []; app.m.browsers = browsers;
+      if (r.browser_idle_minutes) idleMin = r.browser_idle_minutes;
+    }).catch((e) => { if (!isHostOnly(e)) toast('error', errorText(e)); });
   });
   onDestroy(() => { if (timer) clearInterval(timer); });
 
@@ -39,7 +45,7 @@
   }
   async function revoke(d: Device) {
     confirmRevoke = null;
-    try { await api.revokeDevice(d.id); devices = (devices ?? []).filter((x) => x.id !== d.id); toast('ok', t('devices.revoked', { name: d.name })); }
+    try { await api.revokeDevice(d.id); devices = (devices ?? []).filter((x) => x.id !== d.id); browsers = (browsers ?? []).filter((x) => x.id !== d.id); toast('ok', t('devices.revoked', { name: d.name })); }
     catch (e) { toast('error', errorText(e)); }
   }
   const link = $derived(code && address.trim() ? `madalean://pair?host=${encodeURIComponent(address.trim()).replace(/%3A/gi, ':')}&code=${code.code}` : '');
@@ -48,6 +54,19 @@
     location.assign('/pair');
   }
 </script>
+
+{#snippet item(d: Device)}
+  <li class="row">
+    <Icon name="device" />
+    <span class="dn"><strong>{d.name}</strong><span class="xs muted">{t('devices.lastSeen', { t: fmtTime(d.last_seen) || '—', ip: d.last_ip || '—' })}{#if d.kind === 'browser' && d.expires_in != null} · {t('devices.browserExpires', { t: `${Math.floor(d.expires_in / 3600)} h ${String(Math.floor((d.expires_in % 3600) / 60)).padStart(2, '0')}` })}{/if}</span></span>
+    {#if confirmRevoke === d.id}
+      <button class="btn small danger" onclick={() => revoke(d)}>{t('devices.revokeConfirm')}</button>
+      <button class="btn small quiet" onclick={() => (confirmRevoke = null)}>{t('common.cancel')}</button>
+    {:else}
+      <button class="btn small" onclick={() => (confirmRevoke = d.id)}>{t('devices.revoke')}</button>
+    {/if}
+  </li>
+{/snippet}
 
 {#if !local}
   <HostLock />
@@ -84,25 +103,26 @@
   </section>
 
   <section class="panel" aria-labelledby="dev-h">
-    <h3 id="dev-h">{t('devices.list')}</h3>
+    <h3 id="dev-h">{t('devices.apps')}</h3>
     {#if devices === null}<p class="muted">{t('common.loading')}</p>
     {:else if devices.length === 0}<p class="muted small">{t('devices.none')}</p>
     {:else}
       <ul class="devs">
-        {#each devices as d (d.id)}
-          <li class="row">
-            <Icon name="device" />
-            <span class="dn"><strong>{d.name}</strong><span class="xs muted">{t('devices.lastSeen', { t: fmtTime(d.last_seen) || '—', ip: d.last_ip || '—' })}</span></span>
-            {#if confirmRevoke === d.id}
-              <button class="btn small danger" onclick={() => revoke(d)}>{t('devices.revokeConfirm')}</button>
-              <button class="btn small quiet" onclick={() => (confirmRevoke = null)}>{t('common.cancel')}</button>
-            {:else}
-              <button class="btn small" onclick={() => (confirmRevoke = d.id)}>{t('devices.revoke')}</button>
-            {/if}
-          </li>
-        {/each}
+        {#each devices as d (d.id)}{@render item(d)}{/each}
       </ul>
       <p class="hint">{t('devices.revokeHint')}</p>
+    {/if}
+  </section>
+
+  <section class="panel" aria-labelledby="brw-h">
+    <h3 id="brw-h">{t('devices.browsers')}</h3>
+    <p class="small muted">{t('pair.everyTime')} {t('pair.everyTimeHint', { h: Math.round(idleMin / 6) / 10 })}</p>
+    {#if browsers === null}<p class="muted">{t('common.loading')}</p>
+    {:else if browsers.length === 0}<p class="muted small">{t('devices.noBrowsers')}</p>
+    {:else}
+      <ul class="devs">
+        {#each browsers as d (d.id)}{@render item(d)}{/each}
+      </ul>
     {/if}
   </section>
 {/if}

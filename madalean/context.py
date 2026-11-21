@@ -22,7 +22,7 @@ from .runtime.lean import LeanRunner
 from .runtime.llama import LocalLlama
 from .runtime.monitor import Monitor
 from .runtime.updates_mgr import UpdatesManager
-from .security import Devices, Pairing, Tickets
+from .security import BrowserSessions, Devices, Pairing, Tickets
 from .server.bus import EventBus
 from .slots import Slots
 from .workspaces import Workspace, all_workspaces
@@ -30,8 +30,8 @@ from .workspaces import Workspace, all_workspaces
 log = get("context")
 ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agent", "auto"), "language": tuple(i18n.LANGS)}
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
-                      "experiments_remote", "updates_auto"}
-LIMITS = {"prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
+                      "experiments_remote", "updates_auto", "browser_session_idle_minutes"}
+LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
           "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535),
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
           "tournament_attempts_per_model": (1, 16), "claude_cap_proof_usd": (0, 100),
@@ -63,6 +63,7 @@ class ServerContext:
         self.devices = Devices(paths.devices)
         self.pairing = Pairing()
         self.tickets = Tickets()
+        self.browser_sessions = BrowserSessions(lambda: self.settings.browser_session_idle_minutes * 60.0)
         self.monitor = Monitor([config.MODELS_DIR, paths.config, Path.home()], monitor_interval)
         self.monitor.listeners.append(lambda snap: self.publish("system.status", {"system": self.system_light()}))
         self._fixed_workspaces = workspaces

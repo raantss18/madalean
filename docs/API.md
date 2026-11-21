@@ -78,19 +78,34 @@ only when the server's Lean check gives the strict verdict.
 ```
 `paired` = the request carried a valid token (always true on the local listener).
 
-`POST /pair` (public) `{"code":"123456","device_name":"Pixel 8"}` →
-`200 {"token":"<43 chars>","device":Device}` + `Set-Cookie: madalean_token=…`. Errors: 403 `wrong`|`expired`|
-`no_code` (with `message`), 429 `locked` (`message.params.m` = minutes) | `rate_limited`.
+`POST /pair` (public) `{"code":"123456","device_name":"Pixel 8","client":"app-android"}` — two outcomes (user
+decision 2026-11-21: apps reconnect automatically; a browser needs a code at every connection):
+- **app** (`client` = `app-desktop` | `app-android`, sent by the shells' native HTTP clients, which add no `Origin` /
+  `Sec-Fetch-*` header; a request without `client` and without those headers is also treated as an app, for shells
+  of before this change) → `200 {"kind":"app","token":"<43 chars>","device":Device}`, **no cookie**. The token is
+  long-lived (kept by the shell in the OS keystore); the web view gets its cookie through a session ticket (§3.1b).
+- **browser** (any request carrying `Origin` or `Sec-Fetch-*`, whatever `client` it claims) →
+  `200 {"kind":"browser","device":Device (kind "browser", id "b-…", expires_in),"idle_minutes":120}` +
+  `Set-Cookie: madalean_token=<session secret>; HttpOnly; SameSite=Strict; Path=/` (+ `Secure` over HTTPS / with
+  `X-Forwarded-Proto: https`; no `Max-Age`/`Expires`: a session cookie). **No token in the body.** The session lives in
+  server memory only: closed after `browser_session_idle_minutes` without a request (setting, default 120, host-only),
+  after 12 h at most, and when the server restarts → the browser pairs again with a new code. Its secret is accepted
+  only as the cookie (never as `Authorization: Bearer`, never for `/session/ticket`): it cannot become a device token.
+Errors: 403 `wrong`|`expired`|`no_code` (with `message`), 429 `locked` (`message.params.m` = minutes) | `rate_limited`.
+The same rules apply on the remote and the LAN listeners; the local listener needs no pairing.
 
-`POST /logout` (public; remote) → revokes the calling device's token and clears the cookie → `{"ok":true}`.
+`POST /logout` (public; remote) → revokes the calling app device or browser session and clears the cookie →
+`{"ok":true}`.
 
 `POST /pairing/start` **host** → `{"code":"482913","expires":1795250000.0,"expires_in":300,
 "remote_url":"https://nitro.tail1234.ts.net:10500"|null}` (replaces any previous code). `remote_url` = the address
 other devices use: from the embedded Tailscale status (`madalean.runtime.net.remote_url`, when present), else
 `https://<host_name>:10500` when the setting `host_name` is a `*.ts.net` name, else `null`. `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"locked_for":0}`.
 
-`GET /devices` **host** → `{"devices":[Device]}`. `DELETE /devices/{id}` **host** → `{"ok":true}` (404 unknown).
-Both publish `devices.updated`.
+`GET /devices` **host** → `{"apps":[Device],"devices":[Device] (= apps, kept for compatibility),"browsers":[Device],
+"browser_idle_minutes":120}` — apps (« Applications (connexion automatique) ») and browser sessions (« Navigateurs
+(session temporaire) ») are listed separately. `DELETE /devices/{id}` **host** → `{"ok":true}` (404 unknown) for an
+app (`d-…`) or a browser session (`b-…`). Both publish `devices.updated {devices, apps, browsers}`.
 
 ### 3.1b Shell sessions (desktop / Android shells, docs/SHELLS.md)
 
@@ -445,7 +460,13 @@ type Mode = "local" | "auto" | "online";
 type Strategy = "goedel" | "agent" | "auto";
 type Stage = "understand" | "route" | "statement" | "notes" | "proof" | "explanation" | "informal";
 
-interface Device { id: string; name: string; created: number; last_seen: number; last_ip: string; sessions: number }
+interface Device {
+  id: string;              // "d-…" app device, "b-…" browser session
+  name: string; created: number; last_seen: number; last_ip: string;
+  kind: "app" | "browser"; client: string;   // app-desktop | app-android | "" (older apps) | browser
+  sessions?: number;       // apps: web-view cookies issued through tickets
+  expires_in?: number;     // browsers: seconds before the session closes (idle or absolute limit)
+}
 
 interface Project {
   id: string; title: string; description: string; workspace: string; created: number; updated: number;
@@ -542,6 +563,7 @@ interface Settings {
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;   // host-only
+  browser_session_idle_minutes: number;   // host-only, 5–1440 (default 120)
   server: { port: number; ctx_size: number; gpu_layers: number; batch_size: number; ubatch_size: number;
             kv_type: "f16" | "q8_0" | "q4_0"; flash_attn: boolean; threads: number };
   sampling: { temperature: number; top_p: number; max_tokens: number };

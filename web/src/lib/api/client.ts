@@ -75,7 +75,7 @@ export const api = {
   },
   pairingStart: () => request<{ code: string; expires: number; expires_in: number; remote_url?: string | null }>('POST', '/pairing/start', {}),
   pairing: () => request<{ active: boolean; expires_in: number; locked_for: number }>('GET', '/pairing'),
-  devices: () => request<{ devices: Device[] }>('GET', '/devices'),
+  devices: () => request<{ devices: Device[]; apps?: Device[]; browsers?: Device[]; browser_idle_minutes?: number }>('GET', '/devices'),
   revokeDevice: (id: string) => request<{ ok: boolean }>('DELETE', `/devices/${enc(id)}`),
 
   patchSettings: (patch: Partial<Settings> | Record<string, unknown>) =>

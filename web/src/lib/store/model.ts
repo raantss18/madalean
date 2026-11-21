@@ -27,13 +27,14 @@ export interface Model {
   updates: UpdatesStatus | null;
   jupyter: JupyterStatus | null;
   devices: Device[] | null;
+  browsers: Device[] | null;          // browser sessions of the remote/LAN listeners (host view)
 }
 
 export function emptyModel(): Model {
   return {
     loaded: false, local: true, demo: false, brain: '', version: '', host_name: '', device: null, settings: null,
     hostOnly: [], projects: {}, dossiers: {}, full: {}, jobs: {}, models: null, system: null, libraryCount: 0,
-    libraryRev: 0, updates: null, jupyter: null, devices: null,
+    libraryRev: 0, updates: null, jupyter: null, devices: null, browsers: null,
   };
 }
 
@@ -130,6 +131,7 @@ export function applyEvent(m: Model, ev: SeqEvent): boolean {
       return true;
     case 'devices.updated':
       m.devices = e['devices'] as Device[];
+      m.browsers = (e['browsers'] as Device[] | undefined) ?? m.browsers;
       return true;
     case 'updates.status':
       m.updates = e['updates'] as UpdatesStatus;

@@ -43,12 +43,59 @@ async def pair(request: web.Request) -> web.Response:
                 "wrong": "Code incorrect."}
         status = 429 if e.kind == "locked" else 403
         return error(status, e.kind, keys[e.kind], m=int(round(e.retry_after / 60)) or 1)
-    dev, token = await asyncio.to_thread(ctx.devices.add, str(data.get("device_name", ""))[:80])
-    ctx.publish("devices.updated", {"devices": ctx.devices.list()})
-    resp = ok({"token": token, "device": dev.public()})
-    resp.set_cookie(TOKEN_COOKIE, token, max_age=10 * 365 * 86400, httponly=True, secure=True, samesite="Strict",
-                    path="/")
+    name = str(data.get("device_name", ""))[:80]
+    if pair_kind(request, data) == "app":
+        # app shells: long-lived token kept in the OS keystore, cookie obtained later through a session ticket
+        dev, token = await asyncio.to_thread(ctx.devices.add, name, str(data.get("client")))
+        publish_devices(ctx)
+        return ok({"kind": "app", "token": token, "device": dev.public()})
+    # plain browser: a temporary session (no token in the body, cookie without Max-Age, idle/absolute expiry)
+    sess, secret = ctx.browser_sessions.add(name or _browser_name(request), request.headers.get("X-Forwarded-For",
+                                                                                              request.remote or ""))
+    publish_devices(ctx)
+    resp = ok({"kind": "browser", "device": sess.public(ctx.browser_sessions.idle_s(), ctx.browser_sessions.clock()),
+               "idle_minutes": ctx.settings.browser_session_idle_minutes})
+    resp.set_cookie(TOKEN_COOKIE, secret, httponly=True, secure=is_https(request), samesite="Strict", path="/")
     return resp
+
+
+def is_https(request: web.Request) -> bool:
+    return request.secure or request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip().lower() == "https"
+
+
+def pair_kind(request: web.Request, data: dict) -> str:
+    """"app" only for the shells' native HTTP clients (`client: app-desktop|app-android`). Anything a browser sends
+    (it always adds Origin / Sec-Fetch-* on a POST) is a browser, whatever `client` it claims: a web page can never
+    obtain a long-lived device token."""
+    from ..security import APP_CLIENTS
+    browserish = "Origin" in request.headers or "Sec-Fetch-Site" in request.headers or "Sec-Fetch-Mode" in request.headers
+    if browserish:
+        return "browser"
+    if data.get("client") in APP_CLIENTS:
+        return "app"
+    if data.get("client") == "browser":
+        return "browser"
+    return "app"          # shells of before 2.0.x (no `client` field) talk without browser headers
+
+
+def _browser_name(request: web.Request) -> str:
+    ua = request.headers.get("User-Agent", "")
+    for k in ("Firefox", "Edg", "Chrome", "Safari"):
+        if k in ua:
+            return {"Edg": "Edge"}.get(k, k)
+    return "browser"
+
+
+def publish_devices(ctx) -> None:
+    ctx.publish("devices.updated", {"devices": ctx.devices.list(), "apps": ctx.devices.list(),
+                                    "browsers": ctx.browser_sessions.list()})
+
+
+def revoke_any(ctx, did: str) -> bool:
+    ok_ = ctx.browser_sessions.revoke(did) if did.startswith("b-") else ctx.devices.revoke(did)
+    if ok_:
+        publish_devices(ctx)
+    return ok_
 
 
 @routes.post("/api/logout")
@@ -57,8 +104,7 @@ async def logout(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     dev = request["device"]
     if dev is not None:
-        await asyncio.to_thread(ctx.devices.revoke, dev.id)
-        ctx.publish("devices.updated", {"devices": ctx.devices.list()})
+        await asyncio.to_thread(revoke_any, ctx, dev.id)
     resp = ok({"ok": True})
     resp.del_cookie(TOKEN_COOKIE, path="/")
     return resp
@@ -125,8 +171,7 @@ async def device_forget_self(request: web.Request) -> web.Response:
     dev = request["device"] or _bearer_device(request)
     if dev is None:
         return error(401, "unauthorized")
-    await asyncio.to_thread(ctx.devices.revoke, dev.id)
-    ctx.publish("devices.updated", {"devices": ctx.devices.list()})
+    await asyncio.to_thread(revoke_any, ctx, dev.id)
     resp = web.Response(status=204)
     resp.del_cookie(TOKEN_COOKIE, path="/")
     return resp
@@ -172,16 +217,18 @@ async def pairing_status(request: web.Request) -> web.Response:
 @routes.get("/api/devices")
 @host_only
 async def devices(request: web.Request) -> web.Response:
-    return ok({"devices": ctx_of(request).devices.list()})
+    ctx = ctx_of(request)
+    apps = ctx.devices.list()
+    return ok({"devices": apps, "apps": apps, "browsers": ctx.browser_sessions.list(),
+               "browser_idle_minutes": ctx.settings.browser_session_idle_minutes})
 
 
 @routes.delete("/api/devices/{id}")
 @host_only
 async def device_revoke(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
-    if not await asyncio.to_thread(ctx.devices.revoke, valid_id(request.match_info["id"])):
+    if not await asyncio.to_thread(revoke_any, ctx, valid_id(request.match_info["id"])):
         return error(404, "not_found")
-    ctx.publish("devices.updated", {"devices": ctx.devices.list()})
     return ok({"ok": True})
 
 

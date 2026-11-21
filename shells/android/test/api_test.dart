@@ -81,7 +81,7 @@ void main() {
     expect(r.deviceId, 'd1');
     expect(seen.method, 'POST');
     expect(seen.url.path, '/api/pair');
-    expect(jsonDecode(seen.body), {'code': '123456', 'device_name': 'Pixel'});
+    expect(jsonDecode(seen.body), {'code': '123456', 'device_name': 'Pixel', 'client': 'app-android'});
     expect(seen.headers['Authorization'], isNull);
 
     status = 401;

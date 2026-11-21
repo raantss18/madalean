@@ -60,12 +60,12 @@ async def test_pairing_flow_cookie_bearer_revoke(tmp_path):
             async with s.post(local + "/api/pairing/start") as r:
                 code = (await r.json())["code"]
             assert re.fullmatch(r"\d{6}", code)
-            async with s.post(remote + "/api/pair", json={"code": code, "device_name": "phone"}) as r:
+            async with s.post(remote + "/api/pair", json={"code": code, "device_name": "phone",
+                                                          "client": "app-android"}) as r:
                 assert r.status == 200
                 d = await r.json()
                 token = d["token"]
-                cookie = r.headers["Set-Cookie"]
-            assert "HttpOnly" in cookie and "Secure" in cookie and "SameSite=Strict" in cookie
+                assert "Set-Cookie" not in r.headers and d["kind"] == "app"   # apps: token only (keystore)
             async with s.post(remote + "/api/pair", json={"code": code, "device_name": "again"}) as r:
                 assert r.status == 403                            # single use
             raw = (tmp_path / "config" / "devices.json").read_text()

@@ -53,11 +53,11 @@ pub async fn hello(origin: &Url, token: Option<&str>) -> Result<Hello, ShellErro
     Ok(h)
 }
 
-/// `POST /api/pair {code, device_name}` → token.
+/// `POST /api/pair {code, device_name, client: "app-desktop"}` → token (apps keep a long-lived device token).
 pub async fn pair(origin: &Url, code: &str, device_name: &str) -> Result<(String, Option<String>), ShellError> {
     let resp = client()?
         .post(api(origin, "/api/pair"))
-        .json(&serde_json::json!({ "code": code, "device_name": device_name }))
+        .json(&serde_json::json!({ "code": code, "device_name": device_name, "client": "app-desktop" }))
         .send()
         .await
         .map_err(net_err)?;

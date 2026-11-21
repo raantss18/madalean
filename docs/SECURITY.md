@@ -126,8 +126,16 @@ A boundary is crossed in four places, and each place must hold:
   - 5 wrong codes lock pairing for 10 minutes and burn the code.
   - Rate limits: 10 per minute per peer, 30 per minute overall.
   - Code comparison is constant-time.
-  - Tokens are 256 bits; only their SHA-256 is stored.
-  - Cookies are `HttpOnly; Secure; SameSite=Strict`.
+  - **Apps vs browsers** (user decision 2026-11-21: apps reconnect automatically, a browser needs a code at every
+    connection). `POST /api/pair` creates a persistent *device* (256-bit token, only its SHA-256 stored) only for the
+    shells' native HTTP clients (`client: app-desktop|app-android`, and no `Origin`/`Sec-Fetch-*` header). Anything a
+    browser sends gets a *browser session*: no token in the body, a session cookie (no Max-Age/Expires,
+    `HttpOnly; SameSite=Strict`, `Secure` over HTTPS), kept in memory only, closed after `browser_session_idle_minutes`
+    of inactivity (default 120, host-only) and after 12 h at most, and on server restart. A browser-session secret is
+    accepted only as the cookie: never as a Bearer token, never for `/api/session/ticket`, so it cannot be turned into
+    a device token (tested). The LAN listener follows the same rules.
+  - App web views get their cookie through a one-time session ticket (below); app cookies are `HttpOnly;
+    SameSite=Strict` (`Secure` over HTTPS) and revoked with the device.
 - **Session tickets.** 192 bits, 60 s, single use, in memory only. `next` accepts same-origin relative paths only.
   The response carries a meta refresh under `CSP: default-src 'none'`.
 - **UI.**

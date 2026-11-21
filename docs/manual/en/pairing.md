@@ -20,6 +20,14 @@ Three things are needed:
 
 On the host computer itself, no code is needed.
 
+**App or browser?**
+
+- The **Madalean apps** (Android, Linux desktop) are linked **once**: afterwards they reconnect by themselves, even
+  after the host restarts.
+- From a **browser** (iPhone, iPad, another PC without the app), a **code is needed at every connection**: access
+  lasts for the session, closes after **2 h without activity** (adjustable on the host), after **12 h** at most, and
+  when the host restarts.
+
 ## Step 1 — Publish Madalean on your Tailscale network (once)
 
 On the host, in the Madalean folder:
@@ -62,9 +70,10 @@ step 1, without `https://` (for example `nitro.tail1234.ts.net:10500`). It is us
 ### iPhone, iPad, or any device with a browser
 
 There is no iOS app. Install Tailscale (App Store), then open the address `https://pc-name.tailXXXX.ts.net:10500` in
-the browser. The linking page asks for the code and a device name. Tip: “Share › Add to Home Screen” gives an icon
-that opens Madalean directly.
-<!-- verify after integration: browser pairing over the tailnet from Safari; cookie persists -->
+the browser. The linking page asks for the code and a device name.
+**A code is needed at every connection from a browser**: at the next visit (or after 2 h without activity), show a
+new code on the host.
+<!-- verify after integration: browser pairing over the tailnet from Safari -->
 
 ### Another Linux computer
 
@@ -73,13 +82,18 @@ Install Tailscale, then either a browser (as above) or the **Madalean** desktop 
 
 ## What happens when linking
 
-The device sends the code; the host gives it a secret **token** (256 bits) that identifies it from then on. The host
-keeps only a fingerprint of this token, never the token itself. Five wrong codes in a row lock linking for 10
+- **App**: the device sends the code; the host gives it a secret **token** (256 bits), kept in the system keyring,
+  that identifies it from then on. The host keeps only a fingerprint of this token, never the token itself.
+- **Browser**: the host opens a **temporary session** (a session cookie, erased when the browser closes, that no page
+  can read); it is never turned into a permanent token and the host keeps it in memory only.
+
+Five wrong codes in a row lock linking for 10
 minutes. Details: [Security](security.md).
 
 ## Unlinking a device
 
-- From the host: “Settings › Devices”, the “Unlink” button next to the device. Access is cut **immediately**,
+- From the host: “Settings › Devices”, the “Unlink” button next to the device. The page shows two lists:
+  “Applications (automatic connection)” and “Browsers (temporary session)”. Access is cut **immediately**,
   including for a page that is already open.
 - From the device itself: “Settings › Devices › Unlink this device”.
 

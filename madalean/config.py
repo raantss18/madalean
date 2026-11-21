@@ -103,6 +103,7 @@ class Settings:
     experiments_auto: bool = False          # run conjecture experiments (Sage/Python) without asking first
     experiments_remote: bool = False        # paired devices may approve/run experiments (code runs on the host)
     updates_auto: bool = True               # install safe updates automatically at a quiet moment (else: ask first)
+    browser_session_idle_minutes: int = 120  # browser (remote/LAN) session: closed after this idle time (host-only)
     local_idle_unload_minutes: int = 10     # S-N: stop llama-server after this idle time to give the GPU back (0 = never)
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)

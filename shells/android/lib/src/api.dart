@@ -129,7 +129,7 @@ class MadaleanApi {
     );
   }
 
-  /// `POST /api/pair {code, device_name}`.
+  /// `POST /api/pair {code, device_name, client: "app-android"}` (an app: long-lived device token).
   Future<PairResult> pair(
     Uri origin, {
     required String code,
@@ -139,7 +139,7 @@ class MadaleanApi {
       () => _client.post(
         origin.replace(path: '/api/pair'),
         headers: _headers(null, json: true),
-        body: jsonEncode({'code': code, 'device_name': deviceName}),
+        body: jsonEncode({'code': code, 'device_name': deviceName, 'client': 'app-android'}),
       ),
     );
     final j = _json(r);

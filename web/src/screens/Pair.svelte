@@ -69,6 +69,7 @@
     {:else}
       {#if reason === 'auth'}<p class="notice" role="status">{t('pair.reasonAuth')}</p>{/if}
       <p>{t('pair.lead', { host: hello?.host_name ?? '…' })}</p>
+      <p class="notice small" role="note"><strong>{t('pair.everyTime')}</strong> {t('pair.everyTimeHint', { h: 2 })}</p>
       <ol class="steps small">
         <li>{t('pair.step1')}</li>
         <li>{t('pair.step2')}</li>

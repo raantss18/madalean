@@ -38,12 +38,14 @@ class Device:
     created: float = field(default_factory=time.time)
     last_seen: float = 0.0
     last_ip: str = ""
-    sessions: list = field(default_factory=list)   # SHA-256 of browser-session secrets (cookie), revoked with it
+    sessions: list = field(default_factory=list)   # SHA-256 of the app web view's cookie secrets, revoked with it
+    client: str = ""                                # app-desktop | app-android | "" (paired before 2.0 clients)
 
     def public(self) -> dict:
         d = asdict(self)
         d.pop("token_sha256")
         d["sessions"] = len(self.sessions)
+        d["kind"] = "app"
         return d
 
 
@@ -134,12 +136,12 @@ class Devices:
         config.atomic_write_text(self.file, json.dumps([asdict(d) for d in self.items.values()], indent=1))
         os.chmod(self.file, 0o600)
 
-    def add(self, name: str) -> tuple[Device, str]:
-        """New device; returns (device, token). The token is shown once and never stored."""
+    def add(self, name: str, client: str = "") -> tuple[Device, str]:
+        """New device (an app); returns (device, token). The token is shown once and never stored."""
         token = secrets.token_urlsafe(32)
         name = (name or "").strip()[:80] or "device"
         with self._lock:
-            dev = Device("d-" + uuid.uuid4().hex[:10], name, hash_token(token))
+            dev = Device("d-" + uuid.uuid4().hex[:10], name, hash_token(token), client=client)
             self.items[dev.id] = dev
             self._by_hash[dev.token_sha256] = dev.id
             self.save()
@@ -192,6 +194,86 @@ class Devices:
 
     def list(self) -> list[dict]:
         return [d.public() for d in sorted(self.items.values(), key=lambda d: d.created)]
+
+
+APP_CLIENTS = ("app-desktop", "app-android")
+BROWSER_ABSOLUTE_S = 12 * 3600.0
+
+
+@dataclass
+class BrowserSession:
+    """A plain browser paired with a code on the remote/LAN listener (user decision 2026-11-21: « un code à chaque
+    fois pour le cas navigateur »). Memory only: a server restart ends every browser session."""
+    id: str
+    name: str
+    token_sha256: str
+    created: float = field(default_factory=time.time)
+    last_seen: float = field(default_factory=time.time)
+    last_ip: str = ""
+    client: str = "browser"
+    t0: float = 0.0              # monotonic creation / last use (expiry)
+    t_last: float = 0.0
+
+    def public(self, idle_s: float = 0.0, now: float | None = None) -> dict:
+        d = {k: v for k, v in asdict(self).items() if k not in ("token_sha256", "t0", "t_last")}
+        d["kind"] = "browser"
+        if now is not None:
+            d["expires_in"] = round(max(0.0, min(self.t_last + idle_s, self.t0 + BROWSER_ABSOLUTE_S) - now))
+        return d
+
+
+class BrowserSessions:
+    """Session cookies of browsers: idle expiry (`idle_s()`, default 2 h) and absolute expiry (12 h)."""
+
+    def __init__(self, idle_s, absolute_s: float = BROWSER_ABSOLUTE_S, clock=time.monotonic):
+        self.idle_s = idle_s if callable(idle_s) else (lambda: float(idle_s))
+        self.absolute_s, self.clock = absolute_s, clock
+        self.items: dict[str, BrowserSession] = {}
+        self._lock = threading.Lock()
+
+    def _alive(self, s: BrowserSession, now: float) -> bool:
+        return now - s.t_last < self.idle_s() and now - s.t0 < self.absolute_s
+
+    def add(self, name: str, ip: str = "") -> tuple[BrowserSession, str]:
+        secret = secrets.token_urlsafe(32)
+        now = self.clock()
+        s = BrowserSession("b-" + uuid.uuid4().hex[:10], (name or "").strip()[:80] or "browser", hash_token(secret),
+                           last_ip=ip, t0=now, t_last=now)
+        with self._lock:
+            self._purge(now)
+            self.items[s.id] = s
+        log.info("browser session opened: %s (%s)", s.id, s.name)
+        return s, secret
+
+    def check(self, secret: str | None, ip: str = "") -> BrowserSession | None:
+        if not secret or len(secret) > 200:
+            return None
+        h = hash_token(secret)
+        now = self.clock()
+        with self._lock:
+            self._purge(now)
+            found = None
+            for s in self.items.values():
+                if hmac.compare_digest(s.token_sha256, h):
+                    found = s
+            if found is not None:
+                found.t_last, found.last_seen = now, time.time()
+                found.last_ip = ip or found.last_ip
+            return found
+
+    def revoke(self, sid: str) -> bool:
+        with self._lock:
+            return self.items.pop(sid, None) is not None
+
+    def list(self) -> list[dict]:
+        now = self.clock()
+        with self._lock:
+            self._purge(now)
+            return [s.public(self.idle_s(), now) for s in sorted(self.items.values(), key=lambda s: s.created)]
+
+    def _purge(self, now: float) -> None:
+        for k in [k for k, s in self.items.items() if not self._alive(s, now)]:
+            del self.items[k]
 
 
 class RateLimiter:

@@ -128,7 +128,12 @@ async def security_middleware(request: web.Request, handler):
     if not local:
         public = (request.method, path) in PUBLIC_API or (request.method in ("GET", "HEAD") and is_static(path))
         token, how = token_of(request)
-        dev = ctx.devices.check(token, request.headers.get("X-Forwarded-For", request.remote or "")) if token else None
+        ip = request.headers.get("X-Forwarded-For", request.remote or "")
+        dev = ctx.devices.check(token, ip) if token else None
+        if dev is None and token and how == "cookie":
+            # a browser session (code at every visit) is accepted only as the cookie: never as a Bearer token, so
+            # it cannot be turned into an app credential
+            dev = ctx.browser_sessions.check(token, ip)
         if dev is None and not public:
             return error(401, "unauthorized")
         request["device"] = dev
