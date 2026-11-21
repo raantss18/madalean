@@ -366,7 +366,7 @@ def cuda_driver_version() -> tuple[int, int] | None:
         out = subprocess.run([smi], capture_output=True, text=True, timeout=20).stdout
     except (OSError, subprocess.SubprocessError):
         return None
-    m = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", out)
+    m = re.search(r"CUDA (?:UMD )?Version:\s*(\d+)\.(\d+)", out)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 

@@ -366,7 +366,13 @@ class DossierPipeline:
         except leancheck.StatementError as e:
             raise Failed("{why}", "statement", why=str(e)) from e
         if strategy == "agent":
-            res = await self._agent(job, d, io, ws, statement, hint or req)
+            # an agent run is one attempt; free providers often fail transiently (quota, overload), so retry with a
+            # fresh run up to the attempt budget, keeping the user's hint (observed 2026-11-21: 1 run → no proof)
+            res = None
+            for _i in range(max(1, min(s.prove_attempts, 4))):
+                res = await self._agent(job, d, io, ws, statement, hint or req)
+                if res is None or res.ok:
+                    break
             if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto":
                 strategy = "goedel"
                 res = None
@@ -449,6 +455,9 @@ class DossierPipeline:
         if not code:
             a.status, a.summary = "rejected", msg("L'agent n'a pas trouvé de preuve ({steps} étapes).",
                                                   steps=out.get("steps", 0))["text"]
+            a.finish = str(out.get("finish") or "")
+            a.errors_text = "\n".join(f"{m.get('role', '')}: {str(m.get('content', ''))[:600]}"
+                                       for m in (out.get("transcript") or [])[-6:])
             io.update_attempt(a)
             return ProveResult(False, model=a.model)
         # never trust the agent: the server re-checks the final proof with the strict verdict

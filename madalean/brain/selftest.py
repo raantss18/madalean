@@ -27,7 +27,7 @@ from .catalogue import ANTHROPIC_MODELS
 # $ per million tokens (input, output) — claude-api skill, cached 2026-11-03
 PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
 ENV = {"anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
-STATEMENT = "theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry"
+STATEMENT = __import__("os").environ.get("MADALEAN_SELFTEST_STATEMENT", "theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry")
 
 
 def cost(model: str, tin: int, tout: int) -> str:
