@@ -38,10 +38,14 @@ async def test_plan_draft_edit_versions_conflicts(tmp_path):
         p = (await r.json())["plan"]
         assert r.status == 201 and p["rev"] == 1 and p["source"] == "sketch"
         root = p["nodes"][p["root"]]
-        assert len(root["children"]) == 3 and root["dossier_id"] == d["id"]
+        # the analysis (S-L): a main track of 2 lemmas + 1 alternative track, both gated by (fake) Lean
+        assert len(root["children"]) == 2 and root["dossier_id"] == d["id"] and len(root["tracks"]) == 2
+        assert root["tracks"][0]["check"]["state"] == "ok" and root["active_track"] == root["tracks"][0]["id"]
         assert "preuve du papier" in ctx.brain.requests[-1]["messages"][0]["content"] or \
             "preuve du papier" in str(ctx.brain.requests[-1])
-        k1, k2, k3 = root["children"]
+        k1, k2 = root["children"]
+        alt = root["tracks"][1]["lemmas"][0]
+        assert p["nodes"][alt]["ui"] == "alternative" and p["nodes"][k1]["ui"] == "to_validate"
         # manual edit (new version), stale edit refused
         r = await s.patch(base + f"/nodes/{k1}", json={"base_rev": 1, "why": "Plus clair.", "title": "a = k + k"})
         p = (await r.json())["plan"]
@@ -50,14 +54,16 @@ async def test_plan_draft_edit_versions_conflicts(tmp_path):
         assert r.status == 409 and (await r.json())["current"]["rev"] == 2
         assert (await s.patch(base + f"/nodes/{k2}", json={"base_rev": 2, "status": "x"})).status == 400
         # add / move / cycle / delete
-        r = await s.post(base + "/nodes", json={"base_rev": 2, "parent": k3, "title": "sous-lemme",
+        r = await s.post(base + "/nodes", json={"base_rev": 2, "parent": k2, "title": "sous-lemme",
                                                 "lean": "theorem sub (k : ℕ) : k + k = 2 * k := by sorry"})
         p = (await r.json())["plan"]
-        sub = p["nodes"][k3]["children"][0]
-        assert (await s.post(base + f"/nodes/{k3}/move", json={"base_rev": 3, "parent": sub})).status == 400
+        sub = p["nodes"][k2]["children"][0]
+        assert (await s.post(base + f"/nodes/{k2}/move", json={"base_rev": 3, "parent": sub})).status == 400
         r = await s.post(base + f"/nodes/{sub}/move", json={"base_rev": 3, "parent": p["root"], "index": 0})
         p = (await r.json())["plan"]
         assert p["nodes"][p["root"]]["children"][0] == sub and p["rev"] == 4
+        assert p["nodes"][p["root"]]["tracks"][0]["lemmas"] == p["nodes"][p["root"]]["children"]
+        assert p["nodes"][p["root"]]["tracks"][0]["check"]["state"] == "unchecked"     # edited: « à vérifier »
         r = await s.delete(base + f"/nodes/{k2}?base_rev=4")
         p = (await r.json())["plan"]
         assert k2 not in p["nodes"] and len(p["versions"]) == 5
@@ -139,6 +145,8 @@ async def test_proved_modulo_admitted_is_never_verified(tmp_path, ws):
     ctx.settings.prove_attempts = 1
     async with running(ctx) as (_s, L, _R), session() as s:
         ctx.settings.prove_attempts = 1
+        ctx.settings.mathlib_first = False            # Mathlib would close lemA at once (Even.add): keep it failing
+        ctx.settings.statement_check = False
         pid = (await (await s.post(L + "/api/projects", json={"title": "P", "workspace": ws.key})).json())["project"]["id"]
         d = await _dossier(s, L, pid, "theorem par (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b + 0) := by sorry")
         base = L + f"/api/dossiers/{d['id']}/plan"

@@ -11,6 +11,10 @@ summary: The Lean and Mathlib vocabulary needed to read statements and proofs.
 
 Terms are grouped by theme. For tactics, see [First tactics](tactics.md).
 
+In the app, the **Glossary** screen covers these terms and many more (about 250, by category and by level beginner /
+intermediate / advanced), each with its meaning, Lean form, a tiny example, related entries, the matching Mathlib
+declarations and your dossiers that use it. It also powers the hover help on statements in Learn mode.
+
 ## Logic and notation
 
 | Lean | Reads | Remark |

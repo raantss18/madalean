@@ -78,11 +78,22 @@ class Settings:
     agent_max_steps: int = 24
     agent_max_seconds: int = 900
     # proof tournament (S-J, docs/BRAIN.md §11): best models first, then races of untried models, all bounded
+    # statement check and Mathlib-first search (S-K): before any proof search, bounded (≈ 1–3 min each)
+    statement_check: bool = True            # « Vérifier l'énoncé »: fidelity (model) + truth probes (Lean)
+    mathlib_first: bool = True              # look for the theorem in Mathlib before the prover models
     tournament_enabled: bool = True
     tournament_contestants: int = 3         # models raced in parallel per exploration round (≤ online slots)
     tournament_max_rounds: int = 3          # exploration rounds after round 0
     tournament_max_minutes: int = 40        # wall-clock cap of the whole proof stage
     tournament_attempts_per_model: int = 4  # round 0: attempts of the best model before racing others
+    # proof plans (S-L): decomposition into lemmas, bounded
+    plan_max_depth: int = 3                 # levels of decomposition below the theorem
+    plan_budget_minutes: int = 180          # total time of one plan run (all its lemmas)
+    # Claude as paid reinforcement (S-M, user decision 2026-11-21): final tournament round, within these caps
+    claude_reinforce: bool = True
+    claude_model: str = "auto"
+    claude_cap_proof_usd: float = 1.0
+    claude_cap_month_usd: float = 20.0
     host_name: str = ""                     # name shown to paired devices (default: hostname)
     # host-only switches (can only be changed from the local listener)
     lan_listener: bool = False
@@ -92,6 +103,7 @@ class Settings:
     experiments_auto: bool = False          # run conjecture experiments (Sage/Python) without asking first
     experiments_remote: bool = False        # paired devices may approve/run experiments (code runs on the host)
     updates_auto: bool = True               # install safe updates automatically at a quiet moment (else: ask first)
+    local_idle_unload_minutes: int = 10     # S-N: stop llama-server after this idle time to give the GPU back (0 = never)
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 

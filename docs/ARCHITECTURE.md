@@ -97,6 +97,9 @@ S-A writes the exact reference in `docs/API.md` (source of truth for S-D and S-C
 Stages (existing logic of `ui/pipeline.py`, moved to asyncio): `route` → `understand` → `statement` (+ Lean check,
 + `statement_notes` gloss) → `proof` → `explanation` (+ `informal_proof`). Follow-ups, versions, library, hints,
 rejected-name memory, loop detectors: behaviour of 1.1.4 preserved (tests ported).
+Before the first proof search of a statement: `verify` (« Vérifier l'énoncé »: fidelity by the general model + Lean
+probes of the negation and of degenerate cases; « faux » only with a Lean proof of the negation) and, inside `proof`,
+« Mathlib first » (known results tried with one-line tactics before any prover model). docs/BRAIN.md §12 (S-K).
 
 **Orchestrator**: jobs of different dossiers run in parallel, limited by resource slots:
 `gpu` = 1 (local llama-server, with model swap), `online` = 3, `lean` = 2 (compilations). A job only waits for the
@@ -206,7 +209,10 @@ grounded in *your* sources, with citations), Zotero (reference library), Obsidia
   before believing them: numeric/symbolic experiments in Sage (through the Jupyter kernel), counter-example search,
   Lean `decide`/`norm_num`/`slim_check`-style checks on small cases; each conjecture is a dossier of kind
   `conjecture` with its evidence log; promote to theorem only through a Lean proof.
-- **Guided proof design**: plan → lemmas (sub-dossiers, parallel) → proofs; the agent proposes, the user edits any
+- **Guided proof design** (the main way to prove hard theorems, S-L, D31): analysis → lemmas + combination gated by
+  Lean → the user validates the plan → lemmas proved automatically (sub-dossiers, parallel) → combination with the
+  real proofs (strict verdict); failure → other track / deeper split / hole (conditional); bounded depth, nodes, time;
+  shown as a mind map. Earlier wording: the agent proposes, the user edits any
   section by hand (statement, Lean code, natural-language proof, explanation, notes, bibliography, article sections)
   — every AI output is an editable, versioned draft; manual edits are never overwritten without asking.
 - **Privacy default (user choice)**: online by default, best available model everywhere, including keyless free

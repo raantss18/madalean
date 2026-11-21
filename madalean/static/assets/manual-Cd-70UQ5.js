@@ -1,0 +1,2381 @@
+var e=`madalean-manual/1`,t=`docs/manual`,n=`https://raantss18.github.io/madalean/`,r=[`fr`,`en`],i={fr:[{id:`start`,title:`Démarrer`},{id:`use`,title:`Travailler`},{id:`research`,title:`Recherche`},{id:`settings`,title:`Réglages et sécurité`},{id:`help`,title:`Aide`},{id:`reference`,title:`Référence`}],en:[{id:`start`,title:`Getting started`},{id:`use`,title:`Working`},{id:`research`,title:`Research`},{id:`settings`,title:`Settings and security`},{id:`help`,title:`Help`},{id:`reference`,title:`Reference`}]},a={install:`download.html`,download:`download.html`,updates:`../updates/index.html`,search:`search.html`},o=[{id:`index`,lang:`fr`,title:`Manuel de Madalean`,order:0,section:`start`,audience:`all`,summary:`Ce que fait Madalean, ce qu'il ne fait pas, et le plan de ce manuel.`,source:`fr/index.md`,site_path:`fr/index.html`,headings:[{level:1,text:`Manuel de Madalean`,id:`manuel-de-madalean`},{level:2,text:`Ce que Madalean ne fait pas`,id:`ce-que-madalean-ne-fait-pas`},{level:2,text:`Plan du manuel`,id:`plan-du-manuel`},{level:2,text:`Conventions de ce manuel`,id:`conventions-de-ce-manuel`}],images:[{src:`img/home.png`,exists:!0}],verify:[],body:`# Manuel de Madalean
+
+Madalean est un assistant de démonstration pour **Lean 4** et **Mathlib**. Vous écrivez un énoncé en langage
+courant (formules LaTeX entre dollars acceptées), des modèles d'IA le traduisent en Lean, cherchent une preuve et
+l'expliquent ; **Lean tranche**. Rien n'est jamais présenté comme prouvé si Lean ne l'a pas accepté selon le verdict
+strict : aucune erreur, aucun \`sorry\`, aucun axiome autre que les trois axiomes standard de Lean
+(\`propext\`, \`Classical.choice\`, \`Quot.sound\`).
+
+Un seul ordinateur, l'**ordinateur hôte**, fait tout le travail : Lean, modèles locaux, stockage. Tous les écrans
+(cet ordinateur, un autre PC, une tablette, un téléphone) affichent la **même interface web** et restent
+synchronisés. Les appareils joignent l'hôte uniquement par votre réseau privé Tailscale.
+
+![Accueil de Madalean](img/home.png)
+
+## Ce que Madalean ne fait pas
+
+- Il ne garantit pas que la traduction en Lean dit ce que vous vouliez dire. Lean vérifie la preuve **de l'énoncé
+  Lean**, pas de votre phrase. Relisez toujours la traduction : voir [Lire un énoncé Lean](reading-lean.md).
+- Il ne trouve pas toutes les preuves. « Pas de preuve trouvée » ne veut pas dire que l'énoncé est faux.
+- Il n'envoie rien sur Internet en mode **Local**. Dans les autres modes, ce qui part et vers qui est décrit dans
+  [Modèles et clés](models-keys.md).
+
+## Plan du manuel
+
+- **Démarrer** : [Installer sur l'ordinateur hôte](install.md) · [Premier démarrage](first-run.md) ·
+  [Relier un téléphone, une tablette, un PC](pairing.md) · [Tailscale](tailscale.md)
+- **Travailler** : [De l'énoncé à la preuve](workflow.md) · [Lire un énoncé Lean](reading-lean.md) ·
+  [Demandes de suivi et versions](follow-ups.md) · [Projets et dossiers en parallèle](projects.md) ·
+  [Plans de preuve et lemmes](proof-plans.md)
+- **Recherche** : [Atelier de conjectures](conjectures.md) · [Sources et questions ancrées](sources.md) ·
+  [Bibliographie, article, blueprint](articles.md) · [Notes](notes.md) · [Jupyter et Sage](jupyter.md) ·
+  [Publier un projet](publish.md)
+- **Réglages et sécurité** : [Modèles et clés](models-keys.md) · [Mises à jour](updates.md) ·
+  [Sécurité](security.md)
+- **Référence** : [Dépannage](troubleshooting.md) · [Glossaire Lean](glossary.md) ·
+  [Premières tactiques](tactics.md) · [Raccourcis clavier](shortcuts.md)
+
+## Conventions de ce manuel
+
+- Les noms entre guillemets (« Envoyer », « Réglages › Appareils ») sont ceux des boutons et menus de l'interface.
+- Les blocs de code \`lean\` sont du Lean 4 avec Mathlib. Ils suivent la version de Mathlib de l'espace de travail
+  « Prouveur » (Lean 4.9) sauf mention contraire ; quelques notations ont changé depuis, elles sont signalées.
+- Les pages marquées *apprenant* s'adressent à qui découvre Lean ; *chercheur* à qui l'utilise pour un projet de
+  recherche. La plupart concernent tout le monde.
+`,text:`Manuel de Madalean Madalean est un assistant de démonstration pour Lean 4 et Mathlib. Vous écrivez un énoncé en langage courant (formules LaTeX entre dollars acceptées), des modèles d'IA le traduisent en Lean, cherchent une preuve et l'expliquent ; Lean tranche. Rien n'est jamais présenté comme prouvé si Lean ne l'a pas accepté selon le verdict strict : aucune erreur, aucun sorry, aucun axiome autre que les trois axiomes standard de Lean (propext, Classical.choice, Quot.sound). Un seul ordinateur, l'ordinateur hôte, fait tout le travail : Lean, modèles locaux, stockage. Tous les écrans (cet ordinateur, un autre PC, une tablette, un téléphone) affichent la même interface web et restent synchronisés. Les appareils joignent l'hôte uniquement par votre réseau privé Tailscale. Accueil de Madalean Ce que Madalean ne fait pas - Il ne garantit pas que la traduction en Lean dit ce que vous vouliez dire. Lean vérifie la preuve de l'énoncé Lean, pas de votre phrase. Relisez toujours la traduction : voir Lire un énoncé Lean. - Il ne trouve pas toutes les preuves. « Pas de preuve trouvée » ne veut pas dire que l'énoncé est faux. - Il n'envoie rien sur Internet en mode Local. Dans les autres modes, ce qui part et vers qui est décrit dans Modèles et clés. Plan du manuel - Démarrer : Installer sur l'ordinateur hôte · Premier démarrage · Relier un téléphone, une tablette, un PC · Tailscale - Travailler : De l'énoncé à la preuve · Lire un énoncé Lean · Demandes de suivi et versions · Projets et dossiers en parallèle · Plans de preuve et lemmes - Recherche : Atelier de conjectures · Sources et questions ancrées · Bibliographie, article, blueprint · Notes · Jupyter et Sage · Publier un projet - Réglages et sécurité : Modèles et clés · Mises à jour · Sécurité - Référence : Dépannage · Glossaire Lean · Premières tactiques · Raccourcis clavier Conventions de ce manuel - Les noms entre guillemets (« Envoyer », « Réglages › Appareils ») sont ceux des boutons et menus de l'interface. - Les blocs de code lean sont du Lean 4 avec Mathlib. Ils suivent la version de Mathlib de l'espace de travail « Prouveur » (Lean 4.9) sauf mention contraire ; quelques notations ont changé depuis, elles sont signalées. - Les pages marquées apprenant s'adressent à qui découvre Lean ; chercheur à qui l'utilise pour un projet de recherche. La plupart concernent tout le monde.`},{id:`install`,lang:`fr`,title:`Installer sur l'ordinateur hôte`,order:10,section:`start`,audience:`all`,summary:`Matériel conseillé, installation par install.sh, ce qui est installé et où.`,source:`fr/install.md`,site_path:`fr/install.html`,headings:[{level:1,text:`Installer sur l'ordinateur hôte`,id:`installer-sur-lordinateur-hote`},{level:2,text:`Matériel et système`,id:`materiel-et-systeme`},{level:2,text:`Installer`,id:`installer`},{level:2,text:`Où sont les choses`,id:`ou-sont-les-choses`},{level:2,text:`Démarrer et arrêter`,id:`demarrer-et-arreter`},{level:2,text:`Désinstaller`,id:`desinstaller`}],images:[],verify:[`verify after integration: final repository name raantss18/madalean, install.sh installs the 2.0 server and unit, menu entry name`,`verify after integration: uninstall.sh covers ~/.config/madalean and the systemd unit in 2.0`],body:`# Installer sur l'ordinateur hôte
+
+L'**ordinateur hôte** est la machine qui fait tourner Madalean : le serveur, Lean, les modèles locaux et vos
+données. Les autres appareils n'installent qu'une application légère (ou rien du tout : un navigateur suffit), voir
+[Relier un appareil](pairing.md).
+
+## Matériel et système
+
+| | Minimum | Conseillé |
+|---|---|---|
+| Système | Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) | Arch ou Fedora récents |
+| Carte graphique | aucune (modèles locaux sur le processeur, très lents) | NVIDIA ≥ 8 Go de mémoire |
+| Mémoire vive | 16 Go | 32 Go |
+| Disque | ≈ 40 Go libres | SSD |
+
+Sans carte NVIDIA, tout fonctionne, mais une preuve par un modèle local peut prendre plusieurs dizaines de minutes.
+Les modèles en ligne (gratuits ou avec une clé) ne dépendent pas de votre carte graphique.
+
+Le pilote NVIDIA et le CUDA Toolkit (\`nvcc\`) sont à installer **vous-même** avant : le script ne touche jamais aux
+pilotes.
+
+| Distribution | Pilote + CUDA |
+|---|---|
+| Arch / EndeavourOS | \`sudo pacman -S nvidia-open nvidia-utils cuda\` |
+| Fedora | pilote par RPM Fusion (\`akmod-nvidia\`, \`xorg-x11-drv-nvidia-cuda\`), CUDA par le dépôt NVIDIA |
+| Debian / Ubuntu | \`sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit\` (ou le dépôt NVIDIA) |
+| openSUSE | dépôt NVIDIA |
+
+## Installer
+
+\`\`\`bash
+git clone https://github.com/raantss18/madalean.git ~/madalean
+cd ~/madalean
+./install.sh --install-deps
+\`\`\`
+
+\`--install-deps\` installe une fois les outils de compilation avec \`sudo\` (vous tapez votre mot de passe). Le script
+est relançable sans risque : il reprend où il s'était arrêté et ne refait pas ce qui est déjà fait.
+
+Il installe, au niveau de l'utilisateur :
+
+- le gestionnaire de versions Lean **elan** et deux **espaces de travail** Lean : « Prouveur » (Lean 4.9 et la
+  Mathlib sur laquelle les modèles Goedel ont été entraînés ; compilation de Mathlib depuis les sources, ≈ 1 h 30 une
+  seule fois) et « Lean récent » (dernière Mathlib) ;
+- le moteur **llama.cpp** compilé pour votre carte (version épinglée) ;
+- trois modèles locaux (≈ 5 Go chacun, empreintes SHA-256 vérifiées) : Goedel-Prover-V2-8B (preuves),
+  Goedel-Formalizer-V2-8B (traduction en Lean), Qwen3-8B (explications) ;
+- le serveur Madalean et son service systemd utilisateur \`madalean.service\`.
+
+Options utiles (\`./install.sh --help\`) :
+
+| Option | Effet |
+|---|---|
+| \`--backend cpu\` | pas de carte graphique : moteur pour le processeur |
+| \`--no-models\` | ne télécharge pas les modèles locaux (≈ 15 Go) : seuls les modèles en ligne serviront |
+| \`--no-prover49\` | saute l'espace Lean 4.9 (la longue compilation de Mathlib) |
+| \`--no-current\` | saute l'espace « Lean récent » |
+| \`--no-service\` | n'installe pas le service systemd |
+
+## Où sont les choses
+
+| Quoi | Où |
+|---|---|
+| Réglages, projets, dossiers, appareils reliés | \`~/.config/madalean/\` |
+| Index de recherche, caches | \`~/.cache/madalean/\` |
+| Modèles locaux | \`~/models/\` |
+| Carnets Jupyter | \`~/Documents/Madalean/notebooks/\` |
+
+Au premier démarrage, si vous aviez Lean AI Station 1.x, le serveur **copie** (sans jamais les déplacer) vos
+réglages, dossiers et bibliothèque depuis \`~/.config/lean-ai-station/\`.
+
+## Démarrer et arrêter
+
+Le service démarre avec votre session. En terminal, si besoin :
+
+\`\`\`bash
+systemctl --user status madalean      # état
+systemctl --user restart madalean     # redémarrer
+journalctl --user -u madalean -e      # journal
+\`\`\`
+
+Ouvrez ensuite l'interface sur l'hôte : \`http://127.0.0.1:11500\`, ou l'application de bureau Madalean (AppImage),
+qui reconnaît l'hôte toute seule. Suite : [Premier démarrage](first-run.md).
+
+## Désinstaller
+
+\`./uninstall.sh\` liste exactement ce qui sera supprimé avant de le faire. Vos dossiers ne sont pas supprimés sans
+votre accord.
+`,text:`Installer sur l'ordinateur hôte L'ordinateur hôte est la machine qui fait tourner Madalean : le serveur, Lean, les modèles locaux et vos données. Les autres appareils n'installent qu'une application légère (ou rien du tout : un navigateur suffit), voir Relier un appareil. Matériel et système Minimum Conseillé Système Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) Arch ou Fedora récents Carte graphique aucune (modèles locaux sur le processeur, très lents) NVIDIA ≥ 8 Go de mémoire Mémoire vive 16 Go 32 Go Disque ≈ 40 Go libres SSD Sans carte NVIDIA, tout fonctionne, mais une preuve par un modèle local peut prendre plusieurs dizaines de minutes. Les modèles en ligne (gratuits ou avec une clé) ne dépendent pas de votre carte graphique. Le pilote NVIDIA et le CUDA Toolkit (nvcc) sont à installer vous-même avant : le script ne touche jamais aux pilotes. Distribution Pilote + CUDA Arch / EndeavourOS sudo pacman -S nvidia-open nvidia-utils cuda Fedora pilote par RPM Fusion (akmod-nvidia, xorg-x11-drv-nvidia-cuda), CUDA par le dépôt NVIDIA Debian / Ubuntu sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit (ou le dépôt NVIDIA) openSUSE dépôt NVIDIA Installer --install-deps installe une fois les outils de compilation avec sudo (vous tapez votre mot de passe). Le script est relançable sans risque : il reprend où il s'était arrêté et ne refait pas ce qui est déjà fait. Il installe, au niveau de l'utilisateur : - le gestionnaire de versions Lean elan et deux espaces de travail Lean : « Prouveur » (Lean 4.9 et la Mathlib sur laquelle les modèles Goedel ont été entraînés ; compilation de Mathlib depuis les sources, ≈ 1 h 30 une seule fois) et « Lean récent » (dernière Mathlib) ; - le moteur llama.cpp compilé pour votre carte (version épinglée) ; - trois modèles locaux (≈ 5 Go chacun, empreintes SHA-256 vérifiées) : Goedel-Prover-V2-8B (preuves), Goedel-Formalizer-V2-8B (traduction en Lean), Qwen3-8B (explications) ; - le serveur Madalean et son service systemd utilisateur madalean.service. Options utiles (./install.sh --help) : Option Effet --backend cpu pas de carte graphique : moteur pour le processeur --no-models ne télécharge pas les modèles locaux (≈ 15 Go) : seuls les modèles en ligne serviront --no-prover49 saute l'espace Lean 4.9 (la longue compilation de Mathlib) --no-current saute l'espace « Lean récent » --no-service n'installe pas le service systemd Où sont les choses Quoi Où Réglages, projets, dossiers, appareils reliés ~/.config/madalean/ Index de recherche, caches ~/.cache/madalean/ Modèles locaux ~/models/ Carnets Jupyter ~/Documents/Madalean/notebooks/ Au premier démarrage, si vous aviez Lean AI Station 1.x, le serveur copie (sans jamais les déplacer) vos réglages, dossiers et bibliothèque depuis ~/.config/lean-ai-station/. Démarrer et arrêter Le service démarre avec votre session. En terminal, si besoin : Ouvrez ensuite l'interface sur l'hôte : http://127.0.0.1:11500, ou l'application de bureau Madalean (AppImage), qui reconnaît l'hôte toute seule. Suite : Premier démarrage. Désinstaller ./uninstall.sh liste exactement ce qui sera supprimé avant de le faire. Vos dossiers ne sont pas supprimés sans votre accord.`},{id:`first-run`,lang:`fr`,title:`Premier démarrage`,order:20,section:`start`,audience:`all`,summary:`Visite guidée, choix du mode, premier énoncé, mode démo.`,source:`fr/first-run.md`,site_path:`fr/first-run.html`,headings:[{level:1,text:`Premier démarrage`,id:`premier-demarrage`},{level:2,text:`Trois choix à faire`,id:`trois-choix-a-faire`},{level:2,text:`Un premier énoncé`,id:`un-premier-enonce`},{level:2,text:`Essayer sans modèles ni Lean : le mode démo`,id:`essayer-sans-modeles-ni-lean-le-mode-demo`}],images:[],verify:[`verify after integration: first-run checks and tour wording`],body:`# Premier démarrage
+
+À la première ouverture sur l'ordinateur hôte, Madalean vérifie son environnement (espaces Lean, modèles, TeX,
+polices, disque) et affiche ce qui manque avec un bouton de réparation quand il en existe un. Une courte visite
+présente ensuite les quatre idées de l'interface : écrire un énoncé, vérifier la traduction, laisser Lean juger,
+garder la main.
+
+## Trois choix à faire
+
+1. **Où travaillent les modèles** (« Réglages › Modèles ») :
+   - *Local* : rien ne quitte l'ordinateur hôte ; seuls les modèles installés ici travaillent.
+   - *Automatique* (par défaut) : le meilleur modèle disponible, en ligne d'abord, les modèles locaux si le réseau
+     manque.
+   - *En ligne* : uniquement des modèles en ligne.
+
+   Ce que chaque mode envoie, et à qui : [Modèles et clés](models-keys.md).
+2. **Apprendre ou Recherche** (bouton en haut à droite) : *Apprendre* propose des indices avant la preuve, un
+   glossaire au survol et des explications ligne par ligne ; *Recherche* est dense, pensé pour le clavier, sans rien
+   de pédagogique sur le chemin. Vous pouvez changer à tout moment.
+3. **Votre profil** (« Réglages › Profil ») : public visé, niveau, notations préférées. Il est lu avant chaque
+   traduction et chaque explication.
+
+## Un premier énoncé
+
+Sur l'accueil, écrivez par exemple :
+
+> Montrer que la somme de deux entiers pairs est paire.
+
+puis lancez. Les étapes s'enchaînent seules : compréhension, traduction en Lean, recherche de preuve, explication.
+La suite est décrite dans [De l'énoncé à la preuve](workflow.md).
+
+## Essayer sans modèles ni Lean : le mode démo
+
+\`\`\`bash
+~/madalean/bin/madalean serve --demo --port 11600 --remote-port 11601
+\`\`\`
+
+puis ouvrez \`http://127.0.0.1:11600\`. Les modèles et Lean sont **simulés** : un bandeau le rappelle et rien n'y est
+vraiment vérifié. Le mode démo sert à découvrir l'interface ; ses données sont séparées des vôtres
+(\`~/.config/madalean-demo\`).
+`,text:`Premier démarrage À la première ouverture sur l'ordinateur hôte, Madalean vérifie son environnement (espaces Lean, modèles, TeX, polices, disque) et affiche ce qui manque avec un bouton de réparation quand il en existe un. Une courte visite présente ensuite les quatre idées de l'interface : écrire un énoncé, vérifier la traduction, laisser Lean juger, garder la main. Trois choix à faire 1. Où travaillent les modèles (« Réglages › Modèles ») : - Local : rien ne quitte l'ordinateur hôte ; seuls les modèles installés ici travaillent. - Automatique (par défaut) : le meilleur modèle disponible, en ligne d'abord, les modèles locaux si le réseau manque. - En ligne : uniquement des modèles en ligne. Ce que chaque mode envoie, et à qui : Modèles et clés. 2. Apprendre ou Recherche (bouton en haut à droite) : Apprendre propose des indices avant la preuve, un glossaire au survol et des explications ligne par ligne ; Recherche est dense, pensé pour le clavier, sans rien de pédagogique sur le chemin. Vous pouvez changer à tout moment. 3. Votre profil (« Réglages › Profil ») : public visé, niveau, notations préférées. Il est lu avant chaque traduction et chaque explication. Un premier énoncé Sur l'accueil, écrivez par exemple : > Montrer que la somme de deux entiers pairs est paire. puis lancez. Les étapes s'enchaînent seules : compréhension, traduction en Lean, recherche de preuve, explication. La suite est décrite dans De l'énoncé à la preuve. Essayer sans modèles ni Lean : le mode démo puis ouvrez http://127.0.0.1:11600. Les modèles et Lean sont simulés : un bandeau le rappelle et rien n'y est vraiment vérifié. Le mode démo sert à découvrir l'interface ; ses données sont séparées des vôtres (~/.config/madalean-demo).`},{id:`pairing`,lang:`fr`,title:`Relier un téléphone, une tablette ou un autre PC`,order:30,section:`start`,audience:`all`,summary:`Pas à pas pour relier un appareil à l'ordinateur hôte par un code à 6 chiffres, et pour le délier.`,source:`fr/pairing.md`,site_path:`fr/pairing.html`,headings:[{level:1,text:`Relier un téléphone, une tablette ou un autre PC`,id:`relier-un-telephone-une-tablette-ou-un-autre-pc`},{level:2,text:`Étape 1 — Publier Madalean sur votre réseau Tailscale (une fois)`,id:`etape-1-publier-madalean-sur-votre-reseau-tailscale-une-fois`},{level:2,text:`Étape 2 — Afficher un code sur l'hôte`,id:`etape-2-afficher-un-code-sur-lhote`},{level:2,text:`Étape 3 — Sur l'appareil`,id:`etape-3-sur-lappareil`},{level:3,text:`Téléphone ou tablette Android`,id:`telephone-ou-tablette-android`},{level:3,text:`iPhone, iPad, ou tout appareil avec un navigateur`,id:`iphone-ipad-ou-tout-appareil-avec-un-navigateur`},{level:3,text:`Autre ordinateur Linux`,id:`autre-ordinateur-linux`},{level:2,text:`Ce qui se passe au moment de la liaison`,id:`ce-qui-se-passe-au-moment-de-la-liaison`},{level:2,text:`Délier un appareil`,id:`delier-un-appareil`},{level:2,text:`Si ça ne marche pas`,id:`si-ca-ne-marche-pas`}],images:[{src:`img/devices-add.png`,exists:!0},{src:`img/pair-phone.png`,exists:!0}],verify:[`verify after integration: tailscale_setup.sh applied for real on the host; printed URL format`,`verify after integration: browser pairing over the tailnet from Safari; cookie persists`],body:`# Relier un téléphone, une tablette ou un autre PC
+
+Un appareil relié affiche la même interface que l'ordinateur hôte et reste synchronisé avec lui : ce que vous
+lancez au téléphone apparaît sur le PC, et inversement. Tout le calcul reste sur l'hôte.
+
+Il faut trois choses :
+
+1. l'ordinateur hôte allumé, Madalean démarré ;
+2. l'hôte et l'appareil sur **votre réseau Tailscale** (voir [Tailscale](tailscale.md)) ;
+3. un **code à 6 chiffres** affiché par l'hôte.
+
+Sur l'ordinateur hôte lui-même, aucun code n'est nécessaire.
+
+## Étape 1 — Publier Madalean sur votre réseau Tailscale (une fois)
+
+Sur l'hôte, dans le dossier de Madalean :
+
+\`\`\`bash
+scripts/tailscale_setup.sh
+\`\`\`
+
+Le script ajoute **une seule** règle, \`tailscale serve --bg --https=10500 http://127.0.0.1:11501\`, et affiche
+l'adresse de l'hôte vue des autres appareils, de la forme \`https://nom-du-pc.tailXXXX.ts.net:10500\`. Il ne touche
+à aucune autre règle \`tailscale serve\` de la machine et n'active jamais *Funnel* (l'ouverture sur Internet).
+\`scripts/tailscale_setup.sh --print\` montre les commandes sans rien changer ; \`--remove\` retire la règle.
+
+Si le script signale que HTTPS n'est pas activé, suivez [Tailscale › Activer HTTPS](tailscale.md#activer-https).
+
+## Étape 2 — Afficher un code sur l'hôte
+
+Sur l'ordinateur hôte : « Réglages › Appareils › Ajouter un appareil ». Un code à 6 chiffres s'affiche, valable
+**5 minutes**, utilisable **une seule fois**, avec un QR code pour l'application Android.
+
+![Réglages › Appareils : code et QR code](img/devices-add.png)
+
+Vérifiez le champ « Adresse de cet ordinateur vue des autres appareils » : c'est l'adresse affichée par le script de
+l'étape 1, sans \`https://\` (par exemple \`nitro.tail1234.ts.net:10500\`). Elle sert à fabriquer le QR code.
+
+## Étape 3 — Sur l'appareil
+
+### Téléphone ou tablette Android
+
+1. Installez l'application **Tailscale** (Play Store) et connectez-vous avec **le même compte** que sur l'hôte.
+2. Installez l'application **Madalean** depuis la [page d'installation](site:install) (fichier APK ; Android
+   demande d'autoriser l'installation depuis votre navigateur, une fois).
+3. Scannez le QR code de l'hôte avec l'appareil photo : l'application s'ouvre avec l'adresse et le code déjà
+   remplis. Sinon, tapez l'adresse et le code à la main.
+4. Donnez un nom à l'appareil (« Pixel de Marie ») et touchez « Relier ».
+
+![Écran de liaison sur un téléphone](img/pair-phone.png)
+
+### iPhone, iPad, ou tout appareil avec un navigateur
+
+Il n'y a pas d'application iOS. Installez Tailscale (App Store), puis ouvrez dans le navigateur l'adresse
+\`https://nom-du-pc.tailXXXX.ts.net:10500\`. La page de liaison demande le code et un nom d'appareil.
+Astuce : « Partager › Sur l'écran d'accueil » donne une icône qui ouvre Madalean directement.
+
+### Autre ordinateur Linux
+
+Installez Tailscale, puis soit un navigateur (comme ci-dessus), soit l'application de bureau **Madalean**
+(AppImage, [page d'installation](site:install)) qui garde le jeton dans le trousseau du système et se reconnecte
+seule.
+
+## Ce qui se passe au moment de la liaison
+
+L'appareil envoie le code ; l'hôte lui remet un **jeton** secret (256 bits) qui l'identifie ensuite. L'hôte ne garde
+qu'une empreinte de ce jeton, jamais le jeton lui-même. Cinq codes faux d'affilée bloquent la liaison 10 minutes.
+Détails : [Sécurité](security.md).
+
+## Délier un appareil
+
+- Depuis l'hôte : « Réglages › Appareils », bouton « Délier » en face de l'appareil. L'accès est coupé
+  **immédiatement**, y compris pour une page déjà ouverte.
+- Depuis l'appareil lui-même : « Réglages › Appareils › Délier cet appareil ».
+
+Délier un téléphone perdu est la première chose à faire ; votre compte Tailscale permet aussi de retirer l'appareil
+du réseau privé.
+
+## Si ça ne marche pas
+
+| Message | Que faire |
+|---|---|
+| « Code incorrect » | Retapez les 6 chiffres affichés sur l'hôte. |
+| « Ce code a expiré » | « Nouveau code » sur l'hôte (validité 5 minutes). |
+| « Trop d'essais : la liaison est bloquée N min » | Attendez, puis demandez un nouveau code. |
+| L'adresse ne répond pas | Tailscale est-il connecté sur les deux appareils ? Voir [Dépannage](troubleshooting.md#lappareil-ne-joint-pas-lhote). |
+`,text:`Relier un téléphone, une tablette ou un autre PC Un appareil relié affiche la même interface que l'ordinateur hôte et reste synchronisé avec lui : ce que vous lancez au téléphone apparaît sur le PC, et inversement. Tout le calcul reste sur l'hôte. Il faut trois choses : 1. l'ordinateur hôte allumé, Madalean démarré ; 2. l'hôte et l'appareil sur votre réseau Tailscale (voir Tailscale) ; 3. un code à 6 chiffres affiché par l'hôte. Sur l'ordinateur hôte lui-même, aucun code n'est nécessaire. Étape 1 — Publier Madalean sur votre réseau Tailscale (une fois) Sur l'hôte, dans le dossier de Madalean : Le script ajoute une seule règle, tailscale serve --bg --https=10500 http://127.0.0.1:11501, et affiche l'adresse de l'hôte vue des autres appareils, de la forme https://nom-du-pc.tailXXXX.ts.net:10500. Il ne touche à aucune autre règle tailscale serve de la machine et n'active jamais Funnel (l'ouverture sur Internet). scripts/tailscalesetup.sh --print montre les commandes sans rien changer ; --remove retire la règle. Si le script signale que HTTPS n'est pas activé, suivez Tailscale › Activer HTTPS. Étape 2 — Afficher un code sur l'hôte Sur l'ordinateur hôte : « Réglages › Appareils › Ajouter un appareil ». Un code à 6 chiffres s'affiche, valable 5 minutes, utilisable une seule fois, avec un QR code pour l'application Android. Réglages › Appareils : code et QR code Vérifiez le champ « Adresse de cet ordinateur vue des autres appareils » : c'est l'adresse affichée par le script de l'étape 1, sans https:// (par exemple nitro.tail1234.ts.net:10500). Elle sert à fabriquer le QR code. Étape 3 — Sur l'appareil Téléphone ou tablette Android 1. Installez l'application Tailscale (Play Store) et connectez-vous avec le même compte que sur l'hôte. 2. Installez l'application Madalean depuis la page d'installation (fichier APK ; Android demande d'autoriser l'installation depuis votre navigateur, une fois). 3. Scannez le QR code de l'hôte avec l'appareil photo : l'application s'ouvre avec l'adresse et le code déjà remplis. Sinon, tapez l'adresse et le code à la main. 4. Donnez un nom à l'appareil (« Pixel de Marie ») et touchez « Relier ». Écran de liaison sur un téléphone iPhone, iPad, ou tout appareil avec un navigateur Il n'y a pas d'application iOS. Installez Tailscale (App Store), puis ouvrez dans le navigateur l'adresse https://nom-du-pc.tailXXXX.ts.net:10500. La page de liaison demande le code et un nom d'appareil. Astuce : « Partager › Sur l'écran d'accueil » donne une icône qui ouvre Madalean directement. Autre ordinateur Linux Installez Tailscale, puis soit un navigateur (comme ci-dessus), soit l'application de bureau Madalean (AppImage, page d'installation) qui garde le jeton dans le trousseau du système et se reconnecte seule. Ce qui se passe au moment de la liaison L'appareil envoie le code ; l'hôte lui remet un jeton secret (256 bits) qui l'identifie ensuite. L'hôte ne garde qu'une empreinte de ce jeton, jamais le jeton lui-même. Cinq codes faux d'affilée bloquent la liaison 10 minutes. Détails : Sécurité. Délier un appareil - Depuis l'hôte : « Réglages › Appareils », bouton « Délier » en face de l'appareil. L'accès est coupé immédiatement, y compris pour une page déjà ouverte. - Depuis l'appareil lui-même : « Réglages › Appareils › Délier cet appareil ». Délier un téléphone perdu est la première chose à faire ; votre compte Tailscale permet aussi de retirer l'appareil du réseau privé. Si ça ne marche pas Message Que faire « Code incorrect » Retapez les 6 chiffres affichés sur l'hôte. « Ce code a expiré » « Nouveau code » sur l'hôte (validité 5 minutes). « Trop d'essais : la liaison est bloquée N min » Attendez, puis demandez un nouveau code. L'adresse ne répond pas Tailscale est-il connecté sur les deux appareils ? Voir Dépannage.`},{id:`tailscale`,lang:`fr`,title:`Tailscale, le réseau privé de vos appareils`,order:40,section:`start`,audience:`all`,summary:`Ce qu'est Tailscale, pourquoi Madalean l'utilise, comment l'installer, et ce qu'il ne fait pas.`,source:`fr/tailscale.md`,site_path:`fr/tailscale.html`,headings:[{level:1,text:`Tailscale, le réseau privé de vos appareils`,id:`tailscale-le-reseau-prive-de-vos-appareils`},{level:2,text:`Ce que c'est`,id:`ce-que-cest`},{level:2,text:`Ce que Madalean fait, et ne fait pas, avec Tailscale`,id:`ce-que-madalean-fait-et-ne-fait-pas-avec-tailscale`},{level:2,text:`Installer Tailscale`,id:`installer-tailscale`},{level:2,text:`Activer HTTPS`,id:`activer-https`},{level:2,text:`Sans Tailscale`,id:`sans-tailscale`}],images:[],verify:[`verify after integration: Tailscale personal plan wording at release time`,`verify after integration: LAN listener toggle location in Réglages, plain HTTP on LAN`],body:`# Tailscale, le réseau privé de vos appareils
+
+## Ce que c'est
+
+[Tailscale](https://tailscale.com/) relie **vos** appareils entre eux par des liaisons chiffrées (protocole
+WireGuard), où qu'ils soient : même Wi-Fi, 4G, autre ville. L'ensemble forme un réseau privé, le *tailnet*. Chaque
+appareil y reçoit un nom stable, par exemple \`nitro.tail1234.ts.net\`. Seuls les appareils connectés à **votre**
+compte Tailscale font partie de ce réseau.
+
+Madalean l'utilise pour une seule chose : que vos appareils joignent l'ordinateur hôte. Il ne se sert d'aucun
+serveur de Madalean sur Internet (il n'y en a pas) et le site web de Madalean ne joue aucun rôle dans la
+synchronisation.
+
+## Ce que Madalean fait, et ne fait pas, avec Tailscale
+
+- Il publie **un seul** port du serveur sur votre tailnet, en HTTPS : \`https://<hôte>.<tailnet>.ts.net:10500\`.
+- Il n'active **jamais Funnel**, la fonction de Tailscale qui ouvrirait ce port à tout Internet.
+- Il ne modifie aucune autre règle \`tailscale serve\` de la machine (d'autres logiciels peuvent en avoir).
+- Être sur le tailnet **ne suffit pas** : chaque appareil doit en plus être relié par un code
+  ([Relier un appareil](pairing.md)).
+
+## Installer Tailscale
+
+Sur l'ordinateur hôte (Linux) :
+
+| Distribution | Commande |
+|---|---|
+| Arch / EndeavourOS | \`sudo pacman -S tailscale\` |
+| Fedora, Debian, Ubuntu, openSUSE | voir <https://tailscale.com/download/linux> (dépôt officiel) |
+
+puis :
+
+\`\`\`bash
+sudo systemctl enable --now tailscaled
+sudo tailscale up                       # ouvre une page de connexion à votre compte
+sudo tailscale set --operator=$USER     # une fois : permet à Madalean de gérer sa règle sans sudo
+\`\`\`
+
+Sur un téléphone ou une tablette : l'application Tailscale de l'App Store ou du Play Store, connectée au même compte.
+
+Le compte Tailscale se crée avec un fournisseur d'identité (Google, Microsoft, GitHub, Apple…). L'offre
+personnelle gratuite suffit pour un usage individuel.
+
+## Activer HTTPS
+
+Les appareils joignent l'hôte en HTTPS, avec un certificat que Tailscale obtient pour le nom \`*.ts.net\`. Il faut, une
+fois, dans la console d'administration Tailscale (page **DNS**) :
+
+1. activer **MagicDNS** ;
+2. activer **HTTPS Certificates**.
+
+Ensuite \`scripts/tailscale_setup.sh\` (voir [Relier un appareil](pairing.md)) fonctionne. La première connexion
+HTTPS peut prendre quelques secondes, le temps que le certificat soit émis.
+
+## Sans Tailscale
+
+Un réglage de l'ordinateur hôte permet d'écouter aussi sur le réseau local (port 11502, désactivé par défaut). Le
+jeton d'appareil reste exigé, mais le trafic n'est alors **pas chiffré** par Madalean : à réserver à un réseau de
+confiance. Ce réglage ne se change que depuis l'hôte et prend effet au redémarrage du serveur.
+`,text:`Tailscale, le réseau privé de vos appareils Ce que c'est Tailscale relie vos appareils entre eux par des liaisons chiffrées (protocole WireGuard), où qu'ils soient : même Wi-Fi, 4G, autre ville. L'ensemble forme un réseau privé, le tailnet. Chaque appareil y reçoit un nom stable, par exemple nitro.tail1234.ts.net. Seuls les appareils connectés à votre compte Tailscale font partie de ce réseau. Madalean l'utilise pour une seule chose : que vos appareils joignent l'ordinateur hôte. Il ne se sert d'aucun serveur de Madalean sur Internet (il n'y en a pas) et le site web de Madalean ne joue aucun rôle dans la synchronisation. Ce que Madalean fait, et ne fait pas, avec Tailscale - Il publie un seul port du serveur sur votre tailnet, en HTTPS : https://<hôte>.<tailnet>.ts.net:10500. - Il n'active jamais Funnel, la fonction de Tailscale qui ouvrirait ce port à tout Internet. - Il ne modifie aucune autre règle tailscale serve de la machine (d'autres logiciels peuvent en avoir). - Être sur le tailnet ne suffit pas : chaque appareil doit en plus être relié par un code (Relier un appareil). Installer Tailscale Sur l'ordinateur hôte (Linux) : Distribution Commande Arch / EndeavourOS sudo pacman -S tailscale Fedora, Debian, Ubuntu, openSUSE voir <https://tailscale.com/download/linux> (dépôt officiel) puis : Sur un téléphone ou une tablette : l'application Tailscale de l'App Store ou du Play Store, connectée au même compte. Le compte Tailscale se crée avec un fournisseur d'identité (Google, Microsoft, GitHub, Apple…). L'offre personnelle gratuite suffit pour un usage individuel. Activer HTTPS Les appareils joignent l'hôte en HTTPS, avec un certificat que Tailscale obtient pour le nom .ts.net. Il faut, une fois, dans la console d'administration Tailscale (page DNS) : 1. activer MagicDNS ; 2. activer HTTPS Certificates. Ensuite scripts/tailscalesetup.sh (voir Relier un appareil) fonctionne. La première connexion HTTPS peut prendre quelques secondes, le temps que le certificat soit émis. Sans Tailscale Un réglage de l'ordinateur hôte permet d'écouter aussi sur le réseau local (port 11502, désactivé par défaut). Le jeton d'appareil reste exigé, mais le trafic n'est alors pas chiffré par Madalean : à réserver à un réseau de confiance. Ce réglage ne se change que depuis l'hôte et prend effet au redémarrage du serveur.`},{id:`workflow`,lang:`fr`,title:`De l'énoncé à la preuve`,order:100,section:`use`,audience:`all`,summary:`Les quatre étapes d'un dossier — énoncé, traduction Lean, preuve, explication — puis l'export.`,source:`fr/workflow.md`,site_path:`fr/workflow.html`,headings:[{level:1,text:`De l'énoncé à la preuve`,id:`de-lenonce-a-la-preuve`},{level:2,text:`1. Écrire l'énoncé`,id:`1-ecrire-lenonce`},{level:2,text:`2. La traduction en Lean`,id:`2-la-traduction-en-lean`},{level:2,text:`3. La preuve`,id:`3-la-preuve`},{level:2,text:`4. L'explication`,id:`4-lexplication`},{level:2,text:`5. Exporter`,id:`5-exporter`},{level:2,text:`Et ensuite`,id:`et-ensuite`}],images:[{src:`img/lean-statement.png`,exists:!0},{src:`img/hint-ladder.png`,exists:!0}],verify:[],body:`# De l'énoncé à la preuve
+
+Chaque problème vit dans un **dossier**. Un dossier suit quatre étapes, visibles en haut de l'écran :
+**Énoncé › Traduction Lean › Preuve**, puis l'explication. Le **fil du dossier**, à droite, garde la trace de tout
+ce qui s'est passé et reçoit vos demandes de suivi.
+
+## 1. Écrire l'énoncé
+
+Écrivez avec vos mots, en français ou en anglais. Les formules LaTeX entre dollars sont lues : \`$a^2+b^2 \\ge 2ab$\`.
+Un aperçu montre comment l'énoncé sera compris. Vous pouvez aussi :
+
+- **importer un fichier \`.tex\`** : Madalean en extrait les environnements de type théorème et vous choisissez
+  lequel prouver ;
+- **coller directement un énoncé Lean** : l'étape de traduction est alors sautée.
+
+Un énoncé précis se traduit mieux : nommez les ensembles ($n \\in \\mathbb{N}$, $x \\in \\mathbb{R}$), les hypothèses
+et la conclusion.
+
+## 2. La traduction en Lean
+
+Un premier modèle reformule votre demande en énoncé mathématique précis (« théorème de la base incomplète » devient
+« toute famille libre d'un espace vectoriel de dimension finie se complète en une base »). Un second la traduit en
+Lean ; **Lean vérifie que l'énoncé est bien formé** avant d'aller plus loin. Le badge « Lean accepte l'énoncé »
+signifie seulement que l'énoncé a un sens pour Lean, pas qu'il est vrai, ni qu'il dit ce que vous vouliez.
+
+![Énoncé Lean à côté du texte d'origine](img/lean-statement.png)
+
+**Relisez cette traduction.** C'est le seul point où une erreur passe inaperçue : Lean prouvera exactement l'énoncé
+Lean. Les pièges courants (division entière, soustraction tronquée sur $\\mathbb{N}$, division par zéro) sont dans
+[Lire un énoncé Lean](reading-lean.md). En mode *Apprendre*, le panneau « Comprendre » explique l'énoncé ligne par
+ligne et chaque mot Lean au survol.
+
+Pour corriger : « Modifier à la main » (vous éditez le code, Lean le revérifie), ou « Corriger l'énoncé… » (vous
+décrivez la correction, le modèle réécrit).
+
+## 3. La preuve
+
+Madalean cherche une preuve selon la méthode choisie dans « Réglages › Modèles » :
+
+| Méthode | Fonctionnement |
+|---|---|
+| *goedel* | le modèle local Goedel-Prover écrit une preuve ; si Lean la refuse, il lit l'erreur et corrige, plusieurs fois |
+| *agent* | un modèle qui sait utiliser des outils compile lui-même des essais avec Lean et cherche des lemmes dans Mathlib |
+| *auto* (défaut) | agent avec le meilleur modèle en ligne autorisé, sinon goedel ; goedel aussi en secours si l'agent échoue |
+
+Quelle que soit la méthode, la preuve finale est **revérifiée par le serveur** avec le verdict strict. Le badge
+« Preuve vérifiée par Lean » donne la version de Lean, la révision de Mathlib, la durée, le nombre d'essais, le
+modèle qui l'a écrite et les axiomes utilisés.
+
+Pendant la recherche, vous voyez le texte des modèles arriver en direct et chaque essai compilé. « Arrêter » coupe
+tout, à tout moment (requête au modèle et compilation Lean).
+
+En mode *Apprendre*, la preuve n'est pas montrée tout de suite : une échelle d'indices (coup de pouce, stratégie,
+lemme clé, étape suivante, preuve complète) vous laisse chercher d'abord. Le dernier niveau est toujours la preuve
+vérifiée par Lean, jamais un texte de modèle.
+
+![Échelle d'indices en mode Apprendre](img/hint-ladder.png)
+
+## 4. L'explication
+
+Une fois la preuve acceptée, un modèle l'explique en langage courant et rédige une **preuve en langage naturel**
+(celle qui ira dans le PDF). Ces textes sont des brouillons modifiables : vous pouvez les corriger à la main, et une
+modification manuelle n'est jamais écrasée sans votre accord.
+
+## 5. Exporter
+
+« Exporter » propose :
+
+| Format | Contenu |
+|---|---|
+| PDF | titre, énoncé en langage naturel, énoncé Lean et sa glose, preuve rédigée, preuve Lean, tampon de vérification (version de Lean, révision de Mathlib, date, axiomes, modèle), explication tactique par tactique en annexe |
+| LaTeX (\`.tex\`) | le même document, à compiler avec XeLaTeX (par exemple sur Overleaf) |
+| Lean (\`.lean\`) | le fichier qui compile |
+| Markdown (\`.md\`) | texte et formules \`$…$\` |
+| Tout (\`.zip\`) | tout cela, avec \`refs.bib\` si le dossier cite des sources |
+
+Un dossier non prouvé est exporté avec la mention « Non prouvé » et sans tampon. Si aucun moteur TeX n'est installé
+sur l'hôte, Madalean ouvre une version HTML : utilisez « Imprimer › Enregistrer en PDF » du navigateur.
+
+## Et ensuite
+
+- Affiner : [Demandes de suivi et versions](follow-ups.md).
+- Plusieurs résultats liés : [Projets et dossiers en parallèle](projects.md).
+- Un résultat trop gros pour une seule preuve : [Plans de preuve et lemmes](proof-plans.md).
+- Chaque résultat prouvé entre dans la **Bibliothèque** et sert de lemme aux preuves suivantes du même espace Lean.
+`,text:`De l'énoncé à la preuve Chaque problème vit dans un dossier. Un dossier suit quatre étapes, visibles en haut de l'écran : Énoncé › Traduction Lean › Preuve, puis l'explication. Le fil du dossier, à droite, garde la trace de tout ce qui s'est passé et reçoit vos demandes de suivi. 1. Écrire l'énoncé Écrivez avec vos mots, en français ou en anglais. Les formules LaTeX entre dollars sont lues : $a^2+b^2 \\ge 2ab$. Un aperçu montre comment l'énoncé sera compris. Vous pouvez aussi : - importer un fichier .tex : Madalean en extrait les environnements de type théorème et vous choisissez lequel prouver ; - coller directement un énoncé Lean : l'étape de traduction est alors sautée. Un énoncé précis se traduit mieux : nommez les ensembles ($n \\in \\mathbb{N}$, $x \\in \\mathbb{R}$), les hypothèses et la conclusion. 2. La traduction en Lean Un premier modèle reformule votre demande en énoncé mathématique précis (« théorème de la base incomplète » devient « toute famille libre d'un espace vectoriel de dimension finie se complète en une base »). Un second la traduit en Lean ; Lean vérifie que l'énoncé est bien formé avant d'aller plus loin. Le badge « Lean accepte l'énoncé » signifie seulement que l'énoncé a un sens pour Lean, pas qu'il est vrai, ni qu'il dit ce que vous vouliez. Énoncé Lean à côté du texte d'origine Relisez cette traduction. C'est le seul point où une erreur passe inaperçue : Lean prouvera exactement l'énoncé Lean. Les pièges courants (division entière, soustraction tronquée sur $\\mathbb{N}$, division par zéro) sont dans Lire un énoncé Lean. En mode Apprendre, le panneau « Comprendre » explique l'énoncé ligne par ligne et chaque mot Lean au survol. Pour corriger : « Modifier à la main » (vous éditez le code, Lean le revérifie), ou « Corriger l'énoncé… » (vous décrivez la correction, le modèle réécrit). 3. La preuve Madalean cherche une preuve selon la méthode choisie dans « Réglages › Modèles » : Méthode Fonctionnement goedel le modèle local Goedel-Prover écrit une preuve ; si Lean la refuse, il lit l'erreur et corrige, plusieurs fois agent un modèle qui sait utiliser des outils compile lui-même des essais avec Lean et cherche des lemmes dans Mathlib auto (défaut) agent avec le meilleur modèle en ligne autorisé, sinon goedel ; goedel aussi en secours si l'agent échoue Quelle que soit la méthode, la preuve finale est revérifiée par le serveur avec le verdict strict. Le badge « Preuve vérifiée par Lean » donne la version de Lean, la révision de Mathlib, la durée, le nombre d'essais, le modèle qui l'a écrite et les axiomes utilisés. Pendant la recherche, vous voyez le texte des modèles arriver en direct et chaque essai compilé. « Arrêter » coupe tout, à tout moment (requête au modèle et compilation Lean). En mode Apprendre, la preuve n'est pas montrée tout de suite : une échelle d'indices (coup de pouce, stratégie, lemme clé, étape suivante, preuve complète) vous laisse chercher d'abord. Le dernier niveau est toujours la preuve vérifiée par Lean, jamais un texte de modèle. Échelle d'indices en mode Apprendre 4. L'explication Une fois la preuve acceptée, un modèle l'explique en langage courant et rédige une preuve en langage naturel (celle qui ira dans le PDF). Ces textes sont des brouillons modifiables : vous pouvez les corriger à la main, et une modification manuelle n'est jamais écrasée sans votre accord. 5. Exporter « Exporter » propose : Format Contenu PDF titre, énoncé en langage naturel, énoncé Lean et sa glose, preuve rédigée, preuve Lean, tampon de vérification (version de Lean, révision de Mathlib, date, axiomes, modèle), explication tactique par tactique en annexe LaTeX (.tex) le même document, à compiler avec XeLaTeX (par exemple sur Overleaf) Lean (.lean) le fichier qui compile Markdown (.md) texte et formules $…$ Tout (.zip) tout cela, avec refs.bib si le dossier cite des sources Un dossier non prouvé est exporté avec la mention « Non prouvé » et sans tampon. Si aucun moteur TeX n'est installé sur l'hôte, Madalean ouvre une version HTML : utilisez « Imprimer › Enregistrer en PDF » du navigateur. Et ensuite - Affiner : Demandes de suivi et versions. - Plusieurs résultats liés : Projets et dossiers en parallèle. - Un résultat trop gros pour une seule preuve : Plans de preuve et lemmes. - Chaque résultat prouvé entre dans la Bibliothèque et sert de lemme aux preuves suivantes du même espace Lean.`},{id:`reading-lean`,lang:`fr`,title:`Lire un énoncé Lean`,order:110,section:`use`,audience:`learner`,summary:`Décoder un énoncé Lean morceau par morceau, et repérer les traductions qui changent le sens.`,source:`fr/reading-lean.md`,site_path:`fr/reading-lean.html`,headings:[{level:1,text:`Lire un énoncé Lean`,id:`lire-un-enonce-lean`},{level:2,text:`L'anatomie d'un énoncé`,id:`lanatomie-dun-enonce`},{level:2,text:`L'en-tête`,id:`len-tete`},{level:2,text:`Les types : de quels nombres parle-t-on ?`,id:`les-types-de-quels-nombres-parle-t-on`},{level:2,text:`Les pièges qui changent le sens`,id:`les-pieges-qui-changent-le-sens`},{level:2,text:`Une méthode de relecture`,id:`une-methode-de-relecture`}],images:[],verify:[],body:"# Lire un énoncé Lean\n\nLean prouve **exactement** l'énoncé Lean, pas la phrase que vous aviez en tête. Cette page apprend à lire un énoncé\nassez bien pour juger une traduction, sans savoir écrire de preuves.\n\n## L'anatomie d'un énoncé\n\n```lean\ntheorem somme_pairs (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by\n  sorry\n```\n\n| Morceau | Lecture |\n|---|---|\n| `theorem somme_pairs` | un théorème, et son nom (choisi par Madalean, unique) |\n| `(a b : ℕ)` | « soient $a$ et $b$ des entiers naturels » |\n| `(ha : Even a)` | hypothèse nommée `ha` : « $a$ est pair » |\n| `(hb : Even b)` | hypothèse `hb` : « $b$ est pair » |\n| `: Even (a + b)` | après le dernier `:` hors parenthèses vient la **conclusion** : « $a+b$ est pair » |\n| `:= by sorry` | « la preuve suit, en mode tactique » ; `sorry` = preuve à compléter |\n\nTout ce qui est entre parenthèses avant le dernier `:` est **supposé** ; ce qui vient après est **à prouver**.\nUn énoncé avec `sorry` est un énoncé sans preuve : Lean l'accepte comme énoncé, jamais comme théorème prouvé.\n\nLa même chose peut s'écrire avec des quantificateurs dans la conclusion ; c'est équivalent :\n\n```lean\ntheorem somme_pairs' : ∀ a b : ℕ, Even a → Even b → Even (a + b) := by\n  sorry\n```\n\n`→` se lit « implique » ; `∀ a b : ℕ,` « pour tous entiers naturels $a$, $b$ ».\n\n## L'en-tête\n\nLes énoncés de l'espace « Prouveur » commencent par un en-tête fixe :\n\n```lean\nimport Mathlib\nimport Aesop\nset_option maxHeartbeats 400000\nopen BigOperators Real Nat Topology Rat\n```\n\n`import Mathlib` charge la bibliothèque mathématique ; `set_option maxHeartbeats` augmente le temps de calcul\nautorisé ; `open …` permet d'écrire `π` ou `√` sans préfixe. Cet en-tête ne change pas le sens de l'énoncé, mais\n`open Nat Real` rend certains noms ambigus (`sqrt` existe dans les deux) : regardez les types.\n\n## Les types : de quels nombres parle-t-on ?\n\n| Lean | Mathématiques | Attention |\n|---|---|---|\n| `ℕ` | $\\mathbb{N} = \\{0, 1, 2, \\dots\\}$ | contient 0 ; soustraction et division tronquées (voir plus bas) |\n| `ℤ` | $\\mathbb{Z}$ | `/` est la division euclidienne : le reste `%` est toujours $\\ge 0$, `-7 / 2 = -4` |\n| `ℚ`, `ℝ`, `ℂ` | $\\mathbb{Q}$, $\\mathbb{R}$, $\\mathbb{C}$ | division par zéro définie et égale à 0 |\n| `Finset ℕ` | ensemble fini d'entiers | `Finset.range n` $= \\{0, \\dots, n-1\\}$ |\n| `Set ℝ` | partie de $\\mathbb{R}$ | |\n| `ℕ → ℝ` | suite réelle | `u n` est le terme $u_n$ |\n\nQuand un même énoncé mélange plusieurs types, Lean insère des **conversions** : `(n : ℝ)` ou `↑n` désigne l'entier\n$n$ vu comme réel. Un énoncé comme `(n : ℝ) / 2` n'a pas le même sens que `n / 2` sur `ℕ`.\n\n## Les pièges qui changent le sens\n\nCes traductions sont acceptées par Lean, mais ne disent pas ce que l'on croit.\n\n1. **Soustraction sur ℕ** : `2 - 5 = 0` dans `ℕ`. Un énoncé sur $a - b$ avec $a < b$ possible doit être écrit dans\n   `ℤ` ou `ℝ`.\n2. **Division sur ℕ et ℤ** : `7 / 2 = 3`. « $n/2$ » en mathématiques est souvent un rationnel.\n3. **Division par zéro** : dans `ℝ`, `x / 0 = 0` par convention. Un énoncé `x / y * y = x` est faux pour\n   `y = 0`, et une traduction qui oublie l'hypothèse `y ≠ 0` peut devenir fausse… ou triviale.\n4. **Fonctions totales** : `Real.sqrt (-1) = 0`, `Real.log 0 = 0`. Une hypothèse oubliée ($x > 0$) ne provoque\n   pas d'erreur.\n5. **Hypothèses contradictoires** : si les hypothèses ne peuvent pas être toutes vraies, *n'importe quelle*\n   conclusion se prouve. Une preuve très courte d'un énoncé difficile est un signal d'alarme.\n6. **Indices** : `Finset.range n` commence à 0. $\\sum_{k=1}^{n} k$ se traduit\n   `∑ k in Finset.Icc 1 n, k` ; avec `Finset.range n` on somme de 0 à $n-1$.\n7. **Quantificateurs** : l'ordre compte. `∀ ε > 0, ∃ N, …` n'est pas `∃ N, ∀ ε > 0, …`.\n8. **« Il existe un unique »** s'écrit `∃! x, P x` ; `∃ x, P x` n'affirme pas l'unicité.\n\nNotation : dans les versions récentes de Mathlib, la somme s'écrit `∑ k ∈ Finset.Icc 1 n, k` ; l'espace\n« Prouveur » (Lean 4.9) utilise encore `∑ k in …`.\n\n## Une méthode de relecture\n\n1. Lisez la conclusion seule : est-ce bien ce que vous voulez prouver ?\n2. Listez les hypothèses : en manque-t-il ? y en a-t-il de trop (une hypothèse superflue rend l'énoncé plus faible) ?\n3. Vérifiez le type de chaque variable.\n4. Cherchez une division, une soustraction, une racine, un logarithme : sont-ils dans le bon type, avec les bonnes\n   hypothèses ?\n5. Essayez de nier l'énoncé sur un petit exemple. Si l'énoncé Lean est vrai et le vôtre faux (ou l'inverse), la\n   traduction est fausse.\n\nLe panneau « Comprendre » (mode *Apprendre*) donne une glose ligne par ligne, écrite par un modèle : elle aide à lire,\nmais elle peut se tromper aussi ; le code fait foi. Le vocabulaire est dans le [Glossaire](glossary.md).\n",text:`Lire un énoncé Lean Lean prouve exactement l'énoncé Lean, pas la phrase que vous aviez en tête. Cette page apprend à lire un énoncé assez bien pour juger une traduction, sans savoir écrire de preuves. L'anatomie d'un énoncé Morceau Lecture theorem sommepairs un théorème, et son nom (choisi par Madalean, unique) (a b : ℕ) « soient $a$ et $b$ des entiers naturels » (ha : Even a) hypothèse nommée ha : « $a$ est pair » (hb : Even b) hypothèse hb : « $b$ est pair » : Even (a + b) après le dernier : hors parenthèses vient la conclusion : « $a+b$ est pair » := by sorry « la preuve suit, en mode tactique » ; sorry = preuve à compléter Tout ce qui est entre parenthèses avant le dernier : est supposé ; ce qui vient après est à prouver. Un énoncé avec sorry est un énoncé sans preuve : Lean l'accepte comme énoncé, jamais comme théorème prouvé. La même chose peut s'écrire avec des quantificateurs dans la conclusion ; c'est équivalent : → se lit « implique » ; ∀ a b : ℕ, « pour tous entiers naturels $a$, $b$ ». L'en-tête Les énoncés de l'espace « Prouveur » commencent par un en-tête fixe : import Mathlib charge la bibliothèque mathématique ; setoption maxHeartbeats augmente le temps de calcul autorisé ; open … permet d'écrire π ou √ sans préfixe. Cet en-tête ne change pas le sens de l'énoncé, mais open Nat Real rend certains noms ambigus (sqrt existe dans les deux) : regardez les types. Les types : de quels nombres parle-t-on ? Lean Mathématiques Attention ℕ $\\mathbb{N} = \\{0, 1, 2, \\dots\\}$ contient 0 ; soustraction et division tronquées (voir plus bas) ℤ $\\mathbb{Z}$ / est la division euclidienne : le reste % est toujours $\\ge 0$, -7 / 2 = -4 ℚ, ℝ, ℂ $\\mathbb{Q}$, $\\mathbb{R}$, $\\mathbb{C}$ division par zéro définie et égale à 0 Finset ℕ ensemble fini d'entiers Finset.range n $= \\{0, \\dots, n-1\\}$ Set ℝ partie de $\\mathbb{R}$ ℕ → ℝ suite réelle u n est le terme $un$ Quand un même énoncé mélange plusieurs types, Lean insère des conversions : (n : ℝ) ou ↑n désigne l'entier $n$ vu comme réel. Un énoncé comme (n : ℝ) / 2 n'a pas le même sens que n / 2 sur ℕ. Les pièges qui changent le sens Ces traductions sont acceptées par Lean, mais ne disent pas ce que l'on croit. 1. Soustraction sur ℕ : 2 - 5 = 0 dans ℕ. Un énoncé sur $a - b$ avec $a < b$ possible doit être écrit dans ℤ ou ℝ. 2. Division sur ℕ et ℤ : 7 / 2 = 3. « $n/2$ » en mathématiques est souvent un rationnel. 3. Division par zéro : dans ℝ, x / 0 = 0 par convention. Un énoncé x / y y = x est faux pour y = 0, et une traduction qui oublie l'hypothèse y ≠ 0 peut devenir fausse… ou triviale. 4. Fonctions totales : Real.sqrt (-1) = 0, Real.log 0 = 0. Une hypothèse oubliée ($x > 0$) ne provoque pas d'erreur. 5. Hypothèses contradictoires : si les hypothèses ne peuvent pas être toutes vraies, n'importe quelle conclusion se prouve. Une preuve très courte d'un énoncé difficile est un signal d'alarme. 6. Indices : Finset.range n commence à 0. $\\sum{k=1}^{n} k$ se traduit ∑ k in Finset.Icc 1 n, k ; avec Finset.range n on somme de 0 à $n-1$. 7. Quantificateurs : l'ordre compte. ∀ ε > 0, ∃ N, … n'est pas ∃ N, ∀ ε > 0, …. 8. « Il existe un unique » s'écrit ∃! x, P x ; ∃ x, P x n'affirme pas l'unicité. Notation : dans les versions récentes de Mathlib, la somme s'écrit ∑ k ∈ Finset.Icc 1 n, k ; l'espace « Prouveur » (Lean 4.9) utilise encore ∑ k in …. Une méthode de relecture 1. Lisez la conclusion seule : est-ce bien ce que vous voulez prouver ? 2. Listez les hypothèses : en manque-t-il ? y en a-t-il de trop (une hypothèse superflue rend l'énoncé plus faible) ? 3. Vérifiez le type de chaque variable. 4. Cherchez une division, une soustraction, une racine, un logarithme : sont-ils dans le bon type, avec les bonnes hypothèses ? 5. Essayez de nier l'énoncé sur un petit exemple. Si l'énoncé Lean est vrai et le vôtre faux (ou l'inverse), la traduction est fausse. Le panneau « Comprendre » (mode Apprendre) donne une glose ligne par ligne, écrite par un modèle : elle aide à lire, mais elle peut se tromper aussi ; le code fait foi. Le vocabulaire est dans le Glossaire.`},{id:`follow-ups`,lang:`fr`,title:`Demandes de suivi et versions`,order:120,section:`use`,audience:`all`,summary:`Continuer la discussion sur un dossier, choisir l'étape à refaire, revenir à une version antérieure.`,source:`fr/follow-ups.md`,site_path:`fr/follow-ups.html`,headings:[{level:1,text:`Demandes de suivi et versions`,id:`demandes-de-suivi-et-versions`},{level:2,text:`Quelle étape est refaite ?`,id:`quelle-etape-est-refaite`},{level:2,text:`Les versions`,id:`les-versions`},{level:2,text:`Ce que l'assistant retient`,id:`ce-que-lassistant-retient`}],images:[],verify:[],body:`# Demandes de suivi et versions
+
+Un dossier n'est jamais figé. Dans le fil du dossier, la zone « Une précision, une correction ? » accepte une
+demande en langage courant :
+
+- « ajoute l'hypothèse $n > 0$ »
+- « et la réciproque ? »
+- « une preuve plus courte »
+- « explique l'étape 2 »
+- « sans utiliser \`nlinarith\` »
+
+\`Ctrl+Entrée\` envoie.
+
+## Quelle étape est refaite ?
+
+Le menu à côté de « Envoyer » choisit ce qui doit changer :
+
+| Choix | Effet |
+|---|---|
+| *Automatique* | un modèle lit la demande et choisit l'étape ; à défaut, des mots-clés décident |
+| *Énoncé* | nouvel énoncé Lean (selon la demande) → nouvelle preuve → nouvelle explication |
+| *Preuve* | nouvelle preuve du même énoncé → nouvelle explication |
+| *Explication* | nouvelle explication seulement |
+
+Si la demande change l'énoncé, l'ancienne preuve ne s'applique plus : Madalean en cherche une nouvelle. Les boutons
+sous la preuve (« Preuve plus simple », « Autre méthode », « Expliquer plus en détail », « Découper en lemmes ») sont
+des demandes toutes faites.
+
+## Les versions
+
+Chaque énoncé, chaque preuve, chaque explication produit une **nouvelle version** ; rien n'est effacé. Chaque
+version indique sa source (modèle, avec son nom, ou vous), la demande qui l'a produite et, pour une preuve, son
+verdict Lean.
+
+« Revenir à cette version » rend une version courante sans supprimer les autres. Revenir à une preuve ramène aussi
+l'énoncé qu'elle prouve. Une preuve ne compte comme preuve du dossier que si elle prouve l'énoncé **courant**.
+
+## Ce que l'assistant retient
+
+- **Votre profil** (« Réglages › Profil ») : lu avant chaque traduction et chaque explication.
+- **Le fil du dossier** : chaque correction s'appuie sur les versions précédentes.
+- **La bibliothèque** : chaque résultat prouvé est proposé comme lemme aux preuves suivantes du même espace Lean.
+- Les noms de lemmes que Lean a déjà refusés dans ce dossier ne sont plus proposés.
+`,text:`Demandes de suivi et versions Un dossier n'est jamais figé. Dans le fil du dossier, la zone « Une précision, une correction ? » accepte une demande en langage courant : - « ajoute l'hypothèse $n > 0$ » - « et la réciproque ? » - « une preuve plus courte » - « explique l'étape 2 » - « sans utiliser nlinarith » Ctrl+Entrée envoie. Quelle étape est refaite ? Le menu à côté de « Envoyer » choisit ce qui doit changer : Choix Effet Automatique un modèle lit la demande et choisit l'étape ; à défaut, des mots-clés décident Énoncé nouvel énoncé Lean (selon la demande) → nouvelle preuve → nouvelle explication Preuve nouvelle preuve du même énoncé → nouvelle explication Explication nouvelle explication seulement Si la demande change l'énoncé, l'ancienne preuve ne s'applique plus : Madalean en cherche une nouvelle. Les boutons sous la preuve (« Preuve plus simple », « Autre méthode », « Expliquer plus en détail », « Découper en lemmes ») sont des demandes toutes faites. Les versions Chaque énoncé, chaque preuve, chaque explication produit une nouvelle version ; rien n'est effacé. Chaque version indique sa source (modèle, avec son nom, ou vous), la demande qui l'a produite et, pour une preuve, son verdict Lean. « Revenir à cette version » rend une version courante sans supprimer les autres. Revenir à une preuve ramène aussi l'énoncé qu'elle prouve. Une preuve ne compte comme preuve du dossier que si elle prouve l'énoncé courant. Ce que l'assistant retient - Votre profil (« Réglages › Profil ») : lu avant chaque traduction et chaque explication. - Le fil du dossier : chaque correction s'appuie sur les versions précédentes. - La bibliothèque : chaque résultat prouvé est proposé comme lemme aux preuves suivantes du même espace Lean. - Les noms de lemmes que Lean a déjà refusés dans ce dossier ne sont plus proposés.`},{id:`projects`,lang:`fr`,title:`Projets et dossiers en parallèle`,order:130,section:`use`,audience:`all`,summary:`Regrouper des dossiers en projets, lancer plusieurs travaux à la fois, comprendre la file d'attente.`,source:`fr/projects.md`,site_path:`fr/projects.html`,headings:[{level:1,text:`Projets et dossiers en parallèle`,id:`projets-et-dossiers-en-parallele`},{level:2,text:`Projets`,id:`projets`},{level:2,text:`Plusieurs dossiers à la fois`,id:`plusieurs-dossiers-a-la-fois`},{level:2,text:`Sur tous les appareils`,id:`sur-tous-les-appareils`},{level:2,text:`Espaces Lean`,id:`espaces-lean`}],images:[{src:`img/activity.png`,exists:!0}],verify:[],body:`# Projets et dossiers en parallèle
+
+## Projets
+
+Un **projet** regroupe des dossiers : un chapitre de cours, un article en préparation, une série d'exercices. Le
+sélecteur en haut à gauche (« Tous les projets ») filtre la liste des dossiers. Un projet a son espace Lean, sa
+bibliographie, ses sources, ses notes, son plan d'article.
+
+Supprimer un projet le met à la corbeille : « Annuler » le restaure. Ses dossiers ne sont pas supprimés.
+
+## Plusieurs dossiers à la fois
+
+Vous pouvez lancer autant de dossiers que vous voulez ; ils avancent en parallèle, limités par les ressources de
+l'hôte :
+
+| Ressource | Places | Utilisée par |
+|---|---|---|
+| carte graphique | 1 | un modèle local à la fois (Madalean change de modèle selon l'étape) |
+| en ligne | 3 | appels aux modèles en ligne |
+| Lean | 2 | compilations |
+
+Un travail n'attend que la ressource de l'étape en cours ; vos travaux passent avant les relances automatiques.
+L'écran « Activité » montre ce qui tourne, ce qui attend et pourquoi (« en attente : carte graphique »).
+
+![Activité : travaux en parallèle](img/activity.png)
+
+Un dossier n'a qu'un travail actif à la fois ; une nouvelle demande sur un dossier occupé est refusée avec un
+message clair. Tout travail s'arrête à la demande.
+
+## Sur tous les appareils
+
+Tous les appareils reliés voient les mêmes projets, les mêmes dossiers et les mêmes travaux en direct. Lancez une
+preuve depuis le téléphone, suivez-la sur le PC. Après une coupure réseau, l'appareil se resynchronise seul.
+
+## Espaces Lean
+
+Chaque projet utilise un **espace de travail** Lean (« Réglages › Espaces Lean ») :
+
+- *Prouveur* : Lean 4.9 et la Mathlib d'entraînement des modèles Goedel. Épinglé : il n'est jamais mis à jour,
+  pour que les modèles locaux restent efficaces.
+- *Lean récent* : dernière Mathlib, mise à jour automatiquement (voir [Mises à jour](updates.md)).
+
+Un résultat de la bibliothèque n'est réutilisable que dans l'espace où il a été prouvé.
+`,text:`Projets et dossiers en parallèle Projets Un projet regroupe des dossiers : un chapitre de cours, un article en préparation, une série d'exercices. Le sélecteur en haut à gauche (« Tous les projets ») filtre la liste des dossiers. Un projet a son espace Lean, sa bibliographie, ses sources, ses notes, son plan d'article. Supprimer un projet le met à la corbeille : « Annuler » le restaure. Ses dossiers ne sont pas supprimés. Plusieurs dossiers à la fois Vous pouvez lancer autant de dossiers que vous voulez ; ils avancent en parallèle, limités par les ressources de l'hôte : Ressource Places Utilisée par carte graphique 1 un modèle local à la fois (Madalean change de modèle selon l'étape) en ligne 3 appels aux modèles en ligne Lean 2 compilations Un travail n'attend que la ressource de l'étape en cours ; vos travaux passent avant les relances automatiques. L'écran « Activité » montre ce qui tourne, ce qui attend et pourquoi (« en attente : carte graphique »). Activité : travaux en parallèle Un dossier n'a qu'un travail actif à la fois ; une nouvelle demande sur un dossier occupé est refusée avec un message clair. Tout travail s'arrête à la demande. Sur tous les appareils Tous les appareils reliés voient les mêmes projets, les mêmes dossiers et les mêmes travaux en direct. Lancez une preuve depuis le téléphone, suivez-la sur le PC. Après une coupure réseau, l'appareil se resynchronise seul. Espaces Lean Chaque projet utilise un espace de travail Lean (« Réglages › Espaces Lean ») : - Prouveur : Lean 4.9 et la Mathlib d'entraînement des modèles Goedel. Épinglé : il n'est jamais mis à jour, pour que les modèles locaux restent efficaces. - Lean récent : dernière Mathlib, mise à jour automatiquement (voir Mises à jour). Un résultat de la bibliothèque n'est réutilisable que dans l'espace où il a été prouvé.`},{id:`proof-plans`,lang:`fr`,title:`Plans de preuve et lemmes`,order:140,section:`use`,audience:`researcher`,summary:`Découper un résultat en lemmes prouvés en parallèle, admettre provisoirement, et ce que « prouvé modulo » veut dire.`,source:`fr/proof-plans.md`,site_path:`fr/proof-plans.html`,headings:[{level:1,text:`Plans de preuve et lemmes`,id:`plans-de-preuve-et-lemmes`},{level:2,text:`Découper en lemmes (rapide)`,id:`decouper-en-lemmes-rapide`},{level:2,text:`Plan de preuve (guidé)`,id:`plan-de-preuve-guide`},{level:2,text:`Admettre provisoirement`,id:`admettre-provisoirement`},{level:2,text:`Bon usage`,id:`bon-usage`}],images:[],verify:[`verify after integration: button labels of the plan screen (S-D)`],body:`# Plans de preuve et lemmes
+
+Un énoncé trop gros pour une preuve d'un seul tenant se découpe. Madalean propose deux outils.
+
+## Découper en lemmes (rapide)
+
+« Découper en lemmes » sur un dossier : un modèle propose jusqu'à quatre lemmes en Lean (ou vous les écrivez, un par
+paragraphe). Chaque lemme devient un **sous-dossier** lancé aussitôt, en parallèle. Quand tous sont terminés et
+qu'au moins un est prouvé, le dossier parent est relancé automatiquement avec les lemmes prouvés à sa disposition.
+
+## Plan de preuve (guidé)
+
+Le plan est un **arbre** : la racine est le but du dossier, chaque nœud un résultat intermédiaire avec son énoncé en
+langage naturel, pourquoi il sert et, si possible, son énoncé Lean.
+
+1. « Rédiger un plan » : le modèle propose un arbre ; vous pouvez lui donner une idée ou coller l'esquisse de preuve
+   d'un article.
+2. Corrigez à la main : ajoutez, supprimez, déplacez, réécrivez des nœuds. Une modification manuelle est marquée et
+   n'est jamais écrasée sans votre accord (l'ancienne version reste restaurable).
+3. Acceptez les nœuds retenus, puis « Lancer » : chaque nœud accepté devient un sous-dossier ; les feuilles
+   partent en premier, un nœud interne est prouvé quand ses enfants le sont.
+4. Un nœud échoue ? « Redécouper » le divise à son tour.
+
+Chaque changement crée une version du plan ; si deux appareils modifient le même plan, le second reçoit un conflit
+et recharge le plan à jour (les plans ne sont pas fusionnés automatiquement).
+
+## Admettre provisoirement
+
+Un nœud dont l'énoncé Lean est accepté peut être marqué « admis pour l'instant ». La preuve du parent peut alors
+s'appuyer dessus : Lean compile le parent avec le lemme admis écrit \`sorry\`.
+
+Le résultat est **prouvé modulo** les lemmes admis. Ce n'est **pas** une preuve vérifiée :
+
+- il n'est pas enregistré comme preuve du dossier, qui reste « non prouvé » ;
+- les axiomes listés contiennent \`sorryAx\`, la trace Lean d'un \`sorry\` ;
+- le plan affiche « prouvé modulo N lemmes admis » avec leurs noms.
+
+Quand chaque lemme admis reçoit ensuite une vraie preuve, Madalean remplace les \`sorry\` par les vrais lemmes et
+revérifie le parent avec le verdict strict. Alors seulement le dossier est prouvé.
+
+## Bon usage
+
+- Énoncez les lemmes en Lean dès que possible : un nœud sans énoncé Lean accepté ne peut être ni prouvé ni admis.
+- Préférez des lemmes **généraux** et courts ; ils entrent dans la bibliothèque et resservent.
+- Un lemme refusé plusieurs fois est souvent mal énoncé (hypothèse manquante) plutôt que difficile : relisez-le
+  comme dans [Lire un énoncé Lean](reading-lean.md).
+`,text:`Plans de preuve et lemmes Un énoncé trop gros pour une preuve d'un seul tenant se découpe. Madalean propose deux outils. Découper en lemmes (rapide) « Découper en lemmes » sur un dossier : un modèle propose jusqu'à quatre lemmes en Lean (ou vous les écrivez, un par paragraphe). Chaque lemme devient un sous-dossier lancé aussitôt, en parallèle. Quand tous sont terminés et qu'au moins un est prouvé, le dossier parent est relancé automatiquement avec les lemmes prouvés à sa disposition. Plan de preuve (guidé) Le plan est un arbre : la racine est le but du dossier, chaque nœud un résultat intermédiaire avec son énoncé en langage naturel, pourquoi il sert et, si possible, son énoncé Lean. 1. « Rédiger un plan » : le modèle propose un arbre ; vous pouvez lui donner une idée ou coller l'esquisse de preuve d'un article. 2. Corrigez à la main : ajoutez, supprimez, déplacez, réécrivez des nœuds. Une modification manuelle est marquée et n'est jamais écrasée sans votre accord (l'ancienne version reste restaurable). 3. Acceptez les nœuds retenus, puis « Lancer » : chaque nœud accepté devient un sous-dossier ; les feuilles partent en premier, un nœud interne est prouvé quand ses enfants le sont. 4. Un nœud échoue ? « Redécouper » le divise à son tour. Chaque changement crée une version du plan ; si deux appareils modifient le même plan, le second reçoit un conflit et recharge le plan à jour (les plans ne sont pas fusionnés automatiquement). Admettre provisoirement Un nœud dont l'énoncé Lean est accepté peut être marqué « admis pour l'instant ». La preuve du parent peut alors s'appuyer dessus : Lean compile le parent avec le lemme admis écrit sorry. Le résultat est prouvé modulo les lemmes admis. Ce n'est pas une preuve vérifiée : - il n'est pas enregistré comme preuve du dossier, qui reste « non prouvé » ; - les axiomes listés contiennent sorryAx, la trace Lean d'un sorry ; - le plan affiche « prouvé modulo N lemmes admis » avec leurs noms. Quand chaque lemme admis reçoit ensuite une vraie preuve, Madalean remplace les sorry par les vrais lemmes et revérifie le parent avec le verdict strict. Alors seulement le dossier est prouvé. Bon usage - Énoncez les lemmes en Lean dès que possible : un nœud sans énoncé Lean accepté ne peut être ni prouvé ni admis. - Préférez des lemmes généraux et courts ; ils entrent dans la bibliothèque et resservent. - Un lemme refusé plusieurs fois est souvent mal énoncé (hypothèse manquante) plutôt que difficile : relisez-le comme dans Lire un énoncé Lean.`},{id:`library`,lang:`fr`,title:`Bibliothèque de résultats`,order:150,section:`use`,audience:`all`,summary:`Vos résultats prouvés, rangés par domaine, projet ou étiquette, avec leur statut, qui les a prouvés, ce qu'ils utilisent et l'export.`,source:`fr/library.md`,site_path:`fr/library.html`,headings:[{level:1,text:`Bibliothèque de résultats`,id:`bibliotheque-de-resultats`}],images:[],verify:[],body:`# Bibliothèque de résultats
+
+Chaque preuve acceptée par Lean entre dans la **Bibliothèque** ; ces résultats sont ensuite proposés comme lemmes à
+vos prochaines preuves (même version de Lean et de Mathlib).
+
+- **Ranger par** domaine (classé automatiquement d'après l'énoncé, modifiable), projet ou étiquette.
+- **Cartes** ou **Tableau** : le choix est mémorisé sur cet appareil.
+- **Statut** : *Vérifié* (Lean a accepté la preuve, verdict strict) ou *Conditionnel* (preuve obtenue en admettant
+  des lemmes d'un plan de preuve : rien n'est vérifié tant qu'ils ne sont pas prouvés).
+- Pour chaque résultat : l'énoncé en mots et en Lean, le modèle (ou vous) qui l'a prouvé, les axiomes, ce qu'il
+  **utilise** et ce qui **l'utilise**.
+- **Exporter** : tout en Markdown ou JSON ; un résultat seul en \`.lean\` (avec les résultats dont il dépend).
+
+Le domaine et les étiquettes sont partagés entre vos appareils. Retirer un résultat se fait avec annulation possible.
+`,text:`Bibliothèque de résultats Chaque preuve acceptée par Lean entre dans la Bibliothèque ; ces résultats sont ensuite proposés comme lemmes à vos prochaines preuves (même version de Lean et de Mathlib). - Ranger par domaine (classé automatiquement d'après l'énoncé, modifiable), projet ou étiquette. - Cartes ou Tableau : le choix est mémorisé sur cet appareil. - Statut : Vérifié (Lean a accepté la preuve, verdict strict) ou Conditionnel (preuve obtenue en admettant des lemmes d'un plan de preuve : rien n'est vérifié tant qu'ils ne sont pas prouvés). - Pour chaque résultat : l'énoncé en mots et en Lean, le modèle (ou vous) qui l'a prouvé, les axiomes, ce qu'il utilise et ce qui l'utilise. - Exporter : tout en Markdown ou JSON ; un résultat seul en .lean (avec les résultats dont il dépend). Le domaine et les étiquettes sont partagés entre vos appareils. Retirer un résultat se fait avec annulation possible.`},{id:`conjectures`,lang:`fr`,title:`Atelier de conjectures`,order:200,section:`research`,audience:`researcher`,summary:`Proposer des conjectures, les tester (Lean sur petits cas, Sage, contre-exemples) avant d'y croire, et les promouvoir par une preuve.`,source:`fr/conjectures.md`,site_path:`fr/conjectures.html`,headings:[{level:1,text:`Atelier de conjectures`,id:`atelier-de-conjectures`},{level:2,text:`D'où viennent les conjectures`,id:`dou-viennent-les-conjectures`},{level:2,text:`Les états d'une conjecture`,id:`les-etats-dune-conjecture`},{level:2,text:`Tester avant de croire`,id:`tester-avant-de-croire`},{level:2,text:`Le journal des indices`,id:`le-journal-des-indices`},{level:2,text:`Promouvoir`,id:`promouvoir`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Atelier de conjectures
+
+Une conjecture est un dossier d'un genre particulier, avec un **journal des indices** : tout ce qui a été tenté pour
+l'éprouver. Une conjecture ne devient un théorème que par une preuve Lean.
+
+## D'où viennent les conjectures
+
+- Vous l'écrivez (en langage courant, et en Lean si vous voulez).
+- « Proposer des conjectures » : à partir du contexte du projet que vous choisissez (notes, dossiers, résultats de
+  la bibliothèque, sources), un modèle en propose quelques-unes avec leur motivation. Les propositions déjà connues
+  (doublon d'un dossier, résultat de la bibliothèque, lemme repéré dans Mathlib) sont écartées et listées à part
+  avec la raison.
+
+## Les états d'une conjecture
+
+| État | Signification |
+|---|---|
+| proposée | énoncée, rien de testé |
+| testée sur n cas | des cas particuliers ont tenu (Lean ou expériences) |
+| énoncé Lean | un énoncé Lean est accepté par Lean |
+| prouvée | la preuve courante du dossier passe le verdict strict |
+| réfutée | un contre-exemple a été **revérifié** indépendamment |
+
+## Tester avant de croire
+
+**Petits cas en Lean.** Madalean écrit un \`example\` par cas (par défaut $n = 0, \\dots, 9$ pour la première variable
+entière) et tente de le fermer par calcul (\`norm_num\`, \`decide\`, \`simp\`, \`omega\`). Option : un énoncé borné
+\`∀ n < K, …\` fermé par \`decide\`. Ces tests ne prouvent rien au-delà des cas testés.
+
+**Expériences Sage ou Python.** Le modèle écrit (ou vous écrivez) un programme en deux parties : un prédicat
+\`holds(...)\` et une recherche qui appelle \`report(...)\`. **Le code vous est montré et ne s'exécute qu'après votre
+accord sur ce code exact** ; une modification annule l'accord. Les exécutions sont confinées (voir
+[Sécurité](security.md#code-execute-sur-lhote)) et limitées en temps et en mémoire.
+
+**Contre-exemple.** Un contre-exemple annoncé n'est pas cru sur parole : le prédicat seul est réévalué au témoin
+dans un noyau neuf et, si la conjecture a un énoncé Lean, Lean doit accepter la négation de l'énoncé au témoin.
+Alors seulement la conjecture passe à « réfutée ».
+
+**Littérature.** « Chercher dans la littérature » interroge les bases bibliographiques (voir
+[Sources](sources.md)) pour savoir si l'énoncé est connu.
+
+## Le journal des indices
+
+Chaque test, expérience, vérification ou recherche ajoute une entrée datée (avec le code exécuté, la sortie, le
+modèle et l'appareil). Le journal est **en ajout seul** et ses entrées sont chaînées par empreintes SHA-256 :
+une entrée modifiée après coup se voit (« chaîne intègre » / « chaîne rompue »).
+
+## Promouvoir
+
+Quand la conjecture est prouvée, « Promouvoir en théorème » change son genre ; l'historique est gardé.
+
+Exemple du mode démo : « $n^2 + n + 41$ est premier pour tout $n$ » tient pour $n = 0, \\dots, 9$ en Lean, puis une
+expérience trouve $n = 40$ ($40^2 + 40 + 41 = 41^2$), revérifié : réfutée.
+`,text:`Atelier de conjectures Une conjecture est un dossier d'un genre particulier, avec un journal des indices : tout ce qui a été tenté pour l'éprouver. Une conjecture ne devient un théorème que par une preuve Lean. D'où viennent les conjectures - Vous l'écrivez (en langage courant, et en Lean si vous voulez). - « Proposer des conjectures » : à partir du contexte du projet que vous choisissez (notes, dossiers, résultats de la bibliothèque, sources), un modèle en propose quelques-unes avec leur motivation. Les propositions déjà connues (doublon d'un dossier, résultat de la bibliothèque, lemme repéré dans Mathlib) sont écartées et listées à part avec la raison. Les états d'une conjecture État Signification proposée énoncée, rien de testé testée sur n cas des cas particuliers ont tenu (Lean ou expériences) énoncé Lean un énoncé Lean est accepté par Lean prouvée la preuve courante du dossier passe le verdict strict réfutée un contre-exemple a été revérifié indépendamment Tester avant de croire Petits cas en Lean. Madalean écrit un example par cas (par défaut $n = 0, \\dots, 9$ pour la première variable entière) et tente de le fermer par calcul (normnum, decide, simp, omega). Option : un énoncé borné ∀ n < K, … fermé par decide. Ces tests ne prouvent rien au-delà des cas testés. Expériences Sage ou Python. Le modèle écrit (ou vous écrivez) un programme en deux parties : un prédicat holds(...) et une recherche qui appelle report(...). Le code vous est montré et ne s'exécute qu'après votre accord sur ce code exact ; une modification annule l'accord. Les exécutions sont confinées (voir Sécurité) et limitées en temps et en mémoire. Contre-exemple. Un contre-exemple annoncé n'est pas cru sur parole : le prédicat seul est réévalué au témoin dans un noyau neuf et, si la conjecture a un énoncé Lean, Lean doit accepter la négation de l'énoncé au témoin. Alors seulement la conjecture passe à « réfutée ». Littérature. « Chercher dans la littérature » interroge les bases bibliographiques (voir Sources) pour savoir si l'énoncé est connu. Le journal des indices Chaque test, expérience, vérification ou recherche ajoute une entrée datée (avec le code exécuté, la sortie, le modèle et l'appareil). Le journal est en ajout seul et ses entrées sont chaînées par empreintes SHA-256 : une entrée modifiée après coup se voit (« chaîne intègre » / « chaîne rompue »). Promouvoir Quand la conjecture est prouvée, « Promouvoir en théorème » change son genre ; l'historique est gardé. Exemple du mode démo : « $n^2 + n + 41$ est premier pour tout $n$ » tient pour $n = 0, \\dots, 9$ en Lean, puis une expérience trouve $n = 40$ ($40^2 + 40 + 41 = 41^2$), revérifié : réfutée.`},{id:`calcul`,lang:`fr`,title:`Calcul (Sage et Python)`,order:205,section:`research`,audience:`researcher`,summary:`Des cellules Sage ou Python dans un bac à sable hors ligne, l'assistant à côté, et un clic pour transformer un résultat en conjecture, note, dossier Lean ou bloc d'article.`,source:`fr/calcul.md`,site_path:`fr/calcul.html`,headings:[{level:1,text:`Calcul (Sage et Python)`,id:`calcul-sage-et-python`},{level:2,text:`Qui peut exécuter quoi`,id:`qui-peut-executer-quoi`},{level:2,text:`L'assistant`,id:`lassistant`},{level:2,text:`Sorties`,id:`sorties`},{level:2,text:`Utiliser un résultat`,id:`utiliser-un-resultat`},{level:2,text:`SageMath pas encore installé`,id:`sagemath-pas-encore-installe`}],images:[],verify:[`verify after integration: Sage on-demand install progress from the Calcul screen on a machine without Sage`],body:`# Calcul (Sage et Python)
+
+L'écran **Calcul** (menu du projet) est une feuille de calcul par projet : une suite de cellules SageMath ou
+Python, exécutées sur l'ordinateur hôte dans le **même bac à sable** que les expériences de l'atelier de
+conjectures : pas d'accès au réseau, pas d'accès à vos clés ni à vos fichiers personnels, temps et sortie limités.
+Les variables restent d'une cellule à l'autre (un noyau par projet).
+
+## Qui peut exécuter quoi
+
+- **Vos cellules** (celles que vous tapez) s'exécutent quand vous cliquez sur **Exécuter** (ou Ctrl+Entrée).
+- **Les cellules de l'assistant** sont marquées « À relire » : elles ne s'exécutent qu'après **Approuver ce code**.
+  L'accord porte sur ce code précis : si vous ou l'assistant le modifiez, il faut le relire et l'approuver à nouveau.
+- Depuis un téléphone ou une tablette appairés, vous pouvez lire et écrire les cellules ; leur exécution n'est
+  permise que si l'hôte a activé « expériences depuis les appareils » (réglage réservé à l'hôte).
+
+## L'assistant
+
+À droite (en haut sur téléphone), décrivez le calcul voulu : l'assistant **écrit une cellule**. Sous chaque cellule,
+**Corriger** propose une version réparée après une erreur, **Expliquer** commente le code et sa sortie. Un calcul
+ne prouve rien en général : il vérifie des cas.
+
+## Sorties
+
+Texte, formules (avec \`tex(x)\`, affichées par KaTeX) et graphiques (PNG ou SVG, nettoyés avant affichage). Chaque
+cellule garde ses dernières exécutions et les versions de son code (**Historique**).
+
+## Utiliser un résultat
+
+Sous une sortie réussie :
+
+| Bouton | Effet |
+|---|---|
+| → Conjecture | crée une conjecture du projet ; le calcul est joint comme motivation |
+| → Note | copie le code et sa sortie dans une note (étiquette « calcul ») |
+| → Dossier Lean | ouvre un dossier avec l'énoncé que vous écrivez ; rien ne démarre avant que vous l'ouvriez |
+| → Article | ajoute la formule ou la sortie comme bloc de l'article du projet |
+
+Les graphiques ne sont pas encore copiés dans l'export PDF de l'article.
+
+## SageMath pas encore installé
+
+Les cellules Python fonctionnent tout de suite. SageMath (environ 2 Go) s'installe à la demande : bouton
+**Installer SageMath** sur l'hôte, avec la progression affichée.
+`,text:`Calcul (Sage et Python) L'écran Calcul (menu du projet) est une feuille de calcul par projet : une suite de cellules SageMath ou Python, exécutées sur l'ordinateur hôte dans le même bac à sable que les expériences de l'atelier de conjectures : pas d'accès au réseau, pas d'accès à vos clés ni à vos fichiers personnels, temps et sortie limités. Les variables restent d'une cellule à l'autre (un noyau par projet). Qui peut exécuter quoi - Vos cellules (celles que vous tapez) s'exécutent quand vous cliquez sur Exécuter (ou Ctrl+Entrée). - Les cellules de l'assistant sont marquées « À relire » : elles ne s'exécutent qu'après Approuver ce code. L'accord porte sur ce code précis : si vous ou l'assistant le modifiez, il faut le relire et l'approuver à nouveau. - Depuis un téléphone ou une tablette appairés, vous pouvez lire et écrire les cellules ; leur exécution n'est permise que si l'hôte a activé « expériences depuis les appareils » (réglage réservé à l'hôte). L'assistant À droite (en haut sur téléphone), décrivez le calcul voulu : l'assistant écrit une cellule. Sous chaque cellule, Corriger propose une version réparée après une erreur, Expliquer commente le code et sa sortie. Un calcul ne prouve rien en général : il vérifie des cas. Sorties Texte, formules (avec tex(x), affichées par KaTeX) et graphiques (PNG ou SVG, nettoyés avant affichage). Chaque cellule garde ses dernières exécutions et les versions de son code (Historique). Utiliser un résultat Sous une sortie réussie : Bouton Effet → Conjecture crée une conjecture du projet ; le calcul est joint comme motivation → Note copie le code et sa sortie dans une note (étiquette « calcul ») → Dossier Lean ouvre un dossier avec l'énoncé que vous écrivez ; rien ne démarre avant que vous l'ouvriez → Article ajoute la formule ou la sortie comme bloc de l'article du projet Les graphiques ne sont pas encore copiés dans l'export PDF de l'article. SageMath pas encore installé Les cellules Python fonctionnent tout de suite. SageMath (environ 2 Go) s'installe à la demande : bouton Installer SageMath sur l'hôte, avec la progression affichée.`},{id:`sources`,lang:`fr`,title:`Sources, recherche bibliographique et questions ancrées`,order:210,section:`research`,audience:`researcher`,summary:`La bibliothèque de sources (articles, livres), la recherche dans les bases, le lecteur annoté, et les réponses citant vos sources.`,source:`fr/sources.md`,site_path:`fr/sources.html`,headings:[{level:1,text:`Sources, recherche bibliographique et questions ancrées`,id:`sources-recherche-bibliographique-et-questions-ancrees`},{level:2,text:`La bibliothèque de sources`,id:`la-bibliotheque-de-sources`},{level:2,text:`Recherche bibliographique`,id:`recherche-bibliographique`},{level:2,text:`Lire et annoter`,id:`lire-et-annoter`},{level:2,text:`Questions ancrées dans vos sources`,id:`questions-ancrees-dans-vos-sources`},{level:2,text:`Ce qui part sur Internet`,id:`ce-qui-part-sur-internet`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Sources, recherche bibliographique et questions ancrées
+
+## La bibliothèque de sources
+
+Articles, livres, notes de cours, rangés par **étagère** : une par projet, une étagère générale, et l'étagère
+*Mathlib* (lecture seule, tirée de la bibliographie de Mathlib). Pour ajouter une source :
+
+| Par | Ce que fait Madalean |
+|---|---|
+| DOI, identifiant arXiv, ISBN, \`Zbl …\`, identifiant OpenAlex | récupère les métadonnées vérifiées ; pour arXiv, aussi les sources TeX et le PDF ; pour un DOI, le PDF seulement s'il est en accès ouvert |
+| URL | métadonnées de la page seulement |
+| fichier PDF, TeX, archive, EPUB | cherche un identifiant dans les premières pages ; sinon métadonnées devinées, marquées **non vérifiées** |
+| BibTeX, RIS, CSL-JSON, export Zotero (RDF ou zip) | importe les références et les fichiers joints de l'archive |
+| formulaire | saisie à la main |
+
+Les doublons (même DOI, même arXiv, titre très proche) sont signalés. Chaque source a des étiquettes, des
+collections, un état de lecture, des notes, et sa clé BibTeX. Export en BibTeX, RIS ou CSL-JSON.
+
+Les métadonnées devinées à partir d'un fichier, ou proposées par un modèle, restent marquées « non vérifiées » tant
+que vous ne les avez pas confirmées.
+
+## Recherche bibliographique
+
+« Chercher des articles » interroge arXiv, zbMATH Open, Crossref, OpenAlex et Semantic Scholar. **Seule votre
+requête est envoyée.** Un fournisseur qui ne répond pas est signalé, sans bloquer les autres. À partir d'un article :
+travaux liés, citants, cités (OpenAlex).
+
+« Liste de lecture » : à partir d'une question, un modèle choisit parmi des résultats **réellement renvoyés par les
+bases** et dit pourquoi ; il ne peut pas inventer de référence (tout identifiant inconnu est rejeté et compté).
+
+En mode *Local*, ces recherches sont refusées : elles demandent le réseau.
+
+## Lire et annoter
+
+Le lecteur affiche le PDF à côté du texte extrait. Surlignez, ajoutez une note en marge : les annotations sont
+ancrées à la page et à la position, et retrouvables dans la recherche.
+
+Le texte intégral de chaque source est indexé **localement**, découpé en passages avec leur page et leur section.
+Pour un PDF sans couche texte (scan), une reconnaissance de caractères existe, mais les formules lues ainsi ne sont
+pas fiables.
+
+## Questions ancrées dans vos sources
+
+Posez une question sur une source, un projet, ou une sélection : la réponse cite des **passages** précis.
+
+- Chaque citation renvoie au passage (clic : la page s'ouvre au bon endroit).
+- La citation est vérifiée par le code : le passage cité doit contenir le texte cité. Une phrase sans citation
+  valide est affichée barrée ou grisée.
+- Si aucun passage pertinent n'est trouvé, la réponse le dit, **sans appeler de modèle**.
+- Une partie « connaissances générales », facultative, est séparée et marquée comme telle, sans citation.
+
+Ce que la vérification garantit : le passage cité existe et contient la citation. Ce qu'elle ne garantit pas : que le
+passage *justifie* la phrase. Lisez le passage pour les points importants.
+
+Autres demandes : « Résumer » (ce que prouve l'article, ses définitions, ses dépendances), « Comparer » deux à
+quatre sources.
+
+## Ce qui part sur Internet
+
+Les requêtes de recherche, les identifiants (DOI, arXiv…) et le téléchargement des fichiers en accès ouvert. Les
+questions sur vos sources passent par le modèle choisi, avec les passages retenus : en mode *Local*, uniquement par
+un modèle local. Voir [Modèles et clés](models-keys.md#ce-qui-part-et-vers-qui).
+`,text:`Sources, recherche bibliographique et questions ancrées La bibliothèque de sources Articles, livres, notes de cours, rangés par étagère : une par projet, une étagère générale, et l'étagère Mathlib (lecture seule, tirée de la bibliographie de Mathlib). Pour ajouter une source : Par Ce que fait Madalean DOI, identifiant arXiv, ISBN, Zbl …, identifiant OpenAlex récupère les métadonnées vérifiées ; pour arXiv, aussi les sources TeX et le PDF ; pour un DOI, le PDF seulement s'il est en accès ouvert URL métadonnées de la page seulement fichier PDF, TeX, archive, EPUB cherche un identifiant dans les premières pages ; sinon métadonnées devinées, marquées non vérifiées BibTeX, RIS, CSL-JSON, export Zotero (RDF ou zip) importe les références et les fichiers joints de l'archive formulaire saisie à la main Les doublons (même DOI, même arXiv, titre très proche) sont signalés. Chaque source a des étiquettes, des collections, un état de lecture, des notes, et sa clé BibTeX. Export en BibTeX, RIS ou CSL-JSON. Les métadonnées devinées à partir d'un fichier, ou proposées par un modèle, restent marquées « non vérifiées » tant que vous ne les avez pas confirmées. Recherche bibliographique « Chercher des articles » interroge arXiv, zbMATH Open, Crossref, OpenAlex et Semantic Scholar. Seule votre requête est envoyée. Un fournisseur qui ne répond pas est signalé, sans bloquer les autres. À partir d'un article : travaux liés, citants, cités (OpenAlex). « Liste de lecture » : à partir d'une question, un modèle choisit parmi des résultats réellement renvoyés par les bases et dit pourquoi ; il ne peut pas inventer de référence (tout identifiant inconnu est rejeté et compté). En mode Local, ces recherches sont refusées : elles demandent le réseau. Lire et annoter Le lecteur affiche le PDF à côté du texte extrait. Surlignez, ajoutez une note en marge : les annotations sont ancrées à la page et à la position, et retrouvables dans la recherche. Le texte intégral de chaque source est indexé localement, découpé en passages avec leur page et leur section. Pour un PDF sans couche texte (scan), une reconnaissance de caractères existe, mais les formules lues ainsi ne sont pas fiables. Questions ancrées dans vos sources Posez une question sur une source, un projet, ou une sélection : la réponse cite des passages précis. - Chaque citation renvoie au passage (clic : la page s'ouvre au bon endroit). - La citation est vérifiée par le code : le passage cité doit contenir le texte cité. Une phrase sans citation valide est affichée barrée ou grisée. - Si aucun passage pertinent n'est trouvé, la réponse le dit, sans appeler de modèle. - Une partie « connaissances générales », facultative, est séparée et marquée comme telle, sans citation. Ce que la vérification garantit : le passage cité existe et contient la citation. Ce qu'elle ne garantit pas : que le passage justifie la phrase. Lisez le passage pour les points importants. Autres demandes : « Résumer » (ce que prouve l'article, ses définitions, ses dépendances), « Comparer » deux à quatre sources. Ce qui part sur Internet Les requêtes de recherche, les identifiants (DOI, arXiv…) et le téléchargement des fichiers en accès ouvert. Les questions sur vos sources passent par le modèle choisi, avec les passages retenus : en mode Local, uniquement par un modèle local. Voir Modèles et clés.`},{id:`articles`,lang:`fr`,title:`Bibliographie, article et blueprint`,order:220,section:`research`,audience:`researcher`,summary:`Citer dans les preuves, rédiger un article à partir d'un projet, transformer un article en blueprint de dossiers Lean, et ce qui est fiable.`,source:`fr/articles.md`,site_path:`fr/articles.html`,headings:[{level:1,text:`Bibliographie, article et blueprint`,id:`bibliographie-article-et-blueprint`},{level:2,text:`Ce qui est fiable, et ce qui ne l'est pas`,id:`ce-qui-est-fiable-et-ce-qui-ne-lest-pas`},{level:2,text:`Citer`,id:`citer`},{level:2,text:`Rédiger l'article`,id:`rediger-larticle`},{level:2,text:`D'un article à un blueprint`,id:`dun-article-a-un-blueprint`},{level:2,text:`Publier`,id:`publier`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Bibliographie, article et blueprint
+
+## Ce qui est fiable, et ce qui ne l'est pas
+
+| Fonction | Fiabilité | Comment |
+|---|---|---|
+| Bibliographie dans les preuves et les exports | Élevée | Un fichier BibTeX par projet. Ajout par DOI, arXiv, zbMATH, BibTeX collé, ou depuis la bibliographie de Mathlib. Un modèle ne peut citer que des clés existantes : une référence inventée est retirée par le code, jamais imprimée. |
+| Lean → article | Élevée pour la structure, dépend du modèle pour la prose | Projet → article LaTeX (amsart) : résumé, sections, chaque dossier en théorème + preuve rédigée, annexe Lean facultative, bibliographie, tableau de vérification. Un énoncé non prouvé est composé comme conjecture ou affirmation, marqué — jamais comme théorème. |
+| Article → énoncés structurés | Élevée depuis les sources LaTeX (arXiv), moyenne depuis un PDF | Sources arXiv d'abord ; PDF par sa couche texte, et un modèle qui lit les PDF quand une clé le permet ; les formules d'un PDF scanné ne sont pas fiables sans relecture. Résultat : un **blueprint**, un dossier par définition, lemme ou théorème, avec le texte d'origine, sa place dans l'article et ses dépendances. |
+| Article → énoncés Lean | Moyenne (niveau manuel, master), faible (recherche avec des objets absents de Mathlib) | Chaque nœud passe par compréhension → traduction avec recherche de lemmes ; les définitions manquantes sont détectées et deviennent des nœuds « à définir ». Toujours relu par vous : le texte de l'article est affiché à côté de l'énoncé Lean. |
+| Article → preuves Lean | Faible à moyenne | La preuve de l'article est donnée au prouveur comme indice. Les lemmes élémentaires sont souvent prouvés, les résultats profonds rarement. Le graphe montre honnêtement ce qui est prouvé, seulement énoncé, ou bloqué. |
+
+**Aucun résultat n'est présenté comme vérifié si Lean n'a pas accepté sa preuve et celles de toutes ses
+dépendances.**
+
+## Citer
+
+Dans tout texte (énoncé, preuve rédigée, explication, note, section d'article), une citation s'écrit avec la clé
+BibTeX : \`[@hardy-wright]\`, \`[@hardy-wright, Thm 2.1]\`, \`[voir @a, p. 3; @b]\`. L'autocomplétion propose les clés du
+projet. Les exports n'impriment que les références citées : PDF avec biblatex et biber s'ils sont installés, sinon
+BibTeX ; le \`.zip\` contient \`refs.bib\`.
+
+## Rédiger l'article
+
+« Rédiger l'article » assemble un article à partir du projet : titre, auteurs, résumé, sections, un bloc par
+dossier. Chaque bloc est un brouillon modifiable et versionné. Le tableau de vérification indique, pour chaque
+résultat : nom Lean, état (vérifié, énoncé accepté, non), version de Lean, révision de Mathlib, axiomes.
+Sortie : PDF, \`.tex\`, \`.md\`, et un \`.zip\` avec les fichiers Lean des résultats vérifiés.
+
+## D'un article à un blueprint
+
+1. Ajoutez l'article à vos sources (de préférence par son identifiant arXiv : les sources LaTeX donnent un bien
+   meilleur résultat que le PDF).
+2. « Extraire le blueprint » : définitions, lemmes, théorèmes, avec leur numéro (« Lemme 2.3 »), leur texte, leur
+   preuve, et les dépendances repérées dans les preuves (\`\\ref\`, « par le lemme 2.3 »).
+3. Les dépendances écrites en prose (« par le lemme précédent ») échappent souvent à l'extraction : une passe de
+   modèle facultative propose des arêtes **marquées « proposées »**, que vous acceptez ou rejetez.
+4. Créez les dossiers : chaque nœud devient un dossier relié à la source et à son emplacement dans l'article.
+5. Le **graphe du blueprint** colore chaque nœud selon son état : non créé, énoncé, énoncé Lean accepté, défini,
+   prouvé, vérifié (prouvé et toutes ses dépendances vérifiées), bloqué (utilise une définition sans énoncé Lean
+   accepté). Un clic ouvre le dossier.
+
+Mesure honnête (trois articles arXiv courts, vérifiés à la main) : énoncés trouvés 12 sur 12 depuis le TeX comme
+depuis le PDF ; preuves 10 sur 11 depuis le TeX, 8 sur 11 depuis le PDF ; dépendances écrites en prose : 2 sur 7
+sans passe de modèle. Ces chiffres viennent d'un petit échantillon.
+
+## Publier
+
+Un projet peut être publié sous forme de site statique vérifiable par tous : voir [Publier un projet](publish.md).
+`,text:`Bibliographie, article et blueprint Ce qui est fiable, et ce qui ne l'est pas Fonction Fiabilité Comment Bibliographie dans les preuves et les exports Élevée Un fichier BibTeX par projet. Ajout par DOI, arXiv, zbMATH, BibTeX collé, ou depuis la bibliographie de Mathlib. Un modèle ne peut citer que des clés existantes : une référence inventée est retirée par le code, jamais imprimée. Lean → article Élevée pour la structure, dépend du modèle pour la prose Projet → article LaTeX (amsart) : résumé, sections, chaque dossier en théorème + preuve rédigée, annexe Lean facultative, bibliographie, tableau de vérification. Un énoncé non prouvé est composé comme conjecture ou affirmation, marqué — jamais comme théorème. Article → énoncés structurés Élevée depuis les sources LaTeX (arXiv), moyenne depuis un PDF Sources arXiv d'abord ; PDF par sa couche texte, et un modèle qui lit les PDF quand une clé le permet ; les formules d'un PDF scanné ne sont pas fiables sans relecture. Résultat : un blueprint, un dossier par définition, lemme ou théorème, avec le texte d'origine, sa place dans l'article et ses dépendances. Article → énoncés Lean Moyenne (niveau manuel, master), faible (recherche avec des objets absents de Mathlib) Chaque nœud passe par compréhension → traduction avec recherche de lemmes ; les définitions manquantes sont détectées et deviennent des nœuds « à définir ». Toujours relu par vous : le texte de l'article est affiché à côté de l'énoncé Lean. Article → preuves Lean Faible à moyenne La preuve de l'article est donnée au prouveur comme indice. Les lemmes élémentaires sont souvent prouvés, les résultats profonds rarement. Le graphe montre honnêtement ce qui est prouvé, seulement énoncé, ou bloqué. Aucun résultat n'est présenté comme vérifié si Lean n'a pas accepté sa preuve et celles de toutes ses dépendances. Citer Dans tout texte (énoncé, preuve rédigée, explication, note, section d'article), une citation s'écrit avec la clé BibTeX : [@hardy-wright], [@hardy-wright, Thm 2.1], [voir @a, p. 3; @b]. L'autocomplétion propose les clés du projet. Les exports n'impriment que les références citées : PDF avec biblatex et biber s'ils sont installés, sinon BibTeX ; le .zip contient refs.bib. Rédiger l'article « Rédiger l'article » assemble un article à partir du projet : titre, auteurs, résumé, sections, un bloc par dossier. Chaque bloc est un brouillon modifiable et versionné. Le tableau de vérification indique, pour chaque résultat : nom Lean, état (vérifié, énoncé accepté, non), version de Lean, révision de Mathlib, axiomes. Sortie : PDF, .tex, .md, et un .zip avec les fichiers Lean des résultats vérifiés. D'un article à un blueprint 1. Ajoutez l'article à vos sources (de préférence par son identifiant arXiv : les sources LaTeX donnent un bien meilleur résultat que le PDF). 2. « Extraire le blueprint » : définitions, lemmes, théorèmes, avec leur numéro (« Lemme 2.3 »), leur texte, leur preuve, et les dépendances repérées dans les preuves (\\ref, « par le lemme 2.3 »). 3. Les dépendances écrites en prose (« par le lemme précédent ») échappent souvent à l'extraction : une passe de modèle facultative propose des arêtes marquées « proposées », que vous acceptez ou rejetez. 4. Créez les dossiers : chaque nœud devient un dossier relié à la source et à son emplacement dans l'article. 5. Le graphe du blueprint colore chaque nœud selon son état : non créé, énoncé, énoncé Lean accepté, défini, prouvé, vérifié (prouvé et toutes ses dépendances vérifiées), bloqué (utilise une définition sans énoncé Lean accepté). Un clic ouvre le dossier. Mesure honnête (trois articles arXiv courts, vérifiés à la main) : énoncés trouvés 12 sur 12 depuis le TeX comme depuis le PDF ; preuves 10 sur 11 depuis le TeX, 8 sur 11 depuis le PDF ; dépendances écrites en prose : 2 sur 7 sans passe de modèle. Ces chiffres viennent d'un petit échantillon. Publier Un projet peut être publié sous forme de site statique vérifiable par tous : voir Publier un projet.`},{id:`notes`,lang:`fr`,title:`Notes`,order:230,section:`research`,audience:`all`,summary:`Notes liées en Markdown, LaTeX et Lean ; liens, rétroliens, graphe, versions et édition sur plusieurs appareils.`,source:`fr/notes.md`,site_path:`fr/notes.html`,headings:[{level:1,text:`Notes`,id:`notes`},{level:2,text:`Liens`,id:`liens`},{level:2,text:`Lean dans les notes`,id:`lean-dans-les-notes`},{level:2,text:`Journal de recherche`,id:`journal-de-recherche`},{level:2,text:`Versions et plusieurs appareils`,id:`versions-et-plusieurs-appareils`},{level:2,text:`Pièces jointes et export`,id:`pieces-jointes-et-export`}],images:[],verify:[`verify after integration: button labels in the notes editor (S-D)`],body:`# Notes
+
+Les notes sont propres à Madalean (ce n'est pas un coffre Obsidian) et rangées par projet. On y écrit en Markdown,
+avec des formules \`$…$\` et \`$$…$$\` et des blocs de code Lean.
+
+## Liens
+
+| Écriture | Cible |
+|---|---|
+| \`[[Titre]]\`, \`[[Titre\\|texte affiché]]\` | une note du même projet (titre sans distinction de casse) |
+| \`[[dossier:Titre]]\` ou \`[[dossier:ID]]\` | un dossier (théorème, conjecture, lemme…) |
+| \`[[@clé]]\`, \`[[@clé#p12]]\` | une source, éventuellement à une page |
+| \`[[passage:ID]]\` | un passage précis d'une source |
+| \`[[lib:Nom]]\` | un résultat de la bibliothèque (nom Lean) |
+
+Chaque note montre ses **rétroliens** (les notes qui pointent vers elle). Le **graphe** du projet relie notes,
+dossiers et sources ; il se filtre par étiquette. Les étiquettes s'écrivent \`#étiquette\` dans le texte.
+
+Renommer une note met à jour les liens \`[[Ancien titre]]\` des autres notes du projet.
+
+## Lean dans les notes
+
+« Vérifier avec Lean » compile chaque bloc \`lean\` de la note dans l'espace du projet et affiche les erreurs à la
+bonne ligne. « Créer un dossier » à partir d'un bloc qui contient un théorème ouvre un dossier avec cet énoncé (ou,
+à partir d'un paragraphe, un dossier dont c'est le problème) et ajoute un lien vers lui sous le bloc.
+
+## Journal de recherche
+
+« Note du jour » crée (ou ouvre) la note datée du jour, avec la liste des dossiers travaillés ce jour-là.
+
+## Versions et plusieurs appareils
+
+Chaque enregistrement crée une révision ; toutes sont gardées. On peut comparer deux révisions et restaurer une
+ancienne (ce qui crée une nouvelle révision : rien n'est perdu). Une note supprimée va à la corbeille.
+
+Si la même note est modifiée sur deux appareils, les changements de lignes différentes sont fusionnés
+automatiquement. Si les deux appareils ont modifié les mêmes lignes, Madalean montre les deux versions de chaque
+passage en conflit et vous choisissez.
+
+## Pièces jointes et export
+
+Images (PNG, JPEG, GIF, WebP) et PDF jusqu'à 10 Mo. Export d'une note ou de tout le carnet du projet en Markdown,
+HTML ou PDF.
+`,text:`Notes Les notes sont propres à Madalean (ce n'est pas un coffre Obsidian) et rangées par projet. On y écrit en Markdown, avec des formules $…$ et $$…$$ et des blocs de code Lean. Liens Écriture Cible [[Titre]], [[Titre texte affiché]] une note du même projet (titre sans distinction de casse) [[dossier:Titre]] ou [[dossier:ID]] un dossier (théorème, conjecture, lemme…) [[@clé]], [[@clé#p12]] une source, éventuellement à une page [[passage:ID]] un passage précis d'une source [[lib:Nom]] un résultat de la bibliothèque (nom Lean) Chaque note montre ses rétroliens (les notes qui pointent vers elle). Le graphe du projet relie notes, dossiers et sources ; il se filtre par étiquette. Les étiquettes s'écrivent #étiquette dans le texte. Renommer une note met à jour les liens [[Ancien titre]] des autres notes du projet. Lean dans les notes « Vérifier avec Lean » compile chaque bloc lean de la note dans l'espace du projet et affiche les erreurs à la bonne ligne. « Créer un dossier » à partir d'un bloc qui contient un théorème ouvre un dossier avec cet énoncé (ou, à partir d'un paragraphe, un dossier dont c'est le problème) et ajoute un lien vers lui sous le bloc. Journal de recherche « Note du jour » crée (ou ouvre) la note datée du jour, avec la liste des dossiers travaillés ce jour-là. Versions et plusieurs appareils Chaque enregistrement crée une révision ; toutes sont gardées. On peut comparer deux révisions et restaurer une ancienne (ce qui crée une nouvelle révision : rien n'est perdu). Une note supprimée va à la corbeille. Si la même note est modifiée sur deux appareils, les changements de lignes différentes sont fusionnés automatiquement. Si les deux appareils ont modifié les mêmes lignes, Madalean montre les deux versions de chaque passage en conflit et vous choisissez. Pièces jointes et export Images (PNG, JPEG, GIF, WebP) et PDF jusqu'à 10 Mo. Export d'une note ou de tout le carnet du projet en Markdown, HTML ou PDF.`},{id:`jupyter`,lang:`fr`,title:`Jupyter et Sage`,order:240,section:`research`,audience:`researcher`,summary:`JupyterLab intégré avec les noyaux Python et SageMath, l'assistant à côté du carnet, et qui peut y accéder.`,source:`fr/jupyter.md`,site_path:`fr/jupyter.html`,headings:[{level:1,text:`Jupyter et Sage`,id:`jupyter-et-sage`},{level:2,text:`Noyaux`,id:`noyaux`},{level:2,text:`L'assistant à côté du carnet`,id:`lassistant-a-cote-du-carnet`},{level:2,text:`Qui peut y accéder`,id:`qui-peut-y-acceder`}],images:[],verify:[],body:`# Jupyter et Sage
+
+L'écran « Carnet » ouvre **JupyterLab**, démarré à la demande par l'ordinateur hôte, derrière la même connexion que
+le reste de Madalean. Les carnets sont rangés dans \`~/Documents/Madalean/notebooks/\`.
+
+## Noyaux
+
+| Noyau | Disponible si |
+|---|---|
+| Python 3 | toujours (avec JupyterLab) |
+| SageMath | Sage est installé sur l'hôte (paquet de votre distribution) |
+| Lean 4 | non fourni : aucun noyau Lean 4 n'est assez fiable aujourd'hui. Utilisez les dossiers ou les blocs \`lean\` des [notes](notes.md). |
+
+Madalean n'installe pas Sage lui-même (il ne lance jamais \`sudo\`) : « Réglages › Mises à jour » indique la commande
+exacte pour votre distribution.
+
+## L'assistant à côté du carnet
+
+Le panneau d'assistant lit le carnet ouvert (cellules et sorties) et peut **ajouter une cellule** à la fin, que vous
+exécutez vous-même. Il répond avec le modèle du mode courant ; en mode *Local*, uniquement un modèle local.
+
+## Qui peut y accéder
+
+Un noyau Jupyter exécute n'importe quel code sur l'ordinateur hôte. Pour cette raison :
+
+- sur l'hôte, le carnet est toujours disponible ;
+- depuis un appareil relié, il n'est accessible que si l'hôte l'a autorisé (« Réglages › Carnet et accès »), réglage
+  modifiable **seulement depuis l'hôte** ;
+- le jeton interne de Jupyter ne quitte jamais le serveur.
+
+Les expériences de l'[atelier de conjectures](conjectures.md) utilisent des noyaux confinés distincts, et ne
+s'exécutent qu'après votre accord.
+`,text:`Jupyter et Sage L'écran « Carnet » ouvre JupyterLab, démarré à la demande par l'ordinateur hôte, derrière la même connexion que le reste de Madalean. Les carnets sont rangés dans ~/Documents/Madalean/notebooks/. Noyaux Noyau Disponible si Python 3 toujours (avec JupyterLab) SageMath Sage est installé sur l'hôte (paquet de votre distribution) Lean 4 non fourni : aucun noyau Lean 4 n'est assez fiable aujourd'hui. Utilisez les dossiers ou les blocs lean des notes. Madalean n'installe pas Sage lui-même (il ne lance jamais sudo) : « Réglages › Mises à jour » indique la commande exacte pour votre distribution. L'assistant à côté du carnet Le panneau d'assistant lit le carnet ouvert (cellules et sorties) et peut ajouter une cellule à la fin, que vous exécutez vous-même. Il répond avec le modèle du mode courant ; en mode Local, uniquement un modèle local. Qui peut y accéder Un noyau Jupyter exécute n'importe quel code sur l'ordinateur hôte. Pour cette raison : - sur l'hôte, le carnet est toujours disponible ; - depuis un appareil relié, il n'est accessible que si l'hôte l'a autorisé (« Réglages › Carnet et accès »), réglage modifiable seulement depuis l'hôte ; - le jeton interne de Jupyter ne quitte jamais le serveur. Les expériences de l'atelier de conjectures utilisent des noyaux confinés distincts, et ne s'exécutent qu'après votre accord.`},{id:`publish`,lang:`fr`,title:`Publier un projet`,order:250,section:`research`,audience:`researcher`,summary:`Publier un projet vérifié en site statique sur un dépôt GitHub de votre choix, revérifié indépendamment par lake build.`,source:`fr/publish.md`,site_path:`fr/publish.html`,headings:[{level:1,text:`Publier un projet`,id:`publier-un-projet`},{level:2,text:`Ce qui part, et seulement avec votre accord`,id:`ce-qui-part-et-seulement-avec-votre-accord`},{level:2,text:`Ce que montre le site`,id:`ce-que-montre-le-site`}],images:[],verify:[`verify after integration: the « Publier » feature is not built yet; this page describes the design of ARCHITECTURE §17 and the template in site/publication`],body:`# Publier un projet
+
+
+« Publier » transforme un projet en **site statique** que n'importe qui peut lire et revérifier :
+
+- l'article (HTML et PDF) ;
+- le **graphe des dépendances** du blueprint, avec l'état de chaque résultat ;
+- une page par énoncé : énoncé en langage naturel, code Lean coloré, preuve rédigée, informations de vérification
+  (version de Lean, révision de Mathlib, axiomes, date) ;
+- la bibliographie ;
+- le **projet Lake** complet à télécharger.
+
+Le site est poussé sur un dépôt GitHub **que vous choisissez**, avec une action GitHub qui relance \`lake build\` sur
+le projet Lean publié. Le badge de vérification affiché par le site vient de cette action, indépendante de votre
+ordinateur : un lecteur n'a pas à croire Madalean sur parole.
+
+## Ce qui part, et seulement avec votre accord
+
+1. « Aperçu » construit le site localement : vous le parcourez avant toute publication.
+2. L'écran de publication liste **exactement** ce qui quittera la machine : fichiers, dossiers, notes, sources.
+   Rien de privé n'est publié sans un choix explicite, élément par élément. Les PDF de vos sources ne sont jamais
+   publiés : seule leur référence bibliographique l'est.
+3. La publication utilise l'outil \`gh\` ou un jeton GitHub gardé dans le trousseau de l'hôte.
+
+## Ce que montre le site
+
+| Couleur et marque | État |
+|---|---|
+| vert plein, ✓ | vérifié : preuve acceptée par Lean, et toutes ses dépendances vérifiées |
+| vert clair | prouvé, mais une dépendance ne l'est pas encore |
+| bleu | énoncé Lean accepté, sans preuve |
+| contour pointillé | énoncé en langage naturel seulement |
+| rouge | bloqué : dépend d'une définition sans énoncé Lean |
+
+Un résultat non vérifié n'est jamais présenté comme théorème. Le site n'utilise ni traceur, ni police ou script
+externe, et se lit sans JavaScript.
+`,text:`Publier un projet « Publier » transforme un projet en site statique que n'importe qui peut lire et revérifier : - l'article (HTML et PDF) ; - le graphe des dépendances du blueprint, avec l'état de chaque résultat ; - une page par énoncé : énoncé en langage naturel, code Lean coloré, preuve rédigée, informations de vérification (version de Lean, révision de Mathlib, axiomes, date) ; - la bibliographie ; - le projet Lake complet à télécharger. Le site est poussé sur un dépôt GitHub que vous choisissez, avec une action GitHub qui relance lake build sur le projet Lean publié. Le badge de vérification affiché par le site vient de cette action, indépendante de votre ordinateur : un lecteur n'a pas à croire Madalean sur parole. Ce qui part, et seulement avec votre accord 1. « Aperçu » construit le site localement : vous le parcourez avant toute publication. 2. L'écran de publication liste exactement ce qui quittera la machine : fichiers, dossiers, notes, sources. Rien de privé n'est publié sans un choix explicite, élément par élément. Les PDF de vos sources ne sont jamais publiés : seule leur référence bibliographique l'est. 3. La publication utilise l'outil gh ou un jeton GitHub gardé dans le trousseau de l'hôte. Ce que montre le site Couleur et marque État vert plein, ✓ vérifié : preuve acceptée par Lean, et toutes ses dépendances vérifiées vert clair prouvé, mais une dépendance ne l'est pas encore bleu énoncé Lean accepté, sans preuve contour pointillé énoncé en langage naturel seulement rouge bloqué : dépend d'une définition sans énoncé Lean Un résultat non vérifié n'est jamais présenté comme théorème. Le site n'utilise ni traceur, ni police ou script externe, et se lit sans JavaScript.`},{id:`models-keys`,lang:`fr`,title:`Modèles et clés`,order:300,section:`settings`,audience:`all`,summary:`Les modes Local / Automatique / En ligne, ce qui part et vers qui, comment obtenir une clé Anthropic ou Gemini, et ce que cela coûte.`,source:`fr/models-keys.md`,site_path:`fr/models-keys.html`,headings:[{level:1,text:`Modèles et clés`,id:`modeles-et-cles`},{level:2,text:`Les trois modes`,id:`les-trois-modes`},{level:2,text:`Ce qui part, et vers qui`,id:`ce-qui-part-et-vers-qui`},{level:2,text:`Ajouter une clé`,id:`ajouter-une-cle`},{level:3,text:`Clé Anthropic (Claude)`,id:`cle-anthropic-claude`},{level:3,text:`Clé Google Gemini`,id:`cle-google-gemini`},{level:2,text:`Ce que cela coûte`,id:`ce-que-cela-coute`},{level:2,text:`Claude en renfort payant, avec plafonds`,id:`claude-en-renfort-payant-avec-plafonds`},{level:2,text:`Choisir un modèle par rôle`,id:`choisir-un-modele-par-role`}],images:[{src:`img/settings-keys.png`,exists:!0}],verify:[`verify after integration: list of keyless providers in the shipped catalogue`,`verify after integration: console URL and menu names at release time`,`verify after integration: Gemini free-tier data-use terms at release time`,`verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key`,`verify after integration: a real Claude reinforcement round within the 1 $ cap, and the ledger total against the Anthropic console`],body:`# Modèles et clés
+
+Madalean fonctionne **sans aucune clé** : modèles locaux installés sur l'hôte et fournisseurs en ligne gratuits sans
+compte. Une clé ajoute les modèles d'un fournisseur, souvent plus forts.
+
+## Les trois modes
+
+| Mode | Qui travaille | Réseau |
+|---|---|---|
+| *Local* | seulement les modèles de l'ordinateur hôte (Goedel-Prover, Goedel-Formalizer, Qwen3, et Ollama s'il tourne) | rien ne quitte l'hôte ; toute connexion non locale est refusée avant d'être ouverte |
+| *Automatique* (défaut) | le meilleur modèle disponible pour chaque rôle, en ligne d'abord | sans réseau, quota épuisé ou erreur : bascule automatique sur les modèles locaux |
+| *En ligne* | uniquement des modèles en ligne | sans réseau, le travail échoue avec un message clair |
+
+Un projet peut être passé en « local uniquement » quel que soit le mode général. L'indicateur en haut de l'écran
+(« Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail. Chaque texte produit par un modèle
+indique son nom.
+
+## Ce qui part, et vers qui
+
+| Étape | Ce que reçoit le modèle |
+|---|---|
+| Compréhension | votre énoncé en langage courant |
+| Traduction en Lean | votre énoncé et sa reformulation |
+| Preuve | l'énoncé Lean, les messages d'erreur de Lean, des lemmes de Mathlib trouvés pour l'énoncé |
+| Explication, preuve rédigée | l'énoncé et la preuve Lean |
+| Questions sur les sources | votre question et les passages retenus de vos sources |
+| Assistant du carnet | le carnet ouvert (cellules et sorties) |
+
+Ce qui n'est **jamais** envoyé à un modèle : vos clés d'API, vos jetons d'appareils, vos autres dossiers, vos
+fichiers. Une clé n'est envoyée qu'à **son** fournisseur : Madalean refuse de joindre une clé à une adresse qui n'est
+pas celle de ce fournisseur.
+
+Les fournisseurs gratuits sans compte (LLM7, OVHcloud, Kilo, Pollinations…) appliquent leurs propres conditions ;
+supposez que ce que vous leur envoyez peut être conservé. Pour un travail confidentiel, utilisez le mode *Local*.
+
+## Ajouter une clé
+
+« Réglages › Clés » : collez la clé, Madalean la **teste aussitôt** (« Ça marche : N modèles disponibles », ou la
+raison du refus). La clé est gardée dans le trousseau de l'ordinateur hôte (sinon dans un fichier lisible par vous
+seul) et ne s'affiche plus jamais. « Retirer la clé » la supprime en un clic.
+
+![Réglages › Clés](img/settings-keys.png)
+
+### Clé Anthropic (Claude)
+
+1. Ouvrez la console d'Anthropic : <https://platform.claude.com/> et créez un compte.
+2. Ajoutez un moyen de paiement et achetez des crédits (facturation prépayée, à l'usage).
+3. « API keys › Create key », copiez la clé (elle commence par \`sk-ant-\`). Elle n'est montrée qu'une fois.
+4. Collez-la dans « Réglages › Clés › Anthropic ».
+
+Conseil : fixez une **limite de dépense** mensuelle dans la console.
+
+### Clé Google Gemini
+
+1. Ouvrez Google AI Studio : <https://aistudio.google.com/apikey> avec un compte Google.
+2. « Create API key », copiez la clé.
+3. Collez-la dans « Réglages › Clés › Gemini ».
+
+L'offre gratuite de Gemini a des quotas ; quand ils sont atteints, Madalean passe au modèle suivant. Dans l'offre
+gratuite, Google peut utiliser les contenus envoyés pour améliorer ses produits : lisez ses conditions avant d'y
+envoyer un travail non publié.
+
+## Ce que cela coûte
+
+Les fournisseurs payants facturent au nombre de *tokens* (≈ ¾ de mot) envoyés et reçus. Ordres de grandeur, prix
+publics d'Anthropic en novembre 2026, par million de tokens (entrée / sortie) :
+
+| Modèle | Entrée | Sortie |
+|---|---|---|
+| Claude Opus 5.5 | 4 $ | 20 $ |
+| Claude Sonnet 5.5 | 2 $ | 10 $ |
+| Claude Haiku 5.5 | 0,10 $ | 0,50 $ |
+
+Une recherche de preuve en mode agent avec Claude Opus coûte typiquement de quelques centimes à 50 centimes ; un
+énoncé difficile, avec beaucoup d'essais, davantage. Les limites (nombre d'étapes, durée, tokens) se règlent dans
+« Réglages › Modèles ». Par défaut, un modèle payant n'est utilisé que si vous l'avez choisi pour un rôle, ou si vous
+avez activé « payants d'abord ».
+
+## Claude en renfort payant, avec plafonds
+
+Avec une clé Anthropic, Claude peut entrer **en dernier** dans le tournoi d'une preuve, seulement quand les modèles
+gratuits ont tous échoué (« Réglages › Modèles › Claude en renfort payant », activé par défaut quand la clé existe).
+Deux plafonds, modifiables au même endroit :
+
+- **par preuve** (1,00 $ par défaut) ;
+- **par mois civil** (20 $ par défaut), pour tous les appels à Claude, y compris ceux d'un rôle où vous l'avez choisi.
+
+Avant chaque appel, Madalean estime le coût au tarif public (taille de la demande et longueur de réponse permise) et
+réduit la longueur de réponse si besoin ; si même une réponse courte dépasserait un plafond, l'appel **n'est pas
+fait** et la preuve le signale. Après l'appel, le coût réel est calculé d'après l'usage renvoyé par Anthropic (jetons
+d'entrée, de sortie, lus et écrits en cache) et noté dans un petit registre privé de l'hôte. Le total du mois est
+affiché sous les plafonds.
+
+## Choisir un modèle par rôle
+
+« Réglages › Modèles » montre, pour chaque rôle (comprendre, traduire, prouver, expliquer, assistant), le classement
+des modèles disponibles et la raison du classement. « Automatique » laisse le routeur choisir ; vous pouvez imposer
+un modèle. Un modèle en erreur (quota, clé refusée, surcharge) est mis en pause et le suivant prend le relais.
+`,text:`Modèles et clés Madalean fonctionne sans aucune clé : modèles locaux installés sur l'hôte et fournisseurs en ligne gratuits sans compte. Une clé ajoute les modèles d'un fournisseur, souvent plus forts. Les trois modes Mode Qui travaille Réseau Local seulement les modèles de l'ordinateur hôte (Goedel-Prover, Goedel-Formalizer, Qwen3, et Ollama s'il tourne) rien ne quitte l'hôte ; toute connexion non locale est refusée avant d'être ouverte Automatique (défaut) le meilleur modèle disponible pour chaque rôle, en ligne d'abord sans réseau, quota épuisé ou erreur : bascule automatique sur les modèles locaux En ligne uniquement des modèles en ligne sans réseau, le travail échoue avec un message clair Un projet peut être passé en « local uniquement » quel que soit le mode général. L'indicateur en haut de l'écran (« Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail. Chaque texte produit par un modèle indique son nom. Ce qui part, et vers qui Étape Ce que reçoit le modèle Compréhension votre énoncé en langage courant Traduction en Lean votre énoncé et sa reformulation Preuve l'énoncé Lean, les messages d'erreur de Lean, des lemmes de Mathlib trouvés pour l'énoncé Explication, preuve rédigée l'énoncé et la preuve Lean Questions sur les sources votre question et les passages retenus de vos sources Assistant du carnet le carnet ouvert (cellules et sorties) Ce qui n'est jamais envoyé à un modèle : vos clés d'API, vos jetons d'appareils, vos autres dossiers, vos fichiers. Une clé n'est envoyée qu'à son fournisseur : Madalean refuse de joindre une clé à une adresse qui n'est pas celle de ce fournisseur. Les fournisseurs gratuits sans compte (LLM7, OVHcloud, Kilo, Pollinations…) appliquent leurs propres conditions ; supposez que ce que vous leur envoyez peut être conservé. Pour un travail confidentiel, utilisez le mode Local. Ajouter une clé « Réglages › Clés » : collez la clé, Madalean la teste aussitôt (« Ça marche : N modèles disponibles », ou la raison du refus). La clé est gardée dans le trousseau de l'ordinateur hôte (sinon dans un fichier lisible par vous seul) et ne s'affiche plus jamais. « Retirer la clé » la supprime en un clic. Réglages › Clés Clé Anthropic (Claude) 1. Ouvrez la console d'Anthropic : <https://platform.claude.com/> et créez un compte. 2. Ajoutez un moyen de paiement et achetez des crédits (facturation prépayée, à l'usage). 3. « API keys › Create key », copiez la clé (elle commence par sk-ant-). Elle n'est montrée qu'une fois. 4. Collez-la dans « Réglages › Clés › Anthropic ». Conseil : fixez une limite de dépense mensuelle dans la console. Clé Google Gemini 1. Ouvrez Google AI Studio : <https://aistudio.google.com/apikey> avec un compte Google. 2. « Create API key », copiez la clé. 3. Collez-la dans « Réglages › Clés › Gemini ». L'offre gratuite de Gemini a des quotas ; quand ils sont atteints, Madalean passe au modèle suivant. Dans l'offre gratuite, Google peut utiliser les contenus envoyés pour améliorer ses produits : lisez ses conditions avant d'y envoyer un travail non publié. Ce que cela coûte Les fournisseurs payants facturent au nombre de tokens (≈ ¾ de mot) envoyés et reçus. Ordres de grandeur, prix publics d'Anthropic en novembre 2026, par million de tokens (entrée / sortie) : Modèle Entrée Sortie Claude Opus 5.5 4 $ 20 $ Claude Sonnet 5.5 2 $ 10 $ Claude Haiku 5.5 0,10 $ 0,50 $ Une recherche de preuve en mode agent avec Claude Opus coûte typiquement de quelques centimes à 50 centimes ; un énoncé difficile, avec beaucoup d'essais, davantage. Les limites (nombre d'étapes, durée, tokens) se règlent dans « Réglages › Modèles ». Par défaut, un modèle payant n'est utilisé que si vous l'avez choisi pour un rôle, ou si vous avez activé « payants d'abord ». Claude en renfort payant, avec plafonds Avec une clé Anthropic, Claude peut entrer en dernier dans le tournoi d'une preuve, seulement quand les modèles gratuits ont tous échoué (« Réglages › Modèles › Claude en renfort payant », activé par défaut quand la clé existe). Deux plafonds, modifiables au même endroit : - par preuve (1,00 $ par défaut) ; - par mois civil (20 $ par défaut), pour tous les appels à Claude, y compris ceux d'un rôle où vous l'avez choisi. Avant chaque appel, Madalean estime le coût au tarif public (taille de la demande et longueur de réponse permise) et réduit la longueur de réponse si besoin ; si même une réponse courte dépasserait un plafond, l'appel n'est pas fait et la preuve le signale. Après l'appel, le coût réel est calculé d'après l'usage renvoyé par Anthropic (jetons d'entrée, de sortie, lus et écrits en cache) et noté dans un petit registre privé de l'hôte. Le total du mois est affiché sous les plafonds. Choisir un modèle par rôle « Réglages › Modèles » montre, pour chaque rôle (comprendre, traduire, prouver, expliquer, assistant), le classement des modèles disponibles et la raison du classement. « Automatique » laisse le routeur choisir ; vous pouvez imposer un modèle. Un modèle en erreur (quota, clé refusée, surcharge) est mis en pause et le suivant prend le relais.`},{id:`updates`,lang:`fr`,title:`Mises à jour`,order:310,section:`settings`,audience:`all`,summary:`Ce qui se met à jour tout seul, ce qui demande un clic, comment une mise à jour est vérifiée, et comment revenir en arrière.`,source:`fr/updates.md`,site_path:`fr/updates.html`,headings:[{level:1,text:`Mises à jour`,id:`mises-a-jour`},{level:2,text:`Ce qui est mis à jour, et comment`,id:`ce-qui-est-mis-a-jour-et-comment`},{level:2,text:`Pourquoi une mise à jour de Madalean est sûre`,id:`pourquoi-une-mise-a-jour-de-madalean-est-sure`},{level:2,text:`Après une mise à jour de Lean ou de Mathlib`,id:`apres-une-mise-a-jour-de-lean-ou-de-mathlib`},{level:2,text:`Revenir en arrière`,id:`revenir-en-arriere`}],images:[],verify:[`verify after integration: self-update installer, AppImage updater and APK download are built (§16); setting label`,`verify after integration: rollback control exists and its label`],body:`# Mises à jour
+
+Tout se met à jour depuis Madalean, sans terminal, selon une règle unique : **installer à côté, vérifier, basculer,
+puis supprimer l'ancienne version**. Un échec ne change rien et vous est signalé.
+
+## Ce qui est mis à jour, et comment
+
+| Composant | Comportement par défaut |
+|---|---|
+| Madalean (serveur et interface) | téléchargé et vérifié en arrière-plan, installé à un moment calme (aucun travail en cours) ; version précédente gardée pour un retour en arrière en un clic |
+| Application de bureau (AppImage) | se remplace elle-même puis redémarre |
+| Application Android | téléchargée et vérifiée par l'application ; Android exige toujours **un appui** de votre part pour installer (règle du système) |
+| Lean, Mathlib, paquets Lean de l'espace « Lean récent » | automatique : installé à côté, vérifié (théorème de test et revérification des dossiers prouvés), basculé |
+| Modèles Goedel, catalogue des modèles en ligne | automatique, empreintes vérifiées |
+| Espace « Prouveur » (Lean 4.9) | **jamais** : épinglé, c'est l'environnement d'entraînement des modèles |
+| llama.cpp | notification seulement (version épinglée) |
+| SageMath, JupyterLab, TeX, poppler | notification, et un bouton « Installer » qui ouvre un terminal avec la commande exacte ; vous tapez votre mot de passe. Madalean ne lance jamais \`sudo\`, \`pacman\`, \`apt\` ou \`dnf\` lui-même. |
+
+Le réglage « Demander avant d'installer » (« Réglages › Mises à jour ») remplace l'automatique par une notification.
+Les vérifications ont lieu chaque semaine et à la demande. En mode *Local*, aucune vérification ne touche le réseau.
+
+## Pourquoi une mise à jour de Madalean est sûre
+
+Chaque version publiée est accompagnée d'une liste d'empreintes (\`SHA256SUMS\`) **signée** avec une clé Ed25519 gardée
+hors de GitHub. La clé publique est inscrite dans Madalean. Une version dont la signature ne correspond pas est
+refusée, **même si le compte GitHub était compromis**. Le canal de mise à jour
+(\`updates/stable.json\`, sur le site) est signé de la même façon.
+
+Vérifier vous-même un téléchargement : voir la [page d'installation](site:install#verify).
+
+## Après une mise à jour de Lean ou de Mathlib
+
+Les dossiers prouvés de l'espace concerné sont marqués « à revérifier », puis revérifiés automatiquement. Un dossier
+dont la preuve ne passe plus (un lemme renommé, une tactique changée) est signalé ; son ancien verdict n'est jamais
+affiché seul.
+
+## Revenir en arrière
+
+« Réglages › Mises à jour › Revenir à la version précédente » pour Madalean. Pour Lean et Mathlib, la version
+précédente reste installée tant qu'un de vos projets l'utilise.
+`,text:`Mises à jour Tout se met à jour depuis Madalean, sans terminal, selon une règle unique : installer à côté, vérifier, basculer, puis supprimer l'ancienne version. Un échec ne change rien et vous est signalé. Ce qui est mis à jour, et comment Composant Comportement par défaut Madalean (serveur et interface) téléchargé et vérifié en arrière-plan, installé à un moment calme (aucun travail en cours) ; version précédente gardée pour un retour en arrière en un clic Application de bureau (AppImage) se remplace elle-même puis redémarre Application Android téléchargée et vérifiée par l'application ; Android exige toujours un appui de votre part pour installer (règle du système) Lean, Mathlib, paquets Lean de l'espace « Lean récent » automatique : installé à côté, vérifié (théorème de test et revérification des dossiers prouvés), basculé Modèles Goedel, catalogue des modèles en ligne automatique, empreintes vérifiées Espace « Prouveur » (Lean 4.9) jamais : épinglé, c'est l'environnement d'entraînement des modèles llama.cpp notification seulement (version épinglée) SageMath, JupyterLab, TeX, poppler notification, et un bouton « Installer » qui ouvre un terminal avec la commande exacte ; vous tapez votre mot de passe. Madalean ne lance jamais sudo, pacman, apt ou dnf lui-même. Le réglage « Demander avant d'installer » (« Réglages › Mises à jour ») remplace l'automatique par une notification. Les vérifications ont lieu chaque semaine et à la demande. En mode Local, aucune vérification ne touche le réseau. Pourquoi une mise à jour de Madalean est sûre Chaque version publiée est accompagnée d'une liste d'empreintes (SHA256SUMS) signée avec une clé Ed25519 gardée hors de GitHub. La clé publique est inscrite dans Madalean. Une version dont la signature ne correspond pas est refusée, même si le compte GitHub était compromis. Le canal de mise à jour (updates/stable.json, sur le site) est signé de la même façon. Vérifier vous-même un téléchargement : voir la page d'installation. Après une mise à jour de Lean ou de Mathlib Les dossiers prouvés de l'espace concerné sont marqués « à revérifier », puis revérifiés automatiquement. Un dossier dont la preuve ne passe plus (un lemme renommé, une tactique changée) est signalé ; son ancien verdict n'est jamais affiché seul. Revenir en arrière « Réglages › Mises à jour › Revenir à la version précédente » pour Madalean. Pour Lean et Mathlib, la version précédente reste installée tant qu'un de vos projets l'utilise.`},{id:`security`,lang:`fr`,title:`Sécurité, expliquée simplement`,order:320,section:`settings`,audience:`all`,summary:`Qui peut accéder à Madalean, comment les appareils sont reliés et déliés, où sont les clés, et ce que Madalean ne fait jamais.`,source:`fr/security.md`,site_path:`fr/security.html`,headings:[{level:1,text:`Sécurité, expliquée simplement`,id:`securite-expliquee-simplement`},{level:2,text:`Qui peut parler à Madalean`,id:`qui-peut-parler-a-madalean`},{level:2,text:`Les appareils et les codes`,id:`les-appareils-et-les-codes`},{level:2,text:`Ce qu'un appareil relié ne peut pas faire`,id:`ce-quun-appareil-relie-ne-peut-pas-faire`},{level:2,text:`Vos clés d'API`,id:`vos-cles-dapi`},{level:2,text:`Code exécuté sur l'hôte`,id:`code-execute-sur-lhote`},{level:2,text:`Documents venant de l'extérieur`,id:`documents-venant-de-lexterieur`},{level:2,text:`Ce que Madalean ne fait jamais`,id:`ce-que-madalean-ne-fait-jamais`}],images:[],verify:[`verify after integration: S-H review done before 2.0.0; forbidden-construct list in leancheck`],body:`# Sécurité, expliquée simplement
+
+## Qui peut parler à Madalean
+
+Madalean écoute à deux portes, toutes deux fermées vers l'extérieur de l'ordinateur hôte :
+
+1. **La porte locale** (\`127.0.0.1:11500\`), utilisée par le navigateur ou l'application de bureau **de l'hôte**.
+   Elle n'accepte que des requêtes venant de l'hôte lui-même.
+2. **La porte des appareils** (\`127.0.0.1:11501\`), publiée sur votre réseau privé Tailscale. Toute requête doit
+   présenter le **jeton** d'un appareil relié, sauf la page de liaison elle-même.
+
+Il n'y a pas de compte Madalean, pas de serveur Madalean sur Internet, pas de télémétrie.
+
+## Les appareils et les codes
+
+- Relier un appareil demande un **code à 6 chiffres** affiché sur l'hôte : valable 5 minutes, utilisable une fois.
+  Cinq codes faux bloquent la liaison 10 minutes ; les essais rapprochés sont freinés.
+- L'appareil reçoit alors un **jeton** de 256 bits. L'hôte n'en garde qu'une empreinte (SHA-256) : même quelqu'un
+  qui lirait les fichiers de l'hôte ne pourrait pas en tirer le jeton.
+- Sur le téléphone, le jeton est dans le stockage protégé d'Android ; sur un PC, dans le trousseau du système ; dans
+  un navigateur, dans un cookie inaccessible aux scripts de la page.
+- **Délier** un appareil (« Réglages › Appareils ») coupe son accès immédiatement.
+
+Un appareil perdu ou volé : déliez-le depuis l'hôte, et retirez-le de votre réseau Tailscale.
+
+## Ce qu'un appareil relié ne peut pas faire
+
+Certains réglages ouvriraient la machine ; ils ne se changent **que depuis l'hôte** (cadenas dans l'interface) :
+
+- écouter sur le réseau local ;
+- ouvrir Jupyter (qui exécute du code) aux appareils reliés ;
+- autoriser l'exécution d'expériences depuis un appareil relié, ou sans accord préalable.
+
+## Vos clés d'API
+
+Gardées dans le trousseau de l'hôte (sinon dans un fichier lisible par vous seul). Jamais renvoyées à l'interface
+(elle sait seulement si une clé est enregistrée), jamais écrites dans un journal, jamais envoyées à un autre
+fournisseur que le leur.
+
+## Code exécuté sur l'hôte
+
+- **Lean** compile les preuves écrites par les modèles. Les constructions interdites (\`sorry\`, nouveaux axiomes,
+  commandes de recherche) sont refusées avant compilation.
+- **Lean peut aussi exécuter du code** pendant qu'il lit un fichier : \`#eval\`, \`initialize\`, \`run_cmd\`, des
+  tactiques, macros ou élaborateurs définis dans le fichier (\`elab\`, \`macro\`, \`syntax\`…), \`unsafe\`,
+  \`implemented_by\`. Comme le code Lean peut venir d'un modèle, du texte d'un article ou d'un appareil relié, Madalean
+  **refuse de compiler** tout fichier qui contient l'une de ces constructions, en un point unique par lequel passe
+  chaque compilation. Les \`import\` sont limités à Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets et Plausible. Le
+  contrôle porte sur les mots, hors commentaires et chaînes : il peut refuser à tort un fichier légitime (une
+  variable nommée \`prefix\`, par exemple) ; le message de refus nomme la construction en cause.
+- **Expériences de l'atelier de conjectures** : le code vous est montré, et ne s'exécute qu'après votre accord sur
+  **ce code exact**. Il tourne avec des limites de temps, de mémoire et de taille de fichiers, sans vos clés ni
+  variables secrètes ; si \`bubblewrap\` est installé, avec un système de fichiers en lecture seule où votre dossier
+  de configuration, \`~/.ssh\` et vos trousseaux sont masqués. Le réseau n'est **pas** coupé pour ces expériences.
+- **Jupyter** exécute ce que vous y tapez, comme sur n'importe quelle installation de Jupyter.
+- Le texte d'un modèle ne devient jamais une commande système.
+
+## Documents venant de l'extérieur
+
+PDF, sources TeX, fichiers BibTeX et réponses de sites peuvent être piégés. Madalean ne compile jamais le TeX d'un
+article (il le lit seulement), compile ses propres exports TeX sans aucun accès au shell, limite la taille et le
+contenu des archives, et traite le texte des sources comme des **données** : un passage qui dirait « ignore tes
+instructions » n'a pas d'effet sur les outils, parce que les réponses fondées sur vos sources n'ont accès à aucun
+outil.
+
+## Ce que Madalean ne fait jamais
+
+- Ouvrir un port sur Internet (pas de Funnel Tailscale, pas de redirection de port).
+- Lancer \`sudo\`, ou installer un paquet système à votre place.
+- Envoyer vos données à un service que vous n'avez pas choisi, ou quoi que ce soit en mode *Local*.
+- Afficher une preuve comme vérifiée sans le verdict strict de Lean.
+- Publier quoi que ce soit sans que vous ayez validé, élément par élément, ce qui part.
+- Installer une mise à jour dont la signature n'est pas valide.
+
+Une revue de sécurité indépendante est faite avant chaque version majeure.
+`,text:`Sécurité, expliquée simplement Qui peut parler à Madalean Madalean écoute à deux portes, toutes deux fermées vers l'extérieur de l'ordinateur hôte : 1. La porte locale (127.0.0.1:11500), utilisée par le navigateur ou l'application de bureau de l'hôte. Elle n'accepte que des requêtes venant de l'hôte lui-même. 2. La porte des appareils (127.0.0.1:11501), publiée sur votre réseau privé Tailscale. Toute requête doit présenter le jeton d'un appareil relié, sauf la page de liaison elle-même. Il n'y a pas de compte Madalean, pas de serveur Madalean sur Internet, pas de télémétrie. Les appareils et les codes - Relier un appareil demande un code à 6 chiffres affiché sur l'hôte : valable 5 minutes, utilisable une fois. Cinq codes faux bloquent la liaison 10 minutes ; les essais rapprochés sont freinés. - L'appareil reçoit alors un jeton de 256 bits. L'hôte n'en garde qu'une empreinte (SHA-256) : même quelqu'un qui lirait les fichiers de l'hôte ne pourrait pas en tirer le jeton. - Sur le téléphone, le jeton est dans le stockage protégé d'Android ; sur un PC, dans le trousseau du système ; dans un navigateur, dans un cookie inaccessible aux scripts de la page. - Délier un appareil (« Réglages › Appareils ») coupe son accès immédiatement. Un appareil perdu ou volé : déliez-le depuis l'hôte, et retirez-le de votre réseau Tailscale. Ce qu'un appareil relié ne peut pas faire Certains réglages ouvriraient la machine ; ils ne se changent que depuis l'hôte (cadenas dans l'interface) : - écouter sur le réseau local ; - ouvrir Jupyter (qui exécute du code) aux appareils reliés ; - autoriser l'exécution d'expériences depuis un appareil relié, ou sans accord préalable. Vos clés d'API Gardées dans le trousseau de l'hôte (sinon dans un fichier lisible par vous seul). Jamais renvoyées à l'interface (elle sait seulement si une clé est enregistrée), jamais écrites dans un journal, jamais envoyées à un autre fournisseur que le leur. Code exécuté sur l'hôte - Lean compile les preuves écrites par les modèles. Les constructions interdites (sorry, nouveaux axiomes, commandes de recherche) sont refusées avant compilation. - Lean peut aussi exécuter du code pendant qu'il lit un fichier : #eval, initialize, runcmd, des tactiques, macros ou élaborateurs définis dans le fichier (elab, macro, syntax…), unsafe, implementedby. Comme le code Lean peut venir d'un modèle, du texte d'un article ou d'un appareil relié, Madalean refuse de compiler tout fichier qui contient l'une de ces constructions, en un point unique par lequel passe chaque compilation. Les import sont limités à Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets et Plausible. Le contrôle porte sur les mots, hors commentaires et chaînes : il peut refuser à tort un fichier légitime (une variable nommée prefix, par exemple) ; le message de refus nomme la construction en cause. - Expériences de l'atelier de conjectures : le code vous est montré, et ne s'exécute qu'après votre accord sur ce code exact. Il tourne avec des limites de temps, de mémoire et de taille de fichiers, sans vos clés ni variables secrètes ; si bubblewrap est installé, avec un système de fichiers en lecture seule où votre dossier de configuration, ~/.ssh et vos trousseaux sont masqués. Le réseau n'est pas coupé pour ces expériences. - Jupyter exécute ce que vous y tapez, comme sur n'importe quelle installation de Jupyter. - Le texte d'un modèle ne devient jamais une commande système. Documents venant de l'extérieur PDF, sources TeX, fichiers BibTeX et réponses de sites peuvent être piégés. Madalean ne compile jamais le TeX d'un article (il le lit seulement), compile ses propres exports TeX sans aucun accès au shell, limite la taille et le contenu des archives, et traite le texte des sources comme des données : un passage qui dirait « ignore tes instructions » n'a pas d'effet sur les outils, parce que les réponses fondées sur vos sources n'ont accès à aucun outil. Ce que Madalean ne fait jamais - Ouvrir un port sur Internet (pas de Funnel Tailscale, pas de redirection de port). - Lancer sudo, ou installer un paquet système à votre place. - Envoyer vos données à un service que vous n'avez pas choisi, ou quoi que ce soit en mode Local. - Afficher une preuve comme vérifiée sans le verdict strict de Lean. - Publier quoi que ce soit sans que vous ayez validé, élément par élément, ce qui part. - Installer une mise à jour dont la signature n'est pas valide. Une revue de sécurité indépendante est faite avant chaque version majeure.`},{id:`troubleshooting`,lang:`fr`,title:`Dépannage`,order:400,section:`help`,audience:`all`,summary:`Les messages d'erreur en clair, leur cause et quoi faire.`,source:`fr/troubleshooting.md`,site_path:`fr/troubleshooting.html`,headings:[{level:1,text:`Dépannage`,id:`depannage`},{level:2,text:`Connexion et appareils`,id:`connexion-et-appareils`},{level:3,text:`L'appareil ne joint pas l'hôte`,id:`lappareil-ne-joint-pas-lhote`},{level:3,text:`« Cet appareil n'est pas (ou plus) relié »`,id:`cet-appareil-nest-pas-ou-plus-relie`},{level:3,text:`Le certificat HTTPS est refusé, ou la première connexion est très lente`,id:`le-certificat-https-est-refuse-ou-la-premiere-connexion-est-tres-lente`},{level:3,text:`« Réservé à l'ordinateur hôte »`,id:`reserve-a-lordinateur-hote`},{level:2,text:`Modèles`,id:`modeles`},{level:3,text:`« Aucun modèle disponible »`,id:`aucun-modele-disponible`},{level:3,text:`« Le fournisseur refuse la clé »`,id:`le-fournisseur-refuse-la-cle`},{level:3,text:`Le modèle local est lent, ou « mémoire graphique insuffisante »`,id:`le-modele-local-est-lent-ou-memoire-graphique-insuffisante`},{level:3,text:`« Pause : quota atteint » sur un fournisseur gratuit`,id:`pause-quota-atteint-sur-un-fournisseur-gratuit`},{level:2,text:`Lean`,id:`lean`},{level:3,text:`« Lean refuse l'énoncé »`,id:`lean-refuse-lenonce`},{level:3,text:`« Lean refuse de compiler ce code : … »`,id:`lean-refuse-de-compiler-ce-code`},{level:3,text:`« Pas de preuve trouvée »`,id:`pas-de-preuve-trouvee`},{level:3,text:`« Preuve refusée : contient sorry » ou « axiome non standard »`,id:`preuve-refusee-contient-sorry-ou-axiome-non-standard`},{level:3,text:`« Délai de compilation dépassé »`,id:`delai-de-compilation-depasse`},{level:3,text:`« Espace Lean introuvable » ou « espace non prêt »`,id:`espace-lean-introuvable-ou-espace-non-pret`},{level:3,text:`« Ce dossier a déjà un travail en cours »`,id:`ce-dossier-a-deja-un-travail-en-cours`},{level:2,text:`Export`,id:`export`},{level:3,text:`« Pas de LaTeX sur l'ordinateur hôte : la version HTML s'ouvre »`,id:`pas-de-latex-sur-lordinateur-hote-la-version-html-souvre`},{level:3,text:`Des symboles manquent dans le PDF`,id:`des-symboles-manquent-dans-le-pdf`},{level:2,text:`Jupyter`,id:`jupyter`},{level:3,text:`« Jupyter n'est pas disponible »`,id:`jupyter-nest-pas-disponible`},{level:3,text:`« Jupyter n'est accessible que depuis l'hôte »`,id:`jupyter-nest-accessible-que-depuis-lhote`},{level:2,text:`Quand rien ne va`,id:`quand-rien-ne-va`}],images:[],verify:[`verify after integration: saving a new key clears the key_refused pause`,`verify after integration: exact wording of the exec_risks refusal message`],body:`# Dépannage
+
+« Réglages › Système » montre l'état de chaque composant (espaces Lean, modèles, TeX, polices, Jupyter, disque) avec
+un bouton de réparation quand il en existe un. Commencez par là.
+
+## Connexion et appareils
+
+### L'appareil ne joint pas l'hôte
+
+1. L'ordinateur hôte est-il allumé, et pas en veille ?
+2. Tailscale est-il **connecté** sur les deux appareils, avec le même compte ? (application Tailscale : interrupteur
+   actif.)
+3. Le serveur tourne-t-il ? Sur l'hôte : \`systemctl --user status madalean\`.
+4. La règle Tailscale existe-t-elle ? Sur l'hôte : \`scripts/tailscale_setup.sh --status\`.
+5. L'adresse tapée est-elle complète, \`nom-du-pc.tailXXXX.ts.net\` (port 10500 par défaut) ?
+
+### « Cet appareil n'est pas (ou plus) relié »
+
+L'appareil a été délié, ou ses données ont été effacées. Demandez un nouveau code sur l'hôte et reliez-le de nouveau.
+
+### Le certificat HTTPS est refusé, ou la première connexion est très lente
+
+HTTPS n'est pas activé sur votre tailnet : voir [Tailscale › Activer HTTPS](tailscale.md#activer-https). La toute
+première connexion peut prendre quelques secondes, le temps d'émettre le certificat.
+
+### « Réservé à l'ordinateur hôte »
+
+Ce réglage ouvre la machine à d'autres appareils ; il ne se change que sur l'hôte. Voir [Sécurité](security.md).
+
+## Modèles
+
+### « Aucun modèle disponible »
+
+- Mode *Local* : aucun modèle local n'est installé ou chargeable. « Réglages › Système » indique lequel manque ;
+  \`./install.sh\` télécharge les modèles.
+- Mode *En ligne* : pas de réseau, ou tous les fournisseurs sont en pause (quotas). Passez en *Automatique* pour
+  utiliser les modèles locaux en secours.
+
+### « Le fournisseur refuse la clé »
+
+La clé a été mal copiée (espace en trop), révoquée, ou le compte n'a plus de crédit. Recréez-la dans la console du
+fournisseur et collez-la de nouveau. Madalean met le fournisseur en pause 12 h après un refus de clé : enregistrer une
+nouvelle clé lève la pause.
+
+### Le modèle local est lent, ou « mémoire graphique insuffisante »
+
+Un autre programme occupe la carte graphique (jeu, autre IA). « Réglages › Système » montre la mémoire utilisée par
+application. Sans carte NVIDIA, les modèles locaux tournent sur le processeur : comptez des minutes par réponse.
+
+### « Pause : quota atteint » sur un fournisseur gratuit
+
+Normal : Madalean passe au modèle suivant et réessaie le fournisseur plus tard (après l'heure indiquée par le
+fournisseur, ou le lendemain pour un quota journalier).
+
+## Lean
+
+### « Lean refuse l'énoncé »
+
+La traduction n'est pas du Lean valide pour cet espace (nom inconnu, notation d'une autre version de Mathlib). Le
+message de Lean est affiché sous l'énoncé. « Corriger l'énoncé… » relance la traduction avec l'erreur ; ou
+« Modifier à la main ».
+
+### « Lean refuse de compiler ce code : … »
+
+Le code contient une construction qui pourrait exécuter du code sur l'hôte (\`#eval\`, \`macro\`, \`elab\`, \`unsafe\`…) ou
+un \`import\` hors de Mathlib et de ses dépendances : Madalean refuse de le compiler (voir
+[Sécurité](security.md#code-execute-sur-lhote)). Retirez la construction nommée dans le message. Si le mot en cause
+est un simple nom de variable (\`prefix\`, \`syntax\`…), renommez la variable.
+
+### « Pas de preuve trouvée »
+
+Les essais sont épuisés. Ce n'est pas une preuve que l'énoncé est faux. Essayez : relire l'énoncé (hypothèse
+manquante ?), « Autre méthode », un modèle plus fort (une clé), « Découper en lemmes », ou un indice dans une demande
+de suivi (« utilise une récurrence sur $n$ »).
+
+### « Preuve refusée : contient sorry » ou « axiome non standard »
+
+Le verdict strict refuse une preuve incomplète ou qui ajoute un axiome. Seuls \`propext\`, \`Classical.choice\` et
+\`Quot.sound\` sont admis.
+
+### « Délai de compilation dépassé »
+
+La compilation a dépassé le temps maximal (« Réglages › Modèles », 10 à 1800 s). Une tactique comme \`simp\` ou
+\`nlinarith\` peut chercher longtemps ; une preuve plus explicite compile plus vite.
+
+### « Espace Lean introuvable » ou « espace non prêt »
+
+L'espace de travail n'est pas installé ou sa compilation n'est pas terminée. « Réglages › Espaces Lean » donne son
+état ; relancez \`./install.sh\` si besoin.
+
+### « Ce dossier a déjà un travail en cours »
+
+Un dossier n'a qu'un travail actif. Attendez la fin, ou « Arrêter ».
+
+## Export
+
+### « Pas de LaTeX sur l'ordinateur hôte : la version HTML s'ouvre »
+
+Aucun moteur TeX (XeLaTeX ou LuaLaTeX) n'est installé. Le HTML s'imprime en PDF depuis le navigateur. Pour le vrai
+PDF : installez TeX Live (« Réglages › Mises à jour » donne la commande pour votre distribution).
+
+### Des symboles manquent dans le PDF
+
+Les polices DejaVu Sans Mono et Noto Sans Math doivent être présentes sur l'hôte ; « Réglages › Système » le vérifie.
+
+## Jupyter
+
+### « Jupyter n'est pas disponible »
+
+JupyterLab n'est pas installé sur l'hôte, ou n'a pas démarré. « Réglages › Système » donne la cause ; la commande
+d'installation est dans « Réglages › Mises à jour ».
+
+### « Jupyter n'est accessible que depuis l'hôte »
+
+L'hôte n'a pas ouvert Jupyter aux appareils reliés (« Réglages › Carnet et accès », sur l'hôte).
+
+## Quand rien ne va
+
+\`\`\`bash
+systemctl --user restart madalean
+journalctl --user -u madalean -e
+\`\`\`
+
+Le journal ne contient ni clé, ni jeton : vous pouvez le joindre à un signalement de problème.
+`,text:`Dépannage « Réglages › Système » montre l'état de chaque composant (espaces Lean, modèles, TeX, polices, Jupyter, disque) avec un bouton de réparation quand il en existe un. Commencez par là. Connexion et appareils L'appareil ne joint pas l'hôte 1. L'ordinateur hôte est-il allumé, et pas en veille ? 2. Tailscale est-il connecté sur les deux appareils, avec le même compte ? (application Tailscale : interrupteur actif.) 3. Le serveur tourne-t-il ? Sur l'hôte : systemctl --user status madalean. 4. La règle Tailscale existe-t-elle ? Sur l'hôte : scripts/tailscalesetup.sh --status. 5. L'adresse tapée est-elle complète, nom-du-pc.tailXXXX.ts.net (port 10500 par défaut) ? « Cet appareil n'est pas (ou plus) relié » L'appareil a été délié, ou ses données ont été effacées. Demandez un nouveau code sur l'hôte et reliez-le de nouveau. Le certificat HTTPS est refusé, ou la première connexion est très lente HTTPS n'est pas activé sur votre tailnet : voir Tailscale › Activer HTTPS. La toute première connexion peut prendre quelques secondes, le temps d'émettre le certificat. « Réservé à l'ordinateur hôte » Ce réglage ouvre la machine à d'autres appareils ; il ne se change que sur l'hôte. Voir Sécurité. Modèles « Aucun modèle disponible » - Mode Local : aucun modèle local n'est installé ou chargeable. « Réglages › Système » indique lequel manque ; ./install.sh télécharge les modèles. - Mode En ligne : pas de réseau, ou tous les fournisseurs sont en pause (quotas). Passez en Automatique pour utiliser les modèles locaux en secours. « Le fournisseur refuse la clé » La clé a été mal copiée (espace en trop), révoquée, ou le compte n'a plus de crédit. Recréez-la dans la console du fournisseur et collez-la de nouveau. Madalean met le fournisseur en pause 12 h après un refus de clé : enregistrer une nouvelle clé lève la pause. Le modèle local est lent, ou « mémoire graphique insuffisante » Un autre programme occupe la carte graphique (jeu, autre IA). « Réglages › Système » montre la mémoire utilisée par application. Sans carte NVIDIA, les modèles locaux tournent sur le processeur : comptez des minutes par réponse. « Pause : quota atteint » sur un fournisseur gratuit Normal : Madalean passe au modèle suivant et réessaie le fournisseur plus tard (après l'heure indiquée par le fournisseur, ou le lendemain pour un quota journalier). Lean « Lean refuse l'énoncé » La traduction n'est pas du Lean valide pour cet espace (nom inconnu, notation d'une autre version de Mathlib). Le message de Lean est affiché sous l'énoncé. « Corriger l'énoncé… » relance la traduction avec l'erreur ; ou « Modifier à la main ». « Lean refuse de compiler ce code : … » Le code contient une construction qui pourrait exécuter du code sur l'hôte (#eval, macro, elab, unsafe…) ou un import hors de Mathlib et de ses dépendances : Madalean refuse de le compiler (voir Sécurité). Retirez la construction nommée dans le message. Si le mot en cause est un simple nom de variable (prefix, syntax…), renommez la variable. « Pas de preuve trouvée » Les essais sont épuisés. Ce n'est pas une preuve que l'énoncé est faux. Essayez : relire l'énoncé (hypothèse manquante ?), « Autre méthode », un modèle plus fort (une clé), « Découper en lemmes », ou un indice dans une demande de suivi (« utilise une récurrence sur $n$ »). « Preuve refusée : contient sorry » ou « axiome non standard » Le verdict strict refuse une preuve incomplète ou qui ajoute un axiome. Seuls propext, Classical.choice et Quot.sound sont admis. « Délai de compilation dépassé » La compilation a dépassé le temps maximal (« Réglages › Modèles », 10 à 1800 s). Une tactique comme simp ou nlinarith peut chercher longtemps ; une preuve plus explicite compile plus vite. « Espace Lean introuvable » ou « espace non prêt » L'espace de travail n'est pas installé ou sa compilation n'est pas terminée. « Réglages › Espaces Lean » donne son état ; relancez ./install.sh si besoin. « Ce dossier a déjà un travail en cours » Un dossier n'a qu'un travail actif. Attendez la fin, ou « Arrêter ». Export « Pas de LaTeX sur l'ordinateur hôte : la version HTML s'ouvre » Aucun moteur TeX (XeLaTeX ou LuaLaTeX) n'est installé. Le HTML s'imprime en PDF depuis le navigateur. Pour le vrai PDF : installez TeX Live (« Réglages › Mises à jour » donne la commande pour votre distribution). Des symboles manquent dans le PDF Les polices DejaVu Sans Mono et Noto Sans Math doivent être présentes sur l'hôte ; « Réglages › Système » le vérifie. Jupyter « Jupyter n'est pas disponible » JupyterLab n'est pas installé sur l'hôte, ou n'a pas démarré. « Réglages › Système » donne la cause ; la commande d'installation est dans « Réglages › Mises à jour ». « Jupyter n'est accessible que depuis l'hôte » L'hôte n'a pas ouvert Jupyter aux appareils reliés (« Réglages › Carnet et accès », sur l'hôte). Quand rien ne va Le journal ne contient ni clé, ni jeton : vous pouvez le joindre à un signalement de problème.`},{id:`glossary`,lang:`fr`,title:`Glossaire Lean`,order:410,section:`reference`,audience:`learner`,summary:`Le vocabulaire de Lean et de Mathlib nécessaire pour lire les énoncés et les preuves.`,source:`fr/glossary.md`,site_path:`fr/glossary.html`,headings:[{level:1,text:`Glossaire Lean`,id:`glossaire-lean`},{level:2,text:`Logique et notations`,id:`logique-et-notations`},{level:2,text:`Déclarations`,id:`declarations`},{level:2,text:`Arguments`,id:`arguments`},{level:2,text:`Types et univers`,id:`types-et-univers`},{level:2,text:`Preuves`,id:`preuves`},{level:2,text:`Écosystème`,id:`ecosysteme`}],images:[],verify:[],body:"# Glossaire Lean\n\nLes termes sont groupés par thème. Pour les tactiques, voir [Premières tactiques](tactics.md).\n\nDans l'application, l'écran **Glossaire** reprend ces termes et bien d'autres (environ 250, classés par catégorie\net par niveau débutant / intermédiaire / avancé), avec pour chacun le sens, la forme Lean, un petit exemple, les\nentrées liées, les déclarations Mathlib correspondantes et vos dossiers qui l'utilisent. Il sert aussi d'aide au\nsurvol des énoncés en mode Apprendre.\n\n## Logique et notations\n\n| Lean | Se lit | Remarque |\n|---|---|---|\n| `∀ x, P x` | pour tout $x$, $P(x)$ | `∀ x > 0, …` abrège `∀ x, x > 0 → …` |\n| `∃ x, P x` | il existe $x$ tel que $P(x)$ | `∃! x, P x` : il existe un unique $x$ |\n| `P → Q` | $P$ implique $Q$ | aussi le type des fonctions de `P` vers `Q` |\n| `P ↔ Q` | $P$ si et seulement si $Q$ | |\n| `P ∧ Q`, `P ∨ Q` | et, ou | |\n| `¬ P` | non $P$ | défini comme `P → False` |\n| `a ≠ b` | $a \\neq b$ | abrège `¬ (a = b)` |\n| `True`, `False` | le vrai, le faux | propositions |\n| `a ∣ b` | $a$ divise $b$ | barre verticale spéciale, tapée `\\mid` ; ce n'est pas la barre `\\|` du clavier |\n| `a % b` | reste de la division | |\n| `x⁻¹` | inverse | `0⁻¹ = 0` dans un corps |\n| `↑n`, `(n : ℝ)` | $n$ vu dans un autre type | conversion (*coercion*) |\n| `fun x => e` | $x \\mapsto e$ | aussi écrit `λ x => e` ou `fun x ↦ e` |\n| `f x` | $f(x)$ | l'application s'écrit sans parenthèses |\n| `∑ i in s, f i` | $\\sum_{i \\in s} f(i)$ | `∑ i ∈ s, f i` dans les versions récentes |\n| `∏ i in s, f i` | $\\prod_{i \\in s} f(i)$ | idem |\n| `Finset.range n` | $\\{0, \\dots, n-1\\}$ | |\n| `Finset.Icc a b` | $\\{a, \\dots, b\\}$ | aussi `Ico`, `Ioc`, `Ioo` |\n| `\\|x\\|` | valeur absolue | |\n| `⌊x⌋`, `⌈x⌉` | partie entière, plafond | `Int.floor`, `Int.ceil` |\n\n## Déclarations\n\n| Terme | Sens |\n|---|---|\n| `theorem`, `lemma` | un énoncé avec sa preuve (Madalean normalise `lemma` en `theorem`) |\n| `example` | un théorème sans nom |\n| `def` | une définition |\n| `abbrev` | une définition que Lean déplie volontiers |\n| `structure`, `class`, `instance` | types à champs ; classes de types (« ℝ est un corps ») et leurs instances |\n| `axiom` | un énoncé admis sans preuve ; interdit dans une preuve acceptée par Madalean |\n| `sorry` | « preuve à compléter » : Lean accepte provisoirement, mais signale un trou |\n| `variable` | déclare des variables communes à plusieurs énoncés |\n| `namespace X … end X` | préfixe les noms : `X.foo` |\n| `open X` | permet d'écrire `foo` au lieu de `X.foo` |\n| `import` | charge une bibliothèque (`import Mathlib`) |\n| `#check e` | affiche le type de `e` |\n| `#eval e` | calcule `e` |\n\n## Arguments\n\n| Écriture | Sens |\n|---|---|\n| `(x : α)` | argument explicite, à donner |\n| `{x : α}` | argument implicite, deviné par Lean |\n| `[inst : Field α]` | argument d'instance, trouvé par Lean (« α est un corps ») |\n| `(h : P)` | une hypothèse nommée `h` ; une preuve de `P` |\n\n## Types et univers\n\n| Terme | Sens |\n|---|---|\n| `Prop` | le type des propositions ; une preuve de `P : Prop` est un terme de type `P` |\n| `Type` | le type des types « ordinaires » (`ℕ : Type`) |\n| `ℕ`, `ℤ`, `ℚ`, `ℝ`, `ℂ` | entiers naturels (avec 0), relatifs, rationnels, réels, complexes |\n| `Fin n` | $\\{0, \\dots, n-1\\}$ comme type |\n| `Set α`, `Finset α` | parties de `α` ; parties finies (calculables) |\n| `α × β` | produit cartésien ; `p.1`, `p.2` les composantes |\n| `List α` | listes |\n| `Polynomial R` (`R[X]`) | polynômes à coefficients dans `R` |\n| `Matrix m n R` | matrices |\n\n## Preuves\n\n| Terme | Sens |\n|---|---|\n| but (*goal*) | ce qu'il reste à prouver, affiché `⊢ P` |\n| hypothèse | ce qui est supposé, au-dessus du `⊢` |\n| tactique | une instruction qui transforme le but (`intro`, `simp`…) |\n| `by` | passe en mode tactique |\n| mode terme | une preuve écrite comme un terme : `fun h => h.1` |\n| `h.1`, `h.2` | les deux parties d'une hypothèse `h : P ∧ Q` |\n| `⟨a, b⟩` | construit un couple, une conjonction, ou un témoin avec sa preuve |\n| `·` | ouvre le traitement d'un des buts |\n| `<;>` | applique la tactique suivante à tous les buts produits |\n| `rfl` | « par définition » : les deux côtés sont égaux après calcul |\n\n## Écosystème\n\n| Terme | Sens |\n|---|---|\n| Lean 4 | le langage et le vérificateur de preuves |\n| Mathlib | la bibliothèque mathématique de la communauté (≈ 290 000 déclarations dans une version récente) |\n| noyau (*kernel*) | la petite partie de Lean qui vérifie réellement les preuves |\n| axiomes standard | `propext`, `Classical.choice`, `Quot.sound` : admis par Mathlib et par Madalean |\n| Lake | l'outil de construction des projets Lean (`lake build`) |\n| elan | le gestionnaire de versions de Lean |\n| toolchain | une version précise de Lean, fixée par le fichier `lean-toolchain` d'un projet |\n| espace de travail | dans Madalean, un projet Lake avec une version de Lean et de Mathlib |\n| blueprint | le graphe des énoncés d'un projet de formalisation et de leurs dépendances |\n",text:`Glossaire Lean Les termes sont groupés par thème. Pour les tactiques, voir Premières tactiques. Dans l'application, l'écran Glossaire reprend ces termes et bien d'autres (environ 250, classés par catégorie et par niveau débutant / intermédiaire / avancé), avec pour chacun le sens, la forme Lean, un petit exemple, les entrées liées, les déclarations Mathlib correspondantes et vos dossiers qui l'utilisent. Il sert aussi d'aide au survol des énoncés en mode Apprendre. Logique et notations Lean Se lit Remarque ∀ x, P x pour tout $x$, $P(x)$ ∀ x > 0, … abrège ∀ x, x > 0 → … ∃ x, P x il existe $x$ tel que $P(x)$ ∃! x, P x : il existe un unique $x$ P → Q $P$ implique $Q$ aussi le type des fonctions de P vers Q P ↔ Q $P$ si et seulement si $Q$ P ∧ Q, P ∨ Q et, ou ¬ P non $P$ défini comme P → False a ≠ b $a \\neq b$ abrège ¬ (a = b) True, False le vrai, le faux propositions a ∣ b $a$ divise $b$ barre verticale spéciale, tapée \\mid ; ce n'est pas la barre du clavier a % b reste de la division x⁻¹ inverse 0⁻¹ = 0 dans un corps ↑n, (n : ℝ) $n$ vu dans un autre type conversion (coercion) fun x => e $x \\mapsto e$ aussi écrit λ x => e ou fun x ↦ e f x $f(x)$ l'application s'écrit sans parenthèses ∑ i in s, f i $\\sum{i \\in s} f(i)$ ∑ i ∈ s, f i dans les versions récentes ∏ i in s, f i $\\prod{i \\in s} f(i)$ idem Finset.range n $\\{0, \\dots, n-1\\}$ Finset.Icc a b $\\{a, \\dots, b\\}$ aussi Ico, Ioc, Ioo x valeur absolue ⌊x⌋, ⌈x⌉ partie entière, plafond Int.floor, Int.ceil Déclarations Terme Sens theorem, lemma un énoncé avec sa preuve (Madalean normalise lemma en theorem) example un théorème sans nom def une définition abbrev une définition que Lean déplie volontiers structure, class, instance types à champs ; classes de types (« ℝ est un corps ») et leurs instances axiom un énoncé admis sans preuve ; interdit dans une preuve acceptée par Madalean sorry « preuve à compléter » : Lean accepte provisoirement, mais signale un trou variable déclare des variables communes à plusieurs énoncés namespace X … end X préfixe les noms : X.foo open X permet d'écrire foo au lieu de X.foo import charge une bibliothèque (import Mathlib) #check e affiche le type de e #eval e calcule e Arguments Écriture Sens (x : α) argument explicite, à donner {x : α} argument implicite, deviné par Lean [inst : Field α] argument d'instance, trouvé par Lean (« α est un corps ») (h : P) une hypothèse nommée h ; une preuve de P Types et univers Terme Sens Prop le type des propositions ; une preuve de P : Prop est un terme de type P Type le type des types « ordinaires » (ℕ : Type) ℕ, ℤ, ℚ, ℝ, ℂ entiers naturels (avec 0), relatifs, rationnels, réels, complexes Fin n $\\{0, \\dots, n-1\\}$ comme type Set α, Finset α parties de α ; parties finies (calculables) α × β produit cartésien ; p.1, p.2 les composantes List α listes Polynomial R (R[X]) polynômes à coefficients dans R Matrix m n R matrices Preuves Terme Sens but (goal) ce qu'il reste à prouver, affiché ⊢ P hypothèse ce qui est supposé, au-dessus du ⊢ tactique une instruction qui transforme le but (intro, simp…) by passe en mode tactique mode terme une preuve écrite comme un terme : fun h => h.1 h.1, h.2 les deux parties d'une hypothèse h : P ∧ Q ⟨a, b⟩ construit un couple, une conjonction, ou un témoin avec sa preuve · ouvre le traitement d'un des buts <;> applique la tactique suivante à tous les buts produits rfl « par définition » : les deux côtés sont égaux après calcul Écosystème Terme Sens Lean 4 le langage et le vérificateur de preuves Mathlib la bibliothèque mathématique de la communauté (≈ 290 000 déclarations dans une version récente) noyau (kernel) la petite partie de Lean qui vérifie réellement les preuves axiomes standard propext, Classical.choice, Quot.sound : admis par Mathlib et par Madalean Lake l'outil de construction des projets Lean (lake build) elan le gestionnaire de versions de Lean toolchain une version précise de Lean, fixée par le fichier lean-toolchain d'un projet espace de travail dans Madalean, un projet Lake avec une version de Lean et de Mathlib blueprint le graphe des énoncés d'un projet de formalisation et de leurs dépendances`},{id:`tactics`,lang:`fr`,title:`Premières tactiques`,order:420,section:`reference`,audience:`learner`,summary:`Ce que font les tactiques les plus courantes de Lean 4 et Mathlib, avec un exemple chacune, et quand elles échouent.`,source:`fr/tactics.md`,site_path:`fr/tactics.html`,headings:[{level:1,text:`Premières tactiques`,id:`premieres-tactiques`},{level:2,text:`Structurer`,id:`structurer`},{level:2,text:`Récurrence et cas`,id:`recurrence-et-cas`},{level:2,text:`Réécrire et simplifier`,id:`reecrire-et-simplifier`},{level:2,text:`Arithmétique et inégalités`,id:`arithmetique-et-inegalites`},{level:2,text:`Chercher`,id:`chercher`},{level:2,text:`Lire une erreur`,id:`lire-une-erreur`}],images:[],verify:[],body:"# Premières tactiques\n\nUne preuve en mode tactique (`:= by …`) est une suite d'instructions qui transforment le **but** (ce qui reste à\nprouver, affiché après `⊢`) jusqu'à ce qu'il n'en reste plus. Les exemples supposent `import Mathlib`. Le\ncomportement exact d'une tactique dépend de la version de Mathlib ; ce qui suit vaut pour les deux espaces de\nMadalean, sauf mention.\n\n## Structurer\n\n| Tactique | Effet | Exemple de but |\n|---|---|---|\n| `intro x` | introduit une variable ou une hypothèse : pour `∀ x, P x` ou `P → Q` | `⊢ ∀ n : ℕ, n + 0 = n` → `intro n` |\n| `exact e` | ferme le but avec un terme exactement du bon type | `exact ha` quand `ha : P` et `⊢ P` |\n| `apply f` | réduit le but aux hypothèses de `f` | `⊢ 0 < a * b` → `apply mul_pos` laisse `0 < a` et `0 < b` |\n| `refine ⟨?_, ?_⟩` | comme `exact`, avec des trous `?_` qui deviennent des buts | |\n| `constructor` | découpe `P ∧ Q` (deux buts) ou `P ↔ Q` (les deux sens) | |\n| `use 3` | fournit le témoin d'un `∃` | `⊢ ∃ n : ℕ, n * n = 9` → `use 3` |\n| `obtain ⟨x, hx⟩ := h` | déballe `h : ∃ x, P x` (ou `h : P ∧ Q`) | |\n| `rcases h with h1 \\| h2` | cas d'une disjonction `h : P ∨ Q` | |\n| `left`, `right` | choisit un côté d'un `∨` à prouver | |\n| `have h : P := by …` | prouve un résultat intermédiaire et l'ajoute aux hypothèses | |\n| `show P` | réécrit le but sous une forme égale par définition (lisibilité) | |\n| `specialize h 2` | applique une hypothèse universelle à une valeur | |\n| `exfalso` | remplace le but par `False` | |\n| `by_contra h` | raisonnement par l'absurde : ajoute la négation du but | |\n| `push_neg` | pousse les négations vers l'intérieur : `¬ ∀ x, P x` devient `∃ x, ¬ P x` | |\n| `contradiction` | ferme le but si les hypothèses se contredisent directement | `h : P` et `h' : ¬ P` |\n\n## Récurrence et cas\n\n```lean\ntheorem somme_impairs (n : ℕ) : ∑ i in Finset.range n, (2 * i + 1) = n ^ 2 := by\n  induction n with\n  | zero => simp\n  | succ n ih =>\n    rw [Finset.sum_range_succ, ih]\n    ring\n```\n\n`induction n with | zero => … | succ n ih => …` produit le cas de base et l'hérédité ; `ih` est l'hypothèse de\nrécurrence. `rcases`/`cases` traitent les cas d'un type inductif ou d'une disjonction ; `interval_cases n` énumère\nles valeurs d'un entier borné par les hypothèses. (Dans l'espace « Lean récent », écrivez `∑ i ∈ Finset.range n`.)\n\n## Réécrire et simplifier\n\n| Tactique | Effet | Échoue quand |\n|---|---|---|\n| `rw [h]` | remplace le membre gauche de `h : a = b` par le membre droit dans le but ; `rw [← h]` dans l'autre sens ; `rw [h] at h'` dans une hypothèse | le motif n'apparaît pas tel quel dans le but |\n| `simp` | simplifie avec les lemmes marqués `@[simp]` de Mathlib ; ferme le but s'il devient trivial | il n'y a rien à simplifier |\n| `simp only [a, b]` | simplifie avec ces lemmes seulement : plus prévisible et plus rapide | |\n| `simp at h` | simplifie une hypothèse | |\n| `norm_num` | calcule sur des nombres explicites : `2 ^ 10 = 1024`, `(7 : ℝ) / 2 > 3`, `Nat.Prime 97` | le but contient des variables qu'il ne sait pas éliminer |\n| `field_simp` | chasse les dénominateurs dans un corps (demande souvent `h : x ≠ 0`) | |\n| `unfold f` | déplie une définition | |\n| `ext x` | égalité de fonctions ou d'ensembles : se ramène à tout `x` | |\n\n## Arithmétique et inégalités\n\n| Tactique | Domaine | Ne fait pas |\n|---|---|---|\n| `ring` | égalités dans un anneau commutatif : `(a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2` | les inégalités ; les égalités qui demandent une hypothèse |\n| `linarith` | combinaisons **linéaires** d'hypothèses et d'inégalités, sur un corps ordonné (`ℚ`, `ℝ`) ; marche aussi souvent sur `ℕ` et `ℤ` | les produits de variables |\n| `nlinarith` | comme `linarith`, en ajoutant des produits d'hypothèses ; on l'aide en donnant des faits : `nlinarith [sq_nonneg (a - b)]` | garantie : c'est une heuristique |\n| `positivity` | buts `0 < e`, `0 ≤ e`, `e ≠ 0` quand la forme de `e` le montre (carrés, sommes de positifs, exponentielles…) | utiliser des hypothèses compliquées |\n| `omega` | arithmétique linéaire **exacte** sur `ℕ` et `ℤ`, avec `/` et `%` par des constantes | les produits de variables ; les réels |\n| `decide` | propositions décidables sur des valeurs **concrètes** : `Nat.Prime 7` si l'instance le permet, `2 ∣ 10` | les variables libres ; les grands calculs (lent) |\n| `gcongr` | « même forme des deux côtés » : `a ≤ b → a + c ≤ b + c`, laisse les comparaisons des morceaux | |\n\nExemple :\n\n```lean\ntheorem am_gm_deux (a b : ℝ) : 2 * a * b ≤ a ^ 2 + b ^ 2 := by\n  nlinarith [sq_nonneg (a - b)]\n```\n\nIci $a^2 + b^2 - 2ab = (a-b)^2 \\ge 0$ : le fait donné à `nlinarith` suffit, la combinaison est linéaire en ce fait.\n\n## Chercher\n\n| Tactique | Effet |\n|---|---|\n| `exact?` | cherche dans Mathlib un lemme qui ferme le but et propose `exact …` |\n| `apply?` | propose des lemmes applicables |\n| `aesop` | recherche automatique de preuve (règles et `simp`) |\n| `tauto` | logique propositionnelle |\n\nMadalean **refuse `exact?` et `apply?` dans une preuve finale** : ce sont des outils de recherche, à remplacer par le\nlemme qu'ils trouvent. Ils restent utiles dans un carnet ou un bloc Lean d'une note.\n\n## Lire une erreur\n\n| Message de Lean | Sens habituel |\n|---|---|\n| `unknown identifier 'foo'` / `unknown constant` | le nom n'existe pas dans cette version de Mathlib (renommé, ou inventé par le modèle) |\n| `type mismatch` | le terme n'a pas le type attendu : souvent une conversion `ℕ`/`ℝ` manquante |\n| `unsolved goals` | la preuve s'arrête alors qu'il reste des buts (affichés) |\n| `linarith failed` | les hypothèses données ne suffisent pas linéairement : ajoutez des faits |\n| `motive is not type correct` | `rw` ne peut pas réécrire à cet endroit ; essayez `simp only` ou `conv` |\n| `maximum recursion depth` / `deterministic timeout` | une tactique cherche trop longtemps : rendez la preuve plus explicite |\n| `declaration uses 'sorry'` | la preuve contient un trou : elle n'est pas acceptée |\n",text:`Premières tactiques Une preuve en mode tactique (:= by …) est une suite d'instructions qui transforment le but (ce qui reste à prouver, affiché après ⊢) jusqu'à ce qu'il n'en reste plus. Les exemples supposent import Mathlib. Le comportement exact d'une tactique dépend de la version de Mathlib ; ce qui suit vaut pour les deux espaces de Madalean, sauf mention. Structurer Tactique Effet Exemple de but intro x introduit une variable ou une hypothèse : pour ∀ x, P x ou P → Q ⊢ ∀ n : ℕ, n + 0 = n → intro n exact e ferme le but avec un terme exactement du bon type exact ha quand ha : P et ⊢ P apply f réduit le but aux hypothèses de f ⊢ 0 < a b → apply mulpos laisse 0 < a et 0 < b refine ⟨?, ?⟩ comme exact, avec des trous ? qui deviennent des buts constructor découpe P ∧ Q (deux buts) ou P ↔ Q (les deux sens) use 3 fournit le témoin d'un ∃ ⊢ ∃ n : ℕ, n n = 9 → use 3 obtain ⟨x, hx⟩ := h déballe h : ∃ x, P x (ou h : P ∧ Q) rcases h with h1 h2 cas d'une disjonction h : P ∨ Q left, right choisit un côté d'un ∨ à prouver have h : P := by … prouve un résultat intermédiaire et l'ajoute aux hypothèses show P réécrit le but sous une forme égale par définition (lisibilité) specialize h 2 applique une hypothèse universelle à une valeur exfalso remplace le but par False bycontra h raisonnement par l'absurde : ajoute la négation du but pushneg pousse les négations vers l'intérieur : ¬ ∀ x, P x devient ∃ x, ¬ P x contradiction ferme le but si les hypothèses se contredisent directement h : P et h' : ¬ P Récurrence et cas induction n with zero => … succ n ih => … produit le cas de base et l'hérédité ; ih est l'hypothèse de récurrence. rcases/cases traitent les cas d'un type inductif ou d'une disjonction ; intervalcases n énumère les valeurs d'un entier borné par les hypothèses. (Dans l'espace « Lean récent », écrivez ∑ i ∈ Finset.range n.) Réécrire et simplifier Tactique Effet Échoue quand rw [h] remplace le membre gauche de h : a = b par le membre droit dans le but ; rw [← h] dans l'autre sens ; rw [h] at h' dans une hypothèse le motif n'apparaît pas tel quel dans le but simp simplifie avec les lemmes marqués @[simp] de Mathlib ; ferme le but s'il devient trivial il n'y a rien à simplifier simp only [a, b] simplifie avec ces lemmes seulement : plus prévisible et plus rapide simp at h simplifie une hypothèse normnum calcule sur des nombres explicites : 2 ^ 10 = 1024, (7 : ℝ) / 2 > 3, Nat.Prime 97 le but contient des variables qu'il ne sait pas éliminer fieldsimp chasse les dénominateurs dans un corps (demande souvent h : x ≠ 0) unfold f déplie une définition ext x égalité de fonctions ou d'ensembles : se ramène à tout x Arithmétique et inégalités Tactique Domaine Ne fait pas ring égalités dans un anneau commutatif : (a + b) ^ 2 = a ^ 2 + 2 a b + b ^ 2 les inégalités ; les égalités qui demandent une hypothèse linarith combinaisons linéaires d'hypothèses et d'inégalités, sur un corps ordonné (ℚ, ℝ) ; marche aussi souvent sur ℕ et ℤ les produits de variables nlinarith comme linarith, en ajoutant des produits d'hypothèses ; on l'aide en donnant des faits : nlinarith [sqnonneg (a - b)] garantie : c'est une heuristique positivity buts 0 < e, 0 ≤ e, e ≠ 0 quand la forme de e le montre (carrés, sommes de positifs, exponentielles…) utiliser des hypothèses compliquées omega arithmétique linéaire exacte sur ℕ et ℤ, avec / et % par des constantes les produits de variables ; les réels decide propositions décidables sur des valeurs concrètes : Nat.Prime 7 si l'instance le permet, 2 ∣ 10 les variables libres ; les grands calculs (lent) gcongr « même forme des deux côtés » : a ≤ b → a + c ≤ b + c, laisse les comparaisons des morceaux Exemple : Ici $a^2 + b^2 - 2ab = (a-b)^2 \\ge 0$ : le fait donné à nlinarith suffit, la combinaison est linéaire en ce fait. Chercher Tactique Effet exact? cherche dans Mathlib un lemme qui ferme le but et propose exact … apply? propose des lemmes applicables aesop recherche automatique de preuve (règles et simp) tauto logique propositionnelle Madalean refuse exact? et apply? dans une preuve finale : ce sont des outils de recherche, à remplacer par le lemme qu'ils trouvent. Ils restent utiles dans un carnet ou un bloc Lean d'une note. Lire une erreur Message de Lean Sens habituel unknown identifier 'foo' / unknown constant le nom n'existe pas dans cette version de Mathlib (renommé, ou inventé par le modèle) type mismatch le terme n'a pas le type attendu : souvent une conversion ℕ/ℝ manquante unsolved goals la preuve s'arrête alors qu'il reste des buts (affichés) linarith failed les hypothèses données ne suffisent pas linéairement : ajoutez des faits motive is not type correct rw ne peut pas réécrire à cet endroit ; essayez simp only ou conv maximum recursion depth / deterministic timeout une tactique cherche trop longtemps : rendez la preuve plus explicite declaration uses 'sorry' la preuve contient un trou : elle n'est pas acceptée`},{id:`shortcuts`,lang:`fr`,title:`Raccourcis clavier`,order:430,section:`reference`,audience:`all`,summary:`Les raccourcis clavier de l'interface et de l'éditeur Lean.`,source:`fr/shortcuts.md`,site_path:`fr/shortcuts.html`,headings:[{level:1,text:`Raccourcis clavier`,id:`raccourcis-clavier`},{level:2,text:`Partout`,id:`partout`},{level:2,text:`Palette, menus et onglets`,id:`palette-menus-et-onglets`},{level:2,text:`Éditeurs (énoncé, Lean, fil du dossier)`,id:`editeurs-enonce-lean-fil-du-dossier`},{level:2,text:`Application de bureau`,id:`application-de-bureau`}],images:[],verify:[],body:"# Raccourcis clavier\n\nSur macOS, `Ctrl` se lit `⌘`. Les raccourcis d'une seule touche (`/`, `n`) ne s'appliquent pas pendant la saisie\ndans un champ de texte.\n\n## Partout\n\n| Raccourci | Action |\n|---|---|\n| `Ctrl+K` ou `/` | ouvrir la palette : chercher un dossier, une commande, une page d'aide |\n| `n` | nouveau dossier (mode *Recherche* seulement) |\n| `Échap` | fermer le menu, la palette, le tiroir des dossiers ou le panneau d'activité ouvert |\n| `Tab`, `Maj+Tab` | passer d'une commande à l'autre ; un lien « Aller au contenu » apparaît en premier |\n\n## Palette, menus et onglets\n\n| Raccourci | Action |\n|---|---|\n| `↑` `↓` | choisir dans la palette ou un menu |\n| `Entrée` | lancer l'élément choisi |\n| `Début`, `Fin` | premier, dernier élément d'un menu |\n| `←` `→`, `Début`, `Fin` | passer entre les étapes Énoncé, Traduction Lean, Preuve d'un dossier |\n\n## Éditeurs (énoncé, Lean, fil du dossier)\n\n| Raccourci | Action |\n|---|---|\n| `Ctrl+Entrée` | envoyer : lancer l'énoncé, envoyer la demande de suivi |\n| `\\le` puis `Espace` ou `Tab` | insérer un symbole : `\\forall` → `∀`, `\\R` → `ℝ`, `\\le` → `≤`, `\\to` → `→`, `\\mid` → `∣` (liste complète dans l'écran « Glossaire ») |\n| `Ctrl+Z`, `Ctrl+Maj+Z` | annuler, rétablir |\n| `Tab`, `Maj+Tab` | indenter, désindenter (dans l'éditeur Lean) |\n\nDans l'énoncé en langage courant, les abréviations ne sont pas développées entre `$…$`, pour garder le LaTeX.\n\n## Application de bureau\n\n| Raccourci | Action |\n|---|---|\n| `Ctrl+Maj+K` | changer de serveur |\n",text:`Raccourcis clavier Sur macOS, Ctrl se lit ⌘. Les raccourcis d'une seule touche (/, n) ne s'appliquent pas pendant la saisie dans un champ de texte. Partout Raccourci Action Ctrl+K ou / ouvrir la palette : chercher un dossier, une commande, une page d'aide n nouveau dossier (mode Recherche seulement) Échap fermer le menu, la palette, le tiroir des dossiers ou le panneau d'activité ouvert Tab, Maj+Tab passer d'une commande à l'autre ; un lien « Aller au contenu » apparaît en premier Palette, menus et onglets Raccourci Action ↑ ↓ choisir dans la palette ou un menu Entrée lancer l'élément choisi Début, Fin premier, dernier élément d'un menu ← →, Début, Fin passer entre les étapes Énoncé, Traduction Lean, Preuve d'un dossier Éditeurs (énoncé, Lean, fil du dossier) Raccourci Action Ctrl+Entrée envoyer : lancer l'énoncé, envoyer la demande de suivi \\le puis Espace ou Tab insérer un symbole : \\forall → ∀, \\R → ℝ, \\le → ≤, \\to → →, \\mid → ∣ (liste complète dans l'écran « Glossaire ») Ctrl+Z, Ctrl+Maj+Z annuler, rétablir Tab, Maj+Tab indenter, désindenter (dans l'éditeur Lean) Dans l'énoncé en langage courant, les abréviations ne sont pas développées entre $…$, pour garder le LaTeX. Application de bureau Raccourci Action Ctrl+Maj+K changer de serveur`},{id:`index`,lang:`en`,title:`Madalean manual`,order:0,section:`start`,audience:`all`,summary:`What Madalean does, what it does not do, and the map of this manual.`,source:`en/index.md`,site_path:`en/index.html`,headings:[{level:1,text:`Madalean manual`,id:`madalean-manual`},{level:2,text:`What Madalean does not do`,id:`what-madalean-does-not-do`},{level:2,text:`Map of the manual`,id:`map-of-the-manual`},{level:2,text:`Conventions of this manual`,id:`conventions-of-this-manual`}],images:[{src:`img/home.png`,exists:!0}],verify:[],body:`# Madalean manual
+
+Madalean is a proving assistant for **Lean 4** and **Mathlib**. You write a statement in plain language (LaTeX
+formulas between dollar signs are accepted); AI models translate it into Lean, search for a proof and explain it;
+**Lean decides**. Nothing is ever presented as proved unless Lean accepted it under the strict verdict: no error, no
+\`sorry\`, no axiom other than Lean's three standard axioms (\`propext\`, \`Classical.choice\`, \`Quot.sound\`).
+
+A single computer, the **host computer**, does all the work: Lean, local models, storage. Every screen (this
+computer, another PC, a tablet, a phone) shows the **same web interface** and stays synchronised. Devices reach the
+host only through your private Tailscale network.
+
+![Madalean home screen](img/home.png)
+
+## What Madalean does not do
+
+- It does not guarantee that the Lean translation says what you meant. Lean checks the proof **of the Lean
+  statement**, not of your sentence. Always read the translation: see [Reading a Lean statement](reading-lean.md).
+- It does not find every proof. “No proof found” does not mean the statement is false.
+- It sends nothing over the Internet in **Local** mode. In the other modes, what is sent and to whom is described in
+  [Models and keys](models-keys.md).
+
+## Map of the manual
+
+- **Getting started**: [Install on the host computer](install.md) · [First run](first-run.md) ·
+  [Link a phone, a tablet, a PC](pairing.md) · [Tailscale](tailscale.md)
+- **Working**: [From statement to proof](workflow.md) · [Reading a Lean statement](reading-lean.md) ·
+  [Follow-up requests and versions](follow-ups.md) · [Projects and parallel dossiers](projects.md) ·
+  [Proof plans and lemmas](proof-plans.md)
+- **Research**: [Conjecture workshop](conjectures.md) · [Sources and grounded questions](sources.md) ·
+  [Bibliography, article, blueprint](articles.md) · [Notes](notes.md) · [Jupyter and Sage](jupyter.md) ·
+  [Publishing a project](publish.md)
+- **Settings and security**: [Models and keys](models-keys.md) · [Updates](updates.md) ·
+  [Security](security.md)
+- **Reference**: [Troubleshooting](troubleshooting.md) · [Lean glossary](glossary.md) ·
+  [First tactics](tactics.md) · [Keyboard shortcuts](shortcuts.md)
+
+## Conventions of this manual
+
+- Names in quotation marks (“Send”, “Settings › Devices”) are those of the interface's buttons and menus.
+- \`lean\` code blocks are Lean 4 with Mathlib. They follow the Mathlib version of the “Prover” workspace (Lean 4.9)
+  unless stated otherwise; a few notations have changed since, and these are pointed out.
+- Pages marked *learner* are for people discovering Lean; *researcher* for people using it for a research project.
+  Most concern everyone.
+`,text:`Madalean manual Madalean is a proving assistant for Lean 4 and Mathlib. You write a statement in plain language (LaTeX formulas between dollar signs are accepted); AI models translate it into Lean, search for a proof and explain it; Lean decides. Nothing is ever presented as proved unless Lean accepted it under the strict verdict: no error, no sorry, no axiom other than Lean's three standard axioms (propext, Classical.choice, Quot.sound). A single computer, the host computer, does all the work: Lean, local models, storage. Every screen (this computer, another PC, a tablet, a phone) shows the same web interface and stays synchronised. Devices reach the host only through your private Tailscale network. Madalean home screen What Madalean does not do - It does not guarantee that the Lean translation says what you meant. Lean checks the proof of the Lean statement, not of your sentence. Always read the translation: see Reading a Lean statement. - It does not find every proof. “No proof found” does not mean the statement is false. - It sends nothing over the Internet in Local mode. In the other modes, what is sent and to whom is described in Models and keys. Map of the manual - Getting started: Install on the host computer · First run · Link a phone, a tablet, a PC · Tailscale - Working: From statement to proof · Reading a Lean statement · Follow-up requests and versions · Projects and parallel dossiers · Proof plans and lemmas - Research: Conjecture workshop · Sources and grounded questions · Bibliography, article, blueprint · Notes · Jupyter and Sage · Publishing a project - Settings and security: Models and keys · Updates · Security - Reference: Troubleshooting · Lean glossary · First tactics · Keyboard shortcuts Conventions of this manual - Names in quotation marks (“Send”, “Settings › Devices”) are those of the interface's buttons and menus. - lean code blocks are Lean 4 with Mathlib. They follow the Mathlib version of the “Prover” workspace (Lean 4.9) unless stated otherwise; a few notations have changed since, and these are pointed out. - Pages marked learner are for people discovering Lean; researcher for people using it for a research project. Most concern everyone.`},{id:`install`,lang:`en`,title:`Install on the host computer`,order:10,section:`start`,audience:`all`,summary:`Recommended hardware, installation with install.sh, what is installed and where.`,source:`en/install.md`,site_path:`en/install.html`,headings:[{level:1,text:`Install on the host computer`,id:`install-on-the-host-computer`},{level:2,text:`Hardware and system`,id:`hardware-and-system`},{level:2,text:`Install`,id:`install`},{level:2,text:`Where things are`,id:`where-things-are`},{level:2,text:`Starting and stopping`,id:`starting-and-stopping`},{level:2,text:`Uninstalling`,id:`uninstalling`}],images:[],verify:[`verify after integration: final repository name raantss18/madalean, install.sh installs the 2.0 server and unit, menu entry name`,`verify after integration: uninstall.sh covers ~/.config/madalean and the systemd unit in 2.0`],body:`# Install on the host computer
+
+The **host computer** is the machine that runs Madalean: the server, Lean, the local models and your data. Other
+devices install only a light app (or nothing at all: a browser is enough), see [Link a device](pairing.md).
+
+## Hardware and system
+
+| | Minimum | Recommended |
+|---|---|---|
+| System | Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) | recent Arch or Fedora |
+| Graphics card | none (local models on the CPU, very slow) | NVIDIA with ≥ 8 GB of memory |
+| RAM | 16 GB | 32 GB |
+| Disk | ≈ 40 GB free | SSD |
+
+Without an NVIDIA card everything works, but a proof by a local model can take tens of minutes. Online models (free
+or with a key) do not depend on your graphics card.
+
+The NVIDIA driver and the CUDA Toolkit (\`nvcc\`) must be installed **by you** beforehand: the script never touches
+drivers.
+
+| Distribution | Driver + CUDA |
+|---|---|
+| Arch / EndeavourOS | \`sudo pacman -S nvidia-open nvidia-utils cuda\` |
+| Fedora | driver from RPM Fusion (\`akmod-nvidia\`, \`xorg-x11-drv-nvidia-cuda\`), CUDA from the NVIDIA repository |
+| Debian / Ubuntu | \`sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit\` (or the NVIDIA repository) |
+| openSUSE | NVIDIA repository |
+
+## Install
+
+\`\`\`bash
+git clone https://github.com/raantss18/madalean.git ~/madalean
+cd ~/madalean
+./install.sh --install-deps
+\`\`\`
+
+\`--install-deps\` installs the build tools once with \`sudo\` (you type your password). The script can be re-run
+safely: it resumes where it stopped and does not redo what is already done.
+
+It installs, at user level:
+
+- the Lean version manager **elan** and two Lean **workspaces**: “Prover” (Lean 4.9 and the Mathlib the Goedel
+  models were trained on; Mathlib is built from source, ≈ 1 h 30 once) and “Recent Lean” (latest Mathlib);
+- the **llama.cpp** engine built for your card (pinned version);
+- three local models (≈ 5 GB each, SHA-256 checksums verified): Goedel-Prover-V2-8B (proofs),
+  Goedel-Formalizer-V2-8B (translation into Lean), Qwen3-8B (explanations);
+- the Madalean server and its systemd user service \`madalean.service\`.
+
+Useful options (\`./install.sh --help\`):
+
+| Option | Effect |
+|---|---|
+| \`--backend cpu\` | no graphics card: engine for the CPU |
+| \`--no-models\` | does not download the local models (≈ 15 GB): only online models will be used |
+| \`--no-prover49\` | skips the Lean 4.9 workspace (the long Mathlib build) |
+| \`--no-current\` | skips the “Recent Lean” workspace |
+| \`--no-service\` | does not install the systemd service |
+
+## Where things are
+
+| What | Where |
+|---|---|
+| Settings, projects, dossiers, linked devices | \`~/.config/madalean/\` |
+| Search index, caches | \`~/.cache/madalean/\` |
+| Local models | \`~/models/\` |
+| Jupyter notebooks | \`~/Documents/Madalean/notebooks/\` |
+
+On first start, if you had Lean AI Station 1.x, the server **copies** (never moves) your settings, dossiers and
+library from \`~/.config/lean-ai-station/\`.
+
+## Starting and stopping
+
+The service starts with your session. In a terminal, if needed:
+
+\`\`\`bash
+systemctl --user status madalean      # status
+systemctl --user restart madalean     # restart
+journalctl --user -u madalean -e      # log
+\`\`\`
+
+Then open the interface on the host: \`http://127.0.0.1:11500\`, or the Madalean desktop app (AppImage), which finds
+the host by itself. Next: [First run](first-run.md).
+
+## Uninstalling
+
+\`./uninstall.sh\` lists exactly what will be deleted before doing it. Your dossiers are not deleted without your
+consent.
+`,text:`Install on the host computer The host computer is the machine that runs Madalean: the server, Lean, the local models and your data. Other devices install only a light app (or nothing at all: a browser is enough), see Link a device. Hardware and system Minimum Recommended System Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) recent Arch or Fedora Graphics card none (local models on the CPU, very slow) NVIDIA with ≥ 8 GB of memory RAM 16 GB 32 GB Disk ≈ 40 GB free SSD Without an NVIDIA card everything works, but a proof by a local model can take tens of minutes. Online models (free or with a key) do not depend on your graphics card. The NVIDIA driver and the CUDA Toolkit (nvcc) must be installed by you beforehand: the script never touches drivers. Distribution Driver + CUDA Arch / EndeavourOS sudo pacman -S nvidia-open nvidia-utils cuda Fedora driver from RPM Fusion (akmod-nvidia, xorg-x11-drv-nvidia-cuda), CUDA from the NVIDIA repository Debian / Ubuntu sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit (or the NVIDIA repository) openSUSE NVIDIA repository Install --install-deps installs the build tools once with sudo (you type your password). The script can be re-run safely: it resumes where it stopped and does not redo what is already done. It installs, at user level: - the Lean version manager elan and two Lean workspaces: “Prover” (Lean 4.9 and the Mathlib the Goedel models were trained on; Mathlib is built from source, ≈ 1 h 30 once) and “Recent Lean” (latest Mathlib); - the llama.cpp engine built for your card (pinned version); - three local models (≈ 5 GB each, SHA-256 checksums verified): Goedel-Prover-V2-8B (proofs), Goedel-Formalizer-V2-8B (translation into Lean), Qwen3-8B (explanations); - the Madalean server and its systemd user service madalean.service. Useful options (./install.sh --help): Option Effect --backend cpu no graphics card: engine for the CPU --no-models does not download the local models (≈ 15 GB): only online models will be used --no-prover49 skips the Lean 4.9 workspace (the long Mathlib build) --no-current skips the “Recent Lean” workspace --no-service does not install the systemd service Where things are What Where Settings, projects, dossiers, linked devices ~/.config/madalean/ Search index, caches ~/.cache/madalean/ Local models ~/models/ Jupyter notebooks ~/Documents/Madalean/notebooks/ On first start, if you had Lean AI Station 1.x, the server copies (never moves) your settings, dossiers and library from ~/.config/lean-ai-station/. Starting and stopping The service starts with your session. In a terminal, if needed: Then open the interface on the host: http://127.0.0.1:11500, or the Madalean desktop app (AppImage), which finds the host by itself. Next: First run. Uninstalling ./uninstall.sh lists exactly what will be deleted before doing it. Your dossiers are not deleted without your consent.`},{id:`first-run`,lang:`en`,title:`First run`,order:20,section:`start`,audience:`all`,summary:`Guided tour, choice of mode, first statement, demo mode.`,source:`en/first-run.md`,site_path:`en/first-run.html`,headings:[{level:1,text:`First run`,id:`first-run`},{level:2,text:`Three choices to make`,id:`three-choices-to-make`},{level:2,text:`A first statement`,id:`a-first-statement`},{level:2,text:`Trying without models or Lean: demo mode`,id:`trying-without-models-or-lean-demo-mode`}],images:[],verify:[`verify after integration: first-run checks and tour wording`],body:`# First run
+
+The first time it opens on the host computer, Madalean checks its environment (Lean workspaces, models, TeX, fonts,
+disk) and shows what is missing, with a repair button when one exists. A short tour then presents the four ideas of
+the interface: write a statement, check the translation, let Lean judge, stay in control.
+
+## Three choices to make
+
+1. **Where the models work** (“Settings › Models”):
+   - *Local*: nothing leaves the host computer; only the models installed here work.
+   - *Automatic* (default): the best available model, online first, local models when the network is missing.
+   - *Online*: online models only.
+
+   What each mode sends, and to whom: [Models and keys](models-keys.md).
+2. **Learn or Research** (button at the top right): *Learn* offers hints before the proof, a glossary on hover and
+   line-by-line explanations; *Research* is dense, keyboard-first, with nothing pedagogical in the way. You can
+   switch at any time.
+3. **Your profile** (“Settings › Profile”): intended audience, level, preferred notations. It is read before every
+   translation and every explanation.
+
+## A first statement
+
+On the home screen, write for example:
+
+> Show that the sum of two even integers is even.
+
+then start. The stages follow one another by themselves: understanding, translation into Lean, proof search,
+explanation. What comes next is described in [From statement to proof](workflow.md).
+
+## Trying without models or Lean: demo mode
+
+\`\`\`bash
+~/madalean/bin/madalean serve --demo --port 11600 --remote-port 11601
+\`\`\`
+
+then open \`http://127.0.0.1:11600\`. The models and Lean are **simulated**: a banner says so, and nothing there is
+really checked. Demo mode is for discovering the interface; its data is kept apart from yours
+(\`~/.config/madalean-demo\`).
+`,text:`First run The first time it opens on the host computer, Madalean checks its environment (Lean workspaces, models, TeX, fonts, disk) and shows what is missing, with a repair button when one exists. A short tour then presents the four ideas of the interface: write a statement, check the translation, let Lean judge, stay in control. Three choices to make 1. Where the models work (“Settings › Models”): - Local: nothing leaves the host computer; only the models installed here work. - Automatic (default): the best available model, online first, local models when the network is missing. - Online: online models only. What each mode sends, and to whom: Models and keys. 2. Learn or Research (button at the top right): Learn offers hints before the proof, a glossary on hover and line-by-line explanations; Research is dense, keyboard-first, with nothing pedagogical in the way. You can switch at any time. 3. Your profile (“Settings › Profile”): intended audience, level, preferred notations. It is read before every translation and every explanation. A first statement On the home screen, write for example: > Show that the sum of two even integers is even. then start. The stages follow one another by themselves: understanding, translation into Lean, proof search, explanation. What comes next is described in From statement to proof. Trying without models or Lean: demo mode then open http://127.0.0.1:11600. The models and Lean are simulated: a banner says so, and nothing there is really checked. Demo mode is for discovering the interface; its data is kept apart from yours (~/.config/madalean-demo).`},{id:`pairing`,lang:`en`,title:`Link a phone, a tablet or another PC`,order:30,section:`start`,audience:`all`,summary:`Step by step, linking a device to the host computer with a 6-digit code, and unlinking it.`,source:`en/pairing.md`,site_path:`en/pairing.html`,headings:[{level:1,text:`Link a phone, a tablet or another PC`,id:`link-a-phone-a-tablet-or-another-pc`},{level:2,text:`Step 1 — Publish Madalean on your Tailscale network (once)`,id:`step-1-publish-madalean-on-your-tailscale-network-once`},{level:2,text:`Step 2 — Show a code on the host`,id:`step-2-show-a-code-on-the-host`},{level:2,text:`Step 3 — On the device`,id:`step-3-on-the-device`},{level:3,text:`Android phone or tablet`,id:`android-phone-or-tablet`},{level:3,text:`iPhone, iPad, or any device with a browser`,id:`iphone-ipad-or-any-device-with-a-browser`},{level:3,text:`Another Linux computer`,id:`another-linux-computer`},{level:2,text:`What happens when linking`,id:`what-happens-when-linking`},{level:2,text:`Unlinking a device`,id:`unlinking-a-device`},{level:2,text:`If it does not work`,id:`if-it-does-not-work`}],images:[{src:`img/devices-add.png`,exists:!0},{src:`img/pair-phone.png`,exists:!0}],verify:[`verify after integration: tailscale_setup.sh applied for real on the host; printed URL format`,`verify after integration: browser pairing over the tailnet from Safari; cookie persists`],body:`# Link a phone, a tablet or another PC
+
+A linked device shows the same interface as the host computer and stays synchronised with it: what you start on the
+phone appears on the PC, and vice versa. All computation stays on the host.
+
+Three things are needed:
+
+1. the host computer switched on, Madalean running;
+2. the host and the device on **your Tailscale network** (see [Tailscale](tailscale.md));
+3. a **6-digit code** shown by the host.
+
+On the host computer itself, no code is needed.
+
+## Step 1 — Publish Madalean on your Tailscale network (once)
+
+On the host, in the Madalean folder:
+
+\`\`\`bash
+scripts/tailscale_setup.sh
+\`\`\`
+
+The script adds **a single** rule, \`tailscale serve --bg --https=10500 http://127.0.0.1:11501\`, and prints the
+host's address as seen from other devices, of the form \`https://pc-name.tailXXXX.ts.net:10500\`. It touches no other
+\`tailscale serve\` rule of the machine and never enables *Funnel* (opening to the Internet).
+\`scripts/tailscale_setup.sh --print\` shows the commands without changing anything; \`--remove\` removes the rule.
+
+If the script reports that HTTPS is not enabled, follow [Tailscale › Enable HTTPS](tailscale.md#enable-https).
+
+## Step 2 — Show a code on the host
+
+On the host computer: “Settings › Devices › Add a device”. A 6-digit code appears, valid for **5 minutes**, usable
+**once**, with a QR code for the Android app.
+
+![Settings › Devices: code and QR code](img/devices-add.png)
+
+Check the field “Address of this computer as seen from other devices”: it is the address printed by the script in
+step 1, without \`https://\` (for example \`nitro.tail1234.ts.net:10500\`). It is used to build the QR code.
+
+## Step 3 — On the device
+
+### Android phone or tablet
+
+1. Install the **Tailscale** app (Play Store) and sign in with **the same account** as on the host.
+2. Install the **Madalean** app from the [install page](site:install) (APK file; Android asks you to allow
+   installation from your browser, once).
+3. Scan the host's QR code with the camera: the app opens with the address and the code already filled in.
+   Otherwise, type the address and the code by hand.
+4. Give the device a name (“Marie's Pixel”) and tap “Link”.
+
+![Linking screen on a phone](img/pair-phone.png)
+
+### iPhone, iPad, or any device with a browser
+
+There is no iOS app. Install Tailscale (App Store), then open the address \`https://pc-name.tailXXXX.ts.net:10500\` in
+the browser. The linking page asks for the code and a device name. Tip: “Share › Add to Home Screen” gives an icon
+that opens Madalean directly.
+
+### Another Linux computer
+
+Install Tailscale, then either a browser (as above) or the **Madalean** desktop app (AppImage,
+[install page](site:install)), which keeps the token in the system keyring and reconnects by itself.
+
+## What happens when linking
+
+The device sends the code; the host gives it a secret **token** (256 bits) that identifies it from then on. The host
+keeps only a fingerprint of this token, never the token itself. Five wrong codes in a row lock linking for 10
+minutes. Details: [Security](security.md).
+
+## Unlinking a device
+
+- From the host: “Settings › Devices”, the “Unlink” button next to the device. Access is cut **immediately**,
+  including for a page that is already open.
+- From the device itself: “Settings › Devices › Unlink this device”.
+
+Unlinking a lost phone is the first thing to do; your Tailscale account also lets you remove the device from the
+private network.
+
+## If it does not work
+
+| Message | What to do |
+|---|---|
+| “Wrong code” | Type again the 6 digits shown on the host. |
+| “This code has expired” | “New code” on the host (valid for 5 minutes). |
+| “Too many tries: linking is locked for N min” | Wait, then ask for a new code. |
+| The address does not answer | Is Tailscale connected on both devices? See [Troubleshooting](troubleshooting.md#the-device-cannot-reach-the-host). |
+`,text:`Link a phone, a tablet or another PC A linked device shows the same interface as the host computer and stays synchronised with it: what you start on the phone appears on the PC, and vice versa. All computation stays on the host. Three things are needed: 1. the host computer switched on, Madalean running; 2. the host and the device on your Tailscale network (see Tailscale); 3. a 6-digit code shown by the host. On the host computer itself, no code is needed. Step 1 — Publish Madalean on your Tailscale network (once) On the host, in the Madalean folder: The script adds a single rule, tailscale serve --bg --https=10500 http://127.0.0.1:11501, and prints the host's address as seen from other devices, of the form https://pc-name.tailXXXX.ts.net:10500. It touches no other tailscale serve rule of the machine and never enables Funnel (opening to the Internet). scripts/tailscalesetup.sh --print shows the commands without changing anything; --remove removes the rule. If the script reports that HTTPS is not enabled, follow Tailscale › Enable HTTPS. Step 2 — Show a code on the host On the host computer: “Settings › Devices › Add a device”. A 6-digit code appears, valid for 5 minutes, usable once, with a QR code for the Android app. Settings › Devices: code and QR code Check the field “Address of this computer as seen from other devices”: it is the address printed by the script in step 1, without https:// (for example nitro.tail1234.ts.net:10500). It is used to build the QR code. Step 3 — On the device Android phone or tablet 1. Install the Tailscale app (Play Store) and sign in with the same account as on the host. 2. Install the Madalean app from the install page (APK file; Android asks you to allow installation from your browser, once). 3. Scan the host's QR code with the camera: the app opens with the address and the code already filled in. Otherwise, type the address and the code by hand. 4. Give the device a name (“Marie's Pixel”) and tap “Link”. Linking screen on a phone iPhone, iPad, or any device with a browser There is no iOS app. Install Tailscale (App Store), then open the address https://pc-name.tailXXXX.ts.net:10500 in the browser. The linking page asks for the code and a device name. Tip: “Share › Add to Home Screen” gives an icon that opens Madalean directly. Another Linux computer Install Tailscale, then either a browser (as above) or the Madalean desktop app (AppImage, install page), which keeps the token in the system keyring and reconnects by itself. What happens when linking The device sends the code; the host gives it a secret token (256 bits) that identifies it from then on. The host keeps only a fingerprint of this token, never the token itself. Five wrong codes in a row lock linking for 10 minutes. Details: Security. Unlinking a device - From the host: “Settings › Devices”, the “Unlink” button next to the device. Access is cut immediately, including for a page that is already open. - From the device itself: “Settings › Devices › Unlink this device”. Unlinking a lost phone is the first thing to do; your Tailscale account also lets you remove the device from the private network. If it does not work Message What to do “Wrong code” Type again the 6 digits shown on the host. “This code has expired” “New code” on the host (valid for 5 minutes). “Too many tries: linking is locked for N min” Wait, then ask for a new code. The address does not answer Is Tailscale connected on both devices? See Troubleshooting.`},{id:`tailscale`,lang:`en`,title:`Tailscale, the private network of your devices`,order:40,section:`start`,audience:`all`,summary:`What Tailscale is, why Madalean uses it, how to install it, and what it does not do.`,source:`en/tailscale.md`,site_path:`en/tailscale.html`,headings:[{level:1,text:`Tailscale, the private network of your devices`,id:`tailscale-the-private-network-of-your-devices`},{level:2,text:`What it is`,id:`what-it-is`},{level:2,text:`What Madalean does, and does not do, with Tailscale`,id:`what-madalean-does-and-does-not-do-with-tailscale`},{level:2,text:`Installing Tailscale`,id:`installing-tailscale`},{level:2,text:`Enable HTTPS`,id:`enable-https`},{level:2,text:`Without Tailscale`,id:`without-tailscale`}],images:[],verify:[`verify after integration: Tailscale personal plan wording at release time`,`verify after integration: LAN listener toggle location in Réglages, plain HTTP on LAN`],body:`# Tailscale, the private network of your devices
+
+## What it is
+
+[Tailscale](https://tailscale.com/) connects **your** devices to each other through encrypted links (WireGuard
+protocol), wherever they are: same Wi-Fi, 4G, another city. Together they form a private network, the *tailnet*.
+Each device gets a stable name there, for example \`nitro.tail1234.ts.net\`. Only the devices signed in to **your**
+Tailscale account belong to this network.
+
+Madalean uses it for one thing only: letting your devices reach the host computer. It uses no Madalean server on the
+Internet (there is none), and the Madalean website plays no part in synchronisation.
+
+## What Madalean does, and does not do, with Tailscale
+
+- It publishes **one** server port on your tailnet, over HTTPS: \`https://<host>.<tailnet>.ts.net:10500\`.
+- It **never enables Funnel**, the Tailscale feature that would open this port to the whole Internet.
+- It changes no other \`tailscale serve\` rule of the machine (other software may have some).
+- Being on the tailnet is **not enough**: each device must also be linked with a code
+  ([Link a device](pairing.md)).
+
+## Installing Tailscale
+
+On the host computer (Linux):
+
+| Distribution | Command |
+|---|---|
+| Arch / EndeavourOS | \`sudo pacman -S tailscale\` |
+| Fedora, Debian, Ubuntu, openSUSE | see <https://tailscale.com/download/linux> (official repository) |
+
+then:
+
+\`\`\`bash
+sudo systemctl enable --now tailscaled
+sudo tailscale up                       # opens a sign-in page for your account
+sudo tailscale set --operator=$USER     # once: lets Madalean manage its rule without sudo
+\`\`\`
+
+On a phone or tablet: the Tailscale app from the App Store or the Play Store, signed in to the same account.
+
+The Tailscale account is created with an identity provider (Google, Microsoft, GitHub, Apple…). The free personal
+plan is enough for individual use.
+
+## Enable HTTPS
+
+Devices reach the host over HTTPS, with a certificate that Tailscale obtains for the \`*.ts.net\` name. Once, in the
+Tailscale admin console (**DNS** page):
+
+1. enable **MagicDNS**;
+2. enable **HTTPS Certificates**.
+
+After that, \`scripts/tailscale_setup.sh\` (see [Link a device](pairing.md)) works. The first HTTPS connection may take
+a few seconds while the certificate is issued.
+
+## Without Tailscale
+
+A setting of the host computer also makes Madalean listen on the local network (port 11502, off by default). The
+device token is still required, but the traffic is then **not encrypted** by Madalean: keep this for a trusted
+network. This setting can only be changed from the host and takes effect when the server restarts.
+`,text:`Tailscale, the private network of your devices What it is Tailscale connects your devices to each other through encrypted links (WireGuard protocol), wherever they are: same Wi-Fi, 4G, another city. Together they form a private network, the tailnet. Each device gets a stable name there, for example nitro.tail1234.ts.net. Only the devices signed in to your Tailscale account belong to this network. Madalean uses it for one thing only: letting your devices reach the host computer. It uses no Madalean server on the Internet (there is none), and the Madalean website plays no part in synchronisation. What Madalean does, and does not do, with Tailscale - It publishes one server port on your tailnet, over HTTPS: https://<host>.<tailnet>.ts.net:10500. - It never enables Funnel, the Tailscale feature that would open this port to the whole Internet. - It changes no other tailscale serve rule of the machine (other software may have some). - Being on the tailnet is not enough: each device must also be linked with a code (Link a device). Installing Tailscale On the host computer (Linux): Distribution Command Arch / EndeavourOS sudo pacman -S tailscale Fedora, Debian, Ubuntu, openSUSE see <https://tailscale.com/download/linux> (official repository) then: On a phone or tablet: the Tailscale app from the App Store or the Play Store, signed in to the same account. The Tailscale account is created with an identity provider (Google, Microsoft, GitHub, Apple…). The free personal plan is enough for individual use. Enable HTTPS Devices reach the host over HTTPS, with a certificate that Tailscale obtains for the .ts.net name. Once, in the Tailscale admin console (DNS page): 1. enable MagicDNS; 2. enable HTTPS Certificates. After that, scripts/tailscalesetup.sh (see Link a device) works. The first HTTPS connection may take a few seconds while the certificate is issued. Without Tailscale A setting of the host computer also makes Madalean listen on the local network (port 11502, off by default). The device token is still required, but the traffic is then not encrypted by Madalean: keep this for a trusted network. This setting can only be changed from the host and takes effect when the server restarts.`},{id:`workflow`,lang:`en`,title:`From statement to proof`,order:100,section:`use`,audience:`all`,summary:`The four stages of a dossier — statement, Lean translation, proof, explanation — then export.`,source:`en/workflow.md`,site_path:`en/workflow.html`,headings:[{level:1,text:`From statement to proof`,id:`from-statement-to-proof`},{level:2,text:`1. Writing the statement`,id:`1-writing-the-statement`},{level:2,text:`2. The translation into Lean`,id:`2-the-translation-into-lean`},{level:2,text:`3. The proof`,id:`3-the-proof`},{level:2,text:`4. The explanation`,id:`4-the-explanation`},{level:2,text:`5. Export`,id:`5-export`},{level:2,text:`What next`,id:`what-next`}],images:[{src:`img/lean-statement.png`,exists:!0},{src:`img/hint-ladder.png`,exists:!0}],verify:[],body:`# From statement to proof
+
+Each problem lives in a **dossier**. A dossier goes through four stages, shown at the top of the screen:
+**Statement › Lean translation › Proof**, then the explanation. The **dossier thread**, on the right, keeps track of
+everything that happened and receives your follow-up requests.
+
+## 1. Writing the statement
+
+Write in your own words, in French or English. LaTeX formulas between dollar signs are read: \`$a^2+b^2 \\ge 2ab$\`.
+A preview shows how the statement will be understood. You can also:
+
+- **import a \`.tex\` file**: Madalean extracts its theorem-like environments and you choose which one to prove;
+- **paste a Lean statement directly**: the translation stage is then skipped.
+
+A precise statement translates better: name the sets ($n \\in \\mathbb{N}$, $x \\in \\mathbb{R}$), the hypotheses and
+the conclusion.
+
+## 2. The translation into Lean
+
+A first model restates your request as a precise mathematical statement (“incomplete basis theorem” becomes “every
+linearly independent family of a finite-dimensional vector space extends to a basis”). A second translates it into
+Lean; **Lean checks that the statement is well formed** before going further. The badge “Lean accepts the statement”
+only means that the statement makes sense to Lean, not that it is true, nor that it says what you meant.
+
+![Lean statement next to the original text](img/lean-statement.png)
+
+**Read this translation.** It is the one place where an error goes unnoticed: Lean will prove exactly the Lean
+statement. The usual pitfalls (integer division, truncated subtraction on $\\mathbb{N}$, division by zero) are in
+[Reading a Lean statement](reading-lean.md). In *Learn* mode, the “Understand” panel explains the statement line by
+line, and each Lean word on hover.
+
+To correct it: “Edit by hand” (you edit the code, Lean checks it again), or “Fix the statement…” (you describe the
+correction, the model rewrites).
+
+## 3. The proof
+
+Madalean searches for a proof with the method chosen in “Settings › Models”:
+
+| Method | How it works |
+|---|---|
+| *goedel* | the local Goedel-Prover model writes a proof; if Lean rejects it, it reads the error and corrects, several times |
+| *agent* | a model that can use tools compiles its own attempts with Lean and looks up lemmas in Mathlib |
+| *auto* (default) | agent with the best allowed online model, otherwise goedel; goedel also as a fallback when the agent fails |
+
+Whatever the method, the final proof is **checked again by the server** with the strict verdict. The badge “Proof
+checked by Lean” gives the Lean version, the Mathlib revision, the duration, the number of attempts, the model that
+wrote it and the axioms used.
+
+During the search you see the models' text arriving live and each compiled attempt. “Stop” cuts everything, at any
+time (model request and Lean compilation).
+
+In *Learn* mode the proof is not shown at once: a hint ladder (nudge, strategy, key lemma, next step, full proof)
+lets you search first. The last level is always the proof checked by Lean, never a model's text.
+
+![Hint ladder in Learn mode](img/hint-ladder.png)
+
+## 4. The explanation
+
+Once the proof is accepted, a model explains it in plain language and writes a **natural-language proof** (the one
+that goes into the PDF). These texts are editable drafts: you can correct them by hand, and a manual edit is never
+overwritten without your consent.
+
+## 5. Export
+
+“Export” offers:
+
+| Format | Content |
+|---|---|
+| PDF | title, natural-language statement, Lean statement and its gloss, written proof, Lean proof, verification stamp (Lean version, Mathlib revision, date, axioms, model), tactic-by-tactic explanation in an appendix |
+| LaTeX (\`.tex\`) | the same document, to compile with XeLaTeX (for example on Overleaf) |
+| Lean (\`.lean\`) | the file that compiles |
+| Markdown (\`.md\`) | text and \`$…$\` formulas |
+| Everything (\`.zip\`) | all of the above, with \`refs.bib\` if the dossier cites sources |
+
+An unproved dossier is exported marked “Not proved” and without a stamp. If no TeX engine is installed on the host,
+Madalean opens an HTML version: use the browser's “Print › Save as PDF”.
+
+## What next
+
+- Refine: [Follow-up requests and versions](follow-ups.md).
+- Several related results: [Projects and parallel dossiers](projects.md).
+- A result too big for a single proof: [Proof plans and lemmas](proof-plans.md).
+- Each proved result goes into the **Library** and serves as a lemma for later proofs in the same Lean workspace.
+`,text:`From statement to proof Each problem lives in a dossier. A dossier goes through four stages, shown at the top of the screen: Statement › Lean translation › Proof, then the explanation. The dossier thread, on the right, keeps track of everything that happened and receives your follow-up requests. 1. Writing the statement Write in your own words, in French or English. LaTeX formulas between dollar signs are read: $a^2+b^2 \\ge 2ab$. A preview shows how the statement will be understood. You can also: - import a .tex file: Madalean extracts its theorem-like environments and you choose which one to prove; - paste a Lean statement directly: the translation stage is then skipped. A precise statement translates better: name the sets ($n \\in \\mathbb{N}$, $x \\in \\mathbb{R}$), the hypotheses and the conclusion. 2. The translation into Lean A first model restates your request as a precise mathematical statement (“incomplete basis theorem” becomes “every linearly independent family of a finite-dimensional vector space extends to a basis”). A second translates it into Lean; Lean checks that the statement is well formed before going further. The badge “Lean accepts the statement” only means that the statement makes sense to Lean, not that it is true, nor that it says what you meant. Lean statement next to the original text Read this translation. It is the one place where an error goes unnoticed: Lean will prove exactly the Lean statement. The usual pitfalls (integer division, truncated subtraction on $\\mathbb{N}$, division by zero) are in Reading a Lean statement. In Learn mode, the “Understand” panel explains the statement line by line, and each Lean word on hover. To correct it: “Edit by hand” (you edit the code, Lean checks it again), or “Fix the statement…” (you describe the correction, the model rewrites). 3. The proof Madalean searches for a proof with the method chosen in “Settings › Models”: Method How it works goedel the local Goedel-Prover model writes a proof; if Lean rejects it, it reads the error and corrects, several times agent a model that can use tools compiles its own attempts with Lean and looks up lemmas in Mathlib auto (default) agent with the best allowed online model, otherwise goedel; goedel also as a fallback when the agent fails Whatever the method, the final proof is checked again by the server with the strict verdict. The badge “Proof checked by Lean” gives the Lean version, the Mathlib revision, the duration, the number of attempts, the model that wrote it and the axioms used. During the search you see the models' text arriving live and each compiled attempt. “Stop” cuts everything, at any time (model request and Lean compilation). In Learn mode the proof is not shown at once: a hint ladder (nudge, strategy, key lemma, next step, full proof) lets you search first. The last level is always the proof checked by Lean, never a model's text. Hint ladder in Learn mode 4. The explanation Once the proof is accepted, a model explains it in plain language and writes a natural-language proof (the one that goes into the PDF). These texts are editable drafts: you can correct them by hand, and a manual edit is never overwritten without your consent. 5. Export “Export” offers: Format Content PDF title, natural-language statement, Lean statement and its gloss, written proof, Lean proof, verification stamp (Lean version, Mathlib revision, date, axioms, model), tactic-by-tactic explanation in an appendix LaTeX (.tex) the same document, to compile with XeLaTeX (for example on Overleaf) Lean (.lean) the file that compiles Markdown (.md) text and $…$ formulas Everything (.zip) all of the above, with refs.bib if the dossier cites sources An unproved dossier is exported marked “Not proved” and without a stamp. If no TeX engine is installed on the host, Madalean opens an HTML version: use the browser's “Print › Save as PDF”. What next - Refine: Follow-up requests and versions. - Several related results: Projects and parallel dossiers. - A result too big for a single proof: Proof plans and lemmas. - Each proved result goes into the Library and serves as a lemma for later proofs in the same Lean workspace.`},{id:`reading-lean`,lang:`en`,title:`Reading a Lean statement`,order:110,section:`use`,audience:`learner`,summary:`Decoding a Lean statement piece by piece, and spotting translations that change the meaning.`,source:`en/reading-lean.md`,site_path:`en/reading-lean.html`,headings:[{level:1,text:`Reading a Lean statement`,id:`reading-a-lean-statement`},{level:2,text:`Anatomy of a statement`,id:`anatomy-of-a-statement`},{level:2,text:`The header`,id:`the-header`},{level:2,text:`Types: which numbers are we talking about?`,id:`types-which-numbers-are-we-talking-about`},{level:2,text:`Pitfalls that change the meaning`,id:`pitfalls-that-change-the-meaning`},{level:2,text:`A reading method`,id:`a-reading-method`}],images:[],verify:[],body:"# Reading a Lean statement\n\nLean proves **exactly** the Lean statement, not the sentence you had in mind. This page teaches you to read a\nstatement well enough to judge a translation, without knowing how to write proofs.\n\n## Anatomy of a statement\n\n```lean\ntheorem somme_pairs (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by\n  sorry\n```\n\n| Piece | Reading |\n|---|---|\n| `theorem somme_pairs` | a theorem, and its name (chosen by Madalean, unique) |\n| `(a b : ℕ)` | “let $a$ and $b$ be natural numbers” |\n| `(ha : Even a)` | hypothesis named `ha`: “$a$ is even” |\n| `(hb : Even b)` | hypothesis `hb`: “$b$ is even” |\n| `: Even (a + b)` | after the last `:` outside parentheses comes the **conclusion**: “$a+b$ is even” |\n| `:= by sorry` | “the proof follows, in tactic mode”; `sorry` = proof still to be written |\n\nEverything in parentheses before the last `:` is **assumed**; what comes after is **to be proved**. A statement with\n`sorry` is a statement without a proof: Lean accepts it as a statement, never as a proved theorem.\n\nThe same thing can be written with quantifiers in the conclusion; it is equivalent:\n\n```lean\ntheorem somme_pairs' : ∀ a b : ℕ, Even a → Even b → Even (a + b) := by\n  sorry\n```\n\n`→` reads “implies”; `∀ a b : ℕ,` “for all natural numbers $a$, $b$”.\n\n## The header\n\nStatements of the “Prover” workspace start with a fixed header:\n\n```lean\nimport Mathlib\nimport Aesop\nset_option maxHeartbeats 400000\nopen BigOperators Real Nat Topology Rat\n```\n\n`import Mathlib` loads the mathematical library; `set_option maxHeartbeats` raises the allowed computation time;\n`open …` lets you write `π` or `√` without a prefix. This header does not change the meaning of the statement, but\n`open Nat Real` makes some names ambiguous (`sqrt` exists in both): look at the types.\n\n## Types: which numbers are we talking about?\n\n| Lean | Mathematics | Watch out |\n|---|---|---|\n| `ℕ` | $\\mathbb{N} = \\{0, 1, 2, \\dots\\}$ | contains 0; truncated subtraction and division (see below) |\n| `ℤ` | $\\mathbb{Z}$ | `/` is Euclidean division: the remainder `%` is always $\\ge 0$, `-7 / 2 = -4` |\n| `ℚ`, `ℝ`, `ℂ` | $\\mathbb{Q}$, $\\mathbb{R}$, $\\mathbb{C}$ | division by zero is defined and equals 0 |\n| `Finset ℕ` | finite set of integers | `Finset.range n` $= \\{0, \\dots, n-1\\}$ |\n| `Set ℝ` | subset of $\\mathbb{R}$ | |\n| `ℕ → ℝ` | real sequence | `u n` is the term $u_n$ |\n\nWhen one statement mixes several types, Lean inserts **coercions**: `(n : ℝ)` or `↑n` denotes the integer $n$ seen\nas a real number. A statement like `(n : ℝ) / 2` does not mean the same as `n / 2` on `ℕ`.\n\n## Pitfalls that change the meaning\n\nThese translations are accepted by Lean, but do not say what one thinks.\n\n1. **Subtraction on ℕ**: `2 - 5 = 0` in `ℕ`. A statement about $a - b$ where $a < b$ is possible must be written in\n   `ℤ` or `ℝ`.\n2. **Division on ℕ and ℤ**: `7 / 2 = 3`. “$n/2$” in mathematics is often a rational number.\n3. **Division by zero**: in `ℝ`, `x / 0 = 0` by convention. A statement `x / y * y = x` is false for `y = 0`, and a\n   translation that forgets the hypothesis `y ≠ 0` may become false… or trivial.\n4. **Total functions**: `Real.sqrt (-1) = 0`, `Real.log 0 = 0`. A forgotten hypothesis ($x > 0$) causes no error.\n5. **Contradictory hypotheses**: if the hypotheses cannot all hold, *any* conclusion can be proved. A very short\n   proof of a hard statement is a warning sign.\n6. **Indices**: `Finset.range n` starts at 0. $\\sum_{k=1}^{n} k$ is translated `∑ k in Finset.Icc 1 n, k`; with\n   `Finset.range n` the sum runs from 0 to $n-1$.\n7. **Quantifiers**: order matters. `∀ ε > 0, ∃ N, …` is not `∃ N, ∀ ε > 0, …`.\n8. **“There exists a unique”** is written `∃! x, P x`; `∃ x, P x` does not assert uniqueness.\n\nNotation: in recent versions of Mathlib the sum is written `∑ k ∈ Finset.Icc 1 n, k`; the “Prover” workspace (Lean\n4.9) still uses `∑ k in …`.\n\n## A reading method\n\n1. Read the conclusion alone: is it really what you want to prove?\n2. List the hypotheses: is one missing? Is there one too many (a superfluous hypothesis makes the statement weaker)?\n3. Check the type of each variable.\n4. Look for a division, a subtraction, a root, a logarithm: are they in the right type, with the right hypotheses?\n5. Try to falsify the statement on a small example. If the Lean statement is true and yours false (or the reverse),\n   the translation is wrong.\n\nThe “Understand” panel (*Learn* mode) gives a line-by-line gloss written by a model: it helps reading, but it can be\nwrong too; the code is authoritative. The vocabulary is in the [Glossary](glossary.md).\n",text:`Reading a Lean statement Lean proves exactly the Lean statement, not the sentence you had in mind. This page teaches you to read a statement well enough to judge a translation, without knowing how to write proofs. Anatomy of a statement Piece Reading theorem sommepairs a theorem, and its name (chosen by Madalean, unique) (a b : ℕ) “let $a$ and $b$ be natural numbers” (ha : Even a) hypothesis named ha: “$a$ is even” (hb : Even b) hypothesis hb: “$b$ is even” : Even (a + b) after the last : outside parentheses comes the conclusion: “$a+b$ is even” := by sorry “the proof follows, in tactic mode”; sorry = proof still to be written Everything in parentheses before the last : is assumed; what comes after is to be proved. A statement with sorry is a statement without a proof: Lean accepts it as a statement, never as a proved theorem. The same thing can be written with quantifiers in the conclusion; it is equivalent: → reads “implies”; ∀ a b : ℕ, “for all natural numbers $a$, $b$”. The header Statements of the “Prover” workspace start with a fixed header: import Mathlib loads the mathematical library; setoption maxHeartbeats raises the allowed computation time; open … lets you write π or √ without a prefix. This header does not change the meaning of the statement, but open Nat Real makes some names ambiguous (sqrt exists in both): look at the types. Types: which numbers are we talking about? Lean Mathematics Watch out ℕ $\\mathbb{N} = \\{0, 1, 2, \\dots\\}$ contains 0; truncated subtraction and division (see below) ℤ $\\mathbb{Z}$ / is Euclidean division: the remainder % is always $\\ge 0$, -7 / 2 = -4 ℚ, ℝ, ℂ $\\mathbb{Q}$, $\\mathbb{R}$, $\\mathbb{C}$ division by zero is defined and equals 0 Finset ℕ finite set of integers Finset.range n $= \\{0, \\dots, n-1\\}$ Set ℝ subset of $\\mathbb{R}$ ℕ → ℝ real sequence u n is the term $un$ When one statement mixes several types, Lean inserts coercions: (n : ℝ) or ↑n denotes the integer $n$ seen as a real number. A statement like (n : ℝ) / 2 does not mean the same as n / 2 on ℕ. Pitfalls that change the meaning These translations are accepted by Lean, but do not say what one thinks. 1. Subtraction on ℕ: 2 - 5 = 0 in ℕ. A statement about $a - b$ where $a < b$ is possible must be written in ℤ or ℝ. 2. Division on ℕ and ℤ: 7 / 2 = 3. “$n/2$” in mathematics is often a rational number. 3. Division by zero: in ℝ, x / 0 = 0 by convention. A statement x / y y = x is false for y = 0, and a translation that forgets the hypothesis y ≠ 0 may become false… or trivial. 4. Total functions: Real.sqrt (-1) = 0, Real.log 0 = 0. A forgotten hypothesis ($x > 0$) causes no error. 5. Contradictory hypotheses: if the hypotheses cannot all hold, any conclusion can be proved. A very short proof of a hard statement is a warning sign. 6. Indices: Finset.range n starts at 0. $\\sum{k=1}^{n} k$ is translated ∑ k in Finset.Icc 1 n, k; with Finset.range n the sum runs from 0 to $n-1$. 7. Quantifiers: order matters. ∀ ε > 0, ∃ N, … is not ∃ N, ∀ ε > 0, …. 8. “There exists a unique” is written ∃! x, P x; ∃ x, P x does not assert uniqueness. Notation: in recent versions of Mathlib the sum is written ∑ k ∈ Finset.Icc 1 n, k; the “Prover” workspace (Lean 4.9) still uses ∑ k in …. A reading method 1. Read the conclusion alone: is it really what you want to prove? 2. List the hypotheses: is one missing? Is there one too many (a superfluous hypothesis makes the statement weaker)? 3. Check the type of each variable. 4. Look for a division, a subtraction, a root, a logarithm: are they in the right type, with the right hypotheses? 5. Try to falsify the statement on a small example. If the Lean statement is true and yours false (or the reverse), the translation is wrong. The “Understand” panel (Learn mode) gives a line-by-line gloss written by a model: it helps reading, but it can be wrong too; the code is authoritative. The vocabulary is in the Glossary.`},{id:`follow-ups`,lang:`en`,title:`Follow-up requests and versions`,order:120,section:`use`,audience:`all`,summary:`Continuing the discussion on a dossier, choosing which stage to redo, going back to an earlier version.`,source:`en/follow-ups.md`,site_path:`en/follow-ups.html`,headings:[{level:1,text:`Follow-up requests and versions`,id:`follow-up-requests-and-versions`},{level:2,text:`Which stage is redone?`,id:`which-stage-is-redone`},{level:2,text:`Versions`,id:`versions`},{level:2,text:`What the assistant remembers`,id:`what-the-assistant-remembers`}],images:[],verify:[],body:`# Follow-up requests and versions
+
+A dossier is never frozen. In the dossier thread, the field “A clarification, a correction?” accepts a request in
+plain language:
+
+- “add the hypothesis $n > 0$”
+- “and the converse?”
+- “a shorter proof”
+- “explain step 2”
+- “without using \`nlinarith\`”
+
+\`Ctrl+Enter\` sends.
+
+## Which stage is redone?
+
+The menu next to “Send” chooses what must change:
+
+| Choice | Effect |
+|---|---|
+| *Automatic* | a model reads the request and chooses the stage; failing that, keywords decide |
+| *Statement* | new Lean statement (following the request) → new proof → new explanation |
+| *Proof* | new proof of the same statement → new explanation |
+| *Explanation* | new explanation only |
+
+If the request changes the statement, the old proof no longer applies: Madalean searches for a new one. The buttons
+below the proof (“Simpler proof”, “Another method”, “Explain in more detail”, “Split into lemmas”) are ready-made
+requests.
+
+## Versions
+
+Each statement, each proof, each explanation produces a **new version**; nothing is erased. Each version shows its
+source (a model, with its name, or you), the request that produced it and, for a proof, its Lean verdict.
+
+“Go back to this one” makes a version current without deleting the others. Going back to a proof also brings back
+the statement it proves. A proof counts as the dossier's proof only if it proves the **current** statement.
+
+## What the assistant remembers
+
+- **Your profile** (“Settings › Profile”): read before every translation and every explanation.
+- **The dossier thread**: each correction builds on the previous versions.
+- **The library**: each proved result is offered as a lemma to later proofs in the same Lean workspace.
+- Lemma names already rejected by Lean in this dossier are no longer proposed.
+`,text:`Follow-up requests and versions A dossier is never frozen. In the dossier thread, the field “A clarification, a correction?” accepts a request in plain language: - “add the hypothesis $n > 0$” - “and the converse?” - “a shorter proof” - “explain step 2” - “without using nlinarith” Ctrl+Enter sends. Which stage is redone? The menu next to “Send” chooses what must change: Choice Effect Automatic a model reads the request and chooses the stage; failing that, keywords decide Statement new Lean statement (following the request) → new proof → new explanation Proof new proof of the same statement → new explanation Explanation new explanation only If the request changes the statement, the old proof no longer applies: Madalean searches for a new one. The buttons below the proof (“Simpler proof”, “Another method”, “Explain in more detail”, “Split into lemmas”) are ready-made requests. Versions Each statement, each proof, each explanation produces a new version; nothing is erased. Each version shows its source (a model, with its name, or you), the request that produced it and, for a proof, its Lean verdict. “Go back to this one” makes a version current without deleting the others. Going back to a proof also brings back the statement it proves. A proof counts as the dossier's proof only if it proves the current statement. What the assistant remembers - Your profile (“Settings › Profile”): read before every translation and every explanation. - The dossier thread: each correction builds on the previous versions. - The library: each proved result is offered as a lemma to later proofs in the same Lean workspace. - Lemma names already rejected by Lean in this dossier are no longer proposed.`},{id:`projects`,lang:`en`,title:`Projects and parallel dossiers`,order:130,section:`use`,audience:`all`,summary:`Grouping dossiers into projects, running several jobs at once, understanding the queue.`,source:`en/projects.md`,site_path:`en/projects.html`,headings:[{level:1,text:`Projects and parallel dossiers`,id:`projects-and-parallel-dossiers`},{level:2,text:`Projects`,id:`projects`},{level:2,text:`Several dossiers at once`,id:`several-dossiers-at-once`},{level:2,text:`On every device`,id:`on-every-device`},{level:2,text:`Lean workspaces`,id:`lean-workspaces`}],images:[{src:`img/activity.png`,exists:!0}],verify:[],body:`# Projects and parallel dossiers
+
+## Projects
+
+A **project** groups dossiers: a course chapter, a paper in preparation, a set of exercises. The selector at the top
+left (“All projects”) filters the list of dossiers. A project has its Lean workspace, its bibliography, its sources,
+its notes, its article outline.
+
+Deleting a project moves it to the trash: “Undo” restores it. Its dossiers are not deleted.
+
+## Several dossiers at once
+
+You can start as many dossiers as you like; they progress in parallel, limited by the host's resources:
+
+| Resource | Slots | Used by |
+|---|---|---|
+| graphics card | 1 | one local model at a time (Madalean switches models according to the stage) |
+| online | 3 | calls to online models |
+| Lean | 2 | compilations |
+
+A job only waits for the resource of its current stage; your jobs go before automatic retries. The “Activity” screen
+shows what is running, what is waiting and why (“waiting: graphics card”).
+
+![Activity: jobs in parallel](img/activity.png)
+
+A dossier has only one active job at a time; a new request on a busy dossier is refused with a clear message. Any job
+stops on request.
+
+## On every device
+
+All linked devices see the same projects, the same dossiers and the same jobs live. Start a proof from the phone,
+follow it on the PC. After a network cut, the device resynchronises by itself.
+
+## Lean workspaces
+
+Each project uses a Lean **workspace** (“Settings › Lean workspaces”):
+
+- *Prover*: Lean 4.9 and the Mathlib the Goedel models were trained on. Pinned: it is never updated, so that the
+  local models remain effective.
+- *Recent Lean*: latest Mathlib, updated automatically (see [Updates](updates.md)).
+
+A library result can be reused only in the workspace where it was proved.
+`,text:`Projects and parallel dossiers Projects A project groups dossiers: a course chapter, a paper in preparation, a set of exercises. The selector at the top left (“All projects”) filters the list of dossiers. A project has its Lean workspace, its bibliography, its sources, its notes, its article outline. Deleting a project moves it to the trash: “Undo” restores it. Its dossiers are not deleted. Several dossiers at once You can start as many dossiers as you like; they progress in parallel, limited by the host's resources: Resource Slots Used by graphics card 1 one local model at a time (Madalean switches models according to the stage) online 3 calls to online models Lean 2 compilations A job only waits for the resource of its current stage; your jobs go before automatic retries. The “Activity” screen shows what is running, what is waiting and why (“waiting: graphics card”). Activity: jobs in parallel A dossier has only one active job at a time; a new request on a busy dossier is refused with a clear message. Any job stops on request. On every device All linked devices see the same projects, the same dossiers and the same jobs live. Start a proof from the phone, follow it on the PC. After a network cut, the device resynchronises by itself. Lean workspaces Each project uses a Lean workspace (“Settings › Lean workspaces”): - Prover: Lean 4.9 and the Mathlib the Goedel models were trained on. Pinned: it is never updated, so that the local models remain effective. - Recent Lean: latest Mathlib, updated automatically (see Updates). A library result can be reused only in the workspace where it was proved.`},{id:`proof-plans`,lang:`en`,title:`Proof plans and lemmas`,order:140,section:`use`,audience:`researcher`,summary:`Splitting a result into lemmas proved in parallel, admitting temporarily, and what “proved modulo” means.`,source:`en/proof-plans.md`,site_path:`en/proof-plans.html`,headings:[{level:1,text:`Proof plans and lemmas`,id:`proof-plans-and-lemmas`},{level:2,text:`Split into lemmas (quick)`,id:`split-into-lemmas-quick`},{level:2,text:`Proof plan (guided)`,id:`proof-plan-guided`},{level:2,text:`Admitting temporarily`,id:`admitting-temporarily`},{level:2,text:`Good practice`,id:`good-practice`}],images:[],verify:[`verify after integration: button labels of the plan screen (S-D)`],body:`# Proof plans and lemmas
+
+A statement too big for a proof in one piece gets split. Madalean offers two tools.
+
+## Split into lemmas (quick)
+
+“Split into lemmas” on a dossier: a model proposes up to four lemmas in Lean (or you write them, one per paragraph).
+Each lemma becomes a **sub-dossier** started at once, in parallel. When all are finished and at least one is proved,
+the parent dossier is restarted automatically with the proved lemmas at its disposal.
+
+## Proof plan (guided)
+
+The plan is a **tree**: the root is the dossier's goal, each node an intermediate result with its statement in plain
+language, why it helps and, when possible, its Lean statement.
+
+1. “Draft a plan”: the model proposes a tree; you can give it an idea or paste the proof sketch of a paper.
+2. Correct by hand: add, delete, move, rewrite nodes. A manual edit is marked and never overwritten without your
+   consent (the old version stays restorable).
+3. Accept the nodes you keep, then “Start”: each accepted node becomes a sub-dossier; the leaves go first, an
+   internal node is proved once its children are.
+4. A node fails? “Split again” divides it in turn.
+
+Each change creates a version of the plan; if two devices edit the same plan, the second gets a conflict and
+reloads the up-to-date plan (plans are not merged automatically).
+
+## Admitting temporarily
+
+A node whose Lean statement is accepted can be marked “admitted for now”. The parent's proof can then rely on it:
+Lean compiles the parent with the admitted lemma written as \`sorry\`.
+
+The result is **proved modulo** the admitted lemmas. It is **not** a checked proof:
+
+- it is not recorded as the dossier's proof, which stays “not proved”;
+- the listed axioms contain \`sorryAx\`, Lean's trace of a \`sorry\`;
+- the plan shows “proved modulo N admitted lemmas” with their names.
+
+When each admitted lemma later gets a real proof, Madalean replaces the \`sorry\`s with the real lemmas and checks the
+parent again with the strict verdict. Only then is the dossier proved.
+
+## Good practice
+
+- State the lemmas in Lean as early as possible: a node without an accepted Lean statement can be neither proved nor
+  admitted.
+- Prefer **general**, short lemmas; they enter the library and are reused.
+- A lemma rejected several times is often badly stated (missing hypothesis) rather than hard: read it again as in
+  [Reading a Lean statement](reading-lean.md).
+`,text:`Proof plans and lemmas A statement too big for a proof in one piece gets split. Madalean offers two tools. Split into lemmas (quick) “Split into lemmas” on a dossier: a model proposes up to four lemmas in Lean (or you write them, one per paragraph). Each lemma becomes a sub-dossier started at once, in parallel. When all are finished and at least one is proved, the parent dossier is restarted automatically with the proved lemmas at its disposal. Proof plan (guided) The plan is a tree: the root is the dossier's goal, each node an intermediate result with its statement in plain language, why it helps and, when possible, its Lean statement. 1. “Draft a plan”: the model proposes a tree; you can give it an idea or paste the proof sketch of a paper. 2. Correct by hand: add, delete, move, rewrite nodes. A manual edit is marked and never overwritten without your consent (the old version stays restorable). 3. Accept the nodes you keep, then “Start”: each accepted node becomes a sub-dossier; the leaves go first, an internal node is proved once its children are. 4. A node fails? “Split again” divides it in turn. Each change creates a version of the plan; if two devices edit the same plan, the second gets a conflict and reloads the up-to-date plan (plans are not merged automatically). Admitting temporarily A node whose Lean statement is accepted can be marked “admitted for now”. The parent's proof can then rely on it: Lean compiles the parent with the admitted lemma written as sorry. The result is proved modulo the admitted lemmas. It is not a checked proof: - it is not recorded as the dossier's proof, which stays “not proved”; - the listed axioms contain sorryAx, Lean's trace of a sorry; - the plan shows “proved modulo N admitted lemmas” with their names. When each admitted lemma later gets a real proof, Madalean replaces the sorrys with the real lemmas and checks the parent again with the strict verdict. Only then is the dossier proved. Good practice - State the lemmas in Lean as early as possible: a node without an accepted Lean statement can be neither proved nor admitted. - Prefer general, short lemmas; they enter the library and are reused. - A lemma rejected several times is often badly stated (missing hypothesis) rather than hard: read it again as in Reading a Lean statement.`},{id:`library`,lang:`en`,title:`Library of results`,order:150,section:`use`,audience:`all`,summary:`Your proven results, organised by domain, project or tag, with their status, who proved them, what they use, and export.`,source:`en/library.md`,site_path:`en/library.html`,headings:[{level:1,text:`Library of results`,id:`library-of-results`}],images:[],verify:[],body:`# Library of results
+
+Every proof accepted by Lean goes into the **Library**; these results are then offered as lemmas to your next proofs
+(same Lean and Mathlib version).
+
+- **Group by** domain (classified automatically from the statement, editable), project or tag.
+- **Cards** or **Table**: the choice is remembered on this device.
+- **Status**: *Verified* (Lean accepted the proof, strict verdict) or *Conditional* (proof obtained by admitting
+  lemmas of a proof plan: nothing is verified until they are proved).
+- For each result: the statement in words and in Lean, the model (or you) that proved it, the axioms, what it
+  **uses** and what **uses it**.
+- **Export**: everything as Markdown or JSON; a single result as \`.lean\` (with the results it depends on).
+
+Domain and tags are shared between your devices. Removing a result can be undone.
+`,text:`Library of results Every proof accepted by Lean goes into the Library; these results are then offered as lemmas to your next proofs (same Lean and Mathlib version). - Group by domain (classified automatically from the statement, editable), project or tag. - Cards or Table: the choice is remembered on this device. - Status: Verified (Lean accepted the proof, strict verdict) or Conditional (proof obtained by admitting lemmas of a proof plan: nothing is verified until they are proved). - For each result: the statement in words and in Lean, the model (or you) that proved it, the axioms, what it uses and what uses it. - Export: everything as Markdown or JSON; a single result as .lean (with the results it depends on). Domain and tags are shared between your devices. Removing a result can be undone.`},{id:`conjectures`,lang:`en`,title:`Conjecture workshop`,order:200,section:`research`,audience:`researcher`,summary:`Proposing conjectures, testing them (Lean on small cases, Sage, counter-examples) before believing them, and promoting them by a proof.`,source:`en/conjectures.md`,site_path:`en/conjectures.html`,headings:[{level:1,text:`Conjecture workshop`,id:`conjecture-workshop`},{level:2,text:`Where conjectures come from`,id:`where-conjectures-come-from`},{level:2,text:`States of a conjecture`,id:`states-of-a-conjecture`},{level:2,text:`Testing before believing`,id:`testing-before-believing`},{level:2,text:`The evidence log`,id:`the-evidence-log`},{level:2,text:`Promoting`,id:`promoting`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Conjecture workshop
+
+A conjecture is a dossier of a particular kind, with an **evidence log**: everything that was tried to test it. A
+conjecture becomes a theorem only through a Lean proof.
+
+## Where conjectures come from
+
+- You write it (in plain language, and in Lean if you wish).
+- “Propose conjectures”: from the project context you select (notes, dossiers, library results, sources), a model
+  proposes a few with their motivation. Proposals that are already known (duplicate of a dossier, library result,
+  lemma found in Mathlib) are set aside and listed separately with the reason.
+
+## States of a conjecture
+
+| State | Meaning |
+|---|---|
+| proposed | stated, nothing tested |
+| tested on n cases | particular cases held (Lean or experiments) |
+| Lean statement | a Lean statement is accepted by Lean |
+| proved | the dossier's current proof passes the strict verdict |
+| refuted | a counter-example was **checked again** independently |
+
+## Testing before believing
+
+**Small cases in Lean.** Madalean writes one \`example\` per case (by default $n = 0, \\dots, 9$ for the first integer
+variable) and tries to close it by computation (\`norm_num\`, \`decide\`, \`simp\`, \`omega\`). Option: a bounded statement
+\`∀ n < K, …\` closed by \`decide\`. These tests prove nothing beyond the cases tested.
+
+**Sage or Python experiments.** The model writes (or you write) a two-part program: a predicate \`holds(...)\` and a
+search that calls \`report(...)\`. **The code is shown to you and runs only after you approve this exact code**; any
+edit cancels the approval. Runs are confined (see [Security](security.md#code-run-on-the-host)) and limited in time
+and memory.
+
+**Counter-example.** An announced counter-example is not taken on trust: the predicate alone is re-evaluated at the
+witness in a fresh kernel and, if the conjecture has a Lean statement, Lean must accept the negation of the statement
+at the witness. Only then does the conjecture become “refuted”.
+
+**Literature.** “Search the literature” queries the bibliographic databases (see [Sources](sources.md)) to find out
+whether the statement is known.
+
+## The evidence log
+
+Each test, experiment, check or search adds a dated entry (with the code run, the output, the model and the device).
+The log is **append-only** and its entries are chained by SHA-256 fingerprints: an entry modified afterwards shows
+(“chain intact” / “chain broken”).
+
+## Promoting
+
+When the conjecture is proved, “Promote to theorem” changes its kind; the history is kept.
+
+Example from demo mode: “$n^2 + n + 41$ is prime for every $n$” holds for $n = 0, \\dots, 9$ in Lean, then an
+experiment finds $n = 40$ ($40^2 + 40 + 41 = 41^2$), checked again: refuted.
+`,text:`Conjecture workshop A conjecture is a dossier of a particular kind, with an evidence log: everything that was tried to test it. A conjecture becomes a theorem only through a Lean proof. Where conjectures come from - You write it (in plain language, and in Lean if you wish). - “Propose conjectures”: from the project context you select (notes, dossiers, library results, sources), a model proposes a few with their motivation. Proposals that are already known (duplicate of a dossier, library result, lemma found in Mathlib) are set aside and listed separately with the reason. States of a conjecture State Meaning proposed stated, nothing tested tested on n cases particular cases held (Lean or experiments) Lean statement a Lean statement is accepted by Lean proved the dossier's current proof passes the strict verdict refuted a counter-example was checked again independently Testing before believing Small cases in Lean. Madalean writes one example per case (by default $n = 0, \\dots, 9$ for the first integer variable) and tries to close it by computation (normnum, decide, simp, omega). Option: a bounded statement ∀ n < K, … closed by decide. These tests prove nothing beyond the cases tested. Sage or Python experiments. The model writes (or you write) a two-part program: a predicate holds(...) and a search that calls report(...). The code is shown to you and runs only after you approve this exact code; any edit cancels the approval. Runs are confined (see Security) and limited in time and memory. Counter-example. An announced counter-example is not taken on trust: the predicate alone is re-evaluated at the witness in a fresh kernel and, if the conjecture has a Lean statement, Lean must accept the negation of the statement at the witness. Only then does the conjecture become “refuted”. Literature. “Search the literature” queries the bibliographic databases (see Sources) to find out whether the statement is known. The evidence log Each test, experiment, check or search adds a dated entry (with the code run, the output, the model and the device). The log is append-only and its entries are chained by SHA-256 fingerprints: an entry modified afterwards shows (“chain intact” / “chain broken”). Promoting When the conjecture is proved, “Promote to theorem” changes its kind; the history is kept. Example from demo mode: “$n^2 + n + 41$ is prime for every $n$” holds for $n = 0, \\dots, 9$ in Lean, then an experiment finds $n = 40$ ($40^2 + 40 + 41 = 41^2$), checked again: refuted.`},{id:`calcul`,lang:`en`,title:`Compute (Sage and Python)`,order:205,section:`research`,audience:`researcher`,summary:`Sage or Python cells in an offline sandbox, the assistant alongside, and one click to turn a result into a conjecture, a note, a Lean dossier or an article block.`,source:`en/calcul.md`,site_path:`en/calcul.html`,headings:[{level:1,text:`Compute (Sage and Python)`,id:`compute-sage-and-python`},{level:2,text:`Who can run what`,id:`who-can-run-what`},{level:2,text:`The assistant`,id:`the-assistant`},{level:2,text:`Outputs`,id:`outputs`},{level:2,text:`Using a result`,id:`using-a-result`},{level:2,text:`SageMath not installed yet`,id:`sagemath-not-installed-yet`}],images:[],verify:[`verify after integration: Sage on-demand install progress from the Calcul screen on a machine without Sage`],body:`# Compute (Sage and Python)
+
+The **Compute** screen (project menu) is one worksheet per project: a list of SageMath or Python cells run on the
+host computer in the **same sandbox** as the conjecture workshop's experiments: no network access, no access to your
+keys or personal files, limited time and output. Variables persist from one cell to the next (one kernel per
+project).
+
+## Who can run what
+
+- **Your cells** (the ones you type) run when you click **Run** (or Ctrl+Enter).
+- **The assistant's cells** are marked “To review”: they run only after **Approve this code**. The approval is for
+  that exact code: if you or the assistant change it, read it and approve it again.
+- From a paired phone or tablet you can read and write cells; running them is allowed only when the host enabled
+  “experiments from devices” (host-only setting).
+
+## The assistant
+
+On the right (at the top on a phone), describe the computation you want: the assistant **writes a cell**. Under each
+cell, **Fix** proposes a repaired version after an error, **Explain** comments on the code and its output. A
+computation proves nothing in general: it checks cases.
+
+## Outputs
+
+Text, formulas (with \`tex(x)\`, rendered by KaTeX) and plots (PNG or SVG, sanitised before display). Each cell keeps
+its latest runs and the versions of its code (**History**).
+
+## Using a result
+
+Under a successful output:
+
+| Button | Effect |
+|---|---|
+| → Conjecture | creates a project conjecture; the computation is attached as motivation |
+| → Note | copies the code and its output into a note (tag “calcul”) |
+| → Lean dossier | opens a dossier with the statement you write; nothing starts before you open it |
+| → Article | adds the formula or the output as a block of the project's article |
+
+Plots are not yet copied into the article's PDF export.
+
+## SageMath not installed yet
+
+Python cells work right away. SageMath (about 2 GB) installs on demand: **Install SageMath** button on the host,
+with progress shown.
+`,text:`Compute (Sage and Python) The Compute screen (project menu) is one worksheet per project: a list of SageMath or Python cells run on the host computer in the same sandbox as the conjecture workshop's experiments: no network access, no access to your keys or personal files, limited time and output. Variables persist from one cell to the next (one kernel per project). Who can run what - Your cells (the ones you type) run when you click Run (or Ctrl+Enter). - The assistant's cells are marked “To review”: they run only after Approve this code. The approval is for that exact code: if you or the assistant change it, read it and approve it again. - From a paired phone or tablet you can read and write cells; running them is allowed only when the host enabled “experiments from devices” (host-only setting). The assistant On the right (at the top on a phone), describe the computation you want: the assistant writes a cell. Under each cell, Fix proposes a repaired version after an error, Explain comments on the code and its output. A computation proves nothing in general: it checks cases. Outputs Text, formulas (with tex(x), rendered by KaTeX) and plots (PNG or SVG, sanitised before display). Each cell keeps its latest runs and the versions of its code (History). Using a result Under a successful output: Button Effect → Conjecture creates a project conjecture; the computation is attached as motivation → Note copies the code and its output into a note (tag “calcul”) → Lean dossier opens a dossier with the statement you write; nothing starts before you open it → Article adds the formula or the output as a block of the project's article Plots are not yet copied into the article's PDF export. SageMath not installed yet Python cells work right away. SageMath (about 2 GB) installs on demand: Install SageMath button on the host, with progress shown.`},{id:`sources`,lang:`en`,title:`Sources, literature search and grounded questions`,order:210,section:`research`,audience:`researcher`,summary:`The sources library (papers, books), searching the databases, the annotated reader, and answers that cite your sources.`,source:`en/sources.md`,site_path:`en/sources.html`,headings:[{level:1,text:`Sources, literature search and grounded questions`,id:`sources-literature-search-and-grounded-questions`},{level:2,text:`The sources library`,id:`the-sources-library`},{level:2,text:`Literature search`,id:`literature-search`},{level:2,text:`Reading and annotating`,id:`reading-and-annotating`},{level:2,text:`Questions grounded in your sources`,id:`questions-grounded-in-your-sources`},{level:2,text:`What goes over the Internet`,id:`what-goes-over-the-internet`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Sources, literature search and grounded questions
+
+## The sources library
+
+Papers, books, lecture notes, arranged on **shelves**: one per project, a general shelf, and the *Mathlib* shelf
+(read-only, taken from Mathlib's bibliography). To add a source:
+
+| By | What Madalean does |
+|---|---|
+| DOI, arXiv identifier, ISBN, \`Zbl …\`, OpenAlex identifier | fetches verified metadata; for arXiv, also the TeX sources and the PDF; for a DOI, the PDF only if it is open access |
+| URL | metadata of the page only |
+| PDF, TeX, archive or EPUB file | looks for an identifier in the first pages; otherwise guessed metadata, marked **unverified** |
+| BibTeX, RIS, CSL-JSON, Zotero export (RDF or zip) | imports the references and the files attached in the archive |
+| form | manual entry |
+
+Duplicates (same DOI, same arXiv id, very close title) are flagged. Each source has tags, collections, a reading
+status, notes, and its BibTeX key. Export as BibTeX, RIS or CSL-JSON.
+
+Metadata guessed from a file, or proposed by a model, stays marked “unverified” until you confirm it.
+
+## Literature search
+
+“Search for papers” queries arXiv, zbMATH Open, Crossref, OpenAlex and Semantic Scholar. **Only your query is
+sent.** A provider that does not answer is reported, without blocking the others. From a paper: related, citing and
+cited works (OpenAlex).
+
+“Reading list”: from a question, a model chooses among results **actually returned by the databases** and says why;
+it cannot invent a reference (any unknown identifier is rejected and counted).
+
+In *Local* mode these searches are refused: they need the network.
+
+## Reading and annotating
+
+The reader shows the PDF next to the extracted text. Highlight, add a margin note: annotations are anchored to the
+page and position, and can be found by search.
+
+The full text of each source is indexed **locally**, split into passages with their page and section. For a PDF
+without a text layer (scan), character recognition exists, but formulas read this way are not reliable.
+
+## Questions grounded in your sources
+
+Ask a question about a source, a project, or a selection: the answer cites precise **passages**.
+
+- Each citation leads to the passage (click: the page opens at the right place).
+- The citation is checked by code: the cited passage must contain the quoted text. A sentence without a valid
+  citation is shown struck through or greyed.
+- If no relevant passage is found, the answer says so, **without calling a model**.
+- An optional “general knowledge” part is kept separate and marked as such, without citations.
+
+What the check guarantees: the cited passage exists and contains the quotation. What it does not guarantee: that the
+passage *justifies* the sentence. Read the passage for the important points.
+
+Other requests: “Summarise” (what the paper proves, its definitions, its dependencies), “Compare” two to four
+sources.
+
+## What goes over the Internet
+
+Search queries, identifiers (DOI, arXiv…) and the download of open-access files. Questions about your sources go
+through the chosen model, with the retained passages: in *Local* mode, only through a local model. See
+[Models and keys](models-keys.md#what-is-sent-and-to-whom).
+`,text:`Sources, literature search and grounded questions The sources library Papers, books, lecture notes, arranged on shelves: one per project, a general shelf, and the Mathlib shelf (read-only, taken from Mathlib's bibliography). To add a source: By What Madalean does DOI, arXiv identifier, ISBN, Zbl …, OpenAlex identifier fetches verified metadata; for arXiv, also the TeX sources and the PDF; for a DOI, the PDF only if it is open access URL metadata of the page only PDF, TeX, archive or EPUB file looks for an identifier in the first pages; otherwise guessed metadata, marked unverified BibTeX, RIS, CSL-JSON, Zotero export (RDF or zip) imports the references and the files attached in the archive form manual entry Duplicates (same DOI, same arXiv id, very close title) are flagged. Each source has tags, collections, a reading status, notes, and its BibTeX key. Export as BibTeX, RIS or CSL-JSON. Metadata guessed from a file, or proposed by a model, stays marked “unverified” until you confirm it. Literature search “Search for papers” queries arXiv, zbMATH Open, Crossref, OpenAlex and Semantic Scholar. Only your query is sent. A provider that does not answer is reported, without blocking the others. From a paper: related, citing and cited works (OpenAlex). “Reading list”: from a question, a model chooses among results actually returned by the databases and says why; it cannot invent a reference (any unknown identifier is rejected and counted). In Local mode these searches are refused: they need the network. Reading and annotating The reader shows the PDF next to the extracted text. Highlight, add a margin note: annotations are anchored to the page and position, and can be found by search. The full text of each source is indexed locally, split into passages with their page and section. For a PDF without a text layer (scan), character recognition exists, but formulas read this way are not reliable. Questions grounded in your sources Ask a question about a source, a project, or a selection: the answer cites precise passages. - Each citation leads to the passage (click: the page opens at the right place). - The citation is checked by code: the cited passage must contain the quoted text. A sentence without a valid citation is shown struck through or greyed. - If no relevant passage is found, the answer says so, without calling a model. - An optional “general knowledge” part is kept separate and marked as such, without citations. What the check guarantees: the cited passage exists and contains the quotation. What it does not guarantee: that the passage justifies the sentence. Read the passage for the important points. Other requests: “Summarise” (what the paper proves, its definitions, its dependencies), “Compare” two to four sources. What goes over the Internet Search queries, identifiers (DOI, arXiv…) and the download of open-access files. Questions about your sources go through the chosen model, with the retained passages: in Local mode, only through a local model. See Models and keys.`},{id:`articles`,lang:`en`,title:`Bibliography, article and blueprint`,order:220,section:`research`,audience:`researcher`,summary:`Citing in proofs, writing an article from a project, turning a paper into a blueprint of Lean dossiers, and what is reliable.`,source:`en/articles.md`,site_path:`en/articles.html`,headings:[{level:1,text:`Bibliography, article and blueprint`,id:`bibliography-article-and-blueprint`},{level:2,text:`What is reliable, and what is not`,id:`what-is-reliable-and-what-is-not`},{level:2,text:`Citing`,id:`citing`},{level:2,text:`Writing the article`,id:`writing-the-article`},{level:2,text:`From a paper to a blueprint`,id:`from-a-paper-to-a-blueprint`},{level:2,text:`Publishing`,id:`publishing`}],images:[],verify:[`verify after integration: button and screen names of the research screens (S-D)`],body:`# Bibliography, article and blueprint
+
+## What is reliable, and what is not
+
+| Feature | Reliability | How |
+|---|---|---|
+| Bibliography in proofs and exports | High | One BibTeX file per project. Add by DOI, arXiv, zbMATH, pasted BibTeX, or from Mathlib's bibliography. A model may only cite existing keys: an invented reference is removed by code, never printed. |
+| Lean → article | High for the structure, model-dependent for the prose | Project → LaTeX article (amsart): abstract, sections, each dossier as theorem + written proof, optional Lean appendix, bibliography, verification table. An unproved statement is typeset as a conjecture or claim, marked — never as a theorem. |
+| Paper → structured statements | High from LaTeX sources (arXiv), medium from a PDF | arXiv sources first; a PDF through its text layer, and a model that reads PDFs when a key allows it; formulas from a scanned PDF are not reliable without review. Result: a **blueprint**, one dossier per definition, lemma or theorem, with the original text, its place in the paper and its dependencies. |
+| Paper → Lean statements | Medium (textbook, graduate level), low (research level with objects absent from Mathlib) | Each node goes through understanding → translation with lemma retrieval; missing definitions are detected and become nodes “to define”. Always reviewed by you: the paper's text is shown next to the Lean statement. |
+| Paper → Lean proofs | Low to medium | The paper's proof is given to the prover as a hint. Elementary lemmas are often proved, deep results rarely. The graph shows honestly what is proved, only stated, or blocked. |
+
+**No result is presented as verified unless Lean accepted its proof and the proofs of all its dependencies.**
+
+## Citing
+
+In any text (statement, written proof, explanation, note, article section), a citation uses the BibTeX key:
+\`[@hardy-wright]\`, \`[@hardy-wright, Thm 2.1]\`, \`[see @a, p. 3; @b]\`. Autocompletion offers the project's keys. Exports
+print only the cited references: PDF with biblatex and biber if installed, otherwise BibTeX; the \`.zip\` contains
+\`refs.bib\`.
+
+## Writing the article
+
+“Write the article” assembles an article from the project: title, authors, abstract, sections, one block per
+dossier. Each block is an editable, versioned draft. The verification table gives, for each result: Lean name,
+state (verified, statement accepted, no), Lean version, Mathlib revision, axioms. Output: PDF, \`.tex\`, \`.md\`, and a
+\`.zip\` with the Lean files of the verified results.
+
+## From a paper to a blueprint
+
+1. Add the paper to your sources (preferably by its arXiv identifier: the LaTeX sources give a much better result
+   than the PDF).
+2. “Extract the blueprint”: definitions, lemmas, theorems, with their number (“Lemma 2.3”), text, proof, and the
+   dependencies found in the proofs (\`\\ref\`, “by Lemma 2.3”).
+3. Dependencies written in prose (“by the previous lemma”) often escape extraction: an optional model pass
+   proposes edges **marked “proposed”**, which you accept or reject.
+4. Create the dossiers: each node becomes a dossier linked to the source and to its location in the paper.
+5. The **blueprint graph** colours each node by its state: not created, stated, Lean statement accepted, defined,
+   proved, verified (proved and all its dependencies verified), blocked (uses a definition without an accepted Lean
+   statement). A click opens the dossier.
+
+Honest measurement (three short arXiv papers, checked by hand): statements found 12 of 12 from the TeX and from the
+PDF; proofs 10 of 11 from the TeX, 8 of 11 from the PDF; dependencies written in prose: 2 of 7 without a model pass.
+These figures come from a small sample.
+
+## Publishing
+
+A project can be published as a static site that anyone can verify: see [Publishing a project](publish.md).
+`,text:`Bibliography, article and blueprint What is reliable, and what is not Feature Reliability How Bibliography in proofs and exports High One BibTeX file per project. Add by DOI, arXiv, zbMATH, pasted BibTeX, or from Mathlib's bibliography. A model may only cite existing keys: an invented reference is removed by code, never printed. Lean → article High for the structure, model-dependent for the prose Project → LaTeX article (amsart): abstract, sections, each dossier as theorem + written proof, optional Lean appendix, bibliography, verification table. An unproved statement is typeset as a conjecture or claim, marked — never as a theorem. Paper → structured statements High from LaTeX sources (arXiv), medium from a PDF arXiv sources first; a PDF through its text layer, and a model that reads PDFs when a key allows it; formulas from a scanned PDF are not reliable without review. Result: a blueprint, one dossier per definition, lemma or theorem, with the original text, its place in the paper and its dependencies. Paper → Lean statements Medium (textbook, graduate level), low (research level with objects absent from Mathlib) Each node goes through understanding → translation with lemma retrieval; missing definitions are detected and become nodes “to define”. Always reviewed by you: the paper's text is shown next to the Lean statement. Paper → Lean proofs Low to medium The paper's proof is given to the prover as a hint. Elementary lemmas are often proved, deep results rarely. The graph shows honestly what is proved, only stated, or blocked. No result is presented as verified unless Lean accepted its proof and the proofs of all its dependencies. Citing In any text (statement, written proof, explanation, note, article section), a citation uses the BibTeX key: [@hardy-wright], [@hardy-wright, Thm 2.1], [see @a, p. 3; @b]. Autocompletion offers the project's keys. Exports print only the cited references: PDF with biblatex and biber if installed, otherwise BibTeX; the .zip contains refs.bib. Writing the article “Write the article” assembles an article from the project: title, authors, abstract, sections, one block per dossier. Each block is an editable, versioned draft. The verification table gives, for each result: Lean name, state (verified, statement accepted, no), Lean version, Mathlib revision, axioms. Output: PDF, .tex, .md, and a .zip with the Lean files of the verified results. From a paper to a blueprint 1. Add the paper to your sources (preferably by its arXiv identifier: the LaTeX sources give a much better result than the PDF). 2. “Extract the blueprint”: definitions, lemmas, theorems, with their number (“Lemma 2.3”), text, proof, and the dependencies found in the proofs (\\ref, “by Lemma 2.3”). 3. Dependencies written in prose (“by the previous lemma”) often escape extraction: an optional model pass proposes edges marked “proposed”, which you accept or reject. 4. Create the dossiers: each node becomes a dossier linked to the source and to its location in the paper. 5. The blueprint graph colours each node by its state: not created, stated, Lean statement accepted, defined, proved, verified (proved and all its dependencies verified), blocked (uses a definition without an accepted Lean statement). A click opens the dossier. Honest measurement (three short arXiv papers, checked by hand): statements found 12 of 12 from the TeX and from the PDF; proofs 10 of 11 from the TeX, 8 of 11 from the PDF; dependencies written in prose: 2 of 7 without a model pass. These figures come from a small sample. Publishing A project can be published as a static site that anyone can verify: see Publishing a project.`},{id:`notes`,lang:`en`,title:`Notes`,order:230,section:`research`,audience:`all`,summary:`Linked notes in Markdown, LaTeX and Lean; links, backlinks, graph, versions and editing on several devices.`,source:`en/notes.md`,site_path:`en/notes.html`,headings:[{level:1,text:`Notes`,id:`notes`},{level:2,text:`Links`,id:`links`},{level:2,text:`Lean in notes`,id:`lean-in-notes`},{level:2,text:`Research log`,id:`research-log`},{level:2,text:`Versions and several devices`,id:`versions-and-several-devices`},{level:2,text:`Attachments and export`,id:`attachments-and-export`}],images:[],verify:[`verify after integration: button labels in the notes editor (S-D)`],body:`# Notes
+
+Notes belong to Madalean (this is not an Obsidian vault) and are filed by project. They are written in Markdown,
+with \`$…$\` and \`$$…$$\` formulas and Lean code blocks.
+
+## Links
+
+| Syntax | Target |
+|---|---|
+| \`[[Title]]\`, \`[[Title\\|displayed text]]\` | a note of the same project (title, case-insensitive) |
+| \`[[dossier:Title]]\` or \`[[dossier:ID]]\` | a dossier (theorem, conjecture, lemma…) |
+| \`[[@key]]\`, \`[[@key#p12]]\` | a source, optionally at a page |
+| \`[[passage:ID]]\` | a specific passage of a source |
+| \`[[lib:Name]]\` | a library result (Lean name) |
+
+Each note shows its **backlinks** (the notes pointing to it). The project's **graph** connects notes, dossiers and
+sources; it can be filtered by tag. Tags are written \`#tag\` in the text.
+
+Renaming a note updates the \`[[Old title]]\` links in the project's other notes.
+
+## Lean in notes
+
+“Check with Lean” compiles every \`lean\` block of the note in the project's workspace and shows the errors at the
+right line. “Create a dossier” from a block containing a theorem opens a dossier with that statement (or, from a
+paragraph, a dossier whose problem it is) and adds a link to it below the block.
+
+## Research log
+
+“Today's note” creates (or opens) the note dated today, with the list of dossiers worked on that day.
+
+## Versions and several devices
+
+Every save creates a revision; all are kept. Two revisions can be compared and an old one restored (which creates a
+new revision: nothing is lost). A deleted note goes to the trash.
+
+If the same note is edited on two devices, changes to different lines are merged automatically. If both devices
+changed the same lines, Madalean shows both versions of each conflicting passage and you choose.
+
+## Attachments and export
+
+Images (PNG, JPEG, GIF, WebP) and PDFs up to 10 MB. Export a note, or the whole notebook of the project, as
+Markdown, HTML or PDF.
+`,text:`Notes Notes belong to Madalean (this is not an Obsidian vault) and are filed by project. They are written in Markdown, with $…$ and $$…$$ formulas and Lean code blocks. Links Syntax Target [[Title]], [[Title displayed text]] a note of the same project (title, case-insensitive) [[dossier:Title]] or [[dossier:ID]] a dossier (theorem, conjecture, lemma…) [[@key]], [[@key#p12]] a source, optionally at a page [[passage:ID]] a specific passage of a source [[lib:Name]] a library result (Lean name) Each note shows its backlinks (the notes pointing to it). The project's graph connects notes, dossiers and sources; it can be filtered by tag. Tags are written #tag in the text. Renaming a note updates the [[Old title]] links in the project's other notes. Lean in notes “Check with Lean” compiles every lean block of the note in the project's workspace and shows the errors at the right line. “Create a dossier” from a block containing a theorem opens a dossier with that statement (or, from a paragraph, a dossier whose problem it is) and adds a link to it below the block. Research log “Today's note” creates (or opens) the note dated today, with the list of dossiers worked on that day. Versions and several devices Every save creates a revision; all are kept. Two revisions can be compared and an old one restored (which creates a new revision: nothing is lost). A deleted note goes to the trash. If the same note is edited on two devices, changes to different lines are merged automatically. If both devices changed the same lines, Madalean shows both versions of each conflicting passage and you choose. Attachments and export Images (PNG, JPEG, GIF, WebP) and PDFs up to 10 MB. Export a note, or the whole notebook of the project, as Markdown, HTML or PDF.`},{id:`jupyter`,lang:`en`,title:`Jupyter and Sage`,order:240,section:`research`,audience:`researcher`,summary:`Built-in JupyterLab with the Python and SageMath kernels, the assistant next to the notebook, and who can access it.`,source:`en/jupyter.md`,site_path:`en/jupyter.html`,headings:[{level:1,text:`Jupyter and Sage`,id:`jupyter-and-sage`},{level:2,text:`Kernels`,id:`kernels`},{level:2,text:`The assistant next to the notebook`,id:`the-assistant-next-to-the-notebook`},{level:2,text:`Who can access it`,id:`who-can-access-it`}],images:[],verify:[],body:`# Jupyter and Sage
+
+The “Notebook” screen opens **JupyterLab**, started on demand by the host computer, behind the same connection as
+the rest of Madalean. Notebooks are stored in \`~/Documents/Madalean/notebooks/\`.
+
+## Kernels
+
+| Kernel | Available if |
+|---|---|
+| Python 3 | always (with JupyterLab) |
+| SageMath | Sage is installed on the host (your distribution's package) |
+| Lean 4 | not provided: no Lean 4 kernel is reliable enough today. Use dossiers or the \`lean\` blocks of [notes](notes.md). |
+
+Madalean does not install Sage itself (it never runs \`sudo\`): “Settings › Updates” gives the exact command for your
+distribution.
+
+## The assistant next to the notebook
+
+The assistant panel reads the open notebook (cells and outputs) and can **append a cell** at the end, which you run
+yourself. It answers with the model of the current mode; in *Local* mode, only a local model.
+
+## Who can access it
+
+A Jupyter kernel runs arbitrary code on the host computer. Therefore:
+
+- on the host, the notebook is always available;
+- from a linked device, it is reachable only if the host allowed it (“Settings › Notebook and access”), a setting
+  that can be changed **only from the host**;
+- Jupyter's internal token never leaves the server.
+
+The experiments of the [conjecture workshop](conjectures.md) use separate, confined kernels, and run only after your
+approval.
+`,text:`Jupyter and Sage The “Notebook” screen opens JupyterLab, started on demand by the host computer, behind the same connection as the rest of Madalean. Notebooks are stored in ~/Documents/Madalean/notebooks/. Kernels Kernel Available if Python 3 always (with JupyterLab) SageMath Sage is installed on the host (your distribution's package) Lean 4 not provided: no Lean 4 kernel is reliable enough today. Use dossiers or the lean blocks of notes. Madalean does not install Sage itself (it never runs sudo): “Settings › Updates” gives the exact command for your distribution. The assistant next to the notebook The assistant panel reads the open notebook (cells and outputs) and can append a cell at the end, which you run yourself. It answers with the model of the current mode; in Local mode, only a local model. Who can access it A Jupyter kernel runs arbitrary code on the host computer. Therefore: - on the host, the notebook is always available; - from a linked device, it is reachable only if the host allowed it (“Settings › Notebook and access”), a setting that can be changed only from the host; - Jupyter's internal token never leaves the server. The experiments of the conjecture workshop use separate, confined kernels, and run only after your approval.`},{id:`publish`,lang:`en`,title:`Publishing a project`,order:250,section:`research`,audience:`researcher`,summary:`Publish a verified project as a static site on a GitHub repository of your choice, independently re-verified by lake build.`,source:`en/publish.md`,site_path:`en/publish.html`,headings:[{level:1,text:`Publishing a project`,id:`publishing-a-project`},{level:2,text:`What leaves the machine, and only with your consent`,id:`what-leaves-the-machine-and-only-with-your-consent`},{level:2,text:`What the site shows`,id:`what-the-site-shows`}],images:[],verify:[`verify after integration: the “Publier” feature is not built yet; this page describes the design of ARCHITECTURE §17 and the template in site/publication`],body:`# Publishing a project
+
+
+“Publish” turns a project into a **static site** that anyone can read and re-verify:
+
+- the article (HTML and PDF);
+- the blueprint's **dependency graph**, with the state of each result;
+- one page per statement: natural-language statement, highlighted Lean code, written proof, verification
+  information (Lean version, Mathlib revision, axioms, date);
+- the bibliography;
+- the complete **Lake project** to download.
+
+The site is pushed to a GitHub repository **of your choice**, with a GitHub Action that re-runs \`lake build\` on the
+published Lean project. The verification badge shown on the site comes from that action, independent of your
+computer: a reader does not have to take Madalean's word for it.
+
+## What leaves the machine, and only with your consent
+
+1. “Preview” builds the site locally: you browse it before anything is published.
+2. The publish screen lists **exactly** what will leave the machine: files, dossiers, notes, sources. Nothing private
+   is published without an explicit choice, item by item. The PDFs of your sources are never published: only their
+   bibliographic reference is.
+3. Publishing uses the \`gh\` tool or a GitHub token kept in the host's keyring.
+
+## What the site shows
+
+| Colour and mark | State |
+|---|---|
+| solid green, ✓ | verified: proof accepted by Lean, and all its dependencies verified |
+| light green | proved, but a dependency is not yet |
+| blue | Lean statement accepted, no proof |
+| dashed outline | natural-language statement only |
+| red | blocked: depends on a definition without a Lean statement |
+
+An unverified result is never presented as a theorem. The site uses no tracker, no external font or script, and can
+be read without JavaScript.
+`,text:`Publishing a project “Publish” turns a project into a static site that anyone can read and re-verify: - the article (HTML and PDF); - the blueprint's dependency graph, with the state of each result; - one page per statement: natural-language statement, highlighted Lean code, written proof, verification information (Lean version, Mathlib revision, axioms, date); - the bibliography; - the complete Lake project to download. The site is pushed to a GitHub repository of your choice, with a GitHub Action that re-runs lake build on the published Lean project. The verification badge shown on the site comes from that action, independent of your computer: a reader does not have to take Madalean's word for it. What leaves the machine, and only with your consent 1. “Preview” builds the site locally: you browse it before anything is published. 2. The publish screen lists exactly what will leave the machine: files, dossiers, notes, sources. Nothing private is published without an explicit choice, item by item. The PDFs of your sources are never published: only their bibliographic reference is. 3. Publishing uses the gh tool or a GitHub token kept in the host's keyring. What the site shows Colour and mark State solid green, ✓ verified: proof accepted by Lean, and all its dependencies verified light green proved, but a dependency is not yet blue Lean statement accepted, no proof dashed outline natural-language statement only red blocked: depends on a definition without a Lean statement An unverified result is never presented as a theorem. The site uses no tracker, no external font or script, and can be read without JavaScript.`},{id:`models-keys`,lang:`en`,title:`Models and keys`,order:300,section:`settings`,audience:`all`,summary:`The Local / Automatic / Online modes, what is sent and to whom, how to get an Anthropic or Gemini key, and what it costs.`,source:`en/models-keys.md`,site_path:`en/models-keys.html`,headings:[{level:1,text:`Models and keys`,id:`models-and-keys`},{level:2,text:`The three modes`,id:`the-three-modes`},{level:2,text:`What is sent, and to whom`,id:`what-is-sent-and-to-whom`},{level:2,text:`Adding a key`,id:`adding-a-key`},{level:3,text:`Anthropic key (Claude)`,id:`anthropic-key-claude`},{level:3,text:`Google Gemini key`,id:`google-gemini-key`},{level:2,text:`What it costs`,id:`what-it-costs`},{level:2,text:`Claude as paid reinforcement, with caps`,id:`claude-as-paid-reinforcement-with-caps`},{level:2,text:`Choosing a model per role`,id:`choosing-a-model-per-role`}],images:[{src:`img/settings-keys.png`,exists:!0}],verify:[`verify after integration: list of keyless providers in the shipped catalogue`,`verify after integration: console URL and menu names at release time`,`verify after integration: Gemini free-tier data-use terms at release time`,`verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key`,`verify after integration: a real Claude reinforcement round within the 1 $ cap, and the ledger total against the Anthropic console`],body:`# Models and keys
+
+Madalean works **without any key**: local models installed on the host and free online providers that need no
+account. A key adds a provider's models, often stronger ones.
+
+## The three modes
+
+| Mode | Who works | Network |
+|---|---|---|
+| *Local* | only the host computer's models (Goedel-Prover, Goedel-Formalizer, Qwen3, and Ollama if it is running) | nothing leaves the host; any non-local connection is refused before it is opened |
+| *Automatic* (default) | the best available model for each role, online first | no network, quota exhausted or error: automatic switch to the local models |
+| *Online* | online models only | without network, the work fails with a clear message |
+
+A project can be switched to “local only” whatever the general mode. The indicator at the top of the screen
+(“Who receives what”) tells at every moment which model receives your work. Every text produced by a model shows
+its name.
+
+## What is sent, and to whom
+
+| Stage | What the model receives |
+|---|---|
+| Understanding | your statement in plain language |
+| Translation into Lean | your statement and its reformulation |
+| Proof | the Lean statement, Lean's error messages, Mathlib lemmas retrieved for the statement |
+| Explanation, written proof | the statement and the Lean proof |
+| Questions about sources | your question and the selected passages of your sources |
+| Notebook assistant | the open notebook (cells and outputs) |
+
+What is **never** sent to a model: your API keys, your device tokens, your other dossiers, your files. A key is sent
+only to **its** provider: Madalean refuses to attach a key to an address that is not that provider's.
+
+Free providers without an account (LLM7, OVHcloud, Kilo, Pollinations…) apply their own terms; assume that what you
+send them may be retained. For confidential work, use *Local* mode.
+
+## Adding a key
+
+“Settings › Keys”: paste the key, Madalean **tests it at once** (“It works: N models available”, or the reason
+for the refusal). The key is kept in the host computer's keyring (otherwise in a file readable only by you) and is
+never shown again. “Remove the key” deletes it in one click.
+
+![Settings › Keys](img/settings-keys.png)
+
+### Anthropic key (Claude)
+
+1. Open Anthropic's console: <https://platform.claude.com/> and create an account.
+2. Add a payment method and buy credits (prepaid, pay-as-you-go billing).
+3. “API keys › Create key”, copy the key (it starts with \`sk-ant-\`). It is shown only once.
+4. Paste it in “Settings › Keys › Anthropic”.
+
+Advice: set a monthly **spend limit** in the console.
+
+### Google Gemini key
+
+1. Open Google AI Studio: <https://aistudio.google.com/apikey> with a Google account.
+2. “Create API key”, copy the key.
+3. Paste it in “Settings › Keys › Gemini”.
+
+Gemini's free tier has quotas; when they are reached, Madalean moves on to the next model. On the free tier, Google
+may use the content sent to improve its products: read its terms before sending unpublished work.
+
+## What it costs
+
+Paid providers bill by the number of *tokens* (≈ ¾ of a word) sent and received. Orders of magnitude, Anthropic's
+public prices in November 2026, per million tokens (input / output):
+
+| Model | Input | Output |
+|---|---|---|
+| Claude Opus 5.5 | $4 | $20 |
+| Claude Sonnet 5.5 | $2 | $10 |
+| Claude Haiku 5.5 | $0.10 | $0.50 |
+
+A proof search in agent mode with Claude Opus typically costs from a few cents to 50 cents; a hard statement, with
+many attempts, more. The limits (number of steps, duration, tokens) are set in “Settings › Models”. By default, a
+paid model is used only if you chose it for a role, or if you enabled “paid first”.
+
+## Claude as paid reinforcement, with caps
+
+With an Anthropic key, Claude can join a proof's tournament **last**, only when all the free models failed
+(“Settings › Models › Claude as paid reinforcement”, on by default when the key exists). Two caps, editable there:
+
+- **per proof** ($1.00 by default);
+- **per calendar month** ($20 by default), for every Claude call, including a role where you chose it.
+
+Before each call, Madalean estimates the cost at list prices (request size and allowed answer length) and shortens
+the allowed answer if needed; if even a short answer would pass a cap, the call **is not made** and the proof says so.
+After the call, the real cost is computed from the usage Anthropic returns (input, output, cache read and cache write
+tokens) and written to a small private ledger on the host. The month's total is shown under the caps.
+
+## Choosing a model per role
+
+“Settings › Models” shows, for each role (understand, translate, prove, explain, assistant), the ranking of the
+available models and the reason for the ranking. “Automatic” lets the router choose; you can impose a model. A
+model in error (quota, refused key, overload) is paused and the next one takes over.
+`,text:`Models and keys Madalean works without any key: local models installed on the host and free online providers that need no account. A key adds a provider's models, often stronger ones. The three modes Mode Who works Network Local only the host computer's models (Goedel-Prover, Goedel-Formalizer, Qwen3, and Ollama if it is running) nothing leaves the host; any non-local connection is refused before it is opened Automatic (default) the best available model for each role, online first no network, quota exhausted or error: automatic switch to the local models Online online models only without network, the work fails with a clear message A project can be switched to “local only” whatever the general mode. The indicator at the top of the screen (“Who receives what”) tells at every moment which model receives your work. Every text produced by a model shows its name. What is sent, and to whom Stage What the model receives Understanding your statement in plain language Translation into Lean your statement and its reformulation Proof the Lean statement, Lean's error messages, Mathlib lemmas retrieved for the statement Explanation, written proof the statement and the Lean proof Questions about sources your question and the selected passages of your sources Notebook assistant the open notebook (cells and outputs) What is never sent to a model: your API keys, your device tokens, your other dossiers, your files. A key is sent only to its provider: Madalean refuses to attach a key to an address that is not that provider's. Free providers without an account (LLM7, OVHcloud, Kilo, Pollinations…) apply their own terms; assume that what you send them may be retained. For confidential work, use Local mode. Adding a key “Settings › Keys”: paste the key, Madalean tests it at once (“It works: N models available”, or the reason for the refusal). The key is kept in the host computer's keyring (otherwise in a file readable only by you) and is never shown again. “Remove the key” deletes it in one click. Settings › Keys Anthropic key (Claude) 1. Open Anthropic's console: <https://platform.claude.com/> and create an account. 2. Add a payment method and buy credits (prepaid, pay-as-you-go billing). 3. “API keys › Create key”, copy the key (it starts with sk-ant-). It is shown only once. 4. Paste it in “Settings › Keys › Anthropic”. Advice: set a monthly spend limit in the console. Google Gemini key 1. Open Google AI Studio: <https://aistudio.google.com/apikey> with a Google account. 2. “Create API key”, copy the key. 3. Paste it in “Settings › Keys › Gemini”. Gemini's free tier has quotas; when they are reached, Madalean moves on to the next model. On the free tier, Google may use the content sent to improve its products: read its terms before sending unpublished work. What it costs Paid providers bill by the number of tokens (≈ ¾ of a word) sent and received. Orders of magnitude, Anthropic's public prices in November 2026, per million tokens (input / output): Model Input Output Claude Opus 5.5 $4 $20 Claude Sonnet 5.5 $2 $10 Claude Haiku 5.5 $0.10 $0.50 A proof search in agent mode with Claude Opus typically costs from a few cents to 50 cents; a hard statement, with many attempts, more. The limits (number of steps, duration, tokens) are set in “Settings › Models”. By default, a paid model is used only if you chose it for a role, or if you enabled “paid first”. Claude as paid reinforcement, with caps With an Anthropic key, Claude can join a proof's tournament last, only when all the free models failed (“Settings › Models › Claude as paid reinforcement”, on by default when the key exists). Two caps, editable there: - per proof ($1.00 by default); - per calendar month ($20 by default), for every Claude call, including a role where you chose it. Before each call, Madalean estimates the cost at list prices (request size and allowed answer length) and shortens the allowed answer if needed; if even a short answer would pass a cap, the call is not made and the proof says so. After the call, the real cost is computed from the usage Anthropic returns (input, output, cache read and cache write tokens) and written to a small private ledger on the host. The month's total is shown under the caps. Choosing a model per role “Settings › Models” shows, for each role (understand, translate, prove, explain, assistant), the ranking of the available models and the reason for the ranking. “Automatic” lets the router choose; you can impose a model. A model in error (quota, refused key, overload) is paused and the next one takes over.`},{id:`updates`,lang:`en`,title:`Updates`,order:310,section:`settings`,audience:`all`,summary:`What updates on its own, what needs a click, how an update is verified, and how to roll back.`,source:`en/updates.md`,site_path:`en/updates.html`,headings:[{level:1,text:`Updates`,id:`updates`},{level:2,text:`What is updated, and how`,id:`what-is-updated-and-how`},{level:2,text:`Why a Madalean update is safe`,id:`why-a-madalean-update-is-safe`},{level:2,text:`After a Lean or Mathlib update`,id:`after-a-lean-or-mathlib-update`},{level:2,text:`Rolling back`,id:`rolling-back`}],images:[],verify:[`verify after integration: self-update installer, AppImage updater and APK download are built (§16); setting label`,`verify after integration: rollback control exists and its label`],body:`# Updates
+
+Everything updates from within Madalean, without a terminal, by a single rule: **install alongside, verify, switch,
+then delete the old version**. A failure changes nothing and you are told.
+
+## What is updated, and how
+
+| Component | Default behaviour |
+|---|---|
+| Madalean (server and interface) | downloaded and verified in the background, installed at a quiet moment (no running work); previous version kept for one-click rollback |
+| Desktop application (AppImage) | replaces itself, then restarts |
+| Android application | downloaded and verified by the app; Android always requires **one tap** from you to install (system rule) |
+| Lean, Mathlib, Lean packages of the “Recent Lean” workspace | automatic: installed alongside, verified (test theorem and re-check of the proved dossiers), switched |
+| Goedel models, catalogue of online models | automatic, checksums verified |
+| “Prover” workspace (Lean 4.9) | **never**: pinned, it is the models' training environment |
+| llama.cpp | notification only (pinned version) |
+| SageMath, JupyterLab, TeX, poppler | notification, and an “Install” button that opens a terminal with the exact command; you type your password. Madalean never runs \`sudo\`, \`pacman\`, \`apt\` or \`dnf\` itself. |
+
+The “Ask before installing” setting (“Settings › Updates”) replaces the automatic behaviour by a notification.
+Checks run every week and on demand. In *Local* mode, no check touches the network.
+
+## Why a Madalean update is safe
+
+Every published version comes with a list of checksums (\`SHA256SUMS\`) **signed** with an Ed25519 key kept outside
+GitHub. The public key is built into Madalean. A version whose signature does not match is refused, **even if the
+GitHub account were compromised**. The update channel (\`updates/stable.json\`, on the site) is signed the same way.
+
+To verify a download yourself: see the [install page](site:install#verify).
+
+## After a Lean or Mathlib update
+
+The proved dossiers of the affected workspace are marked “to re-check”, then re-checked automatically. A dossier
+whose proof no longer passes (a renamed lemma, a changed tactic) is flagged; its old verdict is never shown alone.
+
+## Rolling back
+
+“Settings › Updates › Back to the previous version” for Madalean. For Lean and Mathlib, the previous version stays
+installed as long as one of your projects uses it.
+`,text:`Updates Everything updates from within Madalean, without a terminal, by a single rule: install alongside, verify, switch, then delete the old version. A failure changes nothing and you are told. What is updated, and how Component Default behaviour Madalean (server and interface) downloaded and verified in the background, installed at a quiet moment (no running work); previous version kept for one-click rollback Desktop application (AppImage) replaces itself, then restarts Android application downloaded and verified by the app; Android always requires one tap from you to install (system rule) Lean, Mathlib, Lean packages of the “Recent Lean” workspace automatic: installed alongside, verified (test theorem and re-check of the proved dossiers), switched Goedel models, catalogue of online models automatic, checksums verified “Prover” workspace (Lean 4.9) never: pinned, it is the models' training environment llama.cpp notification only (pinned version) SageMath, JupyterLab, TeX, poppler notification, and an “Install” button that opens a terminal with the exact command; you type your password. Madalean never runs sudo, pacman, apt or dnf itself. The “Ask before installing” setting (“Settings › Updates”) replaces the automatic behaviour by a notification. Checks run every week and on demand. In Local mode, no check touches the network. Why a Madalean update is safe Every published version comes with a list of checksums (SHA256SUMS) signed with an Ed25519 key kept outside GitHub. The public key is built into Madalean. A version whose signature does not match is refused, even if the GitHub account were compromised. The update channel (updates/stable.json, on the site) is signed the same way. To verify a download yourself: see the install page. After a Lean or Mathlib update The proved dossiers of the affected workspace are marked “to re-check”, then re-checked automatically. A dossier whose proof no longer passes (a renamed lemma, a changed tactic) is flagged; its old verdict is never shown alone. Rolling back “Settings › Updates › Back to the previous version” for Madalean. For Lean and Mathlib, the previous version stays installed as long as one of your projects uses it.`},{id:`security`,lang:`en`,title:`Security, explained simply`,order:320,section:`settings`,audience:`all`,summary:`Who can access Madalean, how devices are linked and unlinked, where the keys are, and what Madalean never does.`,source:`en/security.md`,site_path:`en/security.html`,headings:[{level:1,text:`Security, explained simply`,id:`security-explained-simply`},{level:2,text:`Who can talk to Madalean`,id:`who-can-talk-to-madalean`},{level:2,text:`Devices and codes`,id:`devices-and-codes`},{level:2,text:`What a linked device cannot do`,id:`what-a-linked-device-cannot-do`},{level:2,text:`Your API keys`,id:`your-api-keys`},{level:2,text:`Code run on the host`,id:`code-run-on-the-host`},{level:2,text:`Documents from outside`,id:`documents-from-outside`},{level:2,text:`What Madalean never does`,id:`what-madalean-never-does`}],images:[],verify:[`verify after integration: S-H review done before 2.0.0; forbidden-construct list in leancheck`],body:`# Security, explained simply
+
+## Who can talk to Madalean
+
+Madalean listens at two doors, both closed to the outside of the host computer:
+
+1. **The local door** (\`127.0.0.1:11500\`), used by the browser or desktop application **of the host**. It accepts
+   only requests coming from the host itself.
+2. **The device door** (\`127.0.0.1:11501\`), published on your private Tailscale network. Every request must present
+   the **token** of a linked device, except the pairing page itself.
+
+There is no Madalean account, no Madalean server on the Internet, no telemetry.
+
+## Devices and codes
+
+- Linking a device needs a **6-digit code** shown on the host: valid 5 minutes, usable once. Five wrong codes lock
+  pairing for 10 minutes; rapid attempts are throttled.
+- The device then receives a 256-bit **token**. The host keeps only a fingerprint of it (SHA-256): even someone who
+  read the host's files could not recover the token.
+- On the phone, the token is in Android's protected storage; on a PC, in the system keyring; in a browser, in a
+  cookie inaccessible to the page's scripts.
+- **Unlinking** a device (“Settings › Devices”) cuts its access immediately.
+
+A lost or stolen device: unlink it from the host, and remove it from your Tailscale network.
+
+## What a linked device cannot do
+
+Some settings would open the machine; they can be changed **only from the host** (padlock in the interface):
+
+- listening on the local network;
+- opening Jupyter (which runs code) to linked devices;
+- allowing experiments to run from a linked device, or without prior approval.
+
+## Your API keys
+
+Kept in the host's keyring (otherwise in a file readable only by you). Never sent back to the interface (it only
+knows whether a key is saved), never written to a log, never sent to a provider other than their own.
+
+## Code run on the host
+
+- **Lean** compiles the proofs written by the models. Forbidden constructs (\`sorry\`, new axioms, search commands)
+  are refused before compiling.
+- **Lean can also run code** while it reads a file: \`#eval\`, \`initialize\`, \`run_cmd\`, tactics, macros or elaborators
+  defined in the file (\`elab\`, \`macro\`, \`syntax\`…), \`unsafe\`, \`implemented_by\`. Since Lean code may come from a
+  model, from the text of a paper or from a paired device, Madalean **refuses to compile** any file containing one of
+  these constructs, at a single point that every compilation goes through. \`import\`s are limited to Mathlib, Aesop,
+  Batteries, Std, Qq, ProofWidgets and Plausible. The check works on words, outside comments and strings: it can
+  wrongly refuse a legitimate file (a variable named \`prefix\`, for instance); the refusal message names the
+  construct.
+- **Experiments of the conjecture workshop**: the code is shown to you, and runs only after your approval of **this
+  exact code**. It runs with time, memory and file-size limits, without your keys or secret variables; if
+  \`bubblewrap\` is installed, with a read-only file system in which your configuration folder, \`~/.ssh\` and your
+  keyrings are hidden. The network is **not** cut for these experiments.
+- **Jupyter** runs what you type into it, like any Jupyter installation.
+- A model's text never becomes a system command.
+
+## Documents from outside
+
+PDFs, TeX sources, BibTeX files and website responses can be booby-trapped. Madalean never compiles a paper's TeX
+(it only reads it), compiles its own TeX exports without any shell access, limits the size and content of archives,
+and treats the text of sources as **data**: a passage saying “ignore your instructions” has no effect on the tools,
+because answers grounded in your sources have access to no tool.
+
+## What Madalean never does
+
+- Open a port on the Internet (no Tailscale Funnel, no port forwarding).
+- Run \`sudo\`, or install a system package for you.
+- Send your data to a service you did not choose, or anything at all in *Local* mode.
+- Show a proof as verified without Lean's strict verdict.
+- Publish anything before you have approved, item by item, what leaves.
+- Install an update whose signature is not valid.
+
+An independent security review is done before each major version.
+`,text:`Security, explained simply Who can talk to Madalean Madalean listens at two doors, both closed to the outside of the host computer: 1. The local door (127.0.0.1:11500), used by the browser or desktop application of the host. It accepts only requests coming from the host itself. 2. The device door (127.0.0.1:11501), published on your private Tailscale network. Every request must present the token of a linked device, except the pairing page itself. There is no Madalean account, no Madalean server on the Internet, no telemetry. Devices and codes - Linking a device needs a 6-digit code shown on the host: valid 5 minutes, usable once. Five wrong codes lock pairing for 10 minutes; rapid attempts are throttled. - The device then receives a 256-bit token. The host keeps only a fingerprint of it (SHA-256): even someone who read the host's files could not recover the token. - On the phone, the token is in Android's protected storage; on a PC, in the system keyring; in a browser, in a cookie inaccessible to the page's scripts. - Unlinking a device (“Settings › Devices”) cuts its access immediately. A lost or stolen device: unlink it from the host, and remove it from your Tailscale network. What a linked device cannot do Some settings would open the machine; they can be changed only from the host (padlock in the interface): - listening on the local network; - opening Jupyter (which runs code) to linked devices; - allowing experiments to run from a linked device, or without prior approval. Your API keys Kept in the host's keyring (otherwise in a file readable only by you). Never sent back to the interface (it only knows whether a key is saved), never written to a log, never sent to a provider other than their own. Code run on the host - Lean compiles the proofs written by the models. Forbidden constructs (sorry, new axioms, search commands) are refused before compiling. - Lean can also run code while it reads a file: #eval, initialize, runcmd, tactics, macros or elaborators defined in the file (elab, macro, syntax…), unsafe, implementedby. Since Lean code may come from a model, from the text of a paper or from a paired device, Madalean refuses to compile any file containing one of these constructs, at a single point that every compilation goes through. imports are limited to Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets and Plausible. The check works on words, outside comments and strings: it can wrongly refuse a legitimate file (a variable named prefix, for instance); the refusal message names the construct. - Experiments of the conjecture workshop: the code is shown to you, and runs only after your approval of this exact code. It runs with time, memory and file-size limits, without your keys or secret variables; if bubblewrap is installed, with a read-only file system in which your configuration folder, ~/.ssh and your keyrings are hidden. The network is not cut for these experiments. - Jupyter runs what you type into it, like any Jupyter installation. - A model's text never becomes a system command. Documents from outside PDFs, TeX sources, BibTeX files and website responses can be booby-trapped. Madalean never compiles a paper's TeX (it only reads it), compiles its own TeX exports without any shell access, limits the size and content of archives, and treats the text of sources as data: a passage saying “ignore your instructions” has no effect on the tools, because answers grounded in your sources have access to no tool. What Madalean never does - Open a port on the Internet (no Tailscale Funnel, no port forwarding). - Run sudo, or install a system package for you. - Send your data to a service you did not choose, or anything at all in Local mode. - Show a proof as verified without Lean's strict verdict. - Publish anything before you have approved, item by item, what leaves. - Install an update whose signature is not valid. An independent security review is done before each major version.`},{id:`troubleshooting`,lang:`en`,title:`Troubleshooting`,order:400,section:`help`,audience:`all`,summary:`Error messages in plain language, their cause and what to do.`,source:`en/troubleshooting.md`,site_path:`en/troubleshooting.html`,headings:[{level:1,text:`Troubleshooting`,id:`troubleshooting`},{level:2,text:`Connection and devices`,id:`connection-and-devices`},{level:3,text:`The device cannot reach the host`,id:`the-device-cannot-reach-the-host`},{level:3,text:`“This device is not (or no longer) linked to Madalean”`,id:`this-device-is-not-or-no-longer-linked-to-madalean`},{level:3,text:`The HTTPS certificate is refused, or the first connection is very slow`,id:`the-https-certificate-is-refused-or-the-first-connection-is-very-slow`},{level:3,text:`“Host computer only”`,id:`host-computer-only`},{level:2,text:`Models`,id:`models`},{level:3,text:`“No model available”`,id:`no-model-available`},{level:3,text:`“The provider refuses the key”`,id:`the-provider-refuses-the-key`},{level:3,text:`The local model is slow, or “not enough GPU memory”`,id:`the-local-model-is-slow-or-not-enough-gpu-memory`},{level:3,text:`“Paused: quota reached” on a free provider`,id:`paused-quota-reached-on-a-free-provider`},{level:2,text:`Lean`,id:`lean`},{level:3,text:`“Lean rejects the statement”`,id:`lean-rejects-the-statement`},{level:3,text:`“Lean refuses to compile this code: …”`,id:`lean-refuses-to-compile-this-code`},{level:3,text:`“No proof found”`,id:`no-proof-found`},{level:3,text:`“Proof rejected: contains sorry” or “non-standard axiom”`,id:`proof-rejected-contains-sorry-or-non-standard-axiom`},{level:3,text:`“Compilation timeout”`,id:`compilation-timeout`},{level:3,text:`“Lean workspace not found” or “workspace not ready”`,id:`lean-workspace-not-found-or-workspace-not-ready`},{level:3,text:`“This dossier already has work in progress”`,id:`this-dossier-already-has-work-in-progress`},{level:2,text:`Export`,id:`export`},{level:3,text:`“No LaTeX on the host computer: the HTML version opens”`,id:`no-latex-on-the-host-computer-the-html-version-opens`},{level:3,text:`Symbols are missing in the PDF`,id:`symbols-are-missing-in-the-pdf`},{level:2,text:`Jupyter`,id:`jupyter`},{level:3,text:`“Jupyter is not available”`,id:`jupyter-is-not-available`},{level:3,text:`“Jupyter is reachable only from the host”`,id:`jupyter-is-reachable-only-from-the-host`},{level:2,text:`When nothing works`,id:`when-nothing-works`}],images:[],verify:[`verify after integration: saving a new key clears the key_refused pause`,`verify after integration: exact wording of the exec_risks refusal message`],body:`# Troubleshooting
+
+“Settings › System” shows the state of each component (Lean workspaces, models, TeX, fonts, Jupyter, disk) with a
+repair button when one exists. Start there.
+
+## Connection and devices
+
+### The device cannot reach the host
+
+1. Is the host computer on, and not asleep?
+2. Is Tailscale **connected** on both devices, with the same account? (Tailscale app: switch on.)
+3. Is the server running? On the host: \`systemctl --user status madalean\`.
+4. Does the Tailscale rule exist? On the host: \`scripts/tailscale_setup.sh --status\`.
+5. Is the address typed in full, \`pc-name.tailXXXX.ts.net\` (port 10500 by default)?
+
+### “This device is not (or no longer) linked to Madalean”
+
+The device was unlinked, or its data was erased. Ask for a new code on the host and link it again.
+
+### The HTTPS certificate is refused, or the first connection is very slow
+
+HTTPS is not enabled on your tailnet: see [Tailscale › Enable HTTPS](tailscale.md#enable-https). The very first
+connection may take a few seconds while the certificate is issued.
+
+### “Host computer only”
+
+This setting opens the machine to other devices; it can only be changed on the host. See [Security](security.md).
+
+## Models
+
+### “No model available”
+
+- *Local* mode: no local model is installed or loadable. “Settings › System” says which one is missing;
+  \`./install.sh\` downloads the models.
+- *Online* mode: no network, or all providers are paused (quotas). Switch to *Automatic* to use the local models as a
+  fallback.
+
+### “The provider refuses the key”
+
+The key was badly copied (extra space), revoked, or the account has no credit left. Create it again in the
+provider's console and paste it again. Madalean pauses the provider for 12 h after a key refusal: saving a new key
+lifts the pause.
+
+### The local model is slow, or “not enough GPU memory”
+
+Another program is using the graphics card (game, another AI). “Settings › System” shows the memory used per
+application. Without an NVIDIA card, local models run on the processor: expect minutes per answer.
+
+### “Paused: quota reached” on a free provider
+
+Normal: Madalean moves on to the next model and retries the provider later (after the time given by the provider, or
+the next day for a daily quota).
+
+## Lean
+
+### “Lean rejects the statement”
+
+The translation is not valid Lean for this workspace (unknown name, notation from another Mathlib version). Lean's
+message is shown below the statement. “Fix the statement…” reruns the translation with the error; or “Edit by
+hand”.
+
+### “Lean refuses to compile this code: …”
+
+The code contains a construct that could run code on the host (\`#eval\`, \`macro\`, \`elab\`, \`unsafe\`…) or an \`import\`
+outside Mathlib and its dependencies: Madalean refuses to compile it (see
+[Security](security.md#code-run-on-the-host)). Remove the construct named in the message. If the word at fault is
+just a variable name (\`prefix\`, \`syntax\`…), rename the variable.
+
+### “No proof found”
+
+The attempts are exhausted. This does not prove the statement false. Try: re-reading the statement (missing
+hypothesis?), “Another method”, a stronger model (a key), “Split into lemmas”, or a hint in a follow-up request
+(“use induction on $n$”).
+
+### “Proof rejected: contains sorry” or “non-standard axiom”
+
+The strict verdict rejects an incomplete proof or one that adds an axiom. Only \`propext\`, \`Classical.choice\` and
+\`Quot.sound\` are allowed.
+
+### “Compilation timeout”
+
+Compilation exceeded the maximum time (“Settings › Models”, 10 to 1800 s). A tactic such as \`simp\` or \`nlinarith\`
+can search for a long time; a more explicit proof compiles faster.
+
+### “Lean workspace not found” or “workspace not ready”
+
+The workspace is not installed or its build is not finished. “Settings › Lean workspaces” gives its state; rerun
+\`./install.sh\` if needed.
+
+### “This dossier already has work in progress”
+
+A dossier has only one active job. Wait for it to finish, or “Stop”.
+
+## Export
+
+### “No LaTeX on the host computer: the HTML version opens”
+
+No TeX engine (XeLaTeX or LuaLaTeX) is installed. The HTML prints to PDF from the browser. For the real PDF: install
+TeX Live (“Settings › Updates” gives the command for your distribution).
+
+### Symbols are missing in the PDF
+
+The DejaVu Sans Mono and Noto Sans Math fonts must be present on the host; “Settings › System” checks it.
+
+## Jupyter
+
+### “Jupyter is not available”
+
+JupyterLab is not installed on the host, or did not start. “Settings › System” gives the cause; the install command
+is in “Settings › Updates”.
+
+### “Jupyter is reachable only from the host”
+
+The host has not opened Jupyter to linked devices (“Settings › Notebook and access”, on the host).
+
+## When nothing works
+
+\`\`\`bash
+systemctl --user restart madalean
+journalctl --user -u madalean -e
+\`\`\`
+
+The log contains no key and no token: you can attach it to a problem report.
+`,text:`Troubleshooting “Settings › System” shows the state of each component (Lean workspaces, models, TeX, fonts, Jupyter, disk) with a repair button when one exists. Start there. Connection and devices The device cannot reach the host 1. Is the host computer on, and not asleep? 2. Is Tailscale connected on both devices, with the same account? (Tailscale app: switch on.) 3. Is the server running? On the host: systemctl --user status madalean. 4. Does the Tailscale rule exist? On the host: scripts/tailscalesetup.sh --status. 5. Is the address typed in full, pc-name.tailXXXX.ts.net (port 10500 by default)? “This device is not (or no longer) linked to Madalean” The device was unlinked, or its data was erased. Ask for a new code on the host and link it again. The HTTPS certificate is refused, or the first connection is very slow HTTPS is not enabled on your tailnet: see Tailscale › Enable HTTPS. The very first connection may take a few seconds while the certificate is issued. “Host computer only” This setting opens the machine to other devices; it can only be changed on the host. See Security. Models “No model available” - Local mode: no local model is installed or loadable. “Settings › System” says which one is missing; ./install.sh downloads the models. - Online mode: no network, or all providers are paused (quotas). Switch to Automatic to use the local models as a fallback. “The provider refuses the key” The key was badly copied (extra space), revoked, or the account has no credit left. Create it again in the provider's console and paste it again. Madalean pauses the provider for 12 h after a key refusal: saving a new key lifts the pause. The local model is slow, or “not enough GPU memory” Another program is using the graphics card (game, another AI). “Settings › System” shows the memory used per application. Without an NVIDIA card, local models run on the processor: expect minutes per answer. “Paused: quota reached” on a free provider Normal: Madalean moves on to the next model and retries the provider later (after the time given by the provider, or the next day for a daily quota). Lean “Lean rejects the statement” The translation is not valid Lean for this workspace (unknown name, notation from another Mathlib version). Lean's message is shown below the statement. “Fix the statement…” reruns the translation with the error; or “Edit by hand”. “Lean refuses to compile this code: …” The code contains a construct that could run code on the host (#eval, macro, elab, unsafe…) or an import outside Mathlib and its dependencies: Madalean refuses to compile it (see Security). Remove the construct named in the message. If the word at fault is just a variable name (prefix, syntax…), rename the variable. “No proof found” The attempts are exhausted. This does not prove the statement false. Try: re-reading the statement (missing hypothesis?), “Another method”, a stronger model (a key), “Split into lemmas”, or a hint in a follow-up request (“use induction on $n$”). “Proof rejected: contains sorry” or “non-standard axiom” The strict verdict rejects an incomplete proof or one that adds an axiom. Only propext, Classical.choice and Quot.sound are allowed. “Compilation timeout” Compilation exceeded the maximum time (“Settings › Models”, 10 to 1800 s). A tactic such as simp or nlinarith can search for a long time; a more explicit proof compiles faster. “Lean workspace not found” or “workspace not ready” The workspace is not installed or its build is not finished. “Settings › Lean workspaces” gives its state; rerun ./install.sh if needed. “This dossier already has work in progress” A dossier has only one active job. Wait for it to finish, or “Stop”. Export “No LaTeX on the host computer: the HTML version opens” No TeX engine (XeLaTeX or LuaLaTeX) is installed. The HTML prints to PDF from the browser. For the real PDF: install TeX Live (“Settings › Updates” gives the command for your distribution). Symbols are missing in the PDF The DejaVu Sans Mono and Noto Sans Math fonts must be present on the host; “Settings › System” checks it. Jupyter “Jupyter is not available” JupyterLab is not installed on the host, or did not start. “Settings › System” gives the cause; the install command is in “Settings › Updates”. “Jupyter is reachable only from the host” The host has not opened Jupyter to linked devices (“Settings › Notebook and access”, on the host). When nothing works The log contains no key and no token: you can attach it to a problem report.`},{id:`glossary`,lang:`en`,title:`Lean glossary`,order:410,section:`reference`,audience:`learner`,summary:`The Lean and Mathlib vocabulary needed to read statements and proofs.`,source:`en/glossary.md`,site_path:`en/glossary.html`,headings:[{level:1,text:`Lean glossary`,id:`lean-glossary`},{level:2,text:`Logic and notation`,id:`logic-and-notation`},{level:2,text:`Declarations`,id:`declarations`},{level:2,text:`Arguments`,id:`arguments`},{level:2,text:`Types and universes`,id:`types-and-universes`},{level:2,text:`Proofs`,id:`proofs`},{level:2,text:`Ecosystem`,id:`ecosystem`}],images:[],verify:[],body:"# Lean glossary\n\nTerms are grouped by theme. For tactics, see [First tactics](tactics.md).\n\nIn the app, the **Glossary** screen covers these terms and many more (about 250, by category and by level beginner /\nintermediate / advanced), each with its meaning, Lean form, a tiny example, related entries, the matching Mathlib\ndeclarations and your dossiers that use it. It also powers the hover help on statements in Learn mode.\n\n## Logic and notation\n\n| Lean | Reads | Remark |\n|---|---|---|\n| `∀ x, P x` | for all $x$, $P(x)$ | `∀ x > 0, …` abbreviates `∀ x, x > 0 → …` |\n| `∃ x, P x` | there exists $x$ such that $P(x)$ | `∃! x, P x`: there exists a unique $x$ |\n| `P → Q` | $P$ implies $Q$ | also the type of functions from `P` to `Q` |\n| `P ↔ Q` | $P$ if and only if $Q$ | |\n| `P ∧ Q`, `P ∨ Q` | and, or | |\n| `¬ P` | not $P$ | defined as `P → False` |\n| `a ≠ b` | $a \\neq b$ | abbreviates `¬ (a = b)` |\n| `True`, `False` | true, false | propositions |\n| `a ∣ b` | $a$ divides $b$ | special vertical bar, typed `\\mid`; it is not the keyboard bar `\\|` |\n| `a % b` | remainder of the division | |\n| `x⁻¹` | inverse | `0⁻¹ = 0` in a field |\n| `↑n`, `(n : ℝ)` | $n$ seen in another type | conversion (*coercion*) |\n| `fun x => e` | $x \\mapsto e$ | also written `λ x => e` or `fun x ↦ e` |\n| `f x` | $f(x)$ | application is written without parentheses |\n| `∑ i in s, f i` | $\\sum_{i \\in s} f(i)$ | `∑ i ∈ s, f i` in recent versions |\n| `∏ i in s, f i` | $\\prod_{i \\in s} f(i)$ | same |\n| `Finset.range n` | $\\{0, \\dots, n-1\\}$ | |\n| `Finset.Icc a b` | $\\{a, \\dots, b\\}$ | also `Ico`, `Ioc`, `Ioo` |\n| `\\|x\\|` | absolute value | |\n| `⌊x⌋`, `⌈x⌉` | floor, ceiling | `Int.floor`, `Int.ceil` |\n\n## Declarations\n\n| Term | Meaning |\n|---|---|\n| `theorem`, `lemma` | a statement with its proof (Madalean normalises `lemma` to `theorem`) |\n| `example` | an unnamed theorem |\n| `def` | a definition |\n| `abbrev` | a definition that Lean unfolds readily |\n| `structure`, `class`, `instance` | types with fields; type classes (“ℝ is a field”) and their instances |\n| `axiom` | a statement admitted without proof; forbidden in a proof accepted by Madalean |\n| `sorry` | “proof to be completed”: Lean accepts it provisionally, but reports a gap |\n| `variable` | declares variables shared by several statements |\n| `namespace X … end X` | prefixes names: `X.foo` |\n| `open X` | lets you write `foo` instead of `X.foo` |\n| `import` | loads a library (`import Mathlib`) |\n| `#check e` | shows the type of `e` |\n| `#eval e` | computes `e` |\n\n## Arguments\n\n| Syntax | Meaning |\n|---|---|\n| `(x : α)` | explicit argument, to be given |\n| `{x : α}` | implicit argument, inferred by Lean |\n| `[inst : Field α]` | instance argument, found by Lean (“α is a field”) |\n| `(h : P)` | a hypothesis named `h`; a proof of `P` |\n\n## Types and universes\n\n| Term | Meaning |\n|---|---|\n| `Prop` | the type of propositions; a proof of `P : Prop` is a term of type `P` |\n| `Type` | the type of “ordinary” types (`ℕ : Type`) |\n| `ℕ`, `ℤ`, `ℚ`, `ℝ`, `ℂ` | natural numbers (with 0), integers, rationals, reals, complex numbers |\n| `Fin n` | $\\{0, \\dots, n-1\\}$ as a type |\n| `Set α`, `Finset α` | subsets of `α`; finite (computable) subsets |\n| `α × β` | Cartesian product; `p.1`, `p.2` the components |\n| `List α` | lists |\n| `Polynomial R` (`R[X]`) | polynomials with coefficients in `R` |\n| `Matrix m n R` | matrices |\n\n## Proofs\n\n| Term | Meaning |\n|---|---|\n| goal | what remains to be proved, shown as `⊢ P` |\n| hypothesis | what is assumed, above the `⊢` |\n| tactic | an instruction that transforms the goal (`intro`, `simp`…) |\n| `by` | switches to tactic mode |\n| term mode | a proof written as a term: `fun h => h.1` |\n| `h.1`, `h.2` | the two parts of a hypothesis `h : P ∧ Q` |\n| `⟨a, b⟩` | builds a pair, a conjunction, or a witness with its proof |\n| `·` | starts handling one of the goals |\n| `<;>` | applies the next tactic to all the goals produced |\n| `rfl` | “by definition”: both sides are equal after computation |\n\n## Ecosystem\n\n| Term | Meaning |\n|---|---|\n| Lean 4 | the language and proof checker |\n| Mathlib | the community's mathematical library (≈ 290,000 declarations in a recent version) |\n| kernel | the small part of Lean that actually checks proofs |\n| standard axioms | `propext`, `Classical.choice`, `Quot.sound`: accepted by Mathlib and by Madalean |\n| Lake | the build tool of Lean projects (`lake build`) |\n| elan | the Lean version manager |\n| toolchain | a precise Lean version, fixed by a project's `lean-toolchain` file |\n| workspace | in Madalean, a Lake project with a Lean and Mathlib version |\n| blueprint | the graph of a formalisation project's statements and their dependencies |\n",text:`Lean glossary Terms are grouped by theme. For tactics, see First tactics. In the app, the Glossary screen covers these terms and many more (about 250, by category and by level beginner / intermediate / advanced), each with its meaning, Lean form, a tiny example, related entries, the matching Mathlib declarations and your dossiers that use it. It also powers the hover help on statements in Learn mode. Logic and notation Lean Reads Remark ∀ x, P x for all $x$, $P(x)$ ∀ x > 0, … abbreviates ∀ x, x > 0 → … ∃ x, P x there exists $x$ such that $P(x)$ ∃! x, P x: there exists a unique $x$ P → Q $P$ implies $Q$ also the type of functions from P to Q P ↔ Q $P$ if and only if $Q$ P ∧ Q, P ∨ Q and, or ¬ P not $P$ defined as P → False a ≠ b $a \\neq b$ abbreviates ¬ (a = b) True, False true, false propositions a ∣ b $a$ divides $b$ special vertical bar, typed \\mid; it is not the keyboard bar a % b remainder of the division x⁻¹ inverse 0⁻¹ = 0 in a field ↑n, (n : ℝ) $n$ seen in another type conversion (coercion) fun x => e $x \\mapsto e$ also written λ x => e or fun x ↦ e f x $f(x)$ application is written without parentheses ∑ i in s, f i $\\sum{i \\in s} f(i)$ ∑ i ∈ s, f i in recent versions ∏ i in s, f i $\\prod{i \\in s} f(i)$ same Finset.range n $\\{0, \\dots, n-1\\}$ Finset.Icc a b $\\{a, \\dots, b\\}$ also Ico, Ioc, Ioo x absolute value ⌊x⌋, ⌈x⌉ floor, ceiling Int.floor, Int.ceil Declarations Term Meaning theorem, lemma a statement with its proof (Madalean normalises lemma to theorem) example an unnamed theorem def a definition abbrev a definition that Lean unfolds readily structure, class, instance types with fields; type classes (“ℝ is a field”) and their instances axiom a statement admitted without proof; forbidden in a proof accepted by Madalean sorry “proof to be completed”: Lean accepts it provisionally, but reports a gap variable declares variables shared by several statements namespace X … end X prefixes names: X.foo open X lets you write foo instead of X.foo import loads a library (import Mathlib) #check e shows the type of e #eval e computes e Arguments Syntax Meaning (x : α) explicit argument, to be given {x : α} implicit argument, inferred by Lean [inst : Field α] instance argument, found by Lean (“α is a field”) (h : P) a hypothesis named h; a proof of P Types and universes Term Meaning Prop the type of propositions; a proof of P : Prop is a term of type P Type the type of “ordinary” types (ℕ : Type) ℕ, ℤ, ℚ, ℝ, ℂ natural numbers (with 0), integers, rationals, reals, complex numbers Fin n $\\{0, \\dots, n-1\\}$ as a type Set α, Finset α subsets of α; finite (computable) subsets α × β Cartesian product; p.1, p.2 the components List α lists Polynomial R (R[X]) polynomials with coefficients in R Matrix m n R matrices Proofs Term Meaning goal what remains to be proved, shown as ⊢ P hypothesis what is assumed, above the ⊢ tactic an instruction that transforms the goal (intro, simp…) by switches to tactic mode term mode a proof written as a term: fun h => h.1 h.1, h.2 the two parts of a hypothesis h : P ∧ Q ⟨a, b⟩ builds a pair, a conjunction, or a witness with its proof · starts handling one of the goals <;> applies the next tactic to all the goals produced rfl “by definition”: both sides are equal after computation Ecosystem Term Meaning Lean 4 the language and proof checker Mathlib the community's mathematical library (≈ 290,000 declarations in a recent version) kernel the small part of Lean that actually checks proofs standard axioms propext, Classical.choice, Quot.sound: accepted by Mathlib and by Madalean Lake the build tool of Lean projects (lake build) elan the Lean version manager toolchain a precise Lean version, fixed by a project's lean-toolchain file workspace in Madalean, a Lake project with a Lean and Mathlib version blueprint the graph of a formalisation project's statements and their dependencies`},{id:`tactics`,lang:`en`,title:`First tactics`,order:420,section:`reference`,audience:`learner`,summary:`What the most common Lean 4 and Mathlib tactics do, with an example each, and when they fail.`,source:`en/tactics.md`,site_path:`en/tactics.html`,headings:[{level:1,text:`First tactics`,id:`first-tactics`},{level:2,text:`Structuring`,id:`structuring`},{level:2,text:`Induction and cases`,id:`induction-and-cases`},{level:2,text:`Rewriting and simplifying`,id:`rewriting-and-simplifying`},{level:2,text:`Arithmetic and inequalities`,id:`arithmetic-and-inequalities`},{level:2,text:`Searching`,id:`searching`},{level:2,text:`Reading an error`,id:`reading-an-error`}],images:[],verify:[],body:"# First tactics\n\nA proof in tactic mode (`:= by …`) is a sequence of instructions that transform the **goal** (what remains to be\nproved, shown after `⊢`) until nothing is left. The examples assume `import Mathlib`. The exact behaviour of a tactic\ndepends on the Mathlib version; what follows holds for both Madalean workspaces unless stated.\n\n## Structuring\n\n| Tactic | Effect | Example goal |\n|---|---|---|\n| `intro x` | introduces a variable or hypothesis: for `∀ x, P x` or `P → Q` | `⊢ ∀ n : ℕ, n + 0 = n` → `intro n` |\n| `exact e` | closes the goal with a term of exactly the right type | `exact ha` when `ha : P` and `⊢ P` |\n| `apply f` | reduces the goal to the hypotheses of `f` | `⊢ 0 < a * b` → `apply mul_pos` leaves `0 < a` and `0 < b` |\n| `refine ⟨?_, ?_⟩` | like `exact`, with holes `?_` that become goals | |\n| `constructor` | splits `P ∧ Q` (two goals) or `P ↔ Q` (both directions) | |\n| `use 3` | provides the witness of an `∃` | `⊢ ∃ n : ℕ, n * n = 9` → `use 3` |\n| `obtain ⟨x, hx⟩ := h` | unpacks `h : ∃ x, P x` (or `h : P ∧ Q`) | |\n| `rcases h with h1 \\| h2` | cases of a disjunction `h : P ∨ Q` | |\n| `left`, `right` | chooses one side of an `∨` to prove | |\n| `have h : P := by …` | proves an intermediate result and adds it to the hypotheses | |\n| `show P` | restates the goal in a definitionally equal form (readability) | |\n| `specialize h 2` | applies a universal hypothesis to a value | |\n| `exfalso` | replaces the goal by `False` | |\n| `by_contra h` | proof by contradiction: adds the negation of the goal | |\n| `push_neg` | pushes negations inwards: `¬ ∀ x, P x` becomes `∃ x, ¬ P x` | |\n| `contradiction` | closes the goal if the hypotheses contradict each other directly | `h : P` and `h' : ¬ P` |\n\n## Induction and cases\n\n```lean\ntheorem sum_odds (n : ℕ) : ∑ i in Finset.range n, (2 * i + 1) = n ^ 2 := by\n  induction n with\n  | zero => simp\n  | succ n ih =>\n    rw [Finset.sum_range_succ, ih]\n    ring\n```\n\n`induction n with | zero => … | succ n ih => …` produces the base case and the inductive step; `ih` is the induction\nhypothesis. `rcases`/`cases` handle the cases of an inductive type or of a disjunction; `interval_cases n` enumerates\nthe values of an integer bounded by the hypotheses. (In the “Recent Lean” workspace, write\n`∑ i ∈ Finset.range n`.)\n\n## Rewriting and simplifying\n\n| Tactic | Effect | Fails when |\n|---|---|---|\n| `rw [h]` | replaces the left-hand side of `h : a = b` by the right-hand side in the goal; `rw [← h]` the other way; `rw [h] at h'` in a hypothesis | the pattern does not occur literally in the goal |\n| `simp` | simplifies with Mathlib's lemmas tagged `@[simp]`; closes the goal if it becomes trivial | there is nothing to simplify |\n| `simp only [a, b]` | simplifies with these lemmas only: more predictable and faster | |\n| `simp at h` | simplifies a hypothesis | |\n| `norm_num` | computes with explicit numbers: `2 ^ 10 = 1024`, `(7 : ℝ) / 2 > 3`, `Nat.Prime 97` | the goal contains variables it cannot eliminate |\n| `field_simp` | clears denominators in a field (often needs `h : x ≠ 0`) | |\n| `unfold f` | unfolds a definition | |\n| `ext x` | equality of functions or sets: reduces to every `x` | |\n\n## Arithmetic and inequalities\n\n| Tactic | Domain | Does not do |\n|---|---|---|\n| `ring` | equalities in a commutative ring: `(a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2` | inequalities; equalities that need a hypothesis |\n| `linarith` | **linear** combinations of hypotheses and inequalities, over an ordered field (`ℚ`, `ℝ`); often works on `ℕ` and `ℤ` too | products of variables |\n| `nlinarith` | like `linarith`, adding products of hypotheses; help it by giving facts: `nlinarith [sq_nonneg (a - b)]` | guarantees: it is a heuristic |\n| `positivity` | goals `0 < e`, `0 ≤ e`, `e ≠ 0` when the shape of `e` shows it (squares, sums of positives, exponentials…) | use complicated hypotheses |\n| `omega` | **exact** linear arithmetic over `ℕ` and `ℤ`, with `/` and `%` by constants | products of variables; the reals |\n| `decide` | decidable propositions on **concrete** values: `Nat.Prime 7` if the instance allows it, `2 ∣ 10` | free variables; large computations (slow) |\n| `gcongr` | “same shape on both sides”: `a ≤ b → a + c ≤ b + c`, leaves the comparisons of the pieces | |\n\nExample:\n\n```lean\ntheorem two_mul_le_sq_add_sq (a b : ℝ) : 2 * a * b ≤ a ^ 2 + b ^ 2 := by\n  nlinarith [sq_nonneg (a - b)]\n```\n\nHere $a^2 + b^2 - 2ab = (a-b)^2 \\ge 0$: the fact given to `nlinarith` suffices, the combination is linear in that\nfact.\n\n## Searching\n\n| Tactic | Effect |\n|---|---|\n| `exact?` | searches Mathlib for a lemma that closes the goal and suggests `exact …` |\n| `apply?` | suggests applicable lemmas |\n| `aesop` | automatic proof search (rules and `simp`) |\n| `tauto` | propositional logic |\n\nMadalean **rejects `exact?` and `apply?` in a final proof**: they are search tools, to be replaced by the lemma they\nfind. They remain useful in a notebook or in a Lean block of a note.\n\n## Reading an error\n\n| Lean's message | Usual meaning |\n|---|---|\n| `unknown identifier 'foo'` / `unknown constant` | the name does not exist in this Mathlib version (renamed, or invented by the model) |\n| `type mismatch` | the term does not have the expected type: often a missing `ℕ`/`ℝ` conversion |\n| `unsolved goals` | the proof stops while goals remain (shown) |\n| `linarith failed` | the given hypotheses are not enough linearly: add facts |\n| `motive is not type correct` | `rw` cannot rewrite at this place; try `simp only` or `conv` |\n| `maximum recursion depth` / `deterministic timeout` | a tactic searches too long: make the proof more explicit |\n| `declaration uses 'sorry'` | the proof contains a gap: it is not accepted |\n",text:`First tactics A proof in tactic mode (:= by …) is a sequence of instructions that transform the goal (what remains to be proved, shown after ⊢) until nothing is left. The examples assume import Mathlib. The exact behaviour of a tactic depends on the Mathlib version; what follows holds for both Madalean workspaces unless stated. Structuring Tactic Effect Example goal intro x introduces a variable or hypothesis: for ∀ x, P x or P → Q ⊢ ∀ n : ℕ, n + 0 = n → intro n exact e closes the goal with a term of exactly the right type exact ha when ha : P and ⊢ P apply f reduces the goal to the hypotheses of f ⊢ 0 < a b → apply mulpos leaves 0 < a and 0 < b refine ⟨?, ?⟩ like exact, with holes ? that become goals constructor splits P ∧ Q (two goals) or P ↔ Q (both directions) use 3 provides the witness of an ∃ ⊢ ∃ n : ℕ, n n = 9 → use 3 obtain ⟨x, hx⟩ := h unpacks h : ∃ x, P x (or h : P ∧ Q) rcases h with h1 h2 cases of a disjunction h : P ∨ Q left, right chooses one side of an ∨ to prove have h : P := by … proves an intermediate result and adds it to the hypotheses show P restates the goal in a definitionally equal form (readability) specialize h 2 applies a universal hypothesis to a value exfalso replaces the goal by False bycontra h proof by contradiction: adds the negation of the goal pushneg pushes negations inwards: ¬ ∀ x, P x becomes ∃ x, ¬ P x contradiction closes the goal if the hypotheses contradict each other directly h : P and h' : ¬ P Induction and cases induction n with zero => … succ n ih => … produces the base case and the inductive step; ih is the induction hypothesis. rcases/cases handle the cases of an inductive type or of a disjunction; intervalcases n enumerates the values of an integer bounded by the hypotheses. (In the “Recent Lean” workspace, write ∑ i ∈ Finset.range n.) Rewriting and simplifying Tactic Effect Fails when rw [h] replaces the left-hand side of h : a = b by the right-hand side in the goal; rw [← h] the other way; rw [h] at h' in a hypothesis the pattern does not occur literally in the goal simp simplifies with Mathlib's lemmas tagged @[simp]; closes the goal if it becomes trivial there is nothing to simplify simp only [a, b] simplifies with these lemmas only: more predictable and faster simp at h simplifies a hypothesis normnum computes with explicit numbers: 2 ^ 10 = 1024, (7 : ℝ) / 2 > 3, Nat.Prime 97 the goal contains variables it cannot eliminate fieldsimp clears denominators in a field (often needs h : x ≠ 0) unfold f unfolds a definition ext x equality of functions or sets: reduces to every x Arithmetic and inequalities Tactic Domain Does not do ring equalities in a commutative ring: (a + b) ^ 2 = a ^ 2 + 2 a b + b ^ 2 inequalities; equalities that need a hypothesis linarith linear combinations of hypotheses and inequalities, over an ordered field (ℚ, ℝ); often works on ℕ and ℤ too products of variables nlinarith like linarith, adding products of hypotheses; help it by giving facts: nlinarith [sqnonneg (a - b)] guarantees: it is a heuristic positivity goals 0 < e, 0 ≤ e, e ≠ 0 when the shape of e shows it (squares, sums of positives, exponentials…) use complicated hypotheses omega exact linear arithmetic over ℕ and ℤ, with / and % by constants products of variables; the reals decide decidable propositions on concrete values: Nat.Prime 7 if the instance allows it, 2 ∣ 10 free variables; large computations (slow) gcongr “same shape on both sides”: a ≤ b → a + c ≤ b + c, leaves the comparisons of the pieces Example: Here $a^2 + b^2 - 2ab = (a-b)^2 \\ge 0$: the fact given to nlinarith suffices, the combination is linear in that fact. Searching Tactic Effect exact? searches Mathlib for a lemma that closes the goal and suggests exact … apply? suggests applicable lemmas aesop automatic proof search (rules and simp) tauto propositional logic Madalean rejects exact? and apply? in a final proof: they are search tools, to be replaced by the lemma they find. They remain useful in a notebook or in a Lean block of a note. Reading an error Lean's message Usual meaning unknown identifier 'foo' / unknown constant the name does not exist in this Mathlib version (renamed, or invented by the model) type mismatch the term does not have the expected type: often a missing ℕ/ℝ conversion unsolved goals the proof stops while goals remain (shown) linarith failed the given hypotheses are not enough linearly: add facts motive is not type correct rw cannot rewrite at this place; try simp only or conv maximum recursion depth / deterministic timeout a tactic searches too long: make the proof more explicit declaration uses 'sorry' the proof contains a gap: it is not accepted`},{id:`shortcuts`,lang:`en`,title:`Keyboard shortcuts`,order:430,section:`reference`,audience:`all`,summary:`Keyboard shortcuts of the interface and of the Lean editor.`,source:`en/shortcuts.md`,site_path:`en/shortcuts.html`,headings:[{level:1,text:`Keyboard shortcuts`,id:`keyboard-shortcuts`},{level:2,text:`Everywhere`,id:`everywhere`},{level:2,text:`Palette, menus and tabs`,id:`palette-menus-and-tabs`},{level:2,text:`Editors (statement, Lean, dossier thread)`,id:`editors-statement-lean-dossier-thread`},{level:2,text:`Desktop application`,id:`desktop-application`}],images:[],verify:[],body:"# Keyboard shortcuts\n\nOn macOS, read `Ctrl` as `⌘`. Single-key shortcuts (`/`, `n`) do not apply while you type in a text field.\n\n## Everywhere\n\n| Shortcut | Action |\n|---|---|\n| `Ctrl+K` or `/` | open the palette: find a dossier, a command, a help page |\n| `n` | new dossier (*Research* mode only) |\n| `Esc` | close the open menu, palette, dossier drawer or activity panel |\n| `Tab`, `Shift+Tab` | move between controls; a “Skip to content” link comes first |\n\n## Palette, menus and tabs\n\n| Shortcut | Action |\n|---|---|\n| `↑` `↓` | choose in the palette or a menu |\n| `Enter` | run the chosen item |\n| `Home`, `End` | first, last item of a menu |\n| `←` `→`, `Home`, `End` | move between the Statement, Lean translation and Proof steps of a dossier |\n\n## Editors (statement, Lean, dossier thread)\n\n| Shortcut | Action |\n|---|---|\n| `Ctrl+Enter` | send: start the statement, send the follow-up request |\n| `\\le` then `Space` or `Tab` | insert a symbol: `\\forall` → `∀`, `\\R` → `ℝ`, `\\le` → `≤`, `\\to` → `→`, `\\mid` → `∣` (full list in the “Glossary” screen) |\n| `Ctrl+Z`, `Ctrl+Shift+Z` | undo, redo |\n| `Tab`, `Shift+Tab` | indent, unindent (in the Lean editor) |\n\nIn a natural-language statement, abbreviations are not expanded between `$…$`, to keep the LaTeX.\n\n## Desktop application\n\n| Shortcut | Action |\n|---|---|\n| `Ctrl+Shift+K` | change server |\n",text:`Keyboard shortcuts On macOS, read Ctrl as ⌘. Single-key shortcuts (/, n) do not apply while you type in a text field. Everywhere Shortcut Action Ctrl+K or / open the palette: find a dossier, a command, a help page n new dossier (Research mode only) Esc close the open menu, palette, dossier drawer or activity panel Tab, Shift+Tab move between controls; a “Skip to content” link comes first Palette, menus and tabs Shortcut Action ↑ ↓ choose in the palette or a menu Enter run the chosen item Home, End first, last item of a menu ← →, Home, End move between the Statement, Lean translation and Proof steps of a dossier Editors (statement, Lean, dossier thread) Shortcut Action Ctrl+Enter send: start the statement, send the follow-up request \\le then Space or Tab insert a symbol: \\forall → ∀, \\R → ℝ, \\le → ≤, \\to → →, \\mid → ∣ (full list in the “Glossary” screen) Ctrl+Z, Ctrl+Shift+Z undo, redo Tab, Shift+Tab indent, unindent (in the Lean editor) In a natural-language statement, abbreviations are not expanded between $…$, to keep the LaTeX. Desktop application Shortcut Action Ctrl+Shift+K change server`}],s={schema:e,source:t,site_url:n,languages:r,sections:i,site_links:a,pages:o};export{s as default,r as languages,o as pages,e as schema,i as sections,a as site_links,n as site_url,t as source};

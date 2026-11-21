@@ -50,7 +50,7 @@
       enonce: d?.problem || hasStatement ? 'done' : 'todo',
       lean: r(LEAN_STAGES) ?? (statementOk ? 'done' : hasStatement ? 'failed' : last?.state === 'failed' && !hasStatement ? 'failed' : 'todo'),
       preuve: r(PROOF_STAGES) ?? (d?.status === 'proved' ? 'done' : d?.status === 'failed' && hasStatement ? 'failed' : 'todo'),
-      plan: conditional ? 'conditional' : 'todo',
+      plan: conditional ? 'conditional' : d?.status === 'proved' && (d?.uses?.length ?? 0) > 0 ? 'done' : 'todo',
     };
   });
   const autoStep = $derived.by<StepKey>(() => {
@@ -118,7 +118,7 @@
       {/each}
     </div>
 
-    <div class="layout">
+    <div class="layout" class:solo={step === 'plan'}>
       <div id="panel-{step}" class="panel-step" role="tabpanel" aria-labelledby="tab-{step}">
         {#if step === 'enonce'}<StepStatement dossier={d} {job} />
         {:else if step === 'lean'}<StepLean dossier={d} {job} />
@@ -161,6 +161,9 @@
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--inspector-w); gap: var(--s-5); align-items: start; }
   .side { position: sticky; top: calc(var(--topbar-h) + 72px); max-height: calc(100dvh - var(--topbar-h) - 88px); overflow: auto; }
   @media (max-width: 1279px) { .layout { grid-template-columns: minmax(0, 1fr); } .side { position: static; max-height: none; } }
+  /* the plan's mind map needs the width: the thread goes below it */
+  .layout.solo { grid-template-columns: minmax(0, 1fr); }
+  .layout.solo .side { position: static; max-height: none; }
   @media (max-width: 767px) {
     .tab { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 6px 4px; min-height: 60px; }
     .num { grid-row: auto; }

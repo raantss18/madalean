@@ -80,12 +80,25 @@ export interface Conjecture { id: string; title: string; project_id: string; kin
   counterexample: { witness: Record<string, unknown>; verified: boolean; sage: boolean; lean: boolean } | null; promoted: unknown;
   evidence: Evidence[]; experiments: Experiment[]; chain_ok: boolean; dossier_status?: string; updated?: number }
 export interface Proposal { statement: string; motivation: string; lean: string; test: string; origin?: object; reason?: string; match?: string }
+export type PlanUi = 'to_validate' | 'validated' | 'running' | 'proved' | 'failed' | 'abandoned' | 'alternative' | 'hole' | 'conditional';
+export interface PlanCheck { state: 'ok' | 'failed' | 'unchecked'; why: string; t: number }
+export interface PlanTrack { id: string; idea: string; lemmas: string[]; combination: string; check: PlanCheck; abandoned: boolean; refused: string; name?: string }
 export interface PlanNode { id: string; parent: string | null; children: string[]; title: string; statement_nl: string; why: string; lean: string;
   status: string; state: string; dossier_id: string; admitted: boolean; edited: boolean; cancelled: boolean; proved: boolean;
-  conditional: Record<string, unknown> | null; dossier_status: string }
-export interface Plan { rev: number; t: number; source: 'ai' | 'user' | 'sketch'; model: string; root: string; nodes: Record<string, PlanNode>;
-  root_state: string; queued: string[]; limit: number;
+  conditional: Record<string, unknown> | null; dossier_status: string;
+  // S-L: decomposition as a mind map
+  ui: PlanUi; off: '' | 'alternative' | 'abandoned'; depth: number; track: string; tracks: PlanTrack[]; active_track: string;
+  uses: string[]; lean_ok: boolean | null; lean_error: string; obvious: boolean; obvious_proof: string; name?: string;
+  combine: { state?: string; why?: string; t?: number; holes?: number } | null;
+  refused_tracks?: { idea: string; reason: string; lemmas: string[] }[] }
+export interface PlanSummary { lemmas: number; proved: number; running: number; failed: number; holes: number; to_validate: number;
+  conditional: number; depth: number; max_depth: number; nodes: number; max_nodes: number;
+  next: 'split' | 'validate' | 'prove' | 'wait' | 'fix' | 'conditional' | 'done' | 'stopped'; attention: string[];
+  run: { started: number; deadline: number; mode: string; stopped: string; finished?: number } | null; analysing: string }
+export interface Plan { rev: number; t: number; source: 'ai' | 'user' | 'sketch' | 'auto'; model: string; root: string; nodes: Record<string, PlanNode>;
+  root_state: string; queued: string[]; limit: number; validated?: number;
   verdict: { state: 'open' | 'proved_modulo' | 'proved'; verified: boolean; admitted: number; admitted_names?: string[] };
+  summary: PlanSummary; limits: { depth: number; lemmas: number; alternatives: number; nodes: number; budget_minutes: number };
   versions: { rev: number; t: number; source: string; model: string; device: string; note: string }[] }
 
 // ---------------------------------------------------------------- learn / updates
@@ -232,7 +245,7 @@ export const research = {
   draftPlan: (did: string, p: { hint?: string; sketch?: string; force?: boolean } = {}) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/draft`, p),
   addPlanNode: (did: string, p: { base_rev: number; parent: string; index?: number; title: string; statement_nl?: string; why?: string; lean?: string }) =>
     request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes`, p),
-  patchPlanNode: (did: string, nid: string, p: { base_rev: number; title?: string; statement_nl?: string; why?: string; lean?: string }) =>
+  patchPlanNode: (did: string, nid: string, p: { base_rev: number; title?: string; statement_nl?: string; why?: string; lean?: string; combination?: string }) =>
     request<{ plan: Plan }>('PATCH', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}`, p),
   deletePlanNode: (did: string, nid: string, base_rev: number) => request<{ plan: Plan }>('DELETE', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}?base_rev=${base_rev}`),
   movePlanNode: (did: string, nid: string, p: { base_rev: number; parent: string; index?: number }) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}/move`, p),
@@ -243,6 +256,11 @@ export const research = {
   replanNode: (did: string, nid: string, base_rev: number, hint = '') => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}/replan`, { base_rev, hint }),
   admitNode: (did: string, nid: string, base_rev: number, undo = false) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}/${undo ? 'unadmit' : 'admit'}`, { base_rev }),
   proveModulo: (did: string, node?: string) => request<{ ok: boolean; conditional: boolean; plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/prove-modulo`, node ? { node } : {}),
+  analysePlan: (did: string, p: { node?: string; hint?: string; base_rev?: number; force?: boolean } = {}) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/analyse`, p),
+  validatePlan: (did: string, base_rev: number) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/validate`, { base_rev }),
+  provePlan: (did: string, base_rev: number) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/prove`, { base_rev }),
+  switchTrack: (did: string, nid: string, base_rev: number, track?: string) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}/track`, { base_rev, ...(track ? { track } : {}) }),
+  recheckNode: (did: string, nid: string, base_rev: number) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/nodes/${enc(nid)}/recheck`, { base_rev }),
   restorePlanVersion: (did: string, rev: number) => request<{ plan: Plan }>('POST', `/dossiers/${enc(did)}/plan/versions/${rev}/restore`, {}),
 
   // learn

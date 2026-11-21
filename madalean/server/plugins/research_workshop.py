@@ -829,6 +829,55 @@ async def plan_prove_modulo(request):
     return ok({**res, "plan": R(request).planner.public(d.id)})
 
 
+async def plan_analyse(request):
+    """« Découper ce théorème » (root) / « Redécouper » (a node): tracks drafted by the model, gated by Lean (S-L)."""
+    d = _dossier(request)
+    data = await body(request)
+    mode = data.get("mode") if data.get("mode") in ("local", "auto", "online") else None
+    try:
+        p = await R(request).planner.analyse(d.id, str(data["node"]) if data.get("node") else None,
+                                             hint=str(data.get("hint", ""))[:4000],
+                                             sketch=str(data.get("sketch", ""))[:20000], mode=mode,
+                                             base_rev=_int(data.get("base_rev")), force=bool(data.get("force")),
+                                             device=device_of(request))
+    except PlanError as e:
+        return fail(e)
+    except Exception as e:  # noqa: BLE001
+        log.exception("plan analysis failed")
+        return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
+    return ok({"plan": p})
+
+
+async def plan_validate(request):
+    d = _dossier(request)
+    data = await body(request)
+    return await _plan_call(request, lambda: R(request).planner.validate(d.id, _int(data.get("base_rev")),
+                                                                        device_of(request)))
+
+
+async def plan_prove(request):
+    d = _dossier(request)
+    data = await body(request)
+    mode = data.get("mode") if data.get("mode") in ("local", "auto", "online") else None
+    return await _plan_call(request, lambda: R(request).planner.prove(d.id, _int(data.get("base_rev")),
+                                                                     device_of(request), mode))
+
+
+async def plan_track(request):
+    d = _dossier(request)
+    data = await body(request)
+    return await _plan_call(request, lambda: R(request).planner.switch_track(
+        d.id, request.match_info["nid"], str(data["track"]) if data.get("track") else None,
+        _int(data.get("base_rev")), device_of(request)))
+
+
+async def plan_recheck(request):
+    d = _dossier(request)
+    data = await body(request)
+    return await _plan_call(request, lambda: R(request).planner.recheck(
+        d.id, request.match_info["nid"], _int(data.get("base_rev")), device_of(request)))
+
+
 async def plan_version_restore(request):
     d = _dossier(request)
     return await _plan_call(request, lambda: R(request).planner.restore_version(
@@ -1214,6 +1263,11 @@ def register(app: web.Application, ctx) -> None:
     a.add_post("/api/dossiers/{id}/plan/submit", plan_submit)
     a.add_post("/api/dossiers/{id}/plan/prove-modulo", plan_prove_modulo)
     a.add_post("/api/dossiers/{id}/plan/versions/{rev}/restore", plan_version_restore)
+    a.add_post("/api/dossiers/{id}/plan/analyse", plan_analyse)
+    a.add_post("/api/dossiers/{id}/plan/validate", plan_validate)
+    a.add_post("/api/dossiers/{id}/plan/prove", plan_prove)
+    a.add_post("/api/dossiers/{id}/plan/nodes/{nid}/track", plan_track)
+    a.add_post("/api/dossiers/{id}/plan/nodes/{nid}/recheck", plan_recheck)
     # learn
     a.add_post("/api/dossiers/{id}/hint", ui_hint)
     a.add_post("/api/dossiers/{id}/explain-back", ui_explain_back)
@@ -1406,13 +1460,8 @@ async def seed_demo(ctx, rs: Research) -> None:
     # proof plan tree on the draft dossier
     target = draft or proved
     if target is not None:
-        from ...research.proofplan import claims_to_nodes, new_plan, parse_claims, demo_answer as plan_demo
-        plan = new_plan(target)
-        claims_to_nodes(plan, plan["root"], parse_claims(plan_demo(proofplan_mark())))
-        kids = plan["nodes"][plan["root"]]["children"]
-        if kids:
-            plan["nodes"][kids[0]]["status"] = "accepted"
-        rs.planner.store.push(target.id, plan, source="ai", model="fake:fake-prove")
+        from ...research.proofplan import demo_plan
+        rs.planner.store.push(target.id, demo_plan(target), source="ai", model="fake:fake-prove")
     # hint ladder (levels 1-2 cached and revealed for the host)
     if proved is not None:
         from ...research.learn import demo_answer as learn_demo, MARK as LM

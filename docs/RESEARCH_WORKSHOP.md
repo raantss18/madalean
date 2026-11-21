@@ -147,6 +147,35 @@ verdict**; only then the proof is added to the dossier (`meta.strategy:"plan"`, 
 Node `state` (computed): `draft`, `accepted`, `rejected`, `submitted`, `queued`, `proving`, `proved`, `failed`,
 `stopped`, `admitted`, `proved_modulo`.
 
+### 3.1 Decomposition as a mind map (S-L, DECISIONS D31)
+
+A node may own **tracks** (`tracks: [{id, idea, lemmas: [nid], combination, check: {state: ok|failed|unchecked, why},
+abandoned, refused}]`, `active_track`); `children` is always the active track's lemma list. Lemma nodes add `name`
+(Lean name, `<parent>_<track letter><k>`), `track`, `uses` (sibling dependencies), `lean_ok`, `lean_error`,
+`obvious`, `obvious_proof`; a split node may carry `refused_tracks` (loop guard). Run progress (combinations, budget)
+is stored beside the versions (`runtime`), not versioned.
+
+| | |
+|---|---|
+| `POST /dossiers/{id}/plan/analyse {node?, hint?, sketch?, base_rev?, force?, mode?}` | « Découper ce théorème » (root) / « Redécouper » (node): main track + ≤ 2 alternatives, Lean gate (≤ 2 model calls), obvious-stop closers. 409 `too_deep`, `too_many_nodes`, `obvious`, `already_proved`, `busy`, `off_track`, `would_overwrite`; 422 `loop_refused`, `no_plan_proposed` |
+| `POST /dossiers/{id}/plan/validate {base_rev}` | every lemma of the active tree → accepted |
+| `POST /dossiers/{id}/plan/prove {base_rev, mode?}` | validates if needed, starts the run: sub-dossiers (obvious lemmas proved at once, others queued within `limit`), bottom-up combination with the real proofs, budget `plan_budget_minutes` |
+| `POST /dossiers/{id}/plan/nodes/{nid}/track {base_rev, track?}` | « Autre piste »: switch `nid`'s track (default: next one), the old one is abandoned (its jobs stopped); the run continues |
+| `POST /dossiers/{id}/plan/nodes/{nid}/recheck {base_rev}` | Lean gate again on `nid`'s active track (after manual edits, which mark it « à vérifier ») |
+| `PATCH …/plan/nodes/{nid} {…, combination?}` | the combination of the node's active track can be edited by hand |
+| `POST …/plan/nodes/{nid}/admit` | « Laisser un trou »: allowed before the lemma has a dossier (its Lean statement is used) |
+
+Node `ui` (computed, what the UI shows): `to_validate`, `validated`, `running`, `proved` (incl. obvious), `failed`,
+`hole`, `conditional`, `alternative`, `abandoned`. Plan `summary` (no model): `{lemmas, proved, running, failed,
+holes, to_validate, depth, max_depth, nodes, max_nodes, next: split|validate|prove|wait|fix|conditional|done|stopped,
+attention: [nid], run, analysing}`; `limits: {depth, lemmas, alternatives, nodes, budget_minutes}`.
+
+Combination: when every active child of a node is proved / a hole / conditional, the stored combination is compiled
+with the children's library code (proved) and `theorem … := by sorry` (holes); no hole → strict verdict → the node's
+dossier proof (`meta.strategy: "plan"`) and a library entry; holes → `conditional_proof` (`holes: N`); a combination
+rejected with the real lemmas → the node's normal proof stage with its lemmas forced in. Settings: `plan_max_depth`
+(1–5, default 3), `plan_budget_minutes` (10–1440, default 180).
+
 ## 4. Learning support
 
 Only for dossiers whose current proof is accepted by Lean (409 `not_proved` otherwise). Progress is per device
@@ -248,6 +277,21 @@ Madalean never runs sudo → `{opened, command, terminal}`; 409 `no_terminal` (w
   managed_install, public_key}`; **host**: `POST /selfupdate/check`, `POST /selfupdate/install` (202), `POST
   /selfupdate/rollback`, `POST /selfupdate/restart` (409 `jobs_running`). Event `selfupdate.status {selfupdate,
   installing?, restarting?}`.
+
+## 5b. Calcul (session S-M)
+
+A worksheet per project (`<config>/research/calcul/<pid>.json`, plots in `…/calcul/assets/`), executed through the
+same `SageBridge` as the experiments (one kernel per project, key `calcul:<pid>`, workdir `calcul-<pid>` inside the
+experiments directory; the extra preamble defines `tex(x)`). Approval rule (server-enforced, `CalcStore.may_run`):
+cells typed by the user run directly; cells written or rewritten by the assistant (`origin: assistant`, kept after a
+user edit) run only once the exact code hash was approved, or with `experiments_auto`; approval and execution from a
+paired device need `experiments_remote` (as experiments). `sagebridge.ExecResult.rich` now carries `text/latex`,
+`image/png`, `image/svg+xml` (bounded: 12 items, 3 MB each); PNG is checked by its magic number, SVG sanitised
+(`calcul.sanitize_svg`: no script / foreignObject / iframe / image / animation, no event handler, no external href or
+CSS url, no DOCTYPE/ENTITY) and served with a `sandbox` CSP, shown via `<img>`. Results → conjecture
+(`Workshop.create`, origin `{kind: calcul, …}`), note (tag `calcul`), dossier (`problem` = the user's statement,
+`start: false`, `extra.calcul_origin`), article (`prose` block; images are not embedded in the PDF yet). Sage missing:
+the screen offers the on-demand install (`POST /api/deps/sage/install`, host only, progress `deps.progress`).
 
 ## 6. WebSocket events
 

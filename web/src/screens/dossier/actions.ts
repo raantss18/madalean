@@ -22,9 +22,17 @@ export async function stop(id: string): Promise<void> {
   } catch (e) { reportError(e); }
 }
 
-export async function run(id: string, plan: (Stage | { stage: Stage; request?: string })[]): Promise<boolean> {
+export async function run(id: string, plan: (Stage | { stage: Stage; request?: string; force?: boolean; learn?: boolean })[]): Promise<boolean> {
   try {
     const r = await api.run(id, plan);
+    app.m.jobs[r.job.id] = r.job;
+    return true;
+  } catch (e) { reportError(e, id); return false; }
+}
+
+export async function verify(id: string, learn = false): Promise<boolean> {
+  try {
+    const r = await api.verify(id, learn);
     app.m.jobs[r.job.id] = r.job;
     return true;
   } catch (e) { reportError(e, id); return false; }

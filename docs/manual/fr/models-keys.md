@@ -89,6 +89,22 @@ Une recherche de preuve en mode agent avec Claude Opus coûte typiquement de que
 avez activé « payants d'abord ».
 <!-- verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key -->
 
+## Claude en renfort payant, avec plafonds
+
+Avec une clé Anthropic, Claude peut entrer **en dernier** dans le tournoi d'une preuve, seulement quand les modèles
+gratuits ont tous échoué (« Réglages › Modèles › Claude en renfort payant », activé par défaut quand la clé existe).
+Deux plafonds, modifiables au même endroit :
+
+- **par preuve** (1,00 $ par défaut) ;
+- **par mois civil** (20 $ par défaut), pour tous les appels à Claude, y compris ceux d'un rôle où vous l'avez choisi.
+
+Avant chaque appel, Madalean estime le coût au tarif public (taille de la demande et longueur de réponse permise) et
+réduit la longueur de réponse si besoin ; si même une réponse courte dépasserait un plafond, l'appel **n'est pas
+fait** et la preuve le signale. Après l'appel, le coût réel est calculé d'après l'usage renvoyé par Anthropic (jetons
+d'entrée, de sortie, lus et écrits en cache) et noté dans un petit registre privé de l'hôte. Le total du mois est
+affiché sous les plafonds.
+<!-- verify after integration: a real Claude reinforcement round within the 1 $ cap, and the ledger total against the Anthropic console -->
+
 ## Choisir un modèle par rôle
 
 « Réglages › Modèles » montre, pour chaque rôle (comprendre, traduire, prouver, expliquer, assistant), le classement

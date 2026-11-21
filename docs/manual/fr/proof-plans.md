@@ -17,22 +17,30 @@ Un énoncé trop gros pour une preuve d'un seul tenant se découpe. Madalean pro
 paragraphe). Chaque lemme devient un **sous-dossier** lancé aussitôt, en parallèle. Quand tous sont terminés et
 qu'au moins un est prouvé, le dossier parent est relancé automatiquement avec les lemmes prouvés à sa disposition.
 
-## Plan de preuve (guidé)
+## Plan de preuve en carte mentale (la voie principale)
 
-Le plan est un **arbre** : la racine est le but du dossier, chaque nœud un résultat intermédiaire avec son énoncé en
-langage naturel, pourquoi il sert et, si possible, son énoncé Lean.
+Onglet « Plan » d'un dossier (aussi depuis le fil et après un échec de preuve). Un seul chemin :
 
-1. « Rédiger un plan » : le modèle propose un arbre ; vous pouvez lui donner une idée ou coller l'esquisse de preuve
-   d'un article.
-2. Corrigez à la main : ajoutez, supprimez, déplacez, réécrivez des nœuds. Une modification manuelle est marquée et
-   n'est jamais écrasée sans votre accord (l'ancienne version reste restaurable).
-3. Acceptez les nœuds retenus, puis « Lancer » : chaque nœud accepté devient un sous-dossier ; les feuilles
-   partent en premier, un nœud interne est prouvé quand ses enfants le sont.
-4. Un nœud échoue ? « Redécouper » le divise à son tour.
+1. **« Découper ce théorème »** (une piste pour l'IA est facultative). Le modèle propose 2 à 6 lemmes, de préférence
+   indépendants, avec pour chacun son énoncé en mots, son énoncé Lean et pourquoi il aide, plus la **combinaison** :
+   la preuve Lean du théorème à partir des lemmes. Il garde jusqu'à deux **autres pistes** (stratégies différentes),
+   en pointillé sur la carte.
+2. Avant de vous montrer le plan, **Lean vérifie** que chaque énoncé compile et que le théorème découle des lemmes ;
+   sinon le plan est redemandé une fois avec les erreurs de Lean. Une combinaison non vérifiée est marquée
+   « à vérifier ». Un lemme fermé par une tactique simple (`simp`, `omega`, `exact?`…) est **évident** : prouvé
+   tout de suite, jamais redécoupé. Un lemme qui redit le théorème lui-même est **refusé** (garde-fou contre les
+   boucles).
+3. Relisez, modifiez si besoin (tout nœud se modifie à la main, chaque changement est une version), puis
+   **« Valider le plan »** et **« Prouver le plan »** : chaque lemme devient un sous-dossier prouvé automatiquement
+   (Mathlib d'abord, puis le tournoi de modèles) ; quand tous les lemmes d'un nœud sont prouvés, la combinaison est
+   compilée avec les vraies preuves, verdict strict.
+4. Madalean ne revient vers vous que si un lemme **échoue**, et propose dans l'ordre : une **autre piste**, le
+   **redécouper** un niveau plus bas, ou **laisser un trou** (`sorry`).
 
-Chaque changement crée une version du plan ; si deux appareils modifient le même plan, le second reçoit un conflit
-et recharge le plan à jour (les plans ne sont pas fusionnés automatiquement).
-<!-- verify after integration: button labels of the plan screen (S-D) -->
+En haut, une ligne « où en est-on » dit ce qu'il reste à faire. Chaque nœud a un état écrit (à valider, en cours,
+prouvé, échoué, piste abandonnée, trou) et un chemin depuis le théorème. Limites : 3 niveaux de découpage
+(réglable), 6 lemmes par piste, 2 autres pistes, 30 nœuds par plan, et une durée totale (Réglages › Modèles ›
+avancé). Sur téléphone, la liste repliable est la vue principale, la carte est à un appui.
 
 ## Admettre provisoirement
 

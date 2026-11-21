@@ -11,6 +11,11 @@ summary: Le vocabulaire de Lean et de Mathlib nécessaire pour lire les énoncé
 
 Les termes sont groupés par thème. Pour les tactiques, voir [Premières tactiques](tactics.md).
 
+Dans l'application, l'écran **Glossaire** reprend ces termes et bien d'autres (environ 250, classés par catégorie
+et par niveau débutant / intermédiaire / avancé), avec pour chacun le sens, la forme Lean, un petit exemple, les
+entrées liées, les déclarations Mathlib correspondantes et vos dossiers qui l'utilisent. Il sert aussi d'aide au
+survol des énoncés en mode Apprendre.
+
 ## Logique et notations
 
 | Lean | Se lit | Remarque |

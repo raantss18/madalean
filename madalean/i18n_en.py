@@ -1026,8 +1026,91 @@ EN.update({
     'Modèle indisponible : {why}': 'Model unavailable: {why}',
     'Modèle payant dans le tournoi : {name} (coût estimé : au plus {cost} $ par essai).':
         'Paid model in the tournament: {name} (estimated cost: at most {cost} $ per attempt).',
+    'Renfort payant : {name} entre au tournoi car les modèles gratuits ont échoué (plafonds : {cap_p} $ pour cette '
+    'preuve, {cap_m} $ par mois).':
+        'Paid reinforcement: {name} joins the tournament because the free models failed (caps: {cap_p} $ for this '
+        'proof, {cap_m} $ per month).',
     'Tournoi : {name} a trouvé la preuve au round {k}. Classement des modèles mis à jour.':
         'Tournament: {name} found the proof in round {k}. Model leaderboard updated.',
     'Tournoi terminé sans preuve : {n} modèles essayés en {m} min.':
         'Tournament over without a proof: {n} models tried in {m} min.',
+})
+
+EN.update({
+    # statement check and Mathlib-first search (S-K)
+    "(mineur)": "(minor)",
+    "Aucun résultat de Mathlib ne s'applique directement.": "No Mathlib result applies directly.",
+    "Ce théorème est dans Mathlib sous le nom « {name} » : la preuve l'utilise directement.":
+        "This theorem is in Mathlib under the name “{name}”: the proof uses it directly.",
+    "Correction proposée : {fix}": "Suggested correction: {fix}",
+    "Lean prouve l'énoncé directement ({tactic}) : il est vrai.": "Lean proves the statement directly ({tactic}): it is true.",
+    "Lecture du modèle : {text}": "Model's reading: {text}",
+    "Preuve Lean de la négation (vérifiée) :": "Lean proof of the negation (checked):",
+    "Preuve non lancée : l'énoncé a été signalé ({verdict}). Corrigez-le ou cliquez sur « Prouver quand même ».":
+        "Proof not started: the statement was flagged ({verdict}). Correct it or click “Prove anyway”.",
+    "Preuve non lancée : l'énoncé est douteux.": "Proof not started: the statement is doubtful.",
+    "Preuve non lancée : l'énoncé est faux.": "Proof not started: the statement is false.",
+    "faux": "false",
+    "douteux": "doubtful",
+    "Recherche dans Mathlib : {n} résultats candidats.": "Mathlib search: {n} candidate results.",
+    "Trouvé dans Mathlib : {name}.": "Found in Mathlib: {name}.",
+    "Rien de directement applicable dans Mathlib ({n} candidats essayés).":
+        "Nothing directly applicable in Mathlib ({n} candidates tried).",
+    "Résultat connu de Mathlib donné au traducteur comme référence : {names}.":
+        "Known Mathlib result given to the translator as a reference: {names}.",
+    "Vérification de l'énoncé : fidèle à votre demande.": "Statement check: faithful to your request.",
+    "Vérification de l'énoncé : douteux. La preuve n'est pas lancée : corrigez l'énoncé ou cliquez sur « Prouver "
+    "quand même ».": "Statement check: doubtful. The proof is not started: correct the statement or click “Prove anyway”.",
+    "Vérification de l'énoncé : FAUX, Lean prouve le contraire. La preuve n'est pas lancée : corrigez l'énoncé ou "
+    "cliquez sur « Prouver quand même ».":
+        "Statement check: FALSE, Lean proves the opposite. The proof is not started: correct the statement or click "
+        "“Prove anyway”.",
+    "Vérification de l'énoncé : rien n'a pu être vérifié (modèle ou Lean indisponible).":
+        "Statement check: nothing could be checked (model or Lean unavailable).",
+    "Mauvais objet": "Wrong object",
+    "Hypothèse manquante": "Missing hypothesis",
+    "Hypothèse en trop": "Extra hypothesis",
+    "Mauvais quantificateur": "Wrong quantifier",
+    "Mauvais sens": "Wrong direction",
+    "Énoncé faux": "False statement",
+    "Remarque": "Remark",
+})
+
+# ---- proof plans as a mind map (S-L)
+EN.update({
+    'Lemme évident : fermé par une tactique simple, vérifié par Lean.':
+        'Obvious lemma: closed by a simple tactic, checked by Lean.',
+    'Plan de preuve : les lemmes sont prouvés, la combinaison est vérifiée par Lean (verdict strict).':
+        'Proof plan: the lemmas are proved, the combination is checked by Lean (strict verdict).',
+    'Conditionnel — {n} trou(s) : la combinaison est vérifiée par Lean avec des lemmes admis (sorry). Ce n\'est PAS une preuve vérifiée.':
+        'Conditional — {n} hole(s): the combination is checked by Lean with admitted lemmas (sorry). This is NOT a verified proof.',
+    'Il faut d\'abord un énoncé Lean accepté.': 'An accepted Lean statement is needed first.',
+    'Ce lemme n\'a pas d\'énoncé Lean : écrivez-le d\'abord.': 'This lemma has no Lean statement: write it first.',
+    'Ce lemme appartient à une piste non choisie.': 'This lemma belongs to a track that is not chosen.',
+    'Ce lemme est évident (fermé par une tactique simple) : il ne se découpe pas.':
+        'This lemma is obvious (closed by a simple tactic): it is not split.',
+    'Profondeur maximale atteinte ({n} niveaux) : prouvez ce lemme, changez de piste ou laissez un trou.':
+        'Maximum depth reached ({n} levels): prove this lemma, switch track or leave a hole.',
+    'Le plan a atteint {n} nœuds : simplifiez-le avant de découper encore.':
+        'The plan has reached {n} nodes: simplify it before splitting further.',
+    'Une analyse est déjà en cours pour ce plan.': 'An analysis is already running for this plan.',
+    'Chaque piste proposée redisait le théorème lui-même : refusée (garde-fou contre les boucles).':
+        'Every proposed track restated the theorem itself: refused (loop guard).',
+    'Au plus {n} lemmes par piste.': 'At most {n} lemmas per track.',
+    'Lean a refusé chaque découpage proposé (énoncés de lemmes invalides) : réessayez, donnez une piste ou changez de modèle.':
+        'Lean rejected every proposed split (invalid lemma statements): try again, give a hint or change model.',
+    'Aucune autre piste pour ce nœud : redécoupez-le ou laissez un trou.':
+        'No other track for this node: split it again or leave a hole.',
+    'Découpez d\'abord le théorème en lemmes.': 'Split the theorem into lemmas first.',
+    'Ce lemme fait partie d\'un plan : redécoupez-le depuis le plan du théorème.':
+        'This lemma belongs to a plan: split it from the theorem\'s plan.',
+    # S-N: GPU lending with Ollama, idle unload
+    'Carte graphique : {who} ; {free} Mo libres. Si la place manque, Madalean fait décharger les modèles d\'Ollama '
+    '(rechargés à la demande) et rend la carte après inactivité.':
+        'GPU: {who}; {free} MB free. When memory is short, Madalean asks Ollama to unload its models (reloaded on '
+        'demand) and gives the GPU back when idle.',
+    'Carte graphique prêtée par Ollama : {models} déchargé(s) (Ollama les rechargera à la demande).':
+        'GPU lent by Ollama: {models} unloaded (Ollama reloads them on demand).',
+    'Modèle local arrêté après {m} min sans utilisation : la carte graphique est rendue aux autres applications.':
+        'Local model stopped after {m} min without use: the GPU is given back to the other applications.',
 })

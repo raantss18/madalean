@@ -185,7 +185,7 @@
         <p>{tk(`joberr.${app.lastJob(d.id)?.error ?? ''}`, t('proof.failedText'))}</p>
         <div class="row">
           <button class="btn primary" onclick={() => run(d.id, ['proof', 'explanation'])}>{t('proof.retry')}</button>
-          <button class="btn" onclick={() => (splitting = true)}>{t('dossier.split')}</button>
+          <a class="btn" href="/d/{encodeURIComponent(d.id)}/plan"><Icon name="split" size={16} />{t('plan.split')}</a>
           <button class="btn" onclick={() => navigate(`/d/${encodeURIComponent(d.id)}/lean`)}>{t('proof.reviewStatement')}</button>
         </div>
         <p class="hint">{t('proof.failedHint')}</p>

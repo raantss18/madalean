@@ -130,10 +130,19 @@ client holds no prompt any more (`web/src/lib/learn/tutor.ts` only calls the end
   (re-verified by Sage/Python and Lean); experiments whose code is shown and runs only after « J'ai lu ce code :
   approuver et lancer » (editing the code drops the approval; host-only unless the host allows it), live output;
   append-only evidence timeline with its hash chain status; promote to theorem only after a Lean proof.
-- **Proof plan** (dossier tab « Plan »): a tree of claims (keep / discard / edit / add / reorder / delete), run kept steps
-  in parallel as sub-dossiers with live state, stop a branch, split a failed node further, « admettre pour l'instant »
-  → the node and anything proved through it is **Conditionnel — pas vérifié** (dashed amber border + badge + text,
-  also in the dossier header and the Preuve step); « Prouvé et vérifié par Lean » only when the strict verdict holds.
+- **Proof plan as a mind map** (dossier tab « Plan », also linked from the thread and from a failed proof; S-L): one
+  obvious path with big buttons — « Découper ce théorème » → read / edit the lemmas → « Valider le plan » → « Prouver le
+  plan ». A one-line « où en est-on » at the top (computed from statuses, no model): what to do next, counts, depth and
+  node budget. The map is a left-to-right tree (theorem on the left; readable for 5–30 nodes; rows assigned to leaves so
+  boxes never overlap); solid curves = chosen track, dashed pill = another track kept in reserve (one pill per track,
+  not its lemmas). Each node: status in words + icon + border pattern (à valider dashed, en cours striped band, prouvé
+  green, échoué red, trou / conditionnel dashed amber, piste abandonnée / autre piste dashed grey) — never colour alone.
+  Click a node → detail panel (beside the map when the plan area is ≥ 900 px wide, below it otherwise): breadcrumb from
+  the theorem, words, « Pourquoi ce lemme aide », Lean statement and Lean's verdict, obvious proof, combination
+  (vérifiée / à vérifier / refusée), actions (valider, modifier, autre piste, (re)découper, laisser un trou, ouvrir le
+  sous-dossier, supprimer). A failed lemma shows « Que faire ? » with the three ways out in order. Phone (< 768 px):
+  the collapsible outline (« Liste ») is the default view, the map is one tap away; the choice is remembered. The
+  Plan tab gives the map the full width (the thread goes below). « Conditionnel — N trou(s) » is never « vérifié ».
 - **Publier** (`/publier`): choose results (verified by default; unproved ones are published as « Affirmation ») and
   notes (none by default), « Préparer la liste exacte » (nothing sent), the exact file list with sizes and origins,
   what was excluded and why, what is never published, local preview, then push to GitHub with the id of the list you
@@ -149,7 +158,7 @@ client holds no prompt any more (`web/src/lib/learn/tutor.ts` only calls the end
 ```
 Top bar:  [☰ dossiers] [Madalean] [Projet ▾]  ……  [Chercher Ctrl K] [Qui reçoit quoi] [Activité n] [Apprendre|Recherche] [⚙]
 Rail (≥1024 px, drawer below): project sections (Dossiers · Sources · Notes · Graphe · Blueprint · Article ·
-                                Conjectures · Publier), dossiers of the project with live status, lemmas nested;
+                                Conjectures · Calcul · Publier), dossiers of the project with live status, lemmas nested;
                                 Activité · Bibliothèque · Glossaire · Carnet · Aide · Réglages
 Main:
   /                         Énoncé of a NEW dossier (natural language/LaTeX with live preview, or Lean), .tex import,
@@ -158,8 +167,12 @@ Main:
   /projet                   project hub · /sources, /sources/:shelf/:id · /notes/:id? · /graphe · /blueprint · /article
   /conjectures/:id? · /publier · /aide/:page?
   /activite                 all jobs of all dossiers, resource slots, cancel each
-  /bibliotheque             proven results (remove with undo, export .lean per workspace)
-  /glossaire                Lean words + abbreviations
+  /calcul                   project worksheet: Sage/Python cells in the sandboxed offline kernel, assistant panel
+                            (write / fix / explain), approval of assistant code, results → conjecture/note/dossier/article
+  /bibliotheque             proven results by domain / project / tag, cards or table, detail (status verified /
+                            conditional, model, uses / used-by, domain + tags editable), export md/json/.lean
+  /glossaire                ≈ 250 Lean / Mathlib terms by category and level, A–Z index, entry detail (meaning, Lean
+                            form, example, related, Mathlib declarations on demand, « in my dossiers ») + abbreviations
   /carnet                   JupyterLab iframe + assistant panel
   /reglages/:section        modeles · cles · appareils · espaces · mises-a-jour · profil · langue · apparence · carnet · systeme · a-propos
   /pair                     pairing screen (public; remote browsers)
@@ -378,3 +391,24 @@ Still open (the UI works around each):
   a test — the highlight test uses the structure view).
 - Self-update install / rollback / restart and system-component terminals were rendered, not triggered (the demo is
   not a managed install; opening a terminal would pop a window on the host).
+
+## 10. Glossary, library, Calcul, Claude caps (session S-M)
+
+- **Single source** of glossary content: `web/src/lib/lean/glossary.ts` (`GlossEntry {kind, cat, level, fr, en, lean?,
+  example?, related?, decls?}`, `GLOSS_CATS`). The same object feeds the Glossaire screen, the editor hover help
+  (`lookupGloss`) and is the in-app counterpart of `docs/manual/*/glossary.md` + `tactics.md` (every term of those
+  pages is an entry). Examples and declaration names were compiled against Mathlib for Lean 4.36 (lean-current); a few
+  names are recent (`Module.Basis`, `fun_prop`, `Module.End.HasEigenvalue`) and may be absent from the Lean 4.9
+  workspace. Mathlib declarations are looked up on demand (`GET /api/lean/declaration`), dossiers using a term with
+  `GET /api/glossary/uses`.
+- New API module `web/src/lib/api/workbench.ts` (kept apart from `client.ts` for parallel sessions).
+- Screens: `screens/Glossary.svelte`, `screens/Library.svelte`, `screens/research/Calcul.svelte` (route `/calcul`,
+  project section), `screens/settings/ClaudeBudget.svelte` (inside Réglages › Modèles). Per-device conveniences in
+  localStorage only: library grouping and view.
+- Layout: glossary 2 columns ≥ 900 px (category rail + list), select below; library cards/table + sticky detail
+  ≥ 1024 px, detail above the list below; Calcul sheet + sticky assistant ≥ 1024 px, assistant collapsed on top below
+  (single column on phones, no gutter < 600 px). Checked at 360 / 820 / 1440 px, light and dark
+  (`docs/screenshots/v2/{glossary,library,calcul,settings-claude}-*.png`), axe 0 violation (`e2e/workbench.spec.ts`,
+  `/calcul` added to `e2e/a11y.spec.ts`).
+- Plots are shown with `<img>` from `/api/calcul/assets/{id}` (CSP `img-src 'self'`; SVG sanitised server-side and
+  served with `sandbox` CSP); LaTeX outputs go through KaTeX (`renderMath`, trust off), never as HTML.

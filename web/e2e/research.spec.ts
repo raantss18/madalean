@@ -148,22 +148,27 @@ test('conjectures: counter-example and evidence log, write one, experiment needs
   await expect(page.getByText(/Rien ne s’exécute sans votre approbation/)).toBeVisible();
 });
 
-test('proof plan: accept, admit for now → conditional, never verified', async ({ page }) => {
+test('proof plan mind map: select, validate, leave a hole → never verified; outline view', async ({ page }) => {
   const d = (await api<{ dossiers: { id: string; title: string; project_id: string }[] }>('GET', '/dossiers')).dossiers.find((x) => /carré d'un entier pair/.test(x.title))!;
   await openIn(page, `/d/${d.id}/plan`, d.project_id);
   await expect(page.getByRole('heading', { name: 'Plan de preuve' })).toBeVisible();
-  await axe(page, 'plan');
-  const node = page.locator('li.node').filter({ hasText: 'b pair' }).first();
-  await node.getByRole('button', { name: 'Garder', exact: true }).first().click();
-  await expect(node.locator('.st').first()).toHaveText('gardé');
-  await node.getByRole('button', { name: 'Admettre pour l’instant' }).first().click();
-  const r = await page.locator('li.node').filter({ hasText: 'b pair' }).first().locator('.st').first().textContent();
-  if (r?.includes('Admis')) {
-    await expect(page.locator('li.node').filter({ hasText: 'b pair' }).first()).toContainText('Admis (conditionnel)');
-  } else {
-    await expect(page.locator('.toast').last()).toBeVisible();   // e.g. « needs an accepted Lean statement »
-  }
+  await expect(page.getByRole('group', { name: 'Carte mentale du plan de preuve' })).toBeVisible();
+  await axe(page, 'plan-map');
+  await page.getByRole('button', { name: /Carré d’un double|Carré d'un double/ }).first().click();
+  const panel = page.locator('.panel-node');
+  await expect(panel.getByRole('heading', { level: 3 })).toHaveText(/Carré d.un double/);
+  await expect(panel.getByRole('navigation', { name: 'Chemin depuis le théorème' })).toBeVisible();
+  await axe(page, 'plan-panel');
+  await page.getByRole('button', { name: 'Valider le plan' }).click();
+  await expect(page.getByRole('button', { name: 'Valider le plan' })).toHaveCount(0);
+  await page.getByRole('button', { name: /Carré de 2k/ }).first().click();
+  await panel.getByRole('button', { name: 'Laisser un trou (sorry)' }).click();
+  await expect(panel.locator('.pst').first()).toContainText('trou (admis)');
   await expect(page.getByText('Prouvé et vérifié par Lean')).toHaveCount(0);
+  await page.getByText('Liste', { exact: true }).click();
+  await expect(page.locator('.outline')).toBeVisible();
+  await axe(page, 'plan-outline');
+  await page.getByText('Carte', { exact: true }).click();
 });
 
 test('learn mode through the server: ladder gates, explain-back criteria, faded and erroneous exercises', async ({ page }) => {

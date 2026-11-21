@@ -17,21 +17,29 @@ A statement too big for a proof in one piece gets split. Madalean offers two too
 Each lemma becomes a **sub-dossier** started at once, in parallel. When all are finished and at least one is proved,
 the parent dossier is restarted automatically with the proved lemmas at its disposal.
 
-## Proof plan (guided)
+## Proof plan as a mind map (the main way)
 
-The plan is a **tree**: the root is the dossier's goal, each node an intermediate result with its statement in plain
-language, why it helps and, when possible, its Lean statement.
+« Plan » tab of a dossier (also from the thread and after a failed proof). One path:
 
-1. “Draft a plan”: the model proposes a tree; you can give it an idea or paste the proof sketch of a paper.
-2. Correct by hand: add, delete, move, rewrite nodes. A manual edit is marked and never overwritten without your
-   consent (the old version stays restorable).
-3. Accept the nodes you keep, then “Start”: each accepted node becomes a sub-dossier; the leaves go first, an
-   internal node is proved once its children are.
-4. A node fails? “Split again” divides it in turn.
+1. **« Split this theorem »** (a hint for the AI is optional). The model proposes 2 to 6 lemmas, preferably
+   independent, each with its statement in words, its Lean statement and why it helps, plus the **combination**: the
+   Lean proof of the theorem from the lemmas. It keeps up to two **other tracks** (different strategies), dashed on
+   the map.
+2. Before showing you the plan, **Lean checks** that every statement compiles and that the theorem follows from the
+   lemmas; otherwise the plan is asked again once with Lean's errors. An unchecked combination is marked « to check ».
+   A lemma closed by a simple tactic (`simp`, `omega`, `exact?`…) is **obvious**: proved at once, never split again.
+   A lemma that restates the theorem itself is **refused** (loop guard).
+3. Read, edit if needed (any node can be edited by hand, each change is a version), then **« Approve the plan »** and
+   **« Prove the plan »**: each lemma becomes a sub-dossier proved automatically (Mathlib first, then the model
+   tournament); when all lemmas of a node are proved, the combination is compiled with the real proofs, strict
+   verdict.
+4. Madalean only comes back to you when a lemma **fails**, and offers in order: **another track**, **split it** one
+   level deeper, or **leave a hole** (`sorry`).
 
-Each change creates a version of the plan; if two devices edit the same plan, the second gets a conflict and
-reloads the up-to-date plan (plans are not merged automatically).
-<!-- verify after integration: button labels of the plan screen (S-D) -->
+At the top, a « where are we » line says what is left to do. Every node has a written status (to approve, in
+progress, proved, failed, abandoned track, hole) and a path from the theorem. Limits: 3 levels of splitting
+(adjustable), 6 lemmas per track, 2 other tracks, 30 nodes per plan, and a total time (Settings › Models ›
+advanced). On a phone the collapsible list is the main view, the map is one tap away.
 
 ## Admitting temporarily
 

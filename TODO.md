@@ -9,8 +9,8 @@
 2. 🔄 Vérification de l'énoncé avant la preuve (énoncé faux ou incomplet → correction proposée)
 3. 🔄 Recherche Mathlib d'abord (Cayley-Hamilton, Riesz, valeurs extrêmes, 1er théorème d'isomorphisme…)
 4. 🔄 Faux « l'IA tourne en rond » pendant la traduction (bloquait Cayley-Hamilton)
-5. 🔄 Découpage en lemmes en carte mentale : analyse → lemmes indépendants → tu valides le plan → preuves automatiques → combinaison ; autre piste ou nouveau découpage si échec ; limites (profondeur 3, 6 lemmes, 30 nœuds), arrêt sur les évidences, « sorry » en dernier recours (résultat conditionnel, jamais « vérifié »)
-6. 🔄 Modèles à clé réellement utilisés : Gemini (clé OK, mais modèles mal classés), Mistral ; Claude en renfort après échec des gratuits, avec plafond par preuve (1 $) et par mois (20 $) réglables
+5. ✅ Découpage en lemmes en carte mentale : analyse → lemmes indépendants → tu valides le plan → preuves automatiques → combinaison ; autre piste ou nouveau découpage si échec ; limites (profondeur 3, 6 lemmes, 30 nœuds), arrêt sur les évidences, « sorry » en dernier recours (résultat conditionnel, jamais « vérifié ») — fait (S-L) : vrai essai « fonction continue sur un compact » prouvé de bout en bout (2 lemmes évidents, 1 par Mathlib, combinaison vérifiée par Lean) ; ⚠️ polynôme de degré 3 : plans refusés par Lean avec les modèles gratuits du moment
+6. ⚠️ Modèles à clé réellement utilisés : Gemini (clé OK, mais modèles mal classés), Mistral ; Claude en renfort après échec des gratuits, avec plafond par preuve (1 $) et par mois (20 $) réglables — fait par S-M (classement par famille, test sur Flash-Lite, renfort + registre des dépenses), à vérifier avec tes clés
 7. ⬜ Relancer tes dossiers échoués avec ces corrections : Cayley-Hamilton, Banach, compact, sous-suites, E/ker f ≅ Im f
 8. ✅ Énoncé refusé compté valide ; carte graphique non détectée ; un seul essai en ligne → tournoi (corrigés, installés)
 
@@ -30,7 +30,7 @@
 ### Après la 2.0.0
 - Ollama occupe 4,8 Go de la carte graphique : partage à prévoir avec les modèles locaux
 - Lignes par domaine et badge de tour dans l'écran du tournoi
-- Utiliser Claude (clé payante) dans le tournoi si tu l'autorises
+- ⚠️ Claude (clé payante) en renfort final du tournoi, plafonds 1 $/preuve et 20 $/mois (S-M) — à vérifier avec ta clé
 
 ## 0. Préparation
 - ✅ Dépôt renommé `madalean`, dossier `~/madalean`, branche `v2`

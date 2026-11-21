@@ -8,6 +8,7 @@
   import { errorText } from '../../lib/ui/errors';
   import Icon from '../../components/Icon.svelte';
   import { saveSettings } from './save';
+  import ClaudeBudget from './ClaudeBudget.svelte';
 
   const s = $derived(app.m.settings);
   const m = $derived(app.m.models);
@@ -95,13 +96,16 @@
       </ul>
     </section>
 
+    <ClaudeBudget />
+
     <section class="panel" aria-labelledby="board-h">
       <div class="row"><h3 id="board-h">{t('board.title')}</h3><span class="spacer"></span>
         {#if app.m.local && board?.length}<button class="btn small quiet" onclick={resetBoard}>{t('board.reset')}</button>{/if}
       </div>
       <p class="hint">{t('board.hint')}</p>
       {#if boardRows.length}
-        <div class="table-wrap">
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <div class="table-wrap" tabindex="0" role="region" aria-labelledby="board-h">
           <table class="board">
             <caption class="sr-only">{t('board.title')}</caption>
             <thead><tr><th scope="col">{t('board.model')}</th><th scope="col">{t('board.task')}</th><th scope="col">{t('board.solved')}</th>
@@ -132,14 +136,14 @@
     <details class="panel">
       <summary><strong>{t('models.advanced')}</strong></summary>
       <div class="adv">
-        {#each [['prove_attempts', 1, 64], ['translate_attempts', 1, 10], ['compile_timeout_s', 10, 1800], ['agent_max_steps', 1, 200], ['agent_max_seconds', 30, 7200], ['tournament_contestants', 1, 6], ['tournament_max_rounds', 0, 10], ['tournament_max_minutes', 1, 240], ['tournament_attempts_per_model', 1, 16]] as [k, min, max]}
+        {#each [['prove_attempts', 1, 64], ['translate_attempts', 1, 10], ['compile_timeout_s', 10, 1800], ['agent_max_steps', 1, 200], ['agent_max_seconds', 30, 7200], ['tournament_contestants', 1, 6], ['tournament_max_rounds', 0, 10], ['tournament_max_minutes', 1, 240], ['tournament_attempts_per_model', 1, 16], ['plan_max_depth', 1, 5], ['plan_budget_minutes', 10, 1440]] as [k, min, max]}
           <div class="field">
             <label for="adv-{k}">{tk(`adv.${k}`, String(k))}</label>
             <input id="adv-{k}" class="input" type="number" min={min} max={max} value={s[k as string] as number}
               onchange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v >= (min as number) && v <= (max as number)) void saveSettings({ [k as string]: v }); else toast('error', t('settings.range', { min: Number(min), max: Number(max) })); }} />
           </div>
         {/each}
-        {#each ['tournament_enabled', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model'] as k}
+        {#each ['statement_check', 'mathlib_first', 'tournament_enabled', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model'] as k}
           <label class="switch"><input type="checkbox" checked={Boolean(s[k])} onchange={(e) => saveSettings({ [k]: (e.target as HTMLInputElement).checked })} />{tk(`adv.${k}`, k)}</label>
         {/each}
       </div>

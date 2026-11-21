@@ -15,7 +15,8 @@
   import CheckResultView from '../../components/CheckResultView.svelte';
   import Versions from './Versions.svelte';
   import ExplainBack from './ExplainBack.svelte';
-  import { follow, run, reportError } from './actions';
+  import { follow, run, reportError, verify as verifyStatement } from './actions';
+  import StatementVerdict from './StatementVerdict.svelte';
   import { navigate } from '../../lib/router.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
 
@@ -112,6 +113,7 @@
             {#if checking}<button class="btn quiet" onclick={() => ctl?.abort()}>{t('common.cancel')}</button>{/if}
             <button class="btn" onclick={startEdit} disabled={Boolean(job)}>{t('lean.editByHand')}</button>
             <button class="btn" aria-expanded={correcting} onclick={() => (correcting = !correcting)} disabled={Boolean(job)}>{t('lean.fix')}</button>
+            {#if v?.ok}<button class="btn" onclick={() => verifyStatement(d.id, prefs.mode === 'learn')} disabled={Boolean(job)} title={t('check.buttonHint')}>{job?.stage === 'verify' ? t('check.running') : t('check.button')}</button>{/if}
             <Versions dossier={d} kind="statement" busy={Boolean(job)} />
           {/if}
         </div>
@@ -123,6 +125,7 @@
           </div>
         {/if}
         {#if check}<CheckResultView {check} />{/if}
+        {#if v?.meta?.check}<StatementVerdict id={d.id} params={v.meta.check as Record<string, unknown>} busy={Boolean(job)} actions={!d.proofs.some((p) => p.parent === d.cur_statement && p.ok)} />{/if}
         {#if !job && !d.proofs.some((p) => p.parent === d.cur_statement) && v?.ok}
           <div class="next">
             <button class="btn primary" onclick={prove}>{t('lean.prove')}</button>

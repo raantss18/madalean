@@ -296,3 +296,47 @@
   only with `paid_first` / explicit choice, with an estimated cost. Details: docs/BRAIN.md §11.
 - Rejected: racing all contestants from the start (wastes free quotas, more 429s); unbounded « retry until proved »;
   recursive re-tournaments.
+
+## D31 — Proof decomposition as THE way to prove hard theorems, bounded (user request, 2026-11-21, S-L)
+- Request: Lean splits each hard theorem into lemmas shown as a graph (mind map); independent lemmas if possible; the
+  user validates (or edits) the PLAN, then Madalean proves each lemma automatically and only asks again when one
+  fails (another track, a new split, or a `sorry` hole); « ne pas se perdre », « attention au piège du découpage
+  infini ».
+- Decision (extends `research/proofplan.py`, no parallel system): an analysis writes a main track + ≤ 2 alternative
+  tracks, each with 2–6 lemmas AND the combination (Lean proof of the parent from the lemmas). ONE Lean compile gates
+  the plan before the user sees it: lemma statements with `sorry`, each combination, and equivalence probes (child ⇔
+  parent by `exact`/`apply`/`simp_all only` both ways); a failing plan is regenerated with Lean's errors (≤ 2 tries),
+  otherwise shown « à vérifier ». A second compile applies the obvious-stop rule (omega, norm_num, linarith, simp_all,
+  aesop, `exact?` under a heartbeat cap; never citing itself): such a lemma is proved at once and never split.
+  When all lemmas of a node are proved, the stored combination is compiled with the REAL lemma proofs under the
+  strict verdict (D28 gate) — the node is proved, up to the root. A failed lemma: other track → split deeper →
+  hole; a hole makes ancestors « Conditionnel — N trous », never verified (same invariant as S-G).
+- Termination: depth ≤ `plan_max_depth` (3), ≤ 6 lemmas per track, ≤ 2 alternatives, ≤ 30 live nodes (the budget
+  truncates alternatives first, then the last split), ≤ 2 model calls per analysis, a run budget
+  (`plan_budget_minutes`, 180), a lemma equal (text) or equivalent (Lean) to its parent refuses its whole track, an
+  obvious lemma cannot be split, and every split is a user action (failure options) — nothing splits by itself.
+- Rejected: splitting until every step is « obvious » (= line-by-line proofs, unbounded); recursive automatic
+  re-splitting on failure (the user chooses); trusting the model's combination without Lean.
+
+## D31 — Check the statement and look in Mathlib before proving (user's failures of 2026-11-21, S-K)
+- Observed on the user's own dossiers: a compact set without « non vide » and two subsequences without « même limite »
+  were translated into FALSE statements and searched 8 times; Cayley-Hamilton was translated with `minpoly`, then with
+  `LinearMap.charpoly K f` (does not compile); Riesz with an invented `[Banach 𝕜 X]`; E/ker f ≅ Im f never compiled —
+  although Mathlib has `LinearMap.aeval_self_charpoly`, `FiniteDimensional.of_isCompact_closedBall`,
+  `LinearMap.quotKerEquivRange`.
+- Decision: two bounded stages (docs/BRAIN.md §12). « Vérifier l'énoncé » before the first proof search of each
+  statement: model fidelity check (JSON issues + fix) in parallel with Lean probes of the pinned negation
+  `¬ (∀ BINDERS, CONCL)` (automatic tactics, degenerate instances ∅ / 0 / constant functions, the model's
+  counterexample tactics). « Faux » only when Lean proves the negation (strict re-check, D28 gate); the model alone can
+  only make it « douteux ». Both stop the automatic chain with the reasons and two buttons (« Corriger l'énoncé avec :
+  … », « Prouver quand même »); never silent. « Mathlib d'abord » in the proof stage: famous table + RAG candidates,
+  one-line templates in ONE compilation, `exact?`, then ≤ 2 short model proofs using the candidates; the translator
+  gets Mathlib's statement as a reference when a known result is named.
+- Rejected: trusting the model's « false » (free models over-flag and under-flag: on the real run one called the
+  Riesz statement with `[NormedField 𝕜]` faithful); `slim_check`/`plausible` (random testing runs user definitions
+  through the interpreter at elaboration: kept out until S-H reviews it); `exact?` as an accepted proof (forbidden in
+  proofs: its « Try this » suggestion is re-checked instead).
+- Loop guard (coordinator report): free reasoning models sometimes end a correct answer with endless
+  `import Mathlib.…` lines; the guard stopped them (right) and the formalizer threw the whole answer away (wrong). The
+  last complete ```lean4 block before the loop is now a candidate (Lean decides); the pipeline's guard is reset when
+  the engine restarts with another model; loop-finished attempts record streamed tokens and time (were 0).

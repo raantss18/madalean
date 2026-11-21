@@ -34,7 +34,9 @@ HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec"
 LIMITS = {"prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
           "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535),
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
-          "tournament_attempts_per_model": (1, 16)}
+          "tournament_attempts_per_model": (1, 16), "claude_cap_proof_usd": (0, 100),
+          "claude_cap_month_usd": (0, 1000), "plan_max_depth": (1, 5), "plan_budget_minutes": (10, 1440),
+          "local_idle_unload_minutes": (0, 1440)}
 
 
 class ServerContext:
@@ -125,7 +127,9 @@ class ServerContext:
         try:
             from .brain import create_brain, create_retriever  # type: ignore[attr-defined]
             self.brain = create_brain(self.paths.config, self.local, self.keys.get, asdict(self.settings))
-            self.retriever = create_retriever(self.paths.cache, resolve=self.workspace)
+            # MADALEAN_EMBEDDINGS=0: never ask Ollama for embeddings (test servers while its models hold the GPU)
+            self.retriever = create_retriever(self.paths.cache, resolve=self.workspace,
+                                              embeddings=os.environ.get("MADALEAN_EMBEDDINGS", "1") != "0")
             self.brain_kind = "real"
         except Exception as e:  # noqa: BLE001 (S-B engine absent or broken: scripted fake, clearly reported)
             from .brain.fake import FakeBrain, FakeRetriever

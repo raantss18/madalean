@@ -86,6 +86,20 @@ many attempts, more. The limits (number of steps, duration, tokens) are set in �
 paid model is used only if you chose it for a role, or if you enabled “paid first”.
 <!-- verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key -->
 
+## Claude as paid reinforcement, with caps
+
+With an Anthropic key, Claude can join a proof's tournament **last**, only when all the free models failed
+(“Settings › Models › Claude as paid reinforcement”, on by default when the key exists). Two caps, editable there:
+
+- **per proof** ($1.00 by default);
+- **per calendar month** ($20 by default), for every Claude call, including a role where you chose it.
+
+Before each call, Madalean estimates the cost at list prices (request size and allowed answer length) and shortens
+the allowed answer if needed; if even a short answer would pass a cap, the call **is not made** and the proof says so.
+After the call, the real cost is computed from the usage Anthropic returns (input, output, cache read and cache write
+tokens) and written to a small private ledger on the host. The month's total is shown under the caps.
+<!-- verify after integration: a real Claude reinforcement round within the 1 $ cap, and the ledger total against the Anthropic console -->
+
 ## Choosing a model per role
 
 “Settings › Models” shows, for each role (understand, translate, prove, explain, assistant), the ranking of the

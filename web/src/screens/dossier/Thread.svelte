@@ -8,6 +8,7 @@
   import Md from '../../components/Md.svelte';
   import Icon from '../../components/Icon.svelte';
   import { follow, stop } from './actions';
+  import StatementVerdict from './StatementVerdict.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
   let text = $state('');
@@ -18,7 +19,7 @@
   let all = $state(false);
   $effect(() => { if (loadedFor === d.id) saveJSON(`draft.thread.${d.id}`, text); });
   const events = $derived(all ? d.events : d.events.slice(-60));
-  const STEP_OF: Record<string, string> = { understood: 'enonce', statement: 'lean', notes: 'lean', proof: 'preuve', explanation: 'preuve', informal: 'preuve' };
+  const STEP_OF: Record<string, string> = { understood: 'enonce', statement: 'lean', notes: 'lean', check: 'lean', proof: 'preuve', explanation: 'preuve', informal: 'preuve' };
 
   async function send() {
     if (!text.trim() || sending) return;
@@ -31,6 +32,8 @@
   }
   function key(e: KeyboardEvent) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }
   function firstLine(ev: DossierEvent): string { return ev.text.split('\n')[0] ?? ''; }
+  // only the last statement check of the current statement offers « Corriger » / « Prouver quand même »
+  const lastCheck = $derived([...d.events].reverse().find((e) => e.kind === 'check'));
   function rest(ev: DossierEvent): string { return ev.text.split('\n').slice(1).join('\n'); }
 </script>
 
@@ -52,7 +55,9 @@
               {ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' ? 'Madalean' : 'Lean'} · {fmtTime(ev.t)}
             </span>
             <p class="first">{firstLine(ev)}</p>
-            {#if rest(ev).trim()}<details><summary class="xs">{t('thread.details')}</summary><Md src={rest(ev)} /></details>{/if}
+            {#if ev.kind === 'check'}<StatementVerdict id={d.id} params={ev.params} busy={Boolean(job)}
+              actions={ev === lastCheck && ev.ref === d.cur_statement && !d.proofs.some((p) => p.parent === d.cur_statement && p.ok)} />
+            {:else if rest(ev).trim()}<details><summary class="xs">{t('thread.details')}</summary><Md src={rest(ev)} /></details>{/if}
             {#if STEP_OF[ev.kind]}<a class="xs" href="/d/{encodeURIComponent(d.id)}/{STEP_OF[ev.kind]}">{t('thread.see')}</a>{/if}
           </div>
         {/if}
@@ -76,6 +81,7 @@
       {/if}
     </div>
   </form>
+  <a class="btn small quiet planlink" href="/d/{encodeURIComponent(d.id)}/plan"><Icon name="split" size={14} />{t('plan.fromThread')}</a>
 </section>
 
 <style>
@@ -86,6 +92,7 @@
   .bubble.me { background: var(--accent-soft); margin-left: 14%; }
   .ev.error .bubble { background: var(--failed-soft); }
   .ev.proof .bubble { border-left: 3px solid var(--proved); }
+  .ev.check .bubble { border-left: 3px solid var(--accent); }
   .ev.info .bubble { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
   .meta { display: flex; align-items: center; gap: 4px; color: var(--text-3); font-weight: 600; margin-bottom: 2px; }
   details summary { cursor: pointer; color: var(--text-2); }
