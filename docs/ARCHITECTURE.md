@@ -230,3 +230,24 @@ grounded in *your* sources, with citations), Zotero (reference library), Obsidia
   with 10 000-line outputs (virtualised), reconnect without losing state, server survives kill -9 of any child,
   crash-safe storage (atomic writes, tested by fault injection), soak test (2 h of parallel jobs, flat memory),
   load test (5 devices connected), every long operation cancellable.
+
+## 16. Internal, automatic updates (user requirement, 2026-11-21 — like L Katta's `src/maj.rs`)
+
+Everything updates from inside Madalean, automatically when it is safe, with no terminal:
+- **Madalean itself (server + web UI)**: GitHub releases of raantss18/madalean; `SHA256SUMS` signed with an Ed25519
+  key kept outside git (`~/.config/madalean/release-keys/`), public key embedded in the code — a release without a
+  valid signature is refused even if the GitHub account is compromised. Download + verify in the background, install
+  into a new versioned directory, health-check it, switch, keep the previous version for one-click rollback; applied
+  automatically at a quiet moment (no running job) unless the user turned « automatic » off. Clients reload the UI
+  after the switch (version in `/api/hello`).
+- **Desktop AppImage**: Tauri updater (signed with the same key scheme) — downloads and replaces itself, then
+  restarts. **Android APK**: in-app download + signature/certificate check; Android always requires one tap from the
+  user to install a sideloaded APK (system rule, cannot be bypassed) — the app prompts at a good moment.
+- **Lean, Mathlib, Lean packages, Goedel models, catalogue**: automatic by default — install next to the old
+  version, verify (test theorem + re-check of proven dossiers), switch, delete the obsolete version; failure ⇒ nothing
+  changes and the user is told. lean-prover49 stays pinned (training environment). The settings keep a
+  « demander avant d'installer » switch.
+- **System components (SageMath, JupyterLab, TeX, poppler)**: Madalean never runs pacman/apt/sudo. It detects the
+  available version, notifies, and offers « Installer » which opens a terminal with the exact command (the password is
+  typed by the user), like L Katta's Konsole tool. Where a user-level install exists (pip --user kernels, elan) it is
+  handled automatically.

@@ -54,6 +54,12 @@
 - ⬜ Atelier de conjectures (expériences Sage, recherche de contre-exemples, journal des indices)
 - ⬜ Conception de preuve guidée : plan → lemmes en parallèle → preuves ; chaque section corrigeable à la main
 
+## 5 ter. Mises à jour internes et automatiques (comme L Katta)
+- ⬜ Madalean lui-même : versions signées (Ed25519), installation automatique à un moment calme, retour arrière en un clic
+- ⬜ AppImage : mise à jour automatique signée ; APK : téléchargement interne (Android impose un appui pour installer)
+- ⬜ Lean, Mathlib, paquets Lean, modèles Goedel : installés automatiquement après vérification (réglable)
+- ⬜ Sage, JupyterLab, TeX : détection + bouton qui ouvre un terminal avec la commande exacte (jamais de sudo automatique)
+
 ## 6. Site et documentation (session S-F) — après S-D
 - ⬜ Site GitHub Pages (FR + EN), captures, guide d'installation, guide d'appairage
 - ⬜ README, CHANGELOG 2.0.0, DECISIONS, ACCEPTANCE
