@@ -1,64 +1,64 @@
 #!/usr/bin/env bash
-# uninstall.sh — removes exactly what the Madalean / Lean AI Station setup installed. Nothing else.
-# Usage: ./uninstall.sh          (shows the list, asks for confirmation)
-#        ./uninstall.sh --yes    (no question)
-# Never touched / never removed: system packages (no root change was made), your own Lean projects
-# (lean4web, <projet de cours>, ...), other elan toolchains, Ollama and its models.
+# uninstall.sh — removes exactly what install.sh installed (ARCHITECTURE §18). Lists first, then asks.
+#
+#   ./uninstall.sh [--prefix DIR] [--unit-name NAME] [--cache-dir DIR] [--config-dir DIR] [--yes] [--purge]
+#
+# Removed: the prefix (MADALEAN_HOME: env, components, Lean workspaces of the prefix, TeX bundle, Tailscale node
+# state, Madalean versions), the systemd user unit, the desktop entry (files listed in <prefix>/installed-files.txt),
+# the cache directory. Every process of the unit is stopped first (the whole cgroup).
+# Kept unless --purge (asked separately): the config directory (settings, projects, dossiers, devices, keys),
+# ~/models. Never touched: ~/.elan, ~/Documents/Madalean (notebooks), the old Lean AI Station, system packages,
+# the host's tailscaled.
 set -u
-H="$HOME"
-ITEMS=(
-  "$(cd "$(dirname "$0")" && pwd)"                       # this folder: app, venvs, llama.cpp build, Lean workspaces
-  "$H/.config/lean-ai-station"                           # settings + session
-  "$H/.cache/lean-ai-station"                            # temporary check files
-  "$H/.config/madalean"                                  # Madalean 2.0: settings, projects, dossiers, devices, keys.json
-  "$H/.cache/madalean"                                   # Madalean 2.0: caches (names/RAG index, exports, jupyter)
-  "$H/.config/madalean-demo"                             # demo mode data
-  "$H/.cache/madalean-demo"
-  "$H/.config/systemd/user/madalean.service"             # systemd user unit
-  "$H/.local/share/applications/madalean.desktop"
-  "$H/.local/share/icons/hicolor/scalable/apps/madalean.svg"
-  "$H/.local/opt/madalean"                               # desktop shell AppImage (scripts/install_desktop_entry.sh)
-  "$H/.local/share/applications/lean-ai-station.desktop" # menu entry
-  "$H/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
-  "$H/models/Goedel-Prover-V2-8B.Q4_K_M.gguf"            # model files (+ checksums)
-  "$H/models/Goedel-Prover-V2-8B.Q4_K_M.gguf.sha256"
-  "$H/models/Goedel-Prover-V2-8B.Q5_K_M.gguf"
-  "$H/models/Goedel-Prover-V2-8B.Q5_K_M.gguf.sha256"
-  "$H/models/Goedel-Formalizer-V2-8B.Q4_K_M.gguf"        # translator model (+ checksum)
-  "$H/models/Goedel-Formalizer-V2-8B.Q4_K_M.gguf.sha256"
-  "$H/models/Qwen3-8B-Q4_K_M.gguf"                       # explanation model (+ checksum)
-  "$H/models/Qwen3-8B-Q4_K_M.gguf.sha256"
-  "$H/models/src/Goedel-Prover-V2-8B"                    # partial official safetensors (abandoned download)
-)
-# Optional (shared with your other Lean projects): removed only with --toolchains
-TOOLCHAINS=(
-  "$H/.elan/toolchains/leanprover--lean4---v4.9.0-rc1"
-  "$H/.elan/toolchains/leanprover--lean4---v4.34.1"
-)
-echo "Les éléments suivants seront supprimés :"
-for p in "${ITEMS[@]}"; do [ -e "$p" ] && printf "  %-75s %s\n" "$p" "$(du -sh "$p" 2>/dev/null | cut -f1)"; done
-WITH_TC=0
-[[ " $* " == *" --toolchains "* ]] && WITH_TC=1
-if [ $WITH_TC = 1 ]; then
-  for p in "${TOOLCHAINS[@]}"; do [ -e "$p" ] && printf "  %-75s %s\n" "$p" "$(du -sh "$p" | cut -f1)"; done
-else
-  echo "(Les versions de Lean ajoutées à elan sont conservées ; ajoutez --toolchains pour les retirer.)"
-  echo "(~/.cache/mathlib est partagé avec vos autres projets Lean : il est conservé.)"
+PREFIX="${MADALEAN_HOME:-$HOME/.local/share/madalean}"; UNIT=madalean
+CONFIG_DIR="$HOME/.config/madalean"; CACHE_DIR="$HOME/.cache/madalean"; YES=0; PURGE=0
+while [ $# -gt 0 ]; do case "$1" in
+  --prefix) shift; PREFIX="$1" ;;
+  --unit-name) shift; UNIT="$1" ;;
+  --config-dir) shift; CONFIG_DIR="$1" ;;
+  --cache-dir) shift; CACHE_DIR="$1" ;;
+  --yes) YES=1 ;;
+  --purge) PURGE=1 ;;
+  -h|--help) sed -n 2,14p "$0"; exit 0 ;;
+  *) echo "Option inconnue : $1"; exit 2 ;;
+esac; shift; done
+[[ "$UNIT" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "Nom d'unité invalide"; exit 2; }
+case "$PREFIX" in ""|/|"$HOME"|"$HOME/"|/usr*|/etc*) echo "Préfixe refusé : $PREFIX"; exit 2 ;; esac
+if [ -d "$PREFIX" ] && [ ! -e "$PREFIX/deps-state.json" ] && [ ! -d "$PREFIX/versions" ]; then
+  echo "$PREFIX ne ressemble pas à une installation de Madalean : rien n'est supprimé."; exit 2
 fi
-if [[ " $* " != *" --yes "* ]]; then
+UNIT_FILE="$HOME/.config/systemd/user/$UNIT.service"
+ITEMS=("$PREFIX" "$CACHE_DIR")
+[ -e "$UNIT_FILE" ] && ITEMS+=("$UNIT_FILE")
+if [ -f "$PREFIX/installed-files.txt" ]; then
+  while IFS= read -r f; do [ -n "$f" ] && [ "$f" != "$UNIT_FILE" ] && ITEMS+=("$f"); done < "$PREFIX/installed-files.txt"
+fi
+echo "Seront supprimés :"
+for p in "${ITEMS[@]}"; do { [ -e "$p" ] || [ -L "$p" ]; } && printf "  %-80s %s\n" "$p" "$(du -sh "$p" 2>/dev/null | cut -f1)"; done
+echo "Conservés : $CONFIG_DIR (réglages, projets, appareils), ~/models, ~/Documents/Madalean$( [ $PURGE = 1 ] && echo ' — sauf confirmation ci-dessous (--purge)')"
+if [ $YES = 0 ]; then
   read -r -p "Confirmer la suppression ? [o/N] " a
   [[ "$a" =~ ^[oOyY]$ ]] || { echo "Annulé."; exit 0; }
 fi
 if command -v systemctl >/dev/null 2>&1; then
-  systemctl --user disable --now madalean.service 2>/dev/null || true
+  systemctl --user stop "$UNIT.service" 2>/dev/null || true          # KillMode=control-group: the whole tree
+  systemctl --user disable "$UNIT.service" 2>/dev/null || true
+  systemctl --user reset-failed "$UNIT.service" 2>/dev/null || true
 fi
-command -v secret-tool >/dev/null 2>&1 && secret-tool clear service madalean 2>/dev/null || true   # API keys in the keyring
-pkill -f "^$(cd "$(dirname "$0")" && pwd)/vendor/llama.cpp/build/bin/llama-server" 2>/dev/null || true
-[ -x "$(cd "$(dirname "$0")" && pwd)/scripts/install_desktop_entry.sh" ] && \
-  "$(cd "$(dirname "$0")" && pwd)/scripts/install_desktop_entry.sh" --uninstall >/dev/null 2>&1 || true   # icons, scheme handler
-for p in "${ITEMS[@]}"; do rm -rf -- "$p"; done
-[ $WITH_TC = 1 ] && for p in "${TOOLCHAINS[@]}"; do rm -rf -- "$p"; done
-rmdir "$H/models/src" 2>/dev/null || true
-update-desktop-database "$H/.local/share/applications" 2>/dev/null || true
+# processes started from the prefix outside the unit (manual `madalean serve`): only binaries of this prefix
+for pid in $(pgrep -u "$(id -u)" -f -- "^$PREFIX/" 2>/dev/null); do kill -TERM "$pid" 2>/dev/null || true; done
+sleep 1
+for pid in $(pgrep -u "$(id -u)" -f -- "^$PREFIX/" 2>/dev/null); do kill -KILL "$pid" 2>/dev/null || true; done
+for p in "${ITEMS[@]}"; do case "$p" in */) ;; *) rm -rf -- "$p" ;; esac; done
+# directories install.sh created (recorded with a trailing /): removed only when empty, deepest first
+for p in $(printf '%s\n' "${ITEMS[@]}" | grep '/$' | sort -r); do rmdir -- "$p" 2>/dev/null || true; done
 command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/null
-echo "Madalean (et Lean AI Station) a été désinstallé. Les carnets de ~/Documents/Madalean sont conservés."
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" 2>/dev/null
+if [ $PURGE = 1 ]; then
+  for p in "$CONFIG_DIR" "$HOME/models"; do
+    [ -e "$p" ] || continue
+    read -r -p "Supprimer aussi $p ($(du -sh "$p" 2>/dev/null | cut -f1)) ? [o/N] " a
+    [[ "$a" =~ ^[oOyY]$ ]] && rm -rf -- "$p" && echo "  supprimé : $p"
+  done
+fi
+echo "Madalean a été désinstallé."

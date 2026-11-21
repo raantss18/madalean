@@ -557,7 +557,11 @@ def register_sage_kernel() -> Path:
     for f in ("logo-64x64.png", "logo.svg", "logo-svg.svg"):
         if (src / f).exists():
             shutil.copyfile(src / f, d / f)
-    spec = {"argv": [str(sage_py), "-m", "sage.repl.ipython_kernel", "-f", "{connection_file}"],
+    argv = [str(sage_py), "-m", "sage.repl.ipython_kernel", "-f", "{connection_file}"]
+    setpriv = tool("setpriv")
+    if setpriv:                     # the kernel dies with its jupyter-lab (which dies with the server)
+        argv = [setpriv, "--pdeathsig", "KILL", "--", *argv]
+    spec = {"argv": argv,
             "display_name": "SageMath 10.10", "language": "sage",
             "env": {"SAGE_ROOT": str(sage_env_dir()), "SAGE_LOCAL": str(sage_env_dir())},
             "metadata": {"madalean": True}}
@@ -580,6 +584,26 @@ def install_tex_bundle(c: dict, progress: Progress, offline=False) -> dict:
     env = clean_env({"TECTONIC_CACHE_DIR": str(cache)})
     if fontconfig_file().exists():
         env["FONTCONFIG_FILE"] = str(fontconfig_file())
+    # 1. the files the export reads directly (font coverage, bibliography style), from the pinned bundle
+    out_dir = tex_files_dir()
+    tmp_out = out_dir.with_name("files.tmp")
+    shutil.rmtree(tmp_out, ignore_errors=True)
+    tmp_out.mkdir(parents=True)
+    for fn in c.get("extract", []):
+        _emit(progress, name, "download", 0, 0, fn)
+        data = subprocess.run([tec, "-X", "bundle", "cat", *(["--only-cached"] if offline else []), fn],
+                              capture_output=True, env=env, timeout=600,
+                              stdin=subprocess.DEVNULL, cwd=str(cache))
+        if data.returncode != 0 or not data.stdout:
+            raise InstallError("tex", f"cannot extract {fn}: {data.stderr.decode('utf-8', 'replace')[-300:]}")
+        (tmp_out / fn).write_bytes(data.stdout)
+    shutil.rmtree(out_dir, ignore_errors=True)
+    tmp_out.rename(out_dir)
+    from .. import texio
+    texio.tex_font_file.cache_clear()
+    texio.font_file.cache_clear()
+    texio.fonts.cache_clear()
+    # 2. compile Madalean's real export documents once: every package/font they use lands in the cache
     with tempfile.TemporaryDirectory(prefix="tex-warmup-", dir=str(home())) as td:
         n = 0
         for doc, files in warmup_documents():
@@ -596,14 +620,6 @@ def install_tex_bundle(c: dict, progress: Progress, offline=False) -> dict:
             _run(cmd, name, env=env, cwd=wd, timeout=1800)
             if not (wd / "doc.pdf").exists():
                 raise InstallError("tex", f"warm-up document {n} produced no PDF")
-        out_dir = tex_files_dir()
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for fn in c.get("extract", []):
-            data = subprocess.run([tec, "-X", "bundle", "cat", "--only-cached", fn], capture_output=True,
-                                  env=env, timeout=300, stdin=subprocess.DEVNULL)
-            if data.returncode != 0 or not data.stdout:
-                raise InstallError("tex", f"cannot extract {fn}: {data.stderr.decode('utf-8', 'replace')[-300:]}")
-            (out_dir / fn).write_bytes(data.stdout)
     # the same documents must now compile with the cache only (offline guarantee)
     with tempfile.TemporaryDirectory(prefix="tex-offline-", dir=str(home())) as td:
         doc, files = warmup_documents()[0]
@@ -613,9 +629,21 @@ def install_tex_bundle(c: dict, progress: Progress, offline=False) -> dict:
             (wd / fn).write_text(content, encoding="utf-8")
         _run([tec, "-X", "compile", "--untrusted", "--only-cached", "--bundle", c["url"], "doc.tex"], name, env=env,
              cwd=wd, timeout=600)
+    digest = bundle_digest(c["url"])
+    if c.get("sha256") and digest != c["sha256"]:
+        raise InstallError("bad_hash", f"TeX bundle digest {digest} != pinned {c['sha256']}")
     size = sum(p.stat().st_size for p in cache.rglob("*") if p.is_file())
-    return _record(name, version=c["version"], path=str(cache), sha256=c.get("sha256", ""), cache_bytes=size,
+    return _record(name, version=c["version"], path=str(cache), sha256=digest, cache_bytes=size,
                    url=c["url"])
+
+
+def bundle_digest(url: str) -> str:
+    """Digest of the bundle as recorded by tectonic in its cache (hashes/<url with ':'→',58,' and '/'→',47,'>)."""
+    enc = url.replace(":", ",58,").replace("/", ",47,")
+    try:
+        return (tectonic_cache() / "bundles" / "hashes" / enc).read_text().strip()
+    except OSError:
+        return ""
 
 
 def warmup_documents() -> list[tuple[str, dict]]:
@@ -631,7 +659,7 @@ def warmup_documents() -> list[tuple[str, dict]]:
             nl_statement="Soient $a, b \\in \\mathbb{N}$ pairs ; alors $a + b$ est pair [@knuth].",
             lean_statement="theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by\n  sorry",
             notes="ℕ : entiers naturels — ∀ ∃ ≤ ≠ ⟨⟩ → ↔ ∘",
-            informal="Écrivons $a = 2k$ et $b = 2m$ ; alors $a+b = 2(k+m)$, d'où le résultat $\\blacksquare$.",
+            informal="Écrivons $a = 2k$ et $b = 2m$ ; alors $a+b = 2(k+m)$, d'où le résultat.",
             informal_is_explanation=False,
             proof="theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) :=\n  Even.add ha hb",
             proved=True, stamp={"lean": "v4.9.0", "mathlib": "abc", "workspace": "demo", "axioms": ["propext"]},

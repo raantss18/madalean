@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import asyncio
-import shutil
 import time
+from pathlib import Path
 
 from aiohttp import web
 
-from .. import config, names
+from .. import config, deps, names
+from ..deps import health as deps_health
 from ..context import HOST_ONLY_SETTINGS
 from ..i18n import msg
 from ..security import TOKEN_COOKIE, PairingError, RateLimiter
@@ -339,7 +340,11 @@ def _fonts() -> dict:
     out = {}
     for fam in ("DejaVu Sans Mono", "Noto Sans Math"):
         try:
-            r = subprocess.run(["fc-list", fam], capture_output=True, text=True, timeout=10)
+            fc = deps.tool("fc-list")
+            if not fc:
+                out[fam] = False
+                continue
+            r = subprocess.run([fc, fam], capture_output=True, text=True, timeout=10)
             out[fam] = bool(r.stdout.strip())
         except (OSError, subprocess.SubprocessError):
             out[fam] = False
@@ -357,22 +362,38 @@ async def health(ctx) -> list[dict]:
         "Espace de travail Lean prêt : {ws}." if ws is not None and not ws.problems else
         "L'espace de travail Lean n'est pas prêt : {ws}.", repair="workspaces",
         ws=(ws.key if ws else "—") + ("" if ws is None or not ws.problems else f" ({ws.problems[0]})"))
-    exe = config.LLAMA_BIN_DIR / "llama-server"
+    exe = Path(deps.tool("llama-server") or config.LLAMA_BIN_DIR / "llama-server")
     add("llama", exe.exists() or ctx.demo, "Moteur local llama-server présent." if exe.exists() or ctx.demo else
         "llama-server introuvable : relancez install.sh.")
     for role, key in (("prove", "prover"), ("formalize", "formalizer"), ("explain", "explainer")):
         m = ctx.local.model_for(role) if hasattr(ctx.local, "model_for") else None
         add("model_" + key, m is not None, "Modèle local « {role} » : {name}." if m else
             "Aucun modèle local « {role} » installé.", repair="models", role=key, name=m.model_id if m else "")
-    tex = shutil.which("latexmk") and shutil.which("xelatex")
-    add("tex", bool(tex), "LaTeX (latexmk + XeLaTeX) présent : export PDF possible." if tex else
-        "LaTeX absent : l'export PDF devient une page HTML à imprimer.")
+    from ..export import tectonic_cmd
+    if tectonic_cmd():
+        add("tex", True, "LaTeX (tectonic de Madalean, hors ligne) présent : export PDF possible.")
+    else:
+        tex = deps.tool("latexmk") and deps.tool("xelatex")
+        add("tex", bool(tex), "LaTeX du système (latexmk + XeLaTeX) utilisé : export PDF possible." if tex else
+            "LaTeX absent : l'export PDF devient une page HTML à imprimer.", repair="dep_tex-bundle" if not tex else "")
     fonts = await asyncio.to_thread(_fonts)
     for fam, present in fonts.items():
         add("font_" + fam.replace(" ", "_").lower(), present, "Police {f} : présente." if present else
             "Police {f} absente (export PDF moins lisible).", f=fam)
-    add("jupyter", bool(shutil.which("jupyter-lab")), "JupyterLab présent." if shutil.which("jupyter-lab") else
-        "JupyterLab absent : les carnets ne sont pas disponibles.")
+    jl = deps.tool("jupyter-lab")
+    add("jupyter", bool(jl), "JupyterLab présent." if jl else
+        "JupyterLab absent : les carnets ne sont pas disponibles.", repair="" if jl else "dep_env")
+    # components of the prefix (§18): one line each, with its repair action
+    for c in await asyncio.to_thread(deps_health.components):
+        if c["state"] in ("dev",):
+            continue
+        add("dep_" + c["component"], c["ok"], {
+            "ok": "Composant {name} {version} : installé ({path}).",
+            "on_demand": "Composant {name} : installé à la première utilisation.",
+            "outdated": "Composant {name} : la version {pinned} est prête à être installée.",
+        }.get(c["state"], "Composant {name} absent ou incomplet : réparez-le."),
+            repair=c["repair"], level="ok" if c["state"] in ("ok", "on_demand") else "warn",
+            name=c["component"], version=c["version"], pinned=c["pinned"], path=c["path"])
     disks = ctx.monitor.disk or []
     low = [d for d in disks if d["free_gb"] < 10]
     add("disk", not low, "Espace disque suffisant." if not low else "Disque presque plein : {n} Go libres.",
@@ -400,6 +421,20 @@ REPAIRS = ("workspaces", "models", "local_model", "names_index")
 async def system_repair(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     rid = request.match_info["id"]
+    if rid.startswith("dep_"):                      # component of the prefix (§18): reinstall in the background
+        from ..deps import service
+        name = rid[4:]
+        if name not in {c["component"] for c in deps_health.components()}:
+            return error(404, "unknown_repair")
+
+        async def run():
+            try:
+                await service.install_async(name, ctx.publish)
+            except Exception as e:  # noqa: BLE001
+                ctx.publish("deps.progress", {"component": name, "phase": "error", "done": 0, "total": 0,
+                                              "message": str(e)[:300]})
+        ctx.spawn(run())
+        return ok({"repair": rid, "ok": True, "started": True}, status=202)
     if rid not in REPAIRS:
         return error(404, "unknown_repair")
     if rid == "workspaces":

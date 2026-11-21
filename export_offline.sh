@@ -1,68 +1,44 @@
 #!/usr/bin/env bash
-# export_offline.sh — pack everything needed to run Madalean (and the old Lean AI Station app) on another OFFLINE
-# machine (same OS family, NVIDIA GPU with a working driver + CUDA runtime, python3; the Python dependencies of the
-# server are bundled as wheels).
+# export_offline.sh — pack an installed Madalean prefix for an OFFLINE install on another machine (Linux x86_64).
 #
-# Usage: ./export_offline.sh DEST_DIR [--no-models] [--no-current]
-# Produces DEST_DIR/*.tar.zst + SIZES.txt + import_offline.sh. Restore on the target with:
-#   bash DEST_DIR/import_offline.sh
+#   ./export_offline.sh DEST_DIR [--prefix DIR] [--with-models] [--with-workspaces]
+#
+# DEST_DIR receives: madalean/ (the installed version: code, web UI, locks, manifest, install.sh), downloads/ (every
+# verified component file: micromamba, elan, llama.cpp, fonts, madalean-net), pkgs/ (the conda packages of the
+# locked env), tectonic/ (the pinned TeX bundle cache), optionally models/ (~/models GGUF + .sha256) and
+# workspaces/ + toolchains/ (built Lean workspaces). On the target:  DEST_DIR/madalean/install.sh --offline DEST_DIR
+# Every file is checked again against the manifest SHA-256 / lock hashes during the offline install.
 set -euo pipefail
-DEST="${1:?usage: export_offline.sh DEST_DIR [--no-models] [--no-current]}"
-shift || true
-MODELS=1; CURRENT=1
-for a in "$@"; do
-  case "$a" in --no-models) MODELS=0 ;; --no-current) CURRENT=0 ;; esac
-done
-mkdir -p "$DEST"
-DEST="$(cd "$DEST" && pwd)"   # absolute: the script changes directory while packing
-S="$(cd "$(dirname "$0")" && pwd)"
-TC49=leanprover--lean4---v4.9.0-rc1
-TCCUR=leanprover--lean4---v4.34.1
-Z="zstd -T0 -10"
-pack() { # name, base dir, paths...
-  local name=$1 base=$2; shift 2
-  echo ">> $name"
-  tar -C "$base" -I "$Z" -cf "$DEST/$name.tar.zst" "$@"
-}
-# 1. application + llama.cpp binaries (no sources, no venv: recreated by import)
-N="$(basename "$S")"; B="$(dirname "$S")"
-(cd "$B" && pack app "$B" "$N/madalean" "$N/app" "$N/bin" "$N/scripts" "$N/tests" "$N/docs" "$N/packaging" "$N/data" \
-  "$N/vendor/llama.cpp/build/bin" $(cd "$B" && ls -d "$N"/*.md "$N"/*.sh "$N"/pytest.ini "$N"/LICENSE "$N"/NOTICE))
-# 1b. Python wheels of the server (aiohttp & deps) for an offline venv
-rm -rf "$DEST/wheels"; mkdir -p "$DEST/wheels"
-"$S/.venv/bin/python" -m pip download -q -d "$DEST/wheels" "aiohttp>=3.9,<4" || echo "!! pip download failed: install python-aiohttp on the target"
-# 2. elan + toolchains (restored under $HOME)
-TCS=(".elan/toolchains/$TC49")
-[ $CURRENT = 1 ] && TCS+=(".elan/toolchains/$TCCUR")
-pack elan "$HOME" .elan/bin .elan/settings.toml "${TCS[@]}"
-# 3. Lean workspaces with their built .lake (no network needed to verify proofs)
-WS=("$N/workspaces/lean-prover49")
-[ $CURRENT = 1 ] && WS+=("$N/workspaces/lean-current")
-pack workspaces "$B" "${WS[@]}"
-# 4. models
-if [ $MODELS = 1 ]; then
-  pack models "$HOME" $(cd "$HOME" && ls models/Goedel-*.gguf models/Qwen3-8B-*.gguf models/*.gguf.sha256 2>/dev/null)
+DEST="${1:?usage: export_offline.sh DEST_DIR [--prefix DIR] [--with-models] [--with-workspaces]}"; shift
+PREFIX="${MADALEAN_HOME:-$HOME/.local/share/madalean}"; MODELS=0; WS=0
+while [ $# -gt 0 ]; do case "$1" in
+  --prefix) shift; PREFIX="$1" ;;
+  --with-models) MODELS=1 ;;
+  --with-workspaces) WS=1 ;;
+  *) echo "unknown option $1"; exit 2 ;;
+esac; shift; done
+[ -d "$PREFIX/current/madalean/deps" ] || { echo "no installed Madalean in $PREFIX"; exit 1; }
+mkdir -p "$DEST"; DEST="$(cd "$DEST" && pwd)"
+cp -a "$(readlink -f "$PREFIX/current")/." "$DEST/madalean/" 2>/dev/null || { mkdir -p "$DEST/madalean"; cp -a "$(readlink -f "$PREFIX/current")/." "$DEST/madalean/"; }
+mkdir -p "$DEST/downloads"
+find "$PREFIX/downloads" -maxdepth 1 -type f ! -name '*.part' -exec cp -a {} "$DEST/downloads/" \;
+[ -f "$PREFIX/components/madalean-net/current/madalean-net" ] && \
+  cp -a "$PREFIX/components/madalean-net/current/madalean-net" "$DEST/downloads/madalean-net-linux-amd64"
+if [ -d "$PREFIX/downloads/pkgs" ]; then
+  mkdir -p "$DEST/pkgs"
+  (cd "$PREFIX/downloads/pkgs" && find . -type f \( -name '*.conda' -o -name '*.tar.bz2' \) -exec cp --parents -a {} "$DEST/pkgs/" \;)
 fi
-cat > "$DEST/import_offline.sh" <<'EOF'
-#!/usr/bin/env bash
-# Restore Madalean from this folder (offline). Requires: python3, NVIDIA driver + CUDA runtime (pyside6 only for the old app).
-set -euo pipefail
-D="$(cd "$(dirname "$0")" && pwd)"
-# app + workspaces go to $HOME/<clone name> (or $1/<clone name>); elan and models go to $HOME
-DST="${1:-$HOME}"
-for f in app workspaces; do [ -f "$D/$f.tar.zst" ] && tar -C "$DST" -I zstd -xf "$D/$f.tar.zst"; done
-for f in elan models; do [ -f "$D/$f.tar.zst" ] && tar -C "$HOME" -I zstd -xf "$D/$f.tar.zst"; done
-R="$DST/$(tar -I zstd -tf "$D/app.tar.zst" | head -1 | cut -d/ -f1)"
-python3 -m venv --system-site-packages "$R/.venv"
-"$R/.venv/bin/python" -c "import aiohttp" 2>/dev/null || "$R/.venv/bin/python" -m pip install -q --no-index --find-links "$D/wheels" aiohttp
-mkdir -p "$HOME/.config/systemd/user"
-sed "s|@ROOT@|$R|g" "$R/packaging/madalean.service" > "$HOME/.config/systemd/user/madalean.service"
-systemctl --user daemon-reload 2>/dev/null && systemctl --user enable --now madalean.service 2>/dev/null || echo "Lancez : $R/bin/madalean serve"
-mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
-cp "$R/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
-sed "s|@ROOT@|$R|" "$R/packaging/lean-ai-station.desktop.in" > "$HOME/.local/share/applications/lean-ai-station.desktop"
-update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-echo "Terminé. Madalean : http://127.0.0.1:11500/ — ancienne application : « Lean AI Station » dans le menu."
-EOF
-chmod +x "$DEST/import_offline.sh"
-{ echo "Export du $(date -Is)"; du -h "$DEST"/*.tar.zst; du -ch "$DEST"/*.tar.zst | tail -1; } | tee "$DEST/SIZES.txt"
+[ -d "$PREFIX/tectonic/bundles" ] && { mkdir -p "$DEST/tectonic"; cp -a "$PREFIX/tectonic/bundles" "$DEST/tectonic/"; }
+if [ $MODELS = 1 ]; then
+  mkdir -p "$DEST/models"; cp -a "$HOME"/models/*.gguf "$HOME"/models/*.gguf.sha256 "$DEST/models/" 2>/dev/null || true
+fi
+if [ $WS = 1 ] && [ -d "$PREFIX/workspaces" ]; then
+  mkdir -p "$DEST/workspaces" "$DEST/toolchains"
+  for w in "$PREFIX"/workspaces/*/; do
+    w="${w%/}"; cp -a "$w" "$DEST/workspaces/"
+    tcd=$(sed 's|/|--|; s|:|---|' "$w/lean-toolchain")
+    [ -d "$PREFIX/elan/toolchains/$tcd" ] && cp -a "$PREFIX/elan/toolchains/$tcd" "$DEST/toolchains/"
+  done
+fi
+{ echo "Madalean offline export — $(date -Is) — from $PREFIX"; du -sh "$DEST"/* ; du -sh "$DEST" | tail -1; } | tee "$DEST/SIZES.txt"
+echo "Install on the target: $DEST/madalean/install.sh --offline $DEST"

@@ -6,6 +6,7 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote
 
 from . import LOCKS, MANIFEST, PKG_DIR
 
@@ -51,7 +52,7 @@ class LockedPackage:
 
     @property
     def filename(self) -> str:
-        return self.url.rsplit("/", 1)[-1]
+        return unquote(self.url.rsplit("/", 1)[-1])          # "cddlib-1%210.94n…" → "cddlib-1!0.94n…" (epochs)
 
     @property
     def dist(self) -> str:

@@ -19,7 +19,7 @@ from aiohttp import web
 from .. import config
 from ..logs import get
 from . import plugins as plugins_pkg
-from .auth import LOCAL_PORTS, security_middleware
+from .auth import LOCAL_PORTS, REMOTE_HOSTS, REMOTE_PORTS, security_middleware
 from .common import CTX
 from .routes_core import routes as core_routes
 from .routes_extra import routes as extra_routes
@@ -56,6 +56,8 @@ def make_app(ctx, static_dir: Path | None = None, extra_plugins: list[Plugin] | 
     app = web.Application(middlewares=[security_middleware], client_max_size=16 * 1024 * 1024)
     app[CTX] = ctx
     app[LOCAL_PORTS] = set()
+    app[REMOTE_PORTS] = set()
+    app[REMOTE_HOSTS] = set()
     app[ASSIST] = {}
     app[STATIC_DIR] = Path(static_dir or DEFAULT_STATIC)
     app.add_routes(core_routes)
@@ -101,6 +103,7 @@ class Server:
         remote = web.TCPSite(self.runner, "127.0.0.1", self.remote_port, reuse_address=True)
         await remote.start()
         self.ports["remote"] = remote._server.sockets[0].getsockname()[1]
+        self.app[REMOTE_PORTS].add(self.ports["remote"])
         s = self.ctx.settings
         if self.lan if self.lan is not None else s.lan_listener:
             lan = web.TCPSite(self.runner, "0.0.0.0", s.lan_port, reuse_address=True)

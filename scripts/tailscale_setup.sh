@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Publish Madalean's remote listener on the tailnet (HTTPS, tailnet only — never Funnel).
 #
+# ALTERNATIVE, not the default (ARCHITECTURE §18): Madalean embeds its own Tailscale node (madalean-net, started by
+# the server, https://madalean.<tailnet>.ts.net). Use this script only if you prefer the host's system tailscaled.
+#
 #   scripts/tailscale_setup.sh            add the entry if missing (idempotent), print the URL
 #   scripts/tailscale_setup.sh --status   show whether the entry exists and the server answers
 #   scripts/tailscale_setup.sh --print    show the exact commands that would run, change nothing

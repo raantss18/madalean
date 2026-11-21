@@ -19,3 +19,4 @@ workspaces/lean-current.old/
 shells/android/android/local.properties
 *.jks
 *.keystore
+dist/madalean-net/

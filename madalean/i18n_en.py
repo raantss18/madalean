@@ -901,6 +901,16 @@ EN.update({
     "Le service n'a pas répondu ({why}). Réessayez plus tard.": "The service did not answer ({why}). Try again later.",
     "Créé depuis {paper} ({where}).": "Created from {paper} ({where}).",
     "Références inventées par l'IA retirées : {keys}.": "References invented by the AI removed: {keys}.",
+    "Le contenu à publier a changé : relisez la nouvelle liste avant de confirmer.":
+        "What would be published has changed: review the new list before confirming.",
+    "Préparez d'abord la publication (liste de ce qui sera publié).":
+        "Prepare the publication first (list of what will be published).",
+    "Construisez d'abord l'aperçu local.": "Build the local preview first.",
+    "Aucun accès GitHub : ajoutez un jeton (fournisseur « github ») ou connectez gh.":
+        "No GitHub access: add a token (provider « github ») or log in with gh.",
+    "GitHub a refusé l'envoi (historique différent) : rien n'a été écrasé.":
+        "GitHub refused the push (diverging history): nothing was overwritten.",
+    "Aucun résultat à publier dans ce projet.": "No result to publish in this project.",
 })
 
 # ---- research workshop: notes, conjectures, proof plans, learning, update checkers (session S-G)
@@ -985,4 +995,25 @@ EN.update({
     'Explication modifiée à la main.': 'Explanation edited by hand.',
     'Preuve en langage naturel modifiée à la main.': 'Natural-language proof edited by hand.',
     "Lecture de l'énoncé modifiée à la main.": 'Reading of the statement edited by hand.',
+})
+
+# ---- Madalean 2.0 self-contained install (S-I): components of the prefix, embedded Tailscale node
+EN.update({
+    'LaTeX (tectonic de Madalean, hors ligne) présent : export PDF possible.':
+        "LaTeX (Madalean's own tectonic, offline) present: PDF export available.",
+    'LaTeX du système (latexmk + XeLaTeX) utilisé : export PDF possible.':
+        "System LaTeX (latexmk + XeLaTeX) used: PDF export available.",
+    "Nouvelle version fournie par la mise à jour de Madalean : vérifiée (SHA-256) puis installée à côté de "
+    "l'ancienne, qui reste disponible.":
+        'New version delivered by the Madalean update: verified (SHA-256), then installed next to the old one, '
+        'which stays available.',
+    "Version plus récente publiée en amont. Madalean n'installe que des versions épinglées avec leur empreinte : "
+    "elle arrivera avec une prochaine version de Madalean.":
+        'A newer version was published upstream. Madalean only installs pinned versions with their checksum: it '
+        'will come with a future Madalean release.',
+    'Composant {name} {version} : installé ({path}).': 'Component {name} {version}: installed ({path}).',
+    'Composant {name} : installé à la première utilisation.': 'Component {name}: installed on first use.',
+    'Composant {name} : la version {pinned} est prête à être installée.':
+        'Component {name}: version {pinned} is ready to be installed.',
+    'Composant {name} absent ou incomplet : réparez-le.': 'Component {name} missing or incomplete: repair it.',
 })

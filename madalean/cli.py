@@ -58,6 +58,8 @@ def serve(args) -> int:
     import fcntl
     import logging
 
+    from . import deps
+    deps.activate()          # §18: the prefix's programs first in PATH (+ ELAN_HOME, TECTONIC_CACHE_DIR, FONTCONFIG_FILE)
     from . import config, logs
     from .paths import Paths
     paths = Paths(config.CONFIG_DIR, config.CACHE_DIR)

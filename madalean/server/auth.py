@@ -19,6 +19,11 @@ from .common import CTX, error
 
 log = get("auth")
 LOCAL_PORTS = web.AppKey("local_ports", set)
+# Remote listener (§18): Host allow-list = loopback names, Tailscale names (*.ts.net: the embedded node
+# madalean.<tailnet>.ts.net through madalean-net, or `tailscale serve` as the documented alternative) and the extra
+# names in REMOTE_HOSTS (the node's current DNS name, set by the net plugin). Anything else is a DNS-rebinding attempt.
+REMOTE_PORTS = web.AppKey("remote_ports", set)
+REMOTE_HOSTS = web.AppKey("remote_hosts", set)
 # /api/session authenticates with its one-time ticket; /api/session/ticket and /api/devices/self/forget check the
 # Bearer token themselves (they also work on the local listener, where no device is attached to the request).
 PUBLIC_API = {("GET", "/api/hello"), ("HEAD", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout"),
@@ -75,6 +80,13 @@ def origin_ok(request: web.Request, local: bool) -> bool:
     return origin in extra
 
 
+def remote_host_ok(request: web.Request) -> bool:
+    name = _host_name(request.headers.get("Host", "")).lower().rstrip(".")
+    if name in LOOPBACK_HOSTS or name.endswith(".ts.net"):
+        return True
+    return name in {h.lower().rstrip(".") for h in request.app.get(REMOTE_HOSTS, set())}
+
+
 def is_static(path: str) -> bool:
     return not (path.startswith("/api/") or path == "/api" or path.startswith("/jupyter"))
 
@@ -89,6 +101,8 @@ async def security_middleware(request: web.Request, handler):
     if local:
         if _host_name(request.headers.get("Host", "")) not in LOOPBACK_HOSTS:
             return error(403, "bad_host")
+    elif _sock_port(request) in request.app.get(REMOTE_PORTS, set()) and not remote_host_ok(request):
+        return error(403, "bad_host")
     is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
     how = ""
     if not local:

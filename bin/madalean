@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 # Madalean launcher: `madalean serve [--demo]`, `madalean pair`, `madalean status` (see `madalean --help`).
-# Works from any clone location; used by the systemd user unit packaging/madalean.service.
+# Installed layout (install.sh): $MADALEAN_HOME/versions/<v>/bin/madalean, reached through $MADALEAN_HOME/current;
+# Python = the prefix's own env ($MADALEAN_HOME/env/bin/python), nothing from the system or a dev checkout.
+# Development checkout (no prefix env next to it): the checkout's .venv, as before.
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export MADALEAN_DIR="$ROOT"
+if [ -z "${MADALEAN_HOME:-}" ] && [ -x "$ROOT/../../env/bin/python" ] && [ -d "$ROOT/../../versions" ]; then
+  MADALEAN_HOME="$(cd "$ROOT/../.." && pwd)"
+  export MADALEAN_HOME
+fi
+if [ -n "${MADALEAN_HOME:-}" ] && [ -x "$MADALEAN_HOME/env/bin/python" ]; then
+  export PYTHONNOUSERSITE=1
+  unset PYTHONHOME CONDA_PREFIX VIRTUAL_ENV
+  exec "$MADALEAN_HOME/env/bin/python" -m madalean "$@"
+fi
 exec "$ROOT/.venv/bin/python" -m madalean "$@"

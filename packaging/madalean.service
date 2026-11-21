@@ -1,22 +1,29 @@
-# systemd user unit — installed by install.sh as ~/.config/systemd/user/madalean.service (@ROOT@ = the clone).
+# systemd user unit — written by install.sh as ~/.config/systemd/user/<unit>.service
+# (@PREFIX@ = MADALEAN_HOME, @CONFIG@ = config dir, @CACHE@ = cache dir, @ARGS@ = listener ports + extra args).
 #   systemctl --user enable --now madalean      journalctl --user -u madalean
-# Children (llama-server, lean, jupyter-lab) are started with setpriv --pdeathsig and in the unit's cgroup:
-# stopping the unit stops all of them.
+# One process tree in the unit's cgroup: llama-server, lean, jupyter-lab (+ kernels), madalean-net are children of
+# the server, started through setpriv --pdeathsig (they die with it even after kill -9). Stopping the unit — or the
+# server dying — kills the WHOLE cgroup (KillMode=control-group), so nothing survives.
 [Unit]
 Description=Madalean — Lean 4 proving assistant (server for the web UI)
-After=network.target
+After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=@ROOT@/bin/madalean serve
+Environment=MADALEAN_HOME=@PREFIX@
+Environment=MADALEAN_CONFIG_DIR=@CONFIG@
+Environment=MADALEAN_CACHE_DIR=@CACHE@
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONNOUSERSITE=1
+ExecStart=@PREFIX@/current/bin/madalean serve @ARGS@
 Restart=on-failure
 RestartSec=3
 KillMode=control-group
+KillSignal=SIGTERM
 TimeoutStopSec=20
-Environment=PYTHONUNBUFFERED=1
-# The local listener is 127.0.0.1:11500, the remote one 127.0.0.1:11501 (published on the tailnet only by
-# `tailscale serve`, see scripts/tailscale*). Nothing listens on other interfaces unless the host enables the LAN
-# listener in the settings.
+SendSIGKILL=yes
+# Listeners: 127.0.0.1 only (local 11500, remote 11501). Devices reach the remote listener through the embedded
+# Tailscale node (madalean-net, https://madalean.<tailnet>.ts.net) — never Funnel. LAN listener off by default.
 NoNewPrivileges=yes
 PrivateTmp=yes
 

@@ -145,3 +145,17 @@ papers (docs/RESEARCH_SOURCES.md §10); `serve --demo` seeds and serves the rese
 Not verified (needs a key or the GPU): grounded answers, reading lists, metadata proposals, blueprint model pass and
 article drafts with a REAL model (only the fake brain ran); semantic re-ranking with a local Ollama embedding model;
 OCR quality on a real scanned paper; EPUB extraction on a real book.
+
+## 2.0 — self-contained install, embedded Tailscale node (session S-I, 2026-11-21)
+Verified (temp prefix + temp config + temp unit `madalean-sitest`, details and numbers in docs/INSTALL.md §9):
+install.sh --cpu end to end in 359 s (re-run 16 s, offline from an export in `unshare -rn` 26 s); the unit runs the
+server from the prefix; /api/hello, /api/system all green; PDF export through the prefix's tectonic (also with no
+network); Python kernel through the prefix's JupyterLab; Sage 10.10 installed on demand through the API and
+`factor(2^64+1)` = 274177 * 67280421310721; kill -9 of the server → no child survives (systemd cgroup, and by hand:
+jupyter-lab + kernel in its own session); real madalean-net reaches `needs_login` with a login URL (not authorised);
+uninstall.sh leaves nothing but the kept config. pip-audit main env: 0 vulns; govulncheck: 0 affecting; SBOM
+dist/sbom/madalean-prefix.cdx.json.
+Not verified: real tailnet login / HTTPS with the Tailscale certificate / proxy over the tailnet; CUDA builds of
+llama.cpp and any real model load (GPU reserved); other distributions; `--build-workspace`; madalean-net built on
+another Go version. Accepted: pillow 12.3.0 in the Sage env (sage 10.10 pins pillow <13); x/crypto GO-2026-5932
+(not called).

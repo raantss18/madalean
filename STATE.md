@@ -162,3 +162,16 @@ No root change was needed (D1) → no timeshift snapshot taken. Latest existing:
 - shells/desktop/tests/e2e.sh was NOT run against the real server: it is hard-wired to shells/dev/mock_server.py
   (fixed ports 11630/11631, fixed code 123456 and the mock-only helpers /mock/new_code, /mock/revoke_all,
   /mock/events), so it cannot target `madalean serve --demo` without changes in shells/ (not S-A's directory).
+
+## S-I — self-contained install (session S-I, 2026-11-21)
+- `madalean/deps/` (manifest.toml + conda-lock files, `tool()` resolver, installer with resume/SHA-256/atomic
+  switch/rollback, health, `deps` update checker, SBOM, service for on-demand installs), `net/` (Go sidecar
+  madalean-net, tsnet 1.104.7, reproducible static build `net/build.sh`), `madalean/runtime/net.py`, plugin
+  `server/plugins/deps_net.py` (/api/deps, /api/net), new install.sh / uninstall.sh / export_offline.sh /
+  packaging/madalean.service, tests `tests/test_deps.py` (25) + `tests/test_net.py` (6); `go test` in net/ (4), docs/INSTALL.md.
+- Routed through `deps.tool`: config (LLAMA_BIN_DIR, WORKSPACES_DIR, ELAN_HOME/ELAN_BIN), workspaces (toolchains
+  prefix-first), runtime/__init__ (setpriv + Python fallback), monitor (nvidia-smi), jupyter (jupyter-lab + guarded
+  python3 kernelspec), texio/export (tectonic first, system TeX fallback), routes_core health/repair, cli serve
+  (`deps.activate()`), bin/madalean (prefix python), scripts/updater.py (prefix elan, `deps-install`), auth/app
+  (remote Host allow-list).
+- Work dirs used: /home/raantss/madalean-si-work (removed at the end, see the final report).

@@ -30,8 +30,8 @@ upstream = "conda-forge"
 lock = "locks/main.conda-lock.yml"
 spec = "locks/main.environment.yml"
 sha256 = "ac10a945df859cd400f92dd24b2cc1e910281421983b3da963715973b281b085"
-size = 0
-installed_size = 0
+size = 361949697
+installed_size = 1288490189
 watch = ["python", "aiohttp", "jupyterlab", "ipykernel", "poppler", "tectonic", "git", "tesseract", "cryptography"]
 
 [components.sage]
@@ -44,8 +44,8 @@ upstream = "conda-forge"
 lock = "locks/sage.conda-lock.yml"
 spec = "locks/sage.environment.yml"
 sha256 = "e7ff97d144dedc029c2f80dbfc28f041734d8a2649f6bc263f395228b161c6c9"
-size = 0
-installed_size = 0
+size = 1453206955
+installed_size = 5046586573
 watch = ["sage"]
 
 [components.tex-bundle]
@@ -56,9 +56,10 @@ need = "required"
 license = "LPPL / various (TeX Live)"
 upstream = "tectonic-bundle"
 url = "https://relay.fullyjustified.net/default_bundle_v33.tar"
-sha256 = ""
-size = 0
-installed_size = 0
+# digest of the bundle's content (tectonic's SHA256SUM of the bundle; every file is checked against its index)
+sha256 = "6ffe055852f8faf66c0acbe1a7fb27f87b869a90bad1204f3bf4d9683f597c7c"
+size = 0                  # streamed file by file from the bundle (HTTP ranges)
+installed_size = 50331648
 extract = ["lmroman10-regular.otf", "latinmodern-math.otf", "amsalpha.bst"]
 
 [components.fonts]

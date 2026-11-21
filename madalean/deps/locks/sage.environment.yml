@@ -1,5 +1,7 @@
 # Source spec of the on-demand SageMath environment ($MADALEAN_HOME/envs/sage), installed the first time a Sage
-# feature is used. conda-forge only. Locked with:
+# feature is used. conda-forge only. Known accepted advisory (2026-11-21): sage 10.10 requires pillow <13, so this
+# env has pillow 12.3.0 (fixed in 13.0.0); it is only reachable from Sage experiment kernels, see docs/INSTALL.md §10.
+# Locked with:
 #   conda-lock -f sage.environment.yml -p linux-64 --lockfile sage.conda-lock.yml
 name: madalean-sage
 channels:

@@ -45,10 +45,12 @@ def _copy_tree(src: Path, dst: Path) -> str:
     return method
 
 
-def candidates(extra_roots: list[Path] | None = None) -> dict[str, Path]:
-    """Built workspaces found in the known places (first found wins per name)."""
+def candidates(extra_roots: list[Path] | None = None, defaults: bool = True) -> dict[str, Path]:
+    """Built workspaces found in `extra_roots`, then the known places (first found wins per name)."""
     home = Path.home()
-    roots = list(extra_roots or []) + [home / "madalean" / "workspaces", home / "lean-ai-station" / "workspaces"]
+    roots = list(extra_roots or [])
+    if defaults:
+        roots += [home / "madalean" / "workspaces", home / "lean-ai-station" / "workspaces"]
     out: dict[str, Path] = {}
     for r in roots:
         for name in ("lean-current", "lean-prover49"):

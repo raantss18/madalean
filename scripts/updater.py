@@ -2,6 +2,7 @@
 """Check and install updates of Lean/Mathlib (lean-current) and of the Goedel models.
 
 usage: updater.py check
+       updater.py deps-install COMPONENT      (madalean.deps: pinned component of the prefix, verify-then-switch)
        updater.py install-mathlib TAG
        updater.py install-model REPO FILE SHA256 ROLE
        updater.py bump-package SPEC.json      (madalean.update_checkers.installer)
@@ -31,8 +32,8 @@ sys.path.insert(0, str(ROOT))
 from madalean import config, updates  # noqa: E402
 from madalean.workspaces import Workspace  # noqa: E402
 
-ELAN = config.ELAN_BIN
-ENV = {**os.environ, "PATH": f"{ELAN}:{os.environ.get('PATH', '')}"}
+ELAN = config.ELAN_BIN            # the prefix's elan (ELAN_HOME = $MADALEAN_HOME/elan, §18); ~/.elan only in a dev checkout
+ENV = {**os.environ, "PATH": f"{ELAN}:{os.environ.get('PATH', '')}", "ELAN_HOME": str(config.ELAN_HOME)}
 SKIP_DIRS = {".git", ".lake", ".cache", ".elan", ".local", "node_modules", ".npm", ".cargo", ".rustup", ".venv",
              "venv", "__pycache__", "models"}
 TEST_LEAN = "import Mathlib\n\nexample (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := Even.add ha hb\n"
@@ -87,7 +88,7 @@ def toolchain_users(toolchain: str, ignore: list[Path], home: Path = Path.home()
 
 def elan_default() -> str:
     try:
-        m = re.search(r'default_toolchain\s*=\s*"([^"]+)"', (Path.home() / ".elan" / "settings.toml").read_text())
+        m = re.search(r'default_toolchain\s*=\s*"([^"]+)"', (config.ELAN_HOME / "settings.toml").read_text())
         return m.group(1) if m else ""
     except OSError:
         return ""
@@ -144,7 +145,7 @@ def _build_next(tag: str, cur: Path, nxt: Path) -> str:
         f'git = "{updates.MATHLIB_GIT}"\nrev = "v0"\n\n[[lean_lib]]\nname = "LeanCurrent"\n')
     (nxt / "lakefile.toml").write_text(re.sub(r'(?m)^(\s*rev\s*=\s*)"[^"]*"', rf'\1"{tag}"', lakefile))
     (nxt / "LeanCurrent.lean").write_text("import Mathlib\n")
-    if not (Path.home() / ".elan" / "toolchains" / tc.replace("/", "--").replace(":", "---")).is_dir():
+    if not (config.ELAN_HOME / "toolchains" / tc.replace("/", "--").replace(":", "---")).is_dir():
         run([str(ELAN / "elan"), "toolchain", "install", tc], "toolchain", tries=3)
     step("deps")
     run([str(ELAN / "lake"), "update"], "deps", cwd=nxt, tries=3)
@@ -261,6 +262,13 @@ def main(argv: list[str]) -> int:
             res = install_mathlib(argv[1])
         elif argv[0] == "install-model" and len(argv) == 5:
             res = install_model(*argv[1:])
+        elif argv[0] == "deps-install" and len(argv) == 2:
+            from madalean.deps.installer import InstallError, install
+            try:
+                res = install(argv[1], lambda e: step(e["phase"], e["component"] + (
+                    f" {e['done']}/{e['total']}" if e.get("total") else "")))
+            except (InstallError, KeyError) as e:
+                raise Fail("deps", str(e)) from e
         elif argv[0] in ("bump-package", "add-library"):
             # generalised verify-then-switch for Lake packages of a managed workspace (madalean.update_checkers)
             from madalean.update_checkers import installer

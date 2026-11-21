@@ -58,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("list")
     iw = sub.add_parser("import-workspaces")
     iw.add_argument("roots", nargs="*", type=Path)
+    iw.add_argument("--toolchains", type=Path, help="where the toolchains are (default ~/.elan/toolchains, read only)")
     sb = sub.add_parser("sbom")
     sb.add_argument("out", type=Path)
     a = ap.parse_args(argv)
@@ -115,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
             print("no built workspace found")
         for name, src in found.items():
             try:
-                print(json.dumps(import_workspace(src, name)))
+                print(json.dumps(import_workspace(src, name, a.toolchains)))
             except (OSError, FileNotFoundError) as e:
                 print(f"FAIL {name}: {e}", file=sys.stderr)
         return 0
