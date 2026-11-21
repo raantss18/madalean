@@ -44,13 +44,13 @@
 - ⬜ Écrans de l'atelier de recherche (sources, notes, graphe, conjectures, plans de preuve, articles) — session suivante
 - ⚠️ Jamais essayé avec les vrais modèles, dans les applications, sur un vrai téléphone ou un lecteur d'écran
 
-## 5. Recherche : bibliographie et articles (session S-E, Opus) — 🔄 en cours
+## 5. Recherche : bibliographie et articles (session S-E, Opus) — ✅ côté serveur (écrans en cours)
 - ⬜ Bibliographie par projet (DOI, arXiv, zbMATH, BibTeX), citations dans les preuves, jamais de référence inventée
 - ⬜ Lean → article scientifique (LaTeX/PDF, bibliographie, tableau de vérification)
 - ⬜ Article (arXiv / PDF) → énoncés structurés → dossiers Lean (« blueprint » avec dépendances)
 - ⬜ Mises à jour systématiques : toutes les bibliothèques Lean des espaces, Sage et ses composants (notification)
 
-## 5 bis. Atelier de recherche (session S-G, Opus) — 🔄 en cours (côté serveur ; écrans dans une session suivante)
+## 5 bis. Atelier de recherche (session S-G, Opus) — ✅ côté serveur (écrans en cours)
 - ⬜ Bibliothèque de sources intégrée (articles, livres ; ajout manuel, DOI, arXiv ; import/export BibTeX et Zotero)
 - ⬜ Recherche d'articles et d'ouvrages du domaine (arXiv, zbMATH Open, Crossref, OpenAlex)
 - ⬜ Lecteur avec surlignages et notes ; questions sur les sources avec citations cliquables (façon NotebookLM)
@@ -71,7 +71,7 @@
 - ⬜ Un seul service ; aucun processus ne survit à l'arrêt ; désinstallation complète
 - ⬜ Audit des failles connues et liste des composants (SBOM)
 
-## 6. Site GitHub Pages utile (session S-F) — pas de vitrine
+## 6. Site GitHub Pages utile (session S-F) — ✅ manuel et site prêts, « Publier » en cours, mise en ligne après ton accord
 - ⬜ « Publier » un projet : site statique (article, graphe blueprint, Lean, vérification, bibliographie) poussé sur un dépôt de ton choix, revérifié par une action GitHub
 - ⬜ Canal de mises à jour signé (manifeste Ed25519, page d'installation avec QR code)
 - ⬜ Manuel de référence : une seule source pour l'aide intégrée et le site (FR + EN)
