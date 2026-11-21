@@ -15,6 +15,7 @@
 8. ✅ Énoncé refusé compté valide ; carte graphique non détectée ; un seul essai en ligne → tournoi (corrigés, installés)
 
 ### P1 — à faire avant la publication
+- 🔄 Outil à part « fitantanana » (`~/GitHub/fitantanana`) : inventaire des services, ports, carte graphique, modèles, Lean, environnements Python, Jupyter, TeX ; doublons proposés (liens physiques de préférence, rien sans ton accord) ; prêt automatique de la carte graphique entre Ollama et Madalean (Madalean rend la carte après 10 min d'inactivité)
 9. 🔄 Glossaire par catégories et niveaux ; bibliothèque des résultats par domaine, projet, étiquette
 10. 🔄 Écran « Calcul » Sage intégré : calculs et conjectures, reliés aux notes, dossiers Lean et articles (objectif : publier)
 11. ⬜ Défauts du PDF : version de Mathlib « — », « Théorème. » répété, numérotation de l'annexe
