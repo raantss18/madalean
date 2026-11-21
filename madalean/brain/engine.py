@@ -89,13 +89,19 @@ class MadaleanBrain:
         return self.endpoints.get("huggingface_hub", HF_HUB).rstrip("/")
 
     def key(self, provider: str) -> str | None:
-        if not any(p.id == provider for p in KEYED):
+        if not any(p.id == provider for p in KEYED) or provider in self.disabled():
             return None
         try:
             k = self._get_key(provider)
         except Exception:  # noqa: BLE001
             return None
         return k.strip() if isinstance(k, str) and k.strip() else None
+
+    def disabled(self) -> set[str]:
+        """Providers turned off in Réglages → Fournisseurs (S-U): a keyed one behaves as if it had no key; « keyless »
+        turns off every keyless online provider (LLM7, OVHcloud, Kilo, Pollinations)."""
+        v = self.settings.get("providers_disabled") or []
+        return {str(x) for x in v} if isinstance(v, (list, tuple, set)) else set()
 
     def base_url(self, p: Provider) -> str:
         return self.endpoints.get(p.id, p.base_url)
@@ -118,6 +124,11 @@ class MadaleanBrain:
                 spend.set_price(m.key, m.price)
         if not self.settings.get("ollama", True):
             cat.models = [m for m in cat.models if m.provider != "ollama"]
+        off = self.disabled()
+        if off:
+            keyless = {p.id for p in cat.providers if not p.keyed and not p.local and p.id != "ollama"} \
+                if "keyless" in off else set()
+            cat.models = [m for m in cat.models if m.provider not in off and m.provider not in keyless]
         for pid, url in self.endpoints.items():          # test endpoints may be keyless fakes
             if not any(p.id == pid for p in cat.providers) and pid in ("ollama",):
                 cat.providers.append(Provider(pid, pid, url, local=True))
@@ -234,6 +245,10 @@ class MadaleanBrain:
         if status == 0:
             return {"ok": False, "reason": "network" if await self.http.online() else "offline", "models": 0}
         if status in (401, 403):
+            keys = [m.key for m in self._view().models if m.provider == "huggingface"]
+            if keys:                                 # same rule as a refused key during a call: provider paused
+                self.states.pause_provider("huggingface", keys)
+            self.last_error["huggingface"] = "key_refused"
             return {"ok": False, "reason": "key_refused", "models": 0}
         if status >= 400 or not isinstance(who, dict):
             return {"ok": False, "reason": f"http_{status}", "models": 0}
