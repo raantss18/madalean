@@ -370,7 +370,6 @@
         <span class="chip kstate {kstate}" role="status" aria-live="polite" title={ct('idleHint', { n: status?.idle_minutes ?? 30 })}>
           <span class="dot" aria-hidden="true"></span>{queue ? ct('k.busy') : ct(`k.${['none', 'idle', 'busy', 'starting'].includes(kstate) ? kstate : 'unknown'}`)}{status?.kernel?.shared ? ` · ${ct('shared')}` : ''}
         </span>
-        {#if status}<span class="chip local"><Icon name="lock" size={12} />{status.sandbox}</span>{/if}
         <button class="btn small quiet" aria-pressed={side === 'outline'} onclick={() => (side = side === 'outline' ? null : 'outline')}>{ct('outline')}</button>
         <button class="btn small quiet" aria-pressed={side === 'variables'} onclick={() => { side = side === 'variables' ? null : 'variables'; if (side) void loadVars(); }}>{ct('variables')}</button>
       </div>

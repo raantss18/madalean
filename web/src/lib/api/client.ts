@@ -240,7 +240,7 @@ export interface ProviderCard {
 }
 export interface ProvidersHub {
   checked: string; groups: { id: string; fr: string; en: string }[]; starter: string[]; cards: ProviderCard[];
-  ocr: I18nText; web_search: boolean; mode: string;
+  web_search: boolean; mode: string;
 }
 export interface WebSearchResult {
   query: string; provider: string; tried: { provider: string; error: string }[];

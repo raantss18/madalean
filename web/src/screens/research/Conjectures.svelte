@@ -165,7 +165,7 @@
 
           <section class="panel">
             <div class="row"><h3>{t('conj.experiments')}</h3><span class="spacer"></span>
-              {#if expStatus}<span class="xs muted">{t('conj.sandbox', { s: expStatus.sandbox })}</span>{/if}</div>
+              </div>
             <p class="hint">{t('conj.expLead')}</p>
             {#if !app.m.local && !expStatus?.remote_allowed}<p class="small lock"><Icon name="lock" size={14} /> {t('conj.hostOnly')}</p>{/if}
             <div class="row">

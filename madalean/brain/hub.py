@@ -298,14 +298,6 @@ CARDS.append(_c(
     key_url="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Madalean",
     prefix="^(ghp_|github_pat_|gho_)"))
 
-# OCR of formulas (image / PDF → LaTeX): evaluated, nothing installed (docs/PROVIDERS.md §OCR).
-OCR_NOTE = {
-    "fr": "Reconnaissance de formules (image → LaTeX) : pix2text (MIT, ONNX, hors ligne) est la meilleure option "
-          "gratuite — c'est un nouveau modèle local, proposé mais pas installé. Mathpix est payant (0,002 $ par image "
-          "+ 19,99 $ d'ouverture).",
-    "en": "Formula recognition (image → LaTeX): pix2text (MIT, ONNX, offline) is the best free option — a new local "
-          "model, proposed but not installed. Mathpix is paid (0.002 USD per image + 19.99 USD setup).",
-}
 
 
 def cards() -> list[dict]:

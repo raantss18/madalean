@@ -102,7 +102,6 @@
             </div>
             <p class="good">{c.good_for[lang]}</p>
             <p class="small"><strong>{t('hub.tier')}</strong> {c.free_tier[lang]} <span class="xs muted">({t('hub.checked', { date: date(c.checked) })})</span></p>
-            <p class="small privacy"><Icon name="lock" size={12} /> {c.privacy[lang]}</p>
             {#if st}<p class="small st {st.level}">{st.text}</p>{/if}
             {#if usageText(c)}<p class="xs muted">{usageText(c)}</p>{/if}
             {#if ownsKey(c) && !c.disabled}
@@ -117,10 +116,11 @@
               {/if}
               <span class="spacer"></span>
             </div>
-            {#if c.details[lang] || c.sources.length || c.models.length}
+            {#if c.details[lang] || c.privacy[lang] || c.sources.length || c.models.length}
               <details>
                 <summary class="small">{t('hub.more')}</summary>
                 {#if c.details[lang]}<p class="small">{c.details[lang]}</p>{/if}
+                {#if c.privacy[lang] && c.privacy[lang] !== '—'}<p class="small privacy">{c.privacy[lang]}</p>{/if}
                 {#if c.models.length}<p class="xs muted">{t('hub.modelIds')} <code>{c.models.join(', ')}</code></p>{/if}
                 {#if c.sources.length}
                   <p class="xs">{t('hub.sources', { date: date(c.checked) })}</p>
@@ -134,8 +134,6 @@
     </section>
   {/each}
 
-  <p class="small muted ocr"><Icon name="info" size={14} /> {hub.ocr[lang]}</p>
-  <p class="xs muted">{t('keys.where')}</p>
 {/if}
 
 <style>
@@ -163,5 +161,4 @@
   .st.ok { color: var(--proved); }
   .st.warn { color: var(--running); }
   .st.error { color: var(--failed); }
-  .ocr { margin-top: var(--s-5); display: flex; gap: 6px; }
 </style>

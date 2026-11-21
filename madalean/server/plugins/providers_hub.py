@@ -62,7 +62,7 @@ async def providers_get(request: web.Request) -> web.Response:
             c["usage"] = {"units": u["units"], "searches": u["searches"], "unit": u["unit"], "free_month": u["free_month"]}
         cards.append(c)
     return ok({"checked": hub.CHECKED, "groups": [{"id": g, "fr": fr, "en": en} for g, fr, en in hub.GROUPS],
-               "starter": hub.STARTER, "cards": cards, "ocr": hub.OCR_NOTE, "web_search": st["web_search"],
+               "starter": hub.STARTER, "cards": cards, "web_search": st["web_search"],
                "mode": st["mode"]})
 
 
