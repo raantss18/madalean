@@ -5,6 +5,12 @@
 #   scripts/build_apk.sh             build release APKs (universal + one per ABI), verify the signature
 #   scripts/build_apk.sh --debug     build the debug APK (cleartext allowed to 10.0.2.2 for the mock server)
 #
+# Update channel public key: derived at build time from the Ed25519 release key
+# (~/.config/madalean/release-keys/ed25519.pem, or $MADALEAN_RELEASE_KEY; override with
+# MADALEAN_UPDATE_PUBKEY=<base64 32 bytes>) and embedded with --dart-define. A release build refuses to run
+# without it. Only the PUBLIC key enters the APK. Debug builds may also set MADALEAN_UPDATE_CHANNEL=<url of a
+# test channel> (ignored by release builds) and BUILD_NAME / BUILD_NUMBER (version) for update tests.
+#
 # Signing material: ~/.config/madalean/release-keys/ (override with MADALEAN_KEYSTORE_PROPERTIES).
 # BACK IT UP: without this keystore no update of the installed app can ever be published.
 set -euo pipefail
@@ -18,6 +24,7 @@ SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
 BT="$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)"
 PINNED_FLUTTER="3.47.9"
 DIST="$APP/dist"
+RELEASE_ED25519="${MADALEAN_RELEASE_KEY:-$KEYDIR/ed25519.pem}"
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -56,6 +63,26 @@ PROPS
   echo "If they are lost, installed apps can no longer be updated (only uninstalled + reinstalled)."
 }
 
+update_pubkey() {
+  if [ -n "${MADALEAN_UPDATE_PUBKEY:-}" ]; then echo "$MADALEAN_UPDATE_PUBKEY"; return; fi
+  [ -f "$RELEASE_ED25519" ] || return 0
+  openssl pkey -in "$RELEASE_ED25519" -pubout -outform DER 2>/dev/null | tail -c 32 | base64 -w0
+}
+
+define_args() { # $1 = release|debug
+  local pk; pk="$(update_pubkey)"
+  if [ -z "$pk" ] || [ "$(printf '%s' "$pk" | base64 -d 2>/dev/null | wc -c)" != 32 ]; then
+    [ "$1" = release ] && die "no Ed25519 update public key (expected $RELEASE_ED25519 or MADALEAN_UPDATE_PUBKEY)"
+    echo "warning: no update public key, updates disabled in this build" >&2
+    return 0
+  fi
+  echo "--dart-define=MADALEAN_UPDATE_PUBKEY=$pk"
+  [ "$1" = debug ] && [ -n "${MADALEAN_UPDATE_CHANNEL:-}" ] && echo "--dart-define=MADALEAN_UPDATE_CHANNEL=$MADALEAN_UPDATE_CHANNEL"
+  [ -n "${BUILD_NAME:-}" ] && echo "--build-name=$BUILD_NAME"
+  [ -n "${BUILD_NUMBER:-}" ] && echo "--build-number=$BUILD_NUMBER"
+  return 0
+}
+
 check_flutter() {
   [ -x "$FLUTTER" ] || die "flutter not found (set FLUTTER=/path/to/flutter)"
   local v
@@ -77,10 +104,13 @@ build_release() {
   check_flutter
   cd "$APP"
   "$FLUTTER" pub get >/dev/null
+  local defs; mapfile -t defs < <(define_args release)
+  [[ "${defs[0]:-}" == --dart-define=MADALEAN_UPDATE_PUBKEY=* ]] || die "no Ed25519 update public key (expected $RELEASE_ED25519)"
+  echo "update public key: ${defs[0]#--dart-define=MADALEAN_UPDATE_PUBKEY=}"
   rm -rf "$DIST"; mkdir -p "$DIST"
-  "$FLUTTER" build apk --release --split-per-abi
+  "$FLUTTER" build apk --release --split-per-abi "${defs[@]}"
   cp build/app/outputs/flutter-apk/app-*-release.apk "$DIST/"
-  "$FLUTTER" build apk --release
+  "$FLUTTER" build apk --release "${defs[@]}"
   cp build/app/outputs/flutter-apk/app-release.apk "$DIST/madalean-universal-release.apk"
   for f in "$DIST"/app-*-release.apk; do
     mv "$f" "$DIST/madalean-$(basename "$f" | sed 's/^app-//')"
@@ -101,7 +131,8 @@ build_debug() {
   check_flutter
   cd "$APP"
   "$FLUTTER" pub get >/dev/null
-  "$FLUTTER" build apk --debug
+  local defs; mapfile -t defs < <(define_args debug)
+  "$FLUTTER" build apk --debug "${defs[@]}"
   ls -la build/app/outputs/flutter-apk/app-debug.apk
 }
 

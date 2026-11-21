@@ -21,7 +21,7 @@ PROJECT_FIELDS = {"title": str, "description": str, "workspace": str, "archived"
                   "sources": list}
 DOSSIER_FIELDS = {"title": str, "project_id": str, "archived": bool, "workspace": str, "kind": str, "refs": list,
                   "source": (dict, type(None)), "uses": list, "retry_parent": bool, "problem": str}
-KINDS = ("theorem", "lemma", "definition", "claim")
+from ..dossiers import KINDS  # noqa: E402  (theorem lemma definition claim conjecture)
 
 
 def _busy(e: DossierBusy) -> web.Response:
@@ -418,8 +418,13 @@ async def dossiers_export(request: web.Request) -> web.StreamResponse:
     fmt = request.query.get("format", "pdf")
     if fmt not in FORMATS:
         return error(400, "bad_format")
+    try:                       # references cited by the dossier (research layer, S-E); never blocks the export
+        from ..research.biblio import dossier_bibliography
+        bib = await asyncio.to_thread(dossier_bibliography, ctx, d)
+    except Exception:  # noqa: BLE001
+        bib = []
     ex = await export_dossier(d, fmt, lang=ctx.settings.language, ws_info=workspace_info(ctx.workspace(d.workspace)),
-                              tmp_root=ctx.paths.exports)
+                              tmp_root=ctx.paths.exports, bib_entries=bib)
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", ex.filename)[:120] or "export"
     headers = {"Content-Disposition": f'attachment; filename="{safe}"', "X-Madalean-Fallback": ex.fallback or ""}
     return web.Response(body=ex.data, content_type=ex.content_type.split(";")[0], headers=headers)

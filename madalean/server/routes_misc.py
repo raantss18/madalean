@@ -19,6 +19,15 @@ from .helpers import complete_once
 log = get("routes")
 routes = web.RouteTableDef()
 ASSIST = web.AppKey("assistant_tasks", dict)
+RID_RE = __import__("re").compile(r"^[A-Za-z0-9_-]{8,64}$")
+# Same policy as the <meta> of web/index.html, plus what only a header can carry (frame-ancestors).
+UI_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; "
+          "font-src 'self'; connect-src 'self'; frame-src 'self'; worker-src 'self'; object-src 'none'; "
+          "base-uri 'none'; form-action 'self'; frame-ancestors 'self'")
+UI_HEADERS = {"Content-Security-Policy": UI_CSP, "X-Content-Type-Options": "nosniff",
+              "Referrer-Policy": "no-referrer",
+              "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), "
+                                    "interest-cohort=()"}
 STATIC_DIR = web.AppKey("static_dir", Path)
 
 
@@ -38,7 +47,12 @@ async def assistant(request: web.Request) -> web.Response:
         if d is not None and not context.get("lean"):
             context = {**context, "lean": d.proof or d.statement}
     mode = data.get("mode") if data.get("mode") in ("local", "auto", "online") else ctx.settings.mode
-    rid = "a-" + uuid.uuid4().hex[:10]
+    rid = data.get("request_id")
+    if rid is not None and not (isinstance(rid, str) and RID_RE.match(rid)):
+        return error(400, "bad_request_id")
+    if rid in request.app[ASSIST]:
+        return error(409, "request_id_in_use")
+    rid = rid or "a-" + uuid.uuid4().hex[:10]
     full = assistant_messages(msgs[-40:], context, language())
 
     def on_chunk(ch: Chunk) -> None:
@@ -61,8 +75,14 @@ async def assistant(request: web.Request) -> web.Response:
         finally:
             request.app[ASSIST].pop(rid, None)
 
+    # the 202 is written to the socket BEFORE the task can publish its first assistant.* event
+    resp = ok({"request_id": rid}, status=202)
+    resp.headers.update({"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                         "Referrer-Policy": "no-referrer"})
+    await resp.prepare(request)
+    await resp.write_eof()
     request.app[ASSIST][rid] = ctx.spawn(run())
-    return ok({"request_id": rid}, status=202)
+    return resp
 
 
 @routes.post("/api/assistant/{id}/stop")
@@ -236,10 +256,11 @@ async def static_handler(request: web.Request) -> web.StreamResponse:
         ct, _enc = mimetypes.guess_type(target.name)
         headers = {"Cache-Control": "public, max-age=31536000, immutable" if "/assets/" in f"/{rel}"
                    else "no-cache"}
-        return web.FileResponse(target, headers={**headers, **({"Content-Type": ct} if ct else {})})
+        extra = UI_HEADERS if target.suffix == ".html" else {}
+        return web.FileResponse(target, headers={**headers, **extra, **({"Content-Type": ct} if ct else {})})
     index = root / "index.html"
     if Path(rel).suffix and rel:                       # a missing asset: 404, not the SPA page
         return error(404, "not_found")
     if index.is_file():
-        return web.FileResponse(index, headers={"Cache-Control": "no-cache"})
-    return web.Response(text=PLACEHOLDER, content_type="text/html", headers={"Cache-Control": "no-cache"})
+        return web.FileResponse(index, headers={"Cache-Control": "no-cache", **UI_HEADERS})
+    return web.Response(text=PLACEHOLDER, content_type="text/html", headers={"Cache-Control": "no-cache", **UI_HEADERS})

@@ -6,15 +6,19 @@ import 'package:madalean_shell/src/address.dart';
 import 'package:madalean_shell/src/controller.dart';
 import 'package:madalean_shell/src/storage.dart';
 import 'package:madalean_shell/src/strings.dart';
+import 'package:madalean_shell/src/update.dart';
+import 'package:madalean_shell/src/update_ui.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({
     required this.controller,
     required this.state,
+    this.updater,
     super.key,
   });
   final ShellController controller;
   final ConnectState state;
+  final Updater? updater;
 
   @override
   State<ConnectScreen> createState() => _ConnectScreenState();
@@ -111,6 +115,13 @@ class _ConnectScreenState extends State<ConnectScreen> {
             onPressed: () => c.setLang(c.lang == Lang.fr ? Lang.en : Lang.fr),
             child: Text(s.languageSwitch),
           ),
+          if (widget.updater != null)
+            IconButton(
+              tooltip: s.settings,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () =>
+                  unawaited(showUpdateSettings(context, widget.updater!, s)),
+            ),
         ],
       ),
       body: SafeArea(

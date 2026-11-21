@@ -263,3 +263,13 @@
 - Live run on the user's cubic: the model also kept the rejected name inside its corrections, despite the note. Reusing
   a name Lean already rejected in this search now ends the line of attack at once: fresh sample, with the warning at
   the top of the task.
+
+## D28 — No host code execution through Lean compilation (finding of S-E, 2026-11-21)
+- Lean runs code while elaborating a file: `#eval` (IO), `initialize`, user-defined elaborators/tactics/macros
+  (`elab`, `macro`, `syntax`, `@[tactic …]`, `run_cmd`…), `unsafe`/`implemented_by`, native code. Model output, paper
+  text given as hints, and paired remote devices all reach the Lean checker, so this was a host code-execution path.
+- `leancheck.exec_risks()` scans the code with a Lean-aware lexer (nested block comments, line comments, strings;
+  unterminated comment/string = scanned as code, fail closed) and `runtime/lean.py` refuses to compile when any risk is
+  found — single choke point before every compilation. Imports limited to Mathlib, Aesop, Batteries, Std, Qq,
+  ProofWidgets, Plausible. Word-level matching can refuse a legitimate file using these words outside comments
+  (e.g. a variable named `prefix`); accepted trade-off, refusal message names the construct. To be re-reviewed by S-H.

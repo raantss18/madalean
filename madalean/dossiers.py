@@ -62,6 +62,7 @@ class Version:
 
 
 STATUSES = ("draft", "translating", "proving", "proved", "failed", "stopped")
+KINDS = ("theorem", "lemma", "definition", "claim", "conjecture")   # conjecture: research workshop (S-G)
 
 
 def _known(cls, d: dict) -> dict:
@@ -97,7 +98,7 @@ class Dossier:
     retry_parent: bool = False        # when proven, re-run the parent with the proven children as lemmas
     archived: bool = False
     # ---- research layer (ARCHITECTURE §11, filled by a later session; kept and round-tripped here)
-    kind: str = "theorem"             # theorem | lemma | definition | claim
+    kind: str = "theorem"             # theorem | lemma | definition | claim | conjecture
     refs: list = field(default_factory=list)        # [{key, locator, note}]
     source: dict | None = None        # {paper_key, locator, original_text}
     uses: list = field(default_factory=list)        # dossier ids this one depends on
@@ -137,7 +138,8 @@ class Dossier:
     @property
     def proof_is_current(self) -> bool:
         """True when the current proof proves the current statement."""
-        return bool(self.proof) and self.proofs[self.cur_proof].parent == self.cur_statement
+        v = self.proofs[self.cur_proof] if 0 <= self.cur_proof < len(self.proofs) else None
+        return v is not None and bool(v.code) and v.ok and v.parent == self.cur_statement
 
     # -- mutations (each one is recorded in the thread)
     def touch(self):
@@ -156,8 +158,11 @@ class Dossier:
         self.touch()
         return self.cur_statement
 
-    def add_proof(self, code: str, note: str = "", model: str = "", meta: dict | None = None) -> int:
-        self.proofs.append(Version(code, parent=self.cur_statement, note=note, model=model, meta=dict(meta or {})))
+    def add_proof(self, code: str, note: str = "", model: str = "", meta: dict | None = None, source: str = "ai",
+                  ok: bool = True) -> int:
+        """`ok`: accepted by Lean (strict verdict). An unverified manual proof is kept but never counts as proven."""
+        self.proofs.append(Version(code, parent=self.cur_statement, note=note, model=model, meta=dict(meta or {}),
+                                   source=source, ok=ok))
         self.cur_proof = len(self.proofs) - 1
         self.touch()
         return self.cur_proof
@@ -208,7 +213,7 @@ class Dossier:
         known = set(cls.__dataclass_fields__) - {"extra"}
         obj = cls(**{k: v for k, v in d.items() if k in known})
         obj.extra = {k: v for k, v in d.items() if k not in known and k != "extra"}
-        if obj.kind not in ("theorem", "lemma", "definition", "claim"):
+        if obj.kind not in KINDS:
             obj.kind = "theorem"
         return obj
 

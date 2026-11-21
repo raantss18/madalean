@@ -3,8 +3,9 @@
 library;
 
 import 'package:flutter/services.dart';
+import 'package:madalean_shell/src/update.dart';
 
-class NativeBridge {
+class NativeBridge implements UpdatePlatform {
   static const _ch = MethodChannel('mg.madalean.app/native');
 
   Future<String> deviceName() async {
@@ -40,4 +41,33 @@ class NativeBridge {
   Future<bool> openUri(String uri, String mime) async =>
       await _ch.invokeMethod<bool>('openUri', {'uri': uri, 'mime': mime}) ??
       false;
+
+  // ---------------------------------------------------------------- updates
+  @override
+  Future<String> installedVersion() => appVersion();
+
+  @override
+  Future<List<String>> abis() async =>
+      (await _ch.invokeListMethod<String>('abis')) ?? const [];
+
+  @override
+  Future<String> cacheDir() async =>
+      await _ch.invokeMethod<String>('cacheDir') ?? '';
+
+  @override
+  Future<bool> apkMatchesInstalled(String path) async =>
+      await _ch.invokeMethod<bool>('apkMatchesInstalled', {'path': path}) ??
+      false;
+
+  @override
+  Future<bool> canInstall() async =>
+      await _ch.invokeMethod<bool>('canInstall') ?? false;
+
+  @override
+  Future<void> openInstallSettings() =>
+      _ch.invokeMethod<void>('openInstallSettings');
+
+  @override
+  Future<void> install(String path) =>
+      _ch.invokeMethod<void>('installApk', {'path': path});
 }

@@ -4,6 +4,12 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.provider.Settings
+import androidx.core.content.FileProvider
+import java.io.File
+import java.security.MessageDigest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -51,6 +57,29 @@ class MainActivity : FlutterActivity() {
                             startActivity(view); result.success(true)
                         } catch (e: ActivityNotFoundException) {
                             result.success(false)
+                        }
+                    }
+                    // ---- signed self-update (lib/src/update.dart)
+                    "abis" -> result.success(Build.SUPPORTED_ABIS.toList())
+                    "cacheDir" -> result.success(cacheDir.absolutePath)
+                    "apkMatchesInstalled" -> result.success(
+                        apkMatchesInstalled(call.argument<String>("path") ?: "")
+                    )
+                    "canInstall" -> result.success(packageManager.canRequestPackageInstalls())
+                    "openInstallSettings" -> {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:$packageName")
+                            )
+                        )
+                        result.success(null)
+                    }
+                    "installApk" -> {
+                        try {
+                            installApk(call.argument<String>("path") ?: ""); result.success(null)
+                        } catch (e: Exception) {
+                            result.error("install", e.message, null)
                         }
                     }
                     else -> result.notImplemented()
@@ -110,5 +139,46 @@ class MainActivity : FlutterActivity() {
         }
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    /** SHA-256 of each signing certificate (current signer set). */
+    @Suppress("DEPRECATION")
+    private fun certDigests(info: PackageInfo?): Set<String> {
+        if (info == null) return emptySet()
+        val sigs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val si = info.signingInfo ?: return emptySet()
+            if (si.hasMultipleSigners()) si.apkContentsSigners else si.signingCertificateHistory
+        } else {
+            info.signatures
+        } ?: return emptySet()
+        val md = MessageDigest.getInstance("SHA-256")
+        return sigs.map { s -> md.digest(s.toByteArray()).joinToString("") { "%02x".format(it) } }.toSet()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun apkMatchesInstalled(path: String): Boolean {
+        val f = File(path)
+        // Only files the updater wrote into our own cache.
+        if (!f.isFile || !f.canonicalPath.startsWith(File(cacheDir, "updates").canonicalPath)) return false
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val archive = packageManager.getPackageArchiveInfo(f.path, flags) ?: return false
+        if (archive.packageName != packageName) return false
+        val installed = packageManager.getPackageInfo(packageName, flags)
+        val a = certDigests(archive)
+        val b = certDigests(installed)
+        // The newest signer of the installed app must be in the APK's lineage (equal for us).
+        return a.isNotEmpty() && b.isNotEmpty() && a.containsAll(b)
+    }
+
+    private fun installApk(path: String) {
+        val f = File(path)
+        require(f.isFile && f.canonicalPath.startsWith(File(cacheDir, "updates").canonicalPath))
+        val uri = FileProvider.getUriForFile(this, "$packageName.updates", f)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(intent)
     }
 }

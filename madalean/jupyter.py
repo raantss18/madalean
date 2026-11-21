@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -55,6 +56,16 @@ def safe_path(path: str, allow_empty: bool = True) -> str:
     return "/".join(parts)
 
 
+# Environment variables that may carry credentials: never inherited by jupyter-lab nor its kernels (they run user
+# and model-generated code). API keys of Madalean itself live in the keyring / keys.json, never in the environment.
+SECRET_ENV_RE = re.compile(r"(KEY|TOKEN|SECRET|PASSW|PASSPHRASE|CREDENTIAL|COOKIE|AUTH|SESSION|PRIVATE)", re.I)
+
+
+def scrub_env(env: dict[str, str]) -> dict[str, str]:
+    return {k: v for k, v in env.items() if not SECRET_ENV_RE.search(k) and not k.startswith("JUPYTER_")
+            and not k.startswith("MADALEAN_")}
+
+
 def _free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -70,6 +81,7 @@ class JupyterManager:
                  base_url: str = "/jupyter/", exe: str | None = None):
         self.root_dir = Path(root_dir)
         self.runtime_dir = Path(runtime_dir)
+        self.share_dir = self.runtime_dir / "share"     # JUPYTER_PATH: Madalean's own kernelspecs (sagebridge)
         self.publish = publish
         self.base_url = "/" + base_url.strip("/") + "/"
         self.exe = exe or shutil.which("jupyter-lab")
@@ -137,9 +149,10 @@ class JupyterManager:
             with os.fdopen(fd, "w") as f:
                 json.dump({"IdentityProvider": {"token": self._token}, "ServerApp": {"token": self._token,
                                                                                      "password": ""}}, f)
-            env = {k: v for k, v in os.environ.items() if not k.startswith("JUPYTER_")}
+            env = scrub_env(dict(os.environ))
+            self.share_dir.mkdir(parents=True, exist_ok=True)
             env.update({"JUPYTER_CONFIG_DIR": str(cfg_dir), "JUPYTER_RUNTIME_DIR": str(self.runtime_dir / "runtime"),
-                        "PYTHONUNBUFFERED": "1"})
+                        "JUPYTER_PATH": str(self.share_dir), "PYTHONUNBUFFERED": "1"})
             self.state, self.error, self._tail = "starting", "", []
             self._changed()
             try:

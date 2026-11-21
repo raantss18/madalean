@@ -159,3 +159,17 @@ def test_assemble_with_library_lemma_no_duplicates():
     full = lc.assemble_proof(st, model)
     assert full.count("theorem lib_pair_add") == 1 and "lemma aux : True := trivial" in full
     assert full.rstrip().endswith("exact lib_pair_add a a ha ha")
+
+
+def test_exec_risks_blocks_host_code_execution_before_compiling():
+    """DECISIONS D28: compiling must never run code on the host, whatever wrote the file."""
+    from madalean import leancheck as lc
+    ok = ("import Mathlib\nimport Aesop\n\nopen BigOperators Real Nat\n\n/-- macro, IO, syntax in a docstring -/\n"
+          "theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by\n  -- prefix, notation\n"
+          "  exact Even.add ha hb\n")
+    assert lc.exec_risks(ok) == []
+    for bad in ['#eval IO.Process.run {cmd := "id"}', '"/-" #eval 1 "-/"', '/- /- -/ -/ #eval 1',
+                '@[tactic foo] def f : Lean.Elab.Tactic.Tactic := fun _ => pure ()', 'local macro "x" : tactic => `(tactic| rfl)',
+                'import Lean.Elab', 'initialize r : IO.Ref Nat ← IO.mkRef 0', 'example : 2 ∣ 4 := by native_decide',
+                'run_cmd Lean.logInfo "x"', '/- unterminated #eval 1']:
+        assert lc.exec_risks(ok + "\n" + bad), bad

@@ -22,6 +22,7 @@ from . import plugins as plugins_pkg
 from .auth import LOCAL_PORTS, security_middleware
 from .common import CTX
 from .routes_core import routes as core_routes
+from .routes_extra import routes as extra_routes
 from .routes_misc import ASSIST, STATIC_DIR, jupyter_proxy, routes as misc_routes, static_handler
 from .routes_work import routes as work_routes
 
@@ -59,6 +60,7 @@ def make_app(ctx, static_dir: Path | None = None, extra_plugins: list[Plugin] | 
     app[STATIC_DIR] = Path(static_dir or DEFAULT_STATIC)
     app.add_routes(core_routes)
     app.add_routes(work_routes)
+    app.add_routes(extra_routes)
     app.add_routes(misc_routes)
     for fn in discover_plugins() + list(extra_plugins or []):
         try:

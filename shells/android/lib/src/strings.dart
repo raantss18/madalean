@@ -121,4 +121,80 @@ class S {
   String get downloadFailed =>
       _t('Échec du téléchargement.', 'Download failed.');
   String get downloading => _t('Téléchargement…', 'Downloading…');
+
+  // Updates.
+  String get settings => _t('Réglages', 'Settings');
+  String get autoUpdates =>
+      _t('Mises à jour automatiques', 'Automatic updates');
+  String get autoUpdatesHelp => _t(
+    'Vérifie au plus deux fois par jour, télécharge et contrôle la '
+        'signature ; l’installation demande toujours votre confirmation.',
+    'Checks at most twice a day, downloads and verifies the signature; '
+        'installing always asks for your confirmation.',
+  );
+  String get checkNow => _t('Vérifier maintenant', 'Check now');
+  String get checking => _t('Vérification…', 'Checking…');
+  String upToDate(String v) =>
+      _t('Madalean $v est à jour.', 'Madalean $v is up to date.');
+  String downloadingUpdate(String v, int pct) => _t(
+    'Téléchargement de la version $v… $pct %',
+    'Downloading version $v… $pct%',
+  );
+  String updateReady(String v) => _t('Mise à jour $v prête', 'Update $v ready');
+  String updateRequired(String v) => _t(
+    'Mise à jour $v nécessaire pour continuer à fonctionner avec l’hôte',
+    'Update $v required to keep working with the host',
+  );
+  String get install => _t('Installer', 'Install');
+  String get later => _t('Plus tard', 'Later');
+  String get allowInstall => _t(
+    'Autorisez « Madalean » à installer des applis (écran qui vient de '
+        's’ouvrir), puis touchez à nouveau « Installer ».',
+    'Allow “Madalean” to install apps (the screen that just opened), then '
+        'tap “Install” again.',
+  );
+  String updateError(String kind) => switch (kind) {
+    'network' => _t(
+      'Mise à jour : canal injoignable (réseau).',
+      'Update: channel unreachable (network).',
+    ),
+    'unsigned' => _t(
+      'Mise à jour refusée : manifeste non signé.',
+      'Update refused: unsigned manifest.',
+    ),
+    'badSignature' => _t(
+      'Mise à jour refusée : signature invalide.',
+      'Update refused: invalid signature.',
+    ),
+    'wrongChannel' => _t(
+      'Mise à jour refusée : manifeste d’un autre canal.',
+      'Update refused: manifest of another channel.',
+    ),
+    'badManifest' => _t(
+      'Mise à jour refusée : manifeste illisible.',
+      'Update refused: unreadable manifest.',
+    ),
+    'noFile' => _t(
+      'Aucun APK pour cet appareil dans la mise à jour.',
+      'No APK for this device in the update.',
+    ),
+    'checksum' => _t(
+      'Mise à jour refusée : empreinte SHA-256 ou taille incorrecte.',
+      'Update refused: wrong SHA-256 checksum or size.',
+    ),
+    'certificate' => _t(
+      'Mise à jour refusée : l’APK n’est pas signé par le même certificat '
+          'que l’appli installée.',
+      'Update refused: the APK is not signed with the same certificate as '
+          'the installed app.',
+    ),
+    'notConfigured' => _t(
+      'Mises à jour non disponibles dans cette version de l’appli.',
+      'Updates are not available in this build.',
+    ),
+    _ => _t(
+      'Impossible de lancer l’installation.',
+      'Could not start the installation.',
+    ),
+  };
 }

@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Kj6jJBurguT1Ee6idCE9IeBNsaM</id>
+  <title>arXiv Query: search_query=all:Hilton-Milner AND all:theorem AND all:short AND all:proof&amp;id_list=&amp;start=0&amp;max_results=6</title>
+  <updated>2026-11-21T07:58:09Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:Hilton-Milner+AND+(all:theorem+AND+(all:short+AND+all:proof))&amp;start=0&amp;max_results=6&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>6</opensearch:itemsPerPage>
+  <opensearch:totalResults>6</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2411.02513v4</id>
+    <title>A short proof of the Hilton-Milner Theorem</title>
+    <updated>2025-11-19T14:07:38Z</updated>
+    <link href="https://arxiv.org/abs/2411.02513v4" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2411.02513v4" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We give a short and relatively elementary proof of the Hilton-Milner Theorem.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-11-04T19:00:19Z</published>
+    <arxiv:comment>5 pages; v2 adds ref to preprint arXiv:2411.03674 (arXived 2 days after the our initial preprint) and has other minor fixes; v3 adds easy proof of uniqueness; v4 has minor changes for publication</arxiv:comment>
+    <arxiv:primary_category term="math.CO"/>
+    <arxiv:journal_ref>Canad. Math. Bull. 69 (2026), no. 2, 603-608</arxiv:journal_ref>
+    <author>
+      <name>Denys Bulavka</name>
+    </author>
+    <author>
+      <name>Russ Woodroofe</name>
+    </author>
+    <arxiv:doi>10.4153/S000843952510132X</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.4153/S000843952510132X" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2206.13485v1</id>
+    <title>Short injective proofs of the Erdős-Ko-Rado and Hilton-Milner Theorem: A canonical partition of shifted intersecting set systems</title>
+    <updated>2022-06-27T17:50:39Z</updated>
+    <link href="https://arxiv.org/abs/2206.13485v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2206.13485v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We give a canonical partition of shifted intersecting set systems, from which one can obtain unified and elementary proofs of the Erdős-Ko-Rado and Hilton-Milner Theorem, as well as a characterization of maximal shifted $k$-uniform intersecting set systems over $[n]$.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-06-27T17:50:39Z</published>
+    <arxiv:primary_category term="math.CO"/>
+    <author>
+      <name>Nguyen Trong Tuan</name>
+    </author>
+    <author>
+      <name>Nguyen Anh Thi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/1602.01391v2</id>
+    <title>The structure of large intersecting families</title>
+    <updated>2016-02-05T15:12:35Z</updated>
+    <link href="https://arxiv.org/abs/1602.01391v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1602.01391v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A collection of sets is {\em intersecting} if every two members have nonempty intersection. We describe the structure of intersecting families of $r$-sets of an $n$-set whose size is quite a bit smaller than the maximum ${n-1 \choose r-1}$ given by the Erd\H os-Ko-Rado Theorem.
+  In particular, this extends the Hilton-Milner theorem on nontrivial intersecting families and answers a recent question of Han and Kohayakawa for large $n$. In the case $r=3$ we describe the structure of all intersecting families with more than 10 edges. We also prove a stability result for the Erdos matching problem. Our short proofs are simple applications of the Delta-system method introduced and extensively used by Frankl since 1977.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2016-02-03T17:51:26Z</published>
+    <arxiv:primary_category term="math.CO"/>
+    <author>
+      <name>Alexandr Kostochka</name>
+    </author>
+    <author>
+      <name>Dhruv Mubayi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2607.16040v1</id>
+    <title>A gap theorem for non-trivial maximal intersecting families and an exact weighted asymptotic</title>
+    <updated>2026-07-17T15:15:13Z</updated>
+    <link href="https://arxiv.org/abs/2607.16040v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2607.16040v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Let $D_n$ be the disjointness graph on the nonempty subsets of $[n]$, whose independent sets are exactly the intersecting families on $[n]$. We study the weighted independent-set polynomial $W(n)=\sum_F\prod_{S\in F}w(S)$, the sum running over these families, for the doubly exponential weight $w(S)=2^{2^{n-|S|}}-1$. The kernel-bearing (trivial) part $Z_\cap(n)$ is exact by inclusion-exclusion and satisfies $Z_\cap(n)\sim n\cdot 2^{3^{n-1}}$. For the kernel-free remainder we prove the exact prefactor $R(n)=(3/4+o(1))n\cdot 2^{3^{n-1}-2^{n-1}+2}$, whence $\log_2(Z_\cap(n)/R(n))=2^{n-1}-2+\log_2(4/3)+o(1)$, an additive $o(1)$, not merely a leading-order one. The engine is a second-level extremal theorem: among kernel-free maximal linked systems other than the $n$ one-flip stars, the largest weight exponent is $3^{n-1}-3\cdot 2^{n-2}+6$, a fixed gap $2^{n-2}-4$ below the maximum, with the extremisers classified exactly. None of this is special to the weight: for $w_B(S)=B^{B^{n-|S|}}-1$ with integer $B\ge 2$ the same stars dominate, the near-extremal families sit a gap $B^{n-2}-B^2$ below, and the prefactor is $1-B^{-B}$. The combinatorial input is the $p$-biased extremal problem for non-trivial intersecting families: $M_2(n,p)=p-pq^{n-1}+qp^{n-1}$ for all $n\ge 3$, $0&lt;p\le 1/2$, $q=1-p$. This first level is essentially known: the extremal family is the Wheel coterie of Peleg and Wool, and at $p=1/Q$ the statement, with its maximiser classification, is the case $r=n$ of Borg's Hilton-Milner theorem for signed sets (2013). We give a short self-contained Erdős-Ko-Rado proof, uniform in real $p\in(0,1/2]$, whose layer-two rigidity feeds the second level. The novelty claimed lies at the second level and in the prefactor, where the classification cannot be read off the layer profile alone: at $n=5$ one profile carries two non-isomorphic types of extremisers.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-07-17T15:15:13Z</published>
+    <arxiv:comment>21 pages, 1 figures, 5 Appendixes</arxiv:comment>
+    <arxiv:primary_category term="math.CO"/>
+    <author>
+      <name>El'mira Yu. Kalimulina</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/1608.06114v1</id>
+    <title>A hierarchy of maximal intersecting triple systems</title>
+    <updated>2016-08-22T10:40:07Z</updated>
+    <link href="https://arxiv.org/abs/1608.06114v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1608.06114v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We reach beyond the celebrated theorems of Erdős-Ko-Rado and Hilton-Milner, and, a recent theorem of Han-Kohayakawa, and determine all maximal intersecting triples systems. It turns out that for each $n\ge7$ there are exactly 15 pairwise non-isomorphic such systems (and 13 for $n=6$). We present our result in terms of a hierarchy of Turán numbers $\ex^{(s)}(n, M_2^{3})$, $s\ge1$, where $M_2^{3}$ is a pair of disjoint triples. Moreover, owing to our unified approach, we provide short proofs of the above mentioned results (for triple systems only). The triangle $C_3$ is defined as $C_3=\{\{x_1,y_3,x_2\},\{x_1,y_2,x_3\}, \{x_2,y_1,x_3\}\}$. Along the way we show that the largest intersecting triple system $H$ on $n\ge6$ vertices, which is not a star and is triangle-free, consists of $\max\{10,n\}$ triples. This facilitates our main proof's philosophy which is to assume that $H$ contains a copy of the triangle and analyze how the remaining edges of $H$ intersect that copy.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2016-08-22T10:40:07Z</published>
+    <arxiv:primary_category term="math.CO"/>
+    <author>
+      <name>Joanna Polcyn</name>
+    </author>
+    <author>
+      <name>Andrzej Rucinski</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2411.03674v3</id>
+    <title>Maximal intersecting families revisited</title>
+    <updated>2025-07-01T07:00:16Z</updated>
+    <link href="https://arxiv.org/abs/2411.03674v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2411.03674v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The well-known Erdős--Ko--Rado theorem states that for $n&gt; 2k$, every intersecting family of $k$-sets of $[n]:=\{1,\ldots ,n\}$ has at most $ {n-1 \choose k-1}$ sets, and the extremal family consists of all $k$-sets containing a fixed element (called a full star). The Hilton--Milner theorem provides a stability result by determining the maximum size of a uniform intersecting family that is not a subfamily of a full star. The further stabilities were studied by Han and Kohayakawa (2017) and Huang and Peng (2024). Two families $\mathcal{F}$ and $\mathcal{G}$ are called cross-intersecting if for every $F\in \mathcal{F}$ and $G\in \mathcal{G}$, the intersection $F\cap G$ is non-empty. Let $k \geq 1, t\ge 0$ and $n \geq 2 k+t$ be integers. Frankl (2016) proved that if $\mathcal{F} \subseteq\binom{[n]}{k+t}$ and $\mathcal{G} \subseteq\binom{[n]}{k}$ are cross-intersecting families, and $\mathcal{F}$ is non-empty and $(t+1)$-intersecting, then $|\mathcal{F}|+|\mathcal{G}| \leq\binom{n}{k}-\binom{n-k-t}{k}+1$. Recently, Wu (2023) sharpened Frankl's result by establishing a stability variant. The aim of this paper is two-fold. Inspired by the above results, we first prove a further stability variant that generalizes both Frankl's result and Wu's result. Secondly, as an interesting application, we illustrate that the aforementioned results on cross-intersecting families could be used to establish the stability results of the Erdős--Ko--Rado theorem. More precisely, we present new short proofs of the Hilton--Milner theorem, the Han--Kohayakawa theorem and the Huang--Peng theorem. Our arguments are more straightforward, and it may be of independent interest.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-11-06T05:13:51Z</published>
+    <arxiv:comment>Final version, any comments are welcome</arxiv:comment>
+    <arxiv:primary_category term="math.CO"/>
+    <arxiv:journal_ref>Discrete Mathematics 349 (2026) 114654</arxiv:journal_ref>
+    <author>
+      <name>Yongjiang Wu</name>
+    </author>
+    <author>
+      <name>Yongtao Li</name>
+    </author>
+    <author>
+      <name>Lihua Feng</name>
+    </author>
+    <author>
+      <name>Jiuqiang Liu</name>
+    </author>
+    <author>
+      <name>Guihai Yu</name>
+    </author>
+  </entry>
+</feed>

@@ -75,6 +75,9 @@ class Settings:
     lan_port: int = 11502
     remote_jupyter: bool = False
     agent_exec: bool = False
+    experiments_auto: bool = False          # run conjecture experiments (Sage/Python) without asking first
+    experiments_remote: bool = False        # paired devices may approve/run experiments (code runs on the host)
+    updates_auto: bool = True               # install safe updates automatically at a quiet moment (else: ask first)
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 

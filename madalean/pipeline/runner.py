@@ -443,7 +443,7 @@ class DossierPipeline:
                 self.ctx.slots.release("online", job.id)
             self.ctx.local.release()
         a.gen_seconds = time.monotonic() - t0
-        a.model = str(out.get("model") or "")
+        a.model = model_key(out.get("model"))
         a.raw = "\n".join(str(m.get("content", ""))[:4000] for m in (out.get("transcript") or [])[-40:])
         code = out.get("code")
         if not code:
@@ -477,10 +477,14 @@ class DossierPipeline:
             raise Failed("Pas de preuve à expliquer.", "no_proof")
         s = self.settings
         prev = d.explanation if req else ""
-        c = await io.complete("explain", leancheck.explain_messages(d.proof, d.understood or d.problem, language(),
-                                                                    s.profile, prev, req), None,
+        cites = _citations(self.ctx, d)
+        msgs = leancheck.explain_messages(d.proof, d.understood or d.problem, language(), s.profile, prev, req)
+        if cites:
+            msgs[-1] = {**msgs[-1], "content": msgs[-1]["content"] + cites["prompt"]}
+        c = await io.complete("explain", msgs, None,
                               temperature=0.5, max_tokens=2000, extra={"top_p": 0.9, **NO_THINK, "repeat_penalty": 1.05})
         text = leancheck.clean_model_text(c.text)
+        text = await self._check_citations(job, d, text, cites)
         if not text:
             raise Failed("L'IA n'a rien écrit : réessayez.", "empty")
         idx = d.add_explanation(text, note=req, model=c.model.key)
@@ -491,20 +495,53 @@ class DossierPipeline:
         if s.informal_proof and (not req or not d.informal_proof):
             job.plan.insert(0, {"stage": "informal"})
 
+    async def _check_citations(self, job: Job, d: Dossier, text: str, cites: dict | None) -> str:
+        """Citations `[@key]` of keys that do not exist are removed by code (never printed) and reported."""
+        if not text or "@" not in text:
+            return text
+        from ..research.biblio import check_citations
+        res = check_citations(text, (cites or {}).get("keys") or set())
+        if res.unknown:
+            await self.event(d, job, "info", "Références inventées par l'IA retirées : {keys}.",
+                             keys=", ".join(res.unknown[:10]))
+        return res.text
+
     async def _informal(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         if not d.proof:
             return
         nl = d.understood_display or d.understood or d.problem
+        cites = _citations(self.ctx, d)
+        msgs = prompts.informal_messages(d.proof, nl, language())
+        if cites:
+            msgs[-1] = {**msgs[-1], "content": msgs[-1]["content"] + cites["prompt"]}
         try:
-            c = await io.complete("explain", prompts.informal_messages(d.proof, nl, language()), None,
+            c = await io.complete("explain", msgs, None,
                                   temperature=0.4, max_tokens=2500, extra={"top_p": 0.9, **NO_THINK})
         except BrainError:
             return
         text = leancheck.clean_model_text(c.text)
+        text = await self._check_citations(job, d, text, cites)
         if text:
             idx = d.add_informal_proof(text, c.model.key)
             await self.event(d, job, "informal", "Preuve rédigée en langage naturel par l'IA (la preuve Lean fait foi).",
                              ref=idx, model=c.model.key)
+
+
+def _citations(ctx, d: Dossier) -> dict | None:
+    """Keys the model may cite in this dossier's texts (research layer, S-E); None without references."""
+    try:
+        from ..research.biblio import citation_support
+        return citation_support(ctx, d, language())
+    except Exception:  # noqa: BLE001 (the research layer must never break the pipeline)
+        return None
+
+
+def model_key(m) -> str:
+    """"provider:model_id" for a ModelRef (never its Python repr), the string itself otherwise."""
+    if m is None:
+        return ""
+    key = getattr(m, "key", None)
+    return key if isinstance(key, str) else str(m)
 
 
 def _agent_fn():

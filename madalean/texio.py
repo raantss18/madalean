@@ -452,7 +452,10 @@ _MATH_ANY = re.compile(r"(\$\$.+?\$\$|(?<![\\$])\$(?!\$)[^$\n]+?(?<!\\)\$|\\\(.+
 _TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?/?>")
 
 
-def _inline(s: str, f: Fonts) -> str:
+CITE_GROUP = re.compile(r"\[([^\[\]\n]{0,400}?@[^\[\]\n]{0,400})\]")
+
+
+def _inline(s: str, f: Fonts, cites=None) -> str:
     parts = _MATH_ANY.split(s)
     res = []
     for i, part in enumerate(parts):
@@ -464,6 +467,10 @@ def _inline(s: str, f: Fonts) -> str:
         def keep(tex: str) -> str:
             tokens.append(tex)
             return f"\x01{len(tokens) - 1}\x02"
+        if cites is not None:            # citations [@key, Thm 2] → \cite[Thm 2]{key} (known keys only: research.biblio)
+            from .research.biblio import cite_to_latex
+            part = CITE_GROUP.sub(lambda mo: keep(t) if (t := cite_to_latex(mo.group(1), cites)) is not None
+                                  else mo.group(0), part)
         part = re.sub(r"`([^`]+)`", lambda mo: keep(r"\texttt{" + wrap_uncovered(escape_plain(mo.group(1)), f.mono, f)
                                                      + "}"), part)
         part = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda mo: "\x03B" + (mo.group(1) or mo.group(2)) + "\x03E", part)
@@ -477,8 +484,9 @@ def _inline(s: str, f: Fonts) -> str:
     return "".join(res)
 
 
-def sanitize_markdown(text: str, f: Fonts | None = None) -> str:
-    """Model Markdown (headings, lists, tables, code fences, quotes, HTML tags, $math$) → LaTeX that compiles."""
+def sanitize_markdown(text: str, f: Fonts | None = None, cites=None) -> str:
+    """Model Markdown (headings, lists, tables, code fences, quotes, HTML tags, $math$) → LaTeX that compiles.
+    `cites`: keys that exist (set/dict) → `[@key, loc]` becomes `\\cite[loc]{key}`; None = printed literally."""
     f = f or fonts()
     text = re.sub(r"<think>.*?(</think>|$)", "", text or "", flags=re.DOTALL)
     text = re.sub(r"(?is)<(script|style)\b.*?</\1\s*>", "", text)
@@ -517,7 +525,7 @@ def sanitize_markdown(text: str, f: Fonts | None = None) -> str:
                 i += 1
             out.append("\\begin{quote}")
             for r_ in rows:
-                out.append(" \\quad\\textbar\\quad ".join(_inline(c, f) for c in r_) + "\\\\")
+                out.append(" \\quad\\textbar\\quad ".join(_inline(c, f, cites) for c in r_) + "\\\\")
             out.append("\\end{quote}")
             continue
         h = re.match(r"\s{0,3}#{1,6}\s+(.*)", line)
@@ -529,24 +537,24 @@ def sanitize_markdown(text: str, f: Fonts | None = None) -> str:
             out.append("\\par\\noindent\\textcolor{black!30}{\\rule{\\linewidth}{0.4pt}}\\par")
         elif h:
             close()
-            out.append(f"\\par\\medskip\\noindent\\textbf{{{_inline(h.group(1).strip('# '), f)}}}\\par\\nopagebreak")
+            out.append(f"\\par\\medskip\\noindent\\textbf{{{_inline(h.group(1).strip('# '), f, cites)}}}\\par\\nopagebreak")
         elif num or bul:
             env = "enumerate" if num else "itemize"
             if state != env:
                 close()
                 out.append(f"\\begin{{{env}}}")
                 state = env
-            out.append(f"\\item {_inline((num or bul).group(1), f)}")
+            out.append(f"\\item {_inline((num or bul).group(1), f, cites)}")
         elif quote:
             close()
-            out.append(f"\\begin{{quote}}{_inline(quote.group(1), f)}\\end{{quote}}")
+            out.append(f"\\begin{{quote}}{_inline(quote.group(1), f, cites)}\\end{{quote}}")
         elif not line.strip():
             close()
             out.append("")
         elif state:
-            out[-1] += " " + _inline(line.strip(), f)
+            out[-1] += " " + _inline(line.strip(), f, cites)
         else:
-            out.append(_inline(line.strip(), f))
+            out.append(_inline(line.strip(), f, cites))
         i += 1
     close()
     return "\n".join(out).strip()

@@ -45,6 +45,9 @@ class ServerContext:
         self.version = __version__
         self.host_name = socket.gethostname()
         self.bus = EventBus()
+        from .streams import StreamStore
+        self.streams = StreamStore()
+        self.bus.recorder = self.streams.record
         self.slots = Slots(caps)
         self.settings = config.Settings()
         self.settings_corrupt = False
@@ -252,8 +255,15 @@ class ServerContext:
                 cands = self.brain.candidates(role, self.settings.mode) if self.brain else []
             except Exception:  # noqa: BLE001
                 cands = []
+            why: dict = {}
+            if self.brain is not None and hasattr(self.brain, "explain"):
+                try:
+                    why = {w["model"]: w for w in self.brain.explain(role, self.settings.mode)}
+                except Exception:  # noqa: BLE001
+                    why = {}
             roles[role] = {"preferred": (self.settings.prefer or {}).get(role, ""),
-                           "candidates": [_ref(c) for c in cands]}
+                           "candidates": [{**_ref(c), "why": (why.get(c.key) or {}).get("why", ""),
+                                           "score": (why.get(c.key) or {}).get("score")} for c in cands]}
         try:
             status = await self.brain.status() if self.brain else {}
         except Exception as e:  # noqa: BLE001

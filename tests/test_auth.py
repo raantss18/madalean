@@ -10,7 +10,7 @@ from madalean.security import Pairing, PairingError
 from madalean.server.app import make_app
 from helpers import make_ctx, running, session
 
-PUBLIC = {("GET", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout")}
+PUBLIC = {("GET", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout"), ("GET", "/api/session")}
 
 
 def concrete(path: str) -> str:

@@ -23,6 +23,67 @@ FORBIDDEN = [
     (r"debug\.skipKernelTC", "désactivation du noyau"),
 ]
 
+# Constructs that make the Lean compiler run arbitrary code on the host while checking a file (IO through #eval,
+# initializers, user-defined elaborators/tactics/macros, native code). Checked BEFORE every compilation
+# (runtime/lean.py), whoever wrote the code: model, paper hint, or a remote device (DECISIONS D28).
+EXEC_RISKS = [
+    (r"#eval\b|#reduce\b|#exec\b|#run\b|#exit\b", "commande exécutée à la compilation (#eval…)"),
+    (r"\b(builtin_)?initialize\b", "code exécuté au chargement (initialize)"),
+    (r"\b(elab|elab_rules|macro|macro_rules|syntax|notation3?|infix[lr]?|prefix|postfix|run_cmd|run_tac|run_elab|run_meta|declare_syntax_cat)\b",
+     "méta-programmation (élaborateur, macro, syntaxe)"),
+    (r"@\[[^\]]*\b(tactic|command_elab|term_elab|init|builtin_init|env_extension|extern|implemented_by|export|macro|delab|app_unexpander)\b",
+     "attribut qui enregistre du code exécutable"),
+    (r"\b(unsafe|implemented_by|IO|EIO|BaseIO|System\.FilePath|IO\.Process|ST\.Ref)\b", "accès au système (IO, unsafe)"),
+    (r"\bnative_decide\b|\bLean\.ofReduceBool\b", "code natif (native_decide)"),
+    (r"(?m)^\s*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible)(\.|\s|$))", "import d'un module non autorisé"),
+]
+
+
+def lean_code_only(text: str) -> str:
+    """`text` with comments and string/char literals blanked, following Lean's lexer: nested block comments
+    `/- … -/`, line comments `--`, strings with escapes. Unterminated comment/string: the rest is kept as code
+    (fail closed: more is scanned, never less)."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith("/-", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/-", j):
+                    depth, j = depth + 1, j + 2
+                elif text.startswith("-/", j):
+                    depth, j = depth - 1, j + 2
+                else:
+                    j += 1
+            if depth:                      # unterminated: treat as code
+                out.append(text[i:])
+                break
+            out.append(" ")
+            i = j
+        elif text.startswith("--", i):
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+        elif c == '"':
+            j = i + 1
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            if j >= n:
+                out.append(text[i:])
+                break
+            out.append('""')
+            i = j + 1
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def exec_risks(code: str) -> list[str]:
+    """Reasons why compiling `code` could execute arbitrary code on the host (empty = safe to compile)."""
+    text = lean_code_only(code)
+    return [label for pat, label in EXEC_RISKS if re.search(pat, text)]
+
+
 INITIAL_TEMPLATE = (
     "Complete the following Lean 4 code:\n\n```lean4\n{}```\n\n"
     "Before producing the Lean 4 code to formally prove the given theorem, provide a detailed proof plan "

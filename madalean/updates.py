@@ -49,11 +49,17 @@ class Candidate:
     spec: dict = field(default_factory=dict)   # arguments for scripts/updater.py
 
     def args(self) -> list[str]:
+        if self.kind in INSTALL_ARGS:                 # installers registered by other modules (update_checkers)
+            return INSTALL_ARGS[self.kind](self)
         if self.kind == "mathlib":
             return ["install-mathlib", self.spec["tag"]]
         if self.kind != "model":
             raise ValueError(f"no installer for {self.kind}")
         return ["install-model", self.spec["repo"], self.spec["file"], self.spec["sha256"], self.key]
+
+
+# kind -> function(candidate) -> argv for scripts/updater.py (see madalean.update_checkers.installer)
+INSTALL_ARGS: dict[str, Callable[["Candidate"], list[str]]] = {}
 
 
 # ---------------------------------------------------------------- versions

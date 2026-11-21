@@ -1,0 +1,76 @@
+\documentclass[11pt]{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+% A small note written for Madalean's tests and demo (CC0).
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\DeclareMathOperator{\parity}{par}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem*{remark}{Remark}
+
+\title{A note on parity}
+\author{Ada Example}
+
+\begin{document}
+\begin{abstract}
+We recall why the sum of two even integers is even, prove that the square of an even integer is even,
+and state an open-looking conjecture about odd squares.
+\end{abstract}
+\maketitle
+
+\section{Definitions}
+Throughout, integers are elements of $\Z$ and natural numbers are elements of $\N$.
+Parity questions go back to Euclid \cite{euclid}; see also the textbook of Hardy and Wright \cite{hardywright}.
+
+\begin{definition}\label{def:even}
+An integer $n$ is \emph{even} if there is an integer $k$ such that $n = 2k$, and \emph{odd} if $n = 2k+1$.
+\end{definition}
+
+\begin{lemma}[Closure]\label{lem:sum}
+If $a$ and $b$ are even, then $a + b$ is even.
+\end{lemma}
+\begin{proof}
+By Definition~\ref{def:even}, write $a = 2k$ and $b = 2l$. Then
+\begin{equation}\label{eq:sum}
+a + b = 2(k + l),
+\end{equation}
+which is even.
+\end{proof}
+
+\section{Squares}
+The next result is the main point of this note.
+
+\begin{theorem}\label{thm:square}
+If $n$ is even, then $n^2$ is even.
+\end{theorem}
+\begin{proof}
+Write $n = 2k$ as in Definition~\ref{def:even}. Then $n^2 = 2(2k^2)$, and we conclude with
+Lemma~\ref{lem:sum} applied to $a = b = 2k^2$, using \eqref{eq:sum}.
+\end{proof}
+
+\begin{corollary}\label{cor:fourth}
+If $n$ is even, then $n^4$ is even.
+\end{corollary}
+\begin{proof}
+Apply Theorem~\ref{thm:square} to $n$ and then to $n^2$.
+\end{proof}
+
+\begin{remark}
+The converse of Theorem~\ref{thm:square} also holds \cite{hardywright}.
+\end{remark}
+
+\begin{conjecture}\label{conj:odd}
+Every odd square is congruent to $1$ modulo $8$.
+\end{conjecture}
+
+\begin{thebibliography}{9}
+\bibitem{euclid} Euclid, \emph{Elements}, Book IX.
+\bibitem{hardywright} G. H. Hardy and E. M. Wright, \emph{An introduction to the theory of numbers}, Oxford, 1979.
+\end{thebibliography}
+\end{document}

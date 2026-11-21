@@ -84,8 +84,10 @@ only when the server's Lean check gives the strict verdict.
 
 `POST /logout` (public; remote) → revokes the calling device's token and clears the cookie → `{"ok":true}`.
 
-`POST /pairing/start` **host** → `{"code":"482913","expires":1795250000.0,"expires_in":300}` (replaces any
-previous code). `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"locked_for":0}`.
+`POST /pairing/start` **host** → `{"code":"482913","expires":1795250000.0,"expires_in":300,
+"remote_url":"https://nitro.tail1234.ts.net:10500"|null}` (replaces any previous code). `remote_url` = the address
+other devices use: from the embedded Tailscale status (`madalean.runtime.net.remote_url`, when present), else
+`https://<host_name>:10500` when the setting `host_name` is a `*.ts.net` name, else `null`. `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"locked_for":0}`.
 
 `GET /devices` **host** → `{"devices":[Device]}`. `DELETE /devices/{id}` **host** → `{"ok":true}` (404 unknown).
 Both publish `devices.updated`.
@@ -209,6 +211,16 @@ event `Arrêté à votre demande.`; dossier status `stopped`, or `proved` if the
 `POST /dossiers/{id}/versions/{kind}/{index}/restore` (`kind` = `statement|proof|explanation`) → `{"dossier":Dossier}`
 (nothing is deleted; restoring a proof also restores its statement). 404 bad index, 409 busy.
 
+`POST /dossiers/{id}/versions/{kind}` `{"code":"…","check":true}` — manual edit, `kind` = `proof | explanation |
+informal | notes` → `{"dossier":Dossier,"check":CheckResult|null}`. Creates a new version with `source:"user"`
+(`model:""`) and a thread event; nothing is overwritten, and AI stages only ever add new versions when asked.
+A manual **proof** is pinned to the current statement (`assemble_proof`: the dossier's theorem signature is kept,
+only the proof part of `code` is used) and re-checked by Lean with the strict verdict: `ok:true` only when Lean
+accepts it (then status `proved` and the library is updated); otherwise the version is kept with `ok:false`, it is
+current but **never counts as proven** (`proof_is_current` requires `ok`), event `error`. `check:false` → unverified
+(`ok:false`). explanation / informal / notes: attached to the current proof / proof / statement. 400 `bad_kind`,
+`empty`, `bad_proof`; 409 `busy`, `no_statement`.
+
 `GET /dossiers/{id}/jobs[?raw]` → `{"jobs":[Job]}` (history, last 50, oldest first, + the active one; `raw` adds
 the model answers to attempts).
 
@@ -229,6 +241,12 @@ Mathlib revision, date of the check, axioms, model) → appendix: tactic-by-tact
 marked « Non prouvé / Not proved » and have no stamp. Typical PDF time: 2–4 s.
 
 ### 3.6 Jobs
+
+`GET /jobs/{id}/stream?from=<offset>` (alias `since`) → replay of everything the job streamed (all stages, also the
+single-call ones), for a page opened mid-job: `{"job_id","start","end","truncated","ended","segments":[{"offset",
+"stage","attempt","kind","text"}]}`. Offsets count characters over the whole job; ask again with `from=end`, then
+follow the live `job.token` events. Memory: 1 M characters per job (oldest dropped → `truncated`), 40 jobs, kept 10
+minutes after the job ended (404 after that).
 
 `GET /jobs` → `{"active":[Job],"recent":[Job]}` (in-memory, last 200). `GET /jobs/{id}` → `{"job":Job}` (with raw
 answers). `POST /jobs/{id}/cancel` → `{"cancelled":bool}`.
@@ -254,6 +272,17 @@ probe, forbidden constructs). Runs in a `lean` slot. 409 `no_workspace`, 400 `no
 `POST /import/tex` — `multipart/form-data` with field `file` (≤ 5 MB) or JSON `{"tex":"…"}` →
 `{"statements":[{"title":"Théorème 1 — Euclide","body":"…"}]}` (theorem-like environments, else the document body).
 
+### 3.8b Declarations (hover / tap on Lean names) and examples
+
+`GET /declarations/{workspace}/{name}` (also `GET /lean/declaration?name=&workspace=`, use this form for workspace
+keys containing `/`) → `{"workspace","name","status":"ok|unknown|indexing|unavailable","declaration":{name, kind?,
+signature, doc, module, …}|null}`. `GET /declarations/search?q=&workspace=&k=8` (also `/lean/search`) →
+`{"workspace","status","results":[{name, signature, doc, module, score}]}`. Backed by the retriever (RAG index of the
+workspace); `indexing` = the index is being built (ask again later). `workspace` defaults to the current one.
+
+`GET /examples` → `{"examples":[{"key","statement","title","level","blurb","fr":{title,level,blurb},"en":{…}}]}`
+(the built-in exercises of `madalean/examples.py`; top-level texts in the interface language).
+
 ### 3.9 Models
 
 `GET /models` → `ModelsInfo`:
@@ -270,8 +299,14 @@ probe, forbidden constructs). Runs in a `lean` slot. 409 `no_workspace`, 400 `no
 Keys are stored with `secret-tool` when available, else `keys.json` (0600); they are **never** returned, logged or
 sent elsewhere. `DELETE /models/keys/{provider}` → `{"provider":…,"set":false,"existed":bool}`. Event
 `models.status {keys}`.
-`POST /models/test` `{"provider"}` → `{"provider","ok":bool|null,"reason"?}` (`null` + `not_supported` when the
-engine has no test). `POST /models/refresh` → `ModelsInfo` (rescan `~/models`, refresh the online catalogue).
+`POST /models/test` `{"provider"}` → a real call: one tiny completion (« Reply with exactly: OK », 16 tokens) through
+the brain, restricted to that provider's best model (role explain, online) →
+`{"provider","ok":true,"model":"gemini:…","models":7,"latency_s":0.84,"reason":""}`. `ok:false` with `reason`
+(`no_model` = no usable model of this provider (no key?), `timeout`, `fallback: …` = another model answered, or the
+redacted error); `ok:null` with `reason:"local_mode"` when the mode is `local`. `models` = number of this provider's
+models the router can use. The key is never echoed. Each `roles[role].candidates[i]` also has `why` (the router's reason for this position) and `score` (from
+`brain.explain(role, mode)`; `""`/`null` when the engine gives none).
+`POST /models/refresh` → `ModelsInfo` (rescan `~/models`, refresh the online catalogue).
 `POST /models/local/stop` → unload the local model (409 `busy` while a job holds the GPU).
 Choosing a model per role: `PATCH /settings {"prefer":{"prove":"anthropic:claude-…"}}`.
 
@@ -293,10 +328,11 @@ Mathlib, Hugging Face Goedel models); the list of checkers is data-driven (`mada
 
 ### 3.11 Assistant
 
-`POST /assistant` `{"messages":[{"role":"user","content":"…"}],"context"?:{"lean"?,"notebook"?,"cell"?,"cell_type"?,
+`POST /assistant` `{"request_id"?:"<8–64 chars [A-Za-z0-9_-]>","messages":[{"role":"user","content":"…"}],"context"?:{"lean"?,"notebook"?,"cell"?,"cell_type"?,
 "cells"?:[…],"text"?,"dossier_id"?},"mode"?}` → `202 {"request_id":"a-…"}`. The answer streams on the WebSocket:
 `assistant.token {request_id, kind, text}` … then `assistant.done {request_id, text, model, finish}` or
-`assistant.error {request_id, error, text}`. `dossier_id` adds the dossier's current proof/statement as context.
+`assistant.error {request_id, error, text}`. `dossier_id` adds the dossier's current proof/statement as context. The `202` is written before the first event
+can be published; a client may also choose `request_id` itself (409 `request_id_in_use`, 400 `bad_request_id`).
 `POST /assistant/{request_id}/stop` → `{"stopped":bool}` (then `assistant.done` with `finish:"cancelled"`).
 
 ### 3.12 Jupyter / Sage
@@ -322,7 +358,10 @@ Jupyter is started on demand by the proxy. Lean 4 kernel: not installed (no reli
 
 `GET /` and any non-API path: files of `madalean/static/` (`--static DIR` to override). Unknown paths without an
 extension → `index.html` (SPA routing); missing files with an extension → 404. Files under `/assets/` are served
-`Cache-Control: public, max-age=31536000, immutable`, others `no-cache`. When `static/` has no `index.html`, a
+`Cache-Control: public, max-age=31536000, immutable`, others `no-cache`. HTML pages carry the headers
+`Content-Security-Policy` (the policy of `web/index.html`'s meta plus `frame-ancestors 'self'`),
+`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy: camera=(), microphone=(),
+geolocation=(), payment=(), usb=(), interest-cohort=()`. When `static/` has no `index.html`, a
 placeholder page is served.
 
 ## 4. WebSocket `/api/ws`
@@ -444,7 +483,9 @@ interface CheckResult {
 interface LibEntry { name: string; title: string; statement: string; code: string; workspace: string;
                      dossier: string; deps: string[]; t: number }
 
-interface ModelRef { key: string; provider: string; model_id: string; name: string; local: boolean; paid: boolean }
+interface ModelRef { key: string; provider: string; model_id: string; name: string; local: boolean; paid: boolean;
+                     why?: string; score?: number | null }   // why/score in GET /models roles
+// every `model` field of the API is a key string "provider:model_id" (never an object)
 
 interface Settings {
   language: "fr" | "en"; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;

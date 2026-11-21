@@ -134,8 +134,32 @@ async def device_forget_self(request: web.Request) -> web.Response:
 @routes.post("/api/pairing/start")
 @host_only
 async def pairing_start(request: web.Request) -> web.Response:
-    code, ttl = ctx_of(request).pairing.start()
-    return ok({"code": code, "expires": time.time() + ttl, "expires_in": ttl})
+    ctx = ctx_of(request)
+    code, ttl = ctx.pairing.start()
+    return ok({"code": code, "expires": time.time() + ttl, "expires_in": ttl, "remote_url": await remote_url(ctx)})
+
+
+async def remote_url(ctx) -> str | None:
+    """Address other devices use: from the Tailscale node status (madalean.runtime.net, session S-I, when present),
+    else from the configured host name when it is a tailnet name; None when unknown."""
+    try:
+        from ..runtime import net  # type: ignore[attr-defined]
+        fn = getattr(net, "remote_url", None)
+        if fn is not None:
+            try:
+                u = fn(ctx)
+            except TypeError:
+                u = fn()
+            if asyncio.iscoroutine(u):
+                u = await asyncio.wait_for(u, 5)
+            if isinstance(u, str) and u.startswith("https://"):
+                return u
+    except Exception:  # noqa: BLE001 (absent or failing: fall back)
+        pass
+    host = (ctx.settings.host_name or "").strip().rstrip(".")
+    if host.endswith(".ts.net"):
+        return f"https://{host}:10500"
+    return None
 
 
 @routes.get("/api/pairing")
@@ -240,17 +264,53 @@ def _notify_keys(ctx) -> None:
 
 @routes.post("/api/models/test")
 async def models_test(request: web.Request) -> web.Response:
+    """A real call: one tiny completion restricted to `provider` (its best model for role explain, online).
+    → {provider, ok, reason, model, models (models of this provider the router can use), latency_s}. The key is never
+    echoed (errors are redacted)."""
+    from ..logs import redact
+    from ..pipeline.runner import model_key
     ctx = ctx_of(request)
     data = await body(request)
-    provider = str(data.get("provider", ""))
+    provider = str(data.get("provider", ""))[:41]
     fn = getattr(ctx.brain, "test", None)
-    if fn is None:
-        return ok({"provider": provider, "ok": None, "reason": "not_supported"})
+    if fn is not None:
+        try:
+            res = await asyncio.wait_for(fn(provider), 60)
+        except Exception as e:  # noqa: BLE001
+            return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300]})
+        return ok({"provider": provider, **(res if isinstance(res, dict) else {"ok": bool(res)})})
+    if ctx.settings.mode == "local":
+        return ok({"provider": provider, "ok": None, "reason": "local_mode", "models": 0})
+
+    def mine(role: str) -> list:
+        try:
+            return [c for c in ctx.brain.candidates(role, "online") if c.provider == provider]
+        except Exception:  # noqa: BLE001
+            return []
+    cands = mine("explain")
+    if not cands:
+        try:
+            await asyncio.wait_for(ctx.brain.refresh(), 30)
+        except Exception:  # noqa: BLE001
+            pass
+        cands = mine("explain") or mine("assistant") or mine("prove")
+    unlocked = {c.key for role in ("explain", "prove", "formalize", "assistant") for c in mine(role)}
+    if not cands:
+        return ok({"provider": provider, "ok": False, "reason": "no_model", "models": 0})
+    t0 = time.monotonic()
     try:
-        res = await asyncio.wait_for(fn(provider), 60)
+        c = await asyncio.wait_for(ctx.brain.complete("explain", [{"role": "user", "content": "Reply with exactly: OK"}],
+                                                      mode="online", prefer=cands[0].key, max_tokens=16,
+                                                      temperature=0.0), 60)
+    except asyncio.TimeoutError:
+        return ok({"provider": provider, "ok": False, "reason": "timeout", "models": len(unlocked)})
     except Exception as e:  # noqa: BLE001
-        return ok({"provider": provider, "ok": False, "reason": str(e)[:300]})
-    return ok({"provider": provider, **(res if isinstance(res, dict) else {"ok": bool(res)})})
+        return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": len(unlocked)})
+    latency = round(time.monotonic() - t0, 2)
+    used = model_key(c.model)
+    good = getattr(c.model, "provider", "") == provider
+    return ok({"provider": provider, "ok": good, "model": used, "models": len(unlocked), "latency_s": latency,
+               "reason": "" if good else "fallback: " + redact("; ".join(c.fallbacks or []))[:300]})
 
 
 @routes.post("/api/models/refresh")

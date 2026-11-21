@@ -24,6 +24,7 @@ class EventBus:
         self._tokens: dict[tuple, list[str]] = {}
         self._flusher: asyncio.TimerHandle | None = None
         self.boot = int(time.time() * 1000)          # changes on restart: clients must resync
+        self.recorder = None                         # callable(job_id, stage, attempt, kind, text): replay store
 
     def publish(self, type_: str, payload: dict[str, Any] | None = None) -> dict:
         if type_ != "job.token":
@@ -45,6 +46,8 @@ class EventBus:
     def token(self, job_id: str, stage: str, attempt: int, text: str, kind: str = "text") -> None:
         if not text:
             return
+        if self.recorder is not None:
+            self.recorder(job_id, stage, attempt, kind, text)
         self._tokens.setdefault((job_id, stage, attempt, kind), []).append(text)
         if self._flusher is None:
             try:

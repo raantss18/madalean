@@ -12,6 +12,8 @@ import 'package:madalean_shell/src/native.dart';
 import 'package:madalean_shell/src/storage.dart';
 import 'package:madalean_shell/src/strings.dart';
 import 'package:madalean_shell/src/theme.dart';
+import 'package:madalean_shell/src/update.dart';
+import 'package:madalean_shell/src/update_ui.dart';
 import 'package:madalean_shell/src/web_screen.dart';
 
 Future<void> main() async {
@@ -30,6 +32,20 @@ Future<void> main() async {
     systemLang: lang,
   );
   final version = await native.appVersion();
+  // Signed updates: fixed HTTPS channel; debug builds may point to a test
+  // channel (--dart-define=MADALEAN_UPDATE_CHANNEL=…, see docs/SHELLS.md).
+  final updater = Updater(
+    client: http.Client(),
+    platform: native,
+    prefs: SharedPrefs(),
+    channelUrl: Uri.parse(
+      kDebugMode && debugChannelOverride.isNotEmpty
+          ? debugChannelOverride
+          : stableChannelUrl,
+    ),
+    publicKeyB64: buildPublicKey,
+  );
+  await updater.init();
   final links = AppLinks();
   String? initial;
   try {
@@ -37,7 +53,15 @@ Future<void> main() async {
   } on Object {
     initial = null;
   }
-  runApp(MadaleanApp(controller: controller, native: native, version: version));
+  runApp(
+    MadaleanApp(
+      controller: controller,
+      native: native,
+      version: version,
+      updater: updater,
+    ),
+  );
+  unawaited(updater.maybeCheck());
   unawaited(controller.init(initialLink: initial));
   links.stringLinkStream.listen((l) {
     if (l != initial) controller.handleLink(l);
@@ -50,11 +74,13 @@ class MadaleanApp extends StatefulWidget {
     required this.controller,
     required this.native,
     required this.version,
+    required this.updater,
     super.key,
   });
   final ShellController controller;
   final NativeBridge native;
   final String version;
+  final Updater updater;
 
   @override
   State<MadaleanApp> createState() => _MadaleanAppState();
@@ -78,6 +104,7 @@ class _MadaleanAppState extends State<MadaleanApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused) widget.controller.paused();
     if (state == AppLifecycleState.resumed) {
       unawaited(widget.controller.resumed());
+      unawaited(widget.updater.maybeCheck());
     }
   }
 
@@ -92,11 +119,20 @@ class _MadaleanAppState extends State<MadaleanApp> with WidgetsBindingObserver {
         theme: shellTheme(Brightness.light),
         darkTheme: shellTheme(Brightness.dark),
         locale: Locale(c.lang.name),
+        builder: (context, child) => UpdateBanner(
+          updater: widget.updater,
+          strings: () => c.s,
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: switch (c.state) {
           LoadingState() => const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           ),
-          final ConnectState st => ConnectScreen(controller: c, state: st),
+          final ConnectState st => ConnectScreen(
+            controller: c,
+            state: st,
+            updater: widget.updater,
+          ),
           final UnreachableState st => UnreachableScreen(
             controller: c,
             state: st,

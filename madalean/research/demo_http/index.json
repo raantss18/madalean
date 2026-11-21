@@ -1,0 +1,80 @@
+{
+ "https://api.crossref.org/v1/works/10.2307%2F2118559/transform": {
+  "file": "c29a829f39e9712f608e.bin",
+  "headers": {
+   "content-type": "application/vnd.citationstyles.csl+json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works?query.bibliographic=Hilton-Milner+theorem+short+proof&rows=6&select=DOI%2Ctitle%2Cauthor%2Cissued%2Ccontainer-title%2Ctype%2Cabstract%2Cvolume%2Cissue%2Cpage%2Cpublisher": {
+  "file": "91dcb52e11f90c4e335a.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.openalex.org/works/doi:10.2307/2118559": {
+  "file": "679d4a3d712d2bd3593e.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.openalex.org/works?filter=openalex%3AW52307304%7CW177399353%7CW200813685%7CW1515288351%7CW1998149513&per-page=5": {
+  "file": "513d98234197a672eaed.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.openalex.org/works?search=Hilton-Milner+theorem+short+proof&per-page=6": {
+  "file": "6610ff302a8d89664526.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.zbmath.org/v1/document/_search?search_string=Hilton-Milner+theorem+short+proof&page=0&results_per_page=6": {
+  "file": "79a88231e6bc38066989.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.zbmath.org/v1/document/_search?search_string=an%3A0965.11001&page=0&results_per_page=1": {
+  "file": "6a43ad75351f5d71b00d.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://doi.org/10.2307/2118559": {
+  "file": "624b8f31793686be97ac.bin",
+  "headers": {
+   "content-type": "text/html;charset=utf-8",
+   "location": "https://api.crossref.org/v1/works/10.2307%2F2118559/transform"
+  },
+  "status": 302
+ },
+ "https://export.arxiv.org/api/query?id_list=2603.29335&max_results=1": {
+  "file": "fbb53931d6022270d5ea.bin",
+  "headers": {
+   "content-type": "application/atom+xml; charset=utf-8"
+  },
+  "status": 200
+ },
+ "https://export.arxiv.org/api/query?search_query=all%3AHilton-Milner+AND+all%3Atheorem+AND+all%3Ashort+AND+all%3Aproof&start=0&max_results=6&sortBy=relevance": {
+  "file": "7a9fb1af01ebb9647299.bin",
+  "headers": {
+   "content-type": "application/atom+xml; charset=utf-8"
+  },
+  "status": 200
+ },
+ "https://openlibrary.org/api/books?bibkeys=ISBN%3A9780198531715&format=json&jscmd=data": {
+  "file": "d27106a221c76c0110cc.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ }
+}

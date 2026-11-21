@@ -143,6 +143,9 @@ class Orchestrator:
         finally:
             job.ended = time.time()
             job.stage, job.waiting = "", ""
+            streams = getattr(self.ctx, "streams", None)
+            if streams is not None:
+                streams.finish(job.id)
             self.ctx.slots.release_all(job.id)
             try:
                 self.ctx.local.release_owner(job.id)

@@ -135,3 +135,13 @@ Full suite on the real models and Lean 4.9 workspace: **109 passed** (`logs/full
 - GPU-unavailable path is tested by simulation only (the real GPU was not removed).
 - Olympiad-level miniF2F problems often fail with the 8B model (3/8 failures in BENCH §4); long answers (up to ~16k tokens) can take ~8 min per attempt.
 - Quality of Q4_K_M vs Q5_K_M was not compared statistically (choice made on speed + VRAM headroom).
+
+## 2.0 — research layer: sources, bibliography, grounded answers, blueprint, article (session S-E, 2026-11-21)
+Verified: live calls to arXiv, doi.org/Crossref, OpenAlex, OpenLibrary, zbMATH Open, Semantic Scholar (recorded as
+fixtures); SSRF refusals against real DNS (localtest.me → ::1, 10.0.0.1.nip.io); real XeLaTeX PDFs with biblatex+biber,
+bibtex+amsalpha and thebibliography (formatted reference checked in the PDF text); article PDF with verification
+table, « not verified » claims and Lean appendix (looked at as PNG); blueprint extraction hand-checked on 3 arXiv
+papers (docs/RESEARCH_SOURCES.md §10); `serve --demo` seeds and serves the research project.
+Not verified (needs a key or the GPU): grounded answers, reading lists, metadata proposals, blueprint model pass and
+article drafts with a REAL model (only the fake brain ran); semantic re-ranking with a local Ollama embedding model;
+OCR quality on a real scanned paper; EPUB extraction on a real book.

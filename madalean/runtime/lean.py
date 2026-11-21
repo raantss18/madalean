@@ -75,6 +75,11 @@ class LeanRunner:
         """Compile `code` (with the axiom probe already appended when `strict_name` is given)."""
         job = next(self._ids)
         owner = owner or current_owner()
+        risks = leancheck.exec_risks(code.rsplit("#print axioms", 1)[0] if strict_name else code)
+        if risks:          # never compile code that could run on the host (DECISIONS D28), whoever wrote it
+            v = leancheck.Verdict(False, _("Refusé avant compilation : {why}.").format(why=", ".join(risks)),
+                                  reasons=risks)
+            return CompileResult(v, code, 0.0, "", job=job)
         problems = await asyncio.to_thread(ws.check)
         if problems:
             return CompileResult(leancheck.Verdict(False, problems[0]), code, 0.0, "", infra_error=problems[0], job=job)
