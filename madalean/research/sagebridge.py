@@ -27,8 +27,9 @@ ENV_ALLOW = {"PATH", "LANG", "LANGUAGE", "TZ", "TERM", "USER", "LOGNAME", "SHELL
              "SAGE_ROOT", "SAGE_LOCAL", "SAGE_VENV", "LD_LIBRARY_PATH"}
 SPEC_NAMES = {"sage": ("madalean-sage", "sagemath", "SageMath (Madalean experiments)", "sage"),
               "python": ("madalean-python", "python3", "Python (Madalean experiments)", "python")}
-KERNEL_DIRS = ["/usr/share/jupyter/kernels", "/usr/local/share/jupyter/kernels",
-               os.path.expanduser("~/.local/share/jupyter/kernels"), os.path.join(sys.prefix, "share/jupyter/kernels")]
+PREFIX_KERNELS = os.path.join(sys.prefix, "share/jupyter/kernels")      # Madalean's env (its own Sage, if installed)
+KERNEL_DIRS = [PREFIX_KERNELS, "/usr/local/share/jupyter/kernels", "/usr/share/jupyter/kernels",
+               os.path.expanduser("~/.local/share/jupyter/kernels")]
 DEFAULT_MEM_MB = 4096
 DEFAULT_TIMEOUT_S = 60.0
 MAX_TIMEOUT_S = 1800.0
@@ -299,15 +300,28 @@ def parse_reports(text: str) -> list[dict]:
     return out
 
 
+SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
+
+
 def find_kernelspec(name: str) -> dict | None:
+    """The base kernelspec `name`. Madalean's own prefix wins; a system spec with a bare interpreter (Arch's
+    sagemath spec says just `python`) is resolved against the system PATH, never the server's PATH, which starts
+    with Madalean's env (whose python has no Sage: the kernel died with « No module named 'sage' »)."""
     for d in KERNEL_DIRS:
         f = Path(d) / name / "kernel.json"
         try:
             spec = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if isinstance(spec.get("argv"), list) and spec["argv"]:
-            return spec
+        argv = spec.get("argv")
+        if not isinstance(argv, list) or not argv:
+            continue
+        if not os.path.isabs(argv[0]):
+            exe = shutil.which(argv[0], path=SYSTEM_PATH) if d != PREFIX_KERNELS else shutil.which(argv[0])
+            if not exe:
+                continue
+            spec = {**spec, "argv": [exe, *argv[1:]]}
+        return spec
     return None
 
 
