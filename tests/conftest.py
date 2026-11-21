@@ -12,6 +12,9 @@ import pytest
 _TMP = Path(tempfile.mkdtemp(prefix="madalean-test-"))
 os.environ.setdefault("MADALEAN_CONFIG_DIR", str(_TMP / "config"))
 os.environ.setdefault("MADALEAN_CACHE_DIR", str(_TMP / "cache"))
+# Never the real prefix (~/.local/share/madalean, security review): an empty MADALEAN_HOME = "development checkout"
+# for madalean.deps (tools from PATH, workspaces of the checkout). Tests that need a prefix build their own.
+os.environ["MADALEAN_HOME"] = str(_TMP / "madalean-home")
 os.environ["MADALEAN_NO_UPDATE_CHECK"] = "1"
 os.environ["MADALEAN_NO_KEYRING"] = "1"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

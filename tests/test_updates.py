@@ -232,6 +232,15 @@ async def test_manager_checkers_are_data_driven(tmp_path, monkeypatch):
 
 async def test_install_runs_the_updater_process(tmp_path, monkeypatch):
     """Real subprocess round trip: the updater refuses a bad tag, the manager reports it and keeps the old version."""
+    # D29 needs a prefix elan: a fake one in a temp MADALEAN_HOME (tests never use the real prefix)
+    from madalean import config
+    home = tmp_path / "prefix"
+    elan = home / "elan" / "bin" / "elan"
+    elan.parent.mkdir(parents=True)
+    elan.write_text("#!/bin/sh\nexit 0\n")
+    elan.chmod(0o755)
+    monkeypatch.setenv("MADALEAN_HOME", str(home))
+    monkeypatch.setattr(config, "ELAN_HOME", home / "elan")
     events = []
     m = _mgr(tmp_path, events)
     bad = updates.Candidate("mathlib", "mathlib", "Lean + Mathlib vX", "v4.34.1", "vX", spec={"tag": "vX"})

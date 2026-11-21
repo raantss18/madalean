@@ -101,39 +101,42 @@ sha256 = "42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63"
 size = 4996571
 
 [components."llama.cpp"]
-title = "llama.cpp server (b11375 = commit 436f6f8, the build benchmarked in BENCH.md)"
-version = "b11375"
+title = "llama.cpp server (b12608)"
+version = "b12608"
 kind = "archive"
 need = "required"
 license = "MIT"
 upstream = "github-release:ggml-org/llama.cpp"
-commit = "436f6f89e1e581249900b37a5b8a12a36a6d0912"
+commit = "93cb37ea7"
 default_variant = "cpu"
+# b11375 (commit 436f6f8, BENCH.md) is NOT allowed any more: CVE-2026-133710 (GGUF heap overflow → RCE with a
+# crafted model) and CVE-2026-107183 (use-after-free in /completion). Minimum safe release: b12556 (security
+# review F11, 2026-11-21). SHA-256 below = GitHub asset digests; cpu + cuda13 (+ its cudart) re-checked by download.
 
 [components."llama.cpp".variants.cpu]
-url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-x64.tar.gz"
-sha256 = "e74863674a364f111223a1832e3bec458326e0c24a6779d26a217decaaa71c56"
-size = 17658109
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b12608/llama-b12608-bin-ubuntu-x64.tar.gz"
+sha256 = "437a78088609f8faac6eddb8654614a0bafd761d3e9803b304c1b623074f599c"
+size = 23185237
 
-# CUDA 13.x (driver >= 580): llama.cpp + the CUDA runtime libraries (cudart, cuBLAS) — no CUDA toolkit needed.
+# CUDA 13.5 (driver with CUDA ≥ 13.5): llama.cpp + the CUDA runtime libraries (cudart, cuBLAS) — no CUDA toolkit.
 [components."llama.cpp".variants.cuda13]
-min_cuda = "13.4"
-url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-cuda-13.4-x64.tar.gz"
-sha256 = "f95ad3d6af11381bbed08d8149bf37ad869ecb53425e9920f1c814129dcab201"
-size = 152371607
-extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/cudart-llama-b11375-bin-ubuntu-cuda-13.4-x64.tar.gz"
-extra_sha256 = "db8591e9e1d1b4fca1686226f6fb9fc1083ebd29b47d6cd0c60ad31774801033"
-extra_size = 440236642
+min_cuda = "13.5"
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b12608/llama-b12608-bin-ubuntu-cuda-13.5-x64.tar.gz"
+sha256 = "4f12309c5b2c23fcf4b7cb86a93a22b918820d08d69bc1328f51f7d91b704b99"
+size = 224350027
+extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b12608/cudart-llama-b12608-bin-ubuntu-cuda-13.5-x64.tar.gz"
+extra_sha256 = "3eb1c958953c33ac28fe839d7d3585b8565f85ca988a69ce798b271230a5e9c1"
+extra_size = 444077801
 
-# CUDA 12.8 (driver >= 570)
+# CUDA 12.8 (driver ≥ 570)
 [components."llama.cpp".variants.cuda12]
 min_cuda = "12.8"
-url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-cuda-12.8-x64.tar.gz"
-sha256 = "1d39382d831965c6bc03aec74eef94680e34127c6efd965d4f5b6472d5afe24e"
-size = 171515667
-extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/cudart-llama-b11375-bin-ubuntu-cuda-12.8-x64.tar.gz"
-extra_sha256 = "470c492057734bc52b87e6065a926f71984efefb8e45c772ab975eea756915b3"
-extra_size = 594377832
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b12608/llama-b12608-bin-ubuntu-cuda-12.8-x64.tar.gz"
+sha256 = "406e879043af1fffdff19de5732a7ac5bf122006d3f4c4af35652f5c4f27f65b"
+size = 220054595
+extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b12608/cudart-llama-b12608-bin-ubuntu-cuda-12.8-x64.tar.gz"
+extra_sha256 = "66c133a2bb0561132efb63a27569b27be73e046d41653d60a4adcd2ccf6329c7"
+extra_size = 594376924
 
 [components.madalean-net]
 title = "madalean-net (embedded Tailscale node, tsnet; built by us, static)"

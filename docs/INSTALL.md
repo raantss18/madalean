@@ -30,7 +30,7 @@ the pinned version is only re-checked.
 | `tectonic/` | TECTONIC_CACHE_DIR: the pinned TeX bundle (v33, digest `6ffe0558…`), only the files Madalean's exports use; `tectonic/files/` = font files read by the export | 48 MB |
 | `components/elan/<v>/` + `elan/` | elan 4.2.4; `elan/` = ELAN_HOME (toolchains of the managed workspaces). `~/.elan` is never touched | 13.5 MB + toolchains |
 | `workspaces/` | `lean-current`, `lean-prover49`: imported by **hard links** from an existing built workspace (dev checkout, Lean AI Station 1.x) — no extra space, no runtime dependency on the source — or built with `--build-workspace` | 12 GB apparent + 3.9 GB toolchains, **0 extra** (hard links) (shared inodes) |
-| `components/llama.cpp/b11375-<variant>/` | llama.cpp b11375 (= commit 436f6f8 benchmarked in BENCH.md), prebuilt release asset; `cuda13`/`cuda12` variants also carry the CUDA runtime (cudart, cuBLAS) — no CUDA toolkit | 46 MB (cpu); ≈ 1.3 GB (cuda13, from asset sizes) |
+| `components/llama.cpp/b12608-<variant>/` | llama.cpp b12608 (commit 93cb37ea7; ≥ b12556 required: CVE-2026-133710, CVE-2026-107183 in older builds), prebuilt release asset; `cuda13`/`cuda12` variants also carry the CUDA runtime (cudart, cuBLAS) — no CUDA toolkit | 44 MB (cpu); cuda13 = 224 + 444 MB downloaded |
 | `components/madalean-net/<v>/` | embedded Tailscale node (Go, tsnet 1.104.7, static) | 22 MB |
 | `tailscale/` | state of the Tailscale node (0700), `net.sock` status socket, `tsnet.log` (capped 4 MB) | < 1 MB |
 | `downloads/` | verified downloads + micromamba package cache (`pkgs/`) — reused by repairs and `export_offline.sh` | package archives (main 362 MB, Sage 1.45 GB) + 48 MB of component files |
@@ -52,7 +52,7 @@ and every installed package is checked against the lock's SHA-256 through `conda
 | Needed | Why | Without it |
 |---|---|---|
 | Linux x86_64, glibc ≥ 2.28 (conda-forge baseline), bash, coreutils, tar, curl | install.sh | — |
-| NVIDIA driver (CUDA ≥ 12.8 for `cuda12`, ≥ 13.4 for `cuda13`) | GPU engine | CPU build (slow) |
+| NVIDIA driver (CUDA ≥ 12.8 for `cuda12`, ≥ 13.5 for `cuda13`) | GPU engine | CPU build (slow) |
 | `setpriv` (util-linux) | children die with the server (`PR_SET_PDEATHSIG`) | Python trampoline (same effect) |
 | systemd user session | `madalean.service` | run `$MADALEAN_HOME/current/bin/madalean serve` |
 | `bwrap` (optional) | sandbox of Sage/Python experiments (S-G) | rlimits only |
@@ -222,6 +222,13 @@ Verified for real (temp prefix, not the dev checkout, nothing of the user's syst
   madalean-net: **0** affecting the code (klauspost/compress 1.20.0 → 1.20.2 and x/net 0.60 → 0.62 bumped for
   that); SBOM `dist/sbom/madalean-prefix.cdx.json` (CycloneDX 1.5, 658 components: 220 main-env packages, 386
   Sage packages, 44 Go modules, 8 manifest components) + the audit reports next to it.
+
+Security review F11 (2026-11-21 evening): llama.cpp re-pinned from b11375 (CVE-2026-133710, CVE-2026-107183) to
+**b12608**. cpu + cuda13 (+ cudart) downloaded and their SHA-256 checked against the GitHub digests; every flag of
+`runtime/llama.py` still accepted (`--help`); `--list-devices` shows the RTX 4060 with the cuda13 build; Goedel-Prover
+Q4_K_M loaded with `-c 4096` and the exact Madalean flags: `-ngl 99` and `-ngl 20` did not fit (Ollama held 5.5 of
+8 GB; cudaMalloc OOM), **`-ngl 12` → "offloaded 12/37 layers to GPU", one completion (8 tok/s), stopped**, VRAM
+back to its previous level. nvidia-smi 620 prints `CUDA UMD Version:`; the variant detection reads both banners.
 
 ## 10. Accepted findings, NOT verified, risks
 

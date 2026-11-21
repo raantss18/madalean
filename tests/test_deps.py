@@ -431,3 +431,21 @@ def test_guarded_child_dies_with_parent(monkeypatch, use_setpriv, tmp_path):
     else:
         os.kill(child, signal.SIGKILL)
         pytest.fail("child survived the parent")
+
+
+def test_parse_cuda_version_banners():
+    assert installer.parse_cuda_version("| NVIDIA-SMI 570.1   Driver Version: 570.1   CUDA Version: 12.8 |") == (12, 8)
+    assert installer.parse_cuda_version("| NVIDIA-SMI 620.70.06  KMD Version: 620.70.06  CUDA UMD Version: 13.5 |") == (13, 5)
+    assert installer.parse_cuda_version("no gpu") is None
+
+
+def test_llama_pin_is_not_vulnerable():
+    """Security review F11: llama.cpp < b12556 has CVE-2026-133710 / CVE-2026-107183."""
+    c = manifest.component("llama.cpp")
+    assert int(c["version"].lstrip("b")) >= 12556
+    for v in c["variants"].values():
+        assert c["version"] in v["url"] and (not v.get("extra_url") or c["version"] in v["extra_url"])
+
+
+def test_tests_never_use_the_real_prefix():
+    assert deps.home() != Path.home() / ".local" / "share" / "madalean"

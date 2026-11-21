@@ -366,6 +366,12 @@ def cuda_driver_version() -> tuple[int, int] | None:
         out = subprocess.run([smi], capture_output=True, text=True, timeout=20).stdout
     except (OSError, subprocess.SubprocessError):
         return None
+    return parse_cuda_version(out)
+
+
+def parse_cuda_version(out: str) -> tuple[int, int] | None:
+    """Highest CUDA version the driver supports, from nvidia-smi's banner ("CUDA Version: 13.5", or since the
+    620 drivers "CUDA UMD Version: 13.5")."""
     m = re.search(r"CUDA (?:UMD )?Version:\s*(\d+)\.(\d+)", out)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
