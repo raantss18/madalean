@@ -1,0 +1,43 @@
+/* CodeMirror theming through tokens (both themes). */
+.cm-editor { background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-2); font-size: 0.9375rem; }
+.cm-editor.cm-focused { outline: 2px solid var(--focus); outline-offset: 0; }
+.cm-editor .cm-scroller { font-family: var(--font-mono); line-height: 1.6; }
+.cm-editor.natural .cm-scroller { font-family: var(--font-ui); font-size: 1.0625rem; line-height: 1.55; }
+.cm-editor .cm-content { padding: var(--s-2) 0; caret-color: var(--text); }
+.cm-editor .cm-line { padding: 0 var(--s-3); }
+.cm-editor .cm-gutters { background: var(--surface-2); color: var(--text-3); border-right: 1px solid var(--line); border-radius: var(--r-2) 0 0 var(--r-2); }
+.cm-editor .cm-activeLine { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.cm-editor .cm-activeLineGutter { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--text); }
+.cm-editor .cm-cursor { border-left-color: var(--text); }
+.cm-editor .cm-selectionBackground, .cm-editor.cm-focused .cm-selectionBackground { background: color-mix(in srgb, var(--accent) 25%, transparent) !important; }
+.cm-editor .cm-placeholder { color: var(--text-3); }
+.cm-editor .cm-matchingBracket { background: color-mix(in srgb, var(--accent) 20%, transparent); outline: 1px solid var(--accent); }
+.cm-editor.readonly { background: var(--surface-2); }
+.cm-errline { background: color-mix(in srgb, var(--failed) 12%, transparent); box-shadow: inset 3px 0 0 var(--failed); }
+.cm-warnline { background: color-mix(in srgb, var(--running-fill) 14%, transparent); box-shadow: inset 3px 0 0 var(--running-fill); }
+.tk-kw { color: #6b3fa0; font-weight: 600; }
+.tk-tac { color: #1f5fa8; }
+.tk-type { color: #0f6b5c; }
+.tk-com { color: #5b6376; font-style: italic; }
+.tk-str { color: #8a4a00; }
+.tk-num { color: #8a4a00; }
+.tk-op { color: #9b2c4a; }
+.tk-sorry { color: var(--failed); font-weight: 700; text-decoration: underline wavy; }
+:root[data-theme='dark'] .tk-kw { color: #c9a6ff; }
+:root[data-theme='dark'] .tk-tac { color: #8ec5ff; }
+:root[data-theme='dark'] .tk-type { color: #6fe0c8; }
+:root[data-theme='dark'] .tk-com { color: #a0a7b6; }
+:root[data-theme='dark'] .tk-str, :root[data-theme='dark'] .tk-num { color: #ffc27a; }
+:root[data-theme='dark'] .tk-op { color: #ff9ab5; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .tk-kw { color: #c9a6ff; }
+  :root:not([data-theme='light']) .tk-tac { color: #8ec5ff; }
+  :root:not([data-theme='light']) .tk-type { color: #6fe0c8; }
+  :root:not([data-theme='light']) .tk-com { color: #a0a7b6; }
+  :root:not([data-theme='light']) .tk-str, :root:not([data-theme='light']) .tk-num { color: #ffc27a; }
+  :root:not([data-theme='light']) .tk-op { color: #ff9ab5; }
+}
+.cm-tooltip.cm-tooltip-hover { background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow-2); }
+.cm-gloss { max-width: 340px; padding: var(--s-2) var(--s-3); font-family: var(--font-ui); font-size: var(--fs-sm); }
+.cm-gloss strong { font-family: var(--font-mono); }
+.cm-gloss p { margin: 4px 0 0; }

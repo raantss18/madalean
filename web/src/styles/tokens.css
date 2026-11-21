@@ -1,0 +1,147 @@
+/* Madalean design tokens. Brand: ink #1f2a44, paper #f2e6cf, laterite #d9643f (shells/branding).
+   Contrast pairs are checked in docs/UI.md (WCAG AA, both themes). */
+:root {
+  color-scheme: light;
+  --font-ui: 'Source Sans 3 Variable', 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', 'Noto Serif', Georgia, serif;
+  --font-mono: 'DejaVu Sans Mono', 'JuliaMono', 'Noto Sans Mono', ui-monospace, monospace;
+
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eceef2;
+  --surface-3: #e2e5eb;
+  --line: #d6dae2;
+  --line-strong: #858ea2;       /* 3.4:1 on surface: input borders, focusable outlines */
+  --text: #1a2031;
+  --text-2: #464e62;            /* 8.0:1 on surface */
+  --text-3: #5b6376;            /* 6.0:1 on surface, 5.5:1 on bg */
+  --ink: #1f2a44;               /* brand ink: primary buttons, wordmark */
+  --on-ink: #ffffff;
+  --accent: #2c46ad;            /* links, focus, active nav: 7.6:1 on surface */
+  --accent-soft: #e6eafb;
+  --laterite: #b44a26;          /* brand laterite darkened for text use: 5.2:1 on surface */
+  --laterite-mark: #d9643f;     /* decorative only */
+
+  --proved: #1a7246;            /* 5.9:1 */
+  --proved-soft: #e3f3ea;
+  --failed: #b42318;            /* 6.4:1 */
+  --failed-soft: #fbe9e7;
+  --running: #8a5200;           /* 5.9:1 (text); fill uses --running-fill */
+  --running-fill: #f2b34c;
+  --running-soft: #fdf1dc;
+  --queued: #5b6376;
+  --queued-soft: #eceef2;
+  --info-soft: #e8eefc;
+  --online: #6a3fb0;            /* "goes online" privacy colour: 7.0:1 */
+  --online-soft: #f0e9fb;
+  --local: #1a6a7a;             /* "stays on this machine": 6.0:1 */
+  --local-soft: #e2f2f4;
+
+  --focus: #2c46ad;
+  --shadow-1: 0 1px 2px rgba(20, 28, 48, 0.08);
+  --shadow-2: 0 8px 28px rgba(20, 28, 48, 0.16), 0 1px 3px rgba(20, 28, 48, 0.1);
+
+  --r-1: 4px;     /* chips, code */
+  --r-2: 8px;     /* buttons, inputs */
+  --r-3: 12px;    /* panels, dialogs */
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
+
+  --fs-xs: 0.8125rem;  /* 13px — metadata only */
+  --fs-sm: 0.875rem;   /* 14px */
+  --fs-md: 1rem;       /* 16px body */
+  --fs-lg: 1.1875rem;  /* 19px */
+  --fs-xl: 1.5rem;     /* 24px */
+  --fs-2xl: 2rem;
+
+  --touch: 44px;
+  --topbar-h: 56px;
+  --bottomnav-h: 60px;
+  --rail-w: 300px;
+  --inspector-w: 380px;
+  --measure: 72ch;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root[data-mode='research'] {
+  --touch: 36px;
+  --topbar-h: 48px;
+  --s-4: 12px;
+  --s-5: 18px;
+}
+@media (pointer: coarse) {
+  :root[data-mode='research'] { --touch: 44px; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #13161d;
+    --surface: #1a1e27;
+    --surface-2: #222734;
+    --surface-3: #2a3040;
+    --line: #2f3546;
+    --line-strong: #6d768b;     /* 3.4:1 on surface */
+    --text: #e8eaf0;
+    --text-2: #b9bfcc;
+    --text-3: #a0a7b6;          /* 6.6:1 */
+    --ink: #dfe4f2;
+    --on-ink: #151a26;
+    --accent: #a3b4ff;
+    --accent-soft: #252d4d;
+    --laterite: #f0936d;
+    --laterite-mark: #e0754e;
+    --proved: #66d398;
+    --proved-soft: #17301f;
+    --failed: #ff8e82;
+    --failed-soft: #3a1c1a;
+    --running: #f3bf68;
+    --running-fill: #e0a238;
+    --running-soft: #33270f;
+    --queued: #a0a7b6;
+    --queued-soft: #262b37;
+    --info-soft: #1f2740;
+    --online: #c7a8ff;
+    --online-soft: #2b2140;
+    --local: #79d0de;
+    --local-soft: #15303a;
+    --focus: #a3b4ff;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #13161d;
+  --surface: #1a1e27;
+  --surface-2: #222734;
+  --surface-3: #2a3040;
+  --line: #2f3546;
+  --line-strong: #6d768b;
+  --text: #e8eaf0;
+  --text-2: #b9bfcc;
+  --text-3: #a0a7b6;
+  --ink: #dfe4f2;
+  --on-ink: #151a26;
+  --accent: #a3b4ff;
+  --accent-soft: #252d4d;
+  --laterite: #f0936d;
+  --laterite-mark: #e0754e;
+  --proved: #66d398;
+  --proved-soft: #17301f;
+  --failed: #ff8e82;
+  --failed-soft: #3a1c1a;
+  --running: #f3bf68;
+  --running-fill: #e0a238;
+  --running-soft: #33270f;
+  --queued: #a0a7b6;
+  --queued-soft: #262b37;
+  --info-soft: #1f2740;
+  --online: #c7a8ff;
+  --online-soft: #2b2140;
+  --local: #79d0de;
+  --local-soft: #15303a;
+  --focus: #a3b4ff;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+}

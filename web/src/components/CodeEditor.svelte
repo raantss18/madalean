@@ -1,0 +1,66 @@
+<script lang="ts">
+  // CodeMirror editor (lazy chunk). Until it is loaded, a plain textarea keeps the page usable (no blank box).
+  import { onDestroy } from 'svelte';
+  import type { EditorHandle } from '../lib/lean/editor';
+  import type { GlossEntry } from '../lib/lean/glossary';
+  import { i18n } from '../lib/i18n/index.svelte';
+
+  let {
+    value = $bindable(''), language = 'lean', readonly = false, label, placeholder = '', errors = [], gloss = false,
+    onTokenTap, onSubmit, minLines = 3, id = '', lineNumbers = true, describedby = '',
+  }: {
+    value?: string; language?: 'lean' | 'natural'; readonly?: boolean; label: string; placeholder?: string;
+    errors?: { line: number; text: string; severity: string }[]; gloss?: boolean;
+    onTokenTap?: (token: string, entry: GlossEntry | null) => void; onSubmit?: () => void; minLines?: number; id?: string;
+    lineNumbers?: boolean; describedby?: string;
+  } = $props();
+
+  let host: HTMLDivElement | undefined = $state();
+  let ed: EditorHandle | null = null;
+  let ready = $state(false);
+  let ta: HTMLTextAreaElement | undefined = $state();
+
+  $effect(() => {
+    if (!host || ed) return;
+    let cancelled = false;
+    void import('../lib/lean/editor').then(({ createEditor }) => {
+      if (cancelled || !host) return;
+      const hadFocus = document.activeElement === ta;
+      const caret = ta?.selectionStart ?? value.length;
+      ed = createEditor({
+        parent: host, doc: value, language, readOnly: readonly, ariaLabel: label, placeholder,
+        lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.lang, gloss, onTokenTap, onSubmit,
+        onChange: (d) => { value = d; },
+      });
+      if (describedby) ed.view.contentDOM.setAttribute('aria-describedby', describedby);
+      if (id) ed.view.contentDOM.id = id;
+      ed.view.dom.classList.toggle('natural', language === 'natural');
+      ed.view.dom.classList.toggle('readonly', readonly);
+      ed.view.dom.style.setProperty('--min-lines', String(minLines));
+      ready = true;
+      if (hadFocus) { ed.focus(); ed.view.dispatch({ selection: { anchor: Math.min(caret, value.length) } }); }
+    });
+    return () => { cancelled = true; };
+  });
+  $effect(() => { if (ed && ready) ed.set(value); });
+  $effect(() => { if (ed && ready) { ed.setReadOnly(readonly); ed.view.dom.classList.toggle('readonly', readonly); } });
+  $effect(() => { if (ed && ready) ed.setErrors(errors); });
+  onDestroy(() => ed?.destroy());
+  export function focus() { if (ed) ed.focus(); else ta?.focus(); }
+</script>
+
+<div class="code-editor" style:--min-h="{minLines * 1.6 + 1}em">
+  <div bind:this={host} class="host" hidden={!ready}></div>
+  {#if !ready}
+    <textarea bind:this={ta} {id} class="input fallback" class:mono={language === 'lean'} aria-label={label} aria-describedby={describedby || undefined}
+      {placeholder} readonly={readonly} bind:value rows={minLines} spellcheck={language === 'natural'}></textarea>
+  {/if}
+</div>
+
+<style>
+  .code-editor { position: relative; }
+  .host :global(.cm-editor) { min-height: var(--min-h); }
+  .host :global(.cm-editor .cm-scroller) { min-height: var(--min-h); max-height: 70vh; }
+  .fallback { min-height: var(--min-h); font-size: 0.9375rem; line-height: 1.6; }
+  .fallback.mono { font-family: var(--font-mono); white-space: pre; }
+</style>
