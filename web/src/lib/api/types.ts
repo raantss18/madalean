@@ -58,6 +58,7 @@ export interface Attempt {
   status: 'generating' | 'compiling' | 'accepted' | 'rejected' | 'error' | 'cancelled';
   summary: string; errors_text: string; code: string; raw?: string; model: string;
   gen_seconds: number; compile_seconds: number; tokens: number; finish: string; t: number;
+  round?: number;               // proof tournament round (0 = best models, 1… = races), -1 = none
 }
 export type JobState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
 export interface Job {
@@ -65,7 +66,13 @@ export interface Job {
   user: boolean; state: JobState; stage: Stage | ''; waiting: '' | 'gpu' | 'online' | 'lean';
   created: number; started: number | null; ended: number | null; attempts: Attempt[]; done_stages: Stage[];
   summary: Message | Record<string, never>; error: string;
+  tournament?: Tournament | Record<string, never>;
 }
+export interface Tournament { round: number; models: string[]; names: string[]; state: string; domain: string;
+  winner?: string; tried?: string[]; rounds?: number; minutes?: number }
+export interface LeaderboardRow { model: string; task: string; domain: string; tasks: number; solved: number;
+  score: number; mean_attempts: number | null; mean_seconds: number | null; lean_errors: number; pauses: number;
+  last_success: number | null; updated: number | null }
 
 export interface CheckResult {
   ok: boolean; statement_ok: boolean; summary: string;

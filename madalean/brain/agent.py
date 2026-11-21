@@ -76,12 +76,15 @@ def _clip(s: str) -> str:
 
 async def run_agent_loop(brain: "MadaleanBrain", role: str, system: str, task: str, tools: list[ToolSpec], *,
                          mode: str, max_steps: int, max_seconds: float, on_chunk: OnChunk | None,
-                         prefer: str | None, require_tool: str | None, max_tokens_budget: int) -> AgentResult:
+                         prefer: str | None, require_tool: str | None, max_tokens_budget: int,
+                         only: str | None = None) -> AgentResult:
     t0 = time.monotonic()
     deadline = t0 + max_seconds
     specs = {t.name: t for t in tools}
     tool_defs = [{"name": t.name, "description": t.description, "parameters": t.parameters} for t in tools]
-    chain = brain.ranking(role, mode, prefer=prefer, need_tools=False)
+    chain = brain.ranking(role, mode, prefer=only or prefer, need_tools=False)
+    if only:                                   # tournament contestant: this model and no other
+        chain = [c for c in chain if c.model.key == only]
     # models with native tools first, then the others (text protocol) — order kept within each group
     chain = [c for c in chain if c.model.tools] + [c for c in chain if not c.model.tools]
     if not chain:
@@ -136,7 +139,7 @@ async def run_agent_loop(brain: "MadaleanBrain", role: str, system: str, task: s
             idx += 1
             while idx < len(chain) and not chain[idx].model.local and brain.http.known_offline():
                 idx += 1
-            if idx >= len(chain) and extensions < 2:      # chain exhausted: ask the router for models not tried yet
+            if idx >= len(chain) and extensions < 2 and not only:      # chain exhausted: ask the router for models not tried yet
                 extensions += 1
                 used = {c.model.key for c in chain}
                 more = [c for c in brain.ranking(role, mode, prefer=None, need_tools=False)

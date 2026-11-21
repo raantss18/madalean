@@ -327,6 +327,11 @@ is at the bottom; `overflow-anchor:none` and fixed boxes so nothing shifts.
 fallback); CSP header on HTML; `GET /jobs/{id}/stream` (replay of every stage when a page opens mid-job);
 `remote_url` from `POST /pairing/start` (pre-fills the QR address); `POST /devices/self/forget`; learning endpoints
 (hint, explain-back, faded and erroneous exercises, progress); publication (`/research/publish/*`).
+Model leaderboard and proof tournament (S-J, BRAIN.md §11): Settings › Models shows `GET /models/leaderboard`
+(general rows, top 12: model, task, solved/tasks, score ×100, mean attempts, mean time; « Remettre à zéro » only on
+the host → `POST /models/leaderboard/reset`) and the five `tournament_*` settings under « Réglages avancés »; the
+proof step shows « Tournoi : round k, modèles … » from `Job.tournament` above the attempts (each `Attempt` carries
+`round`). Not done: per-domain rows and a per-attempt round badge.
 
 Still open (the UI works around each):
 1. **`Attempt.model` as a Python repr** in demo runs (`ModelRef(provider='fake', …)`) instead of `provider:model_id`;

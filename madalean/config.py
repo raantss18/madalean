@@ -77,6 +77,12 @@ class Settings:
     informal_proof: bool = True             # natural-language proof (role explain)
     agent_max_steps: int = 24
     agent_max_seconds: int = 900
+    # proof tournament (S-J, docs/BRAIN.md §11): best models first, then races of untried models, all bounded
+    tournament_enabled: bool = True
+    tournament_contestants: int = 3         # models raced in parallel per exploration round (≤ online slots)
+    tournament_max_rounds: int = 3          # exploration rounds after round 0
+    tournament_max_minutes: int = 40        # wall-clock cap of the whole proof stage
+    tournament_attempts_per_model: int = 4  # round 0: attempts of the best model before racing others
     host_name: str = ""                     # name shown to paired devices (default: hostname)
     # host-only switches (can only be changed from the local listener)
     lan_listener: bool = False

@@ -281,3 +281,18 @@
   did not exist yet (ELAN_HOME fallback). No toolchain was removed by Madalean (v4.34.1 is still there).
 - Rules from now on: automatic installs only run from an installed prefix (never from a dev checkout or with a
   temporary config dir), and never with `~/.elan` — if the prefix elan is missing, the update is notify-only.
+
+## D30 — Adaptive model selection for proofs: leaderboard + bounded tournament (user request, 2026-11-21, S-J)
+- Request: when a task fails after 4 inconclusive attempts, switch model; remember which model solved what; keep the
+  best and most efficient; or race several models on the same problem and keep the best two for the next tasks —
+  « safe but fast, beware of infinite loops ».
+- Observed: free keyless providers often answer 429 and the router falls through many models;
+  `kilo:nvidia/nemotron-3-ultra-550b-a55b:free` proved 3 of 4 test problems in agent mode while others failed or were
+  paused; a cubic-polynomial problem failed after 4 agent runs (55 min) on one model.
+- Decision: a persisted, decayed, Bayesian leaderboard per model × task (× domain) feeds the router as a bonus
+  (explainable); the proof stage runs round 0 with the best model (4 attempts, the 2nd best replaces it only when it
+  cannot run), then up to 3 races of 3 never-tried models (Goedel local counts as one), first Lean-verified proof
+  wins. Hard caps: 40 min, 16 attempts, 3 M tokens, 3 rounds, each model once per task beyond round 0. Paid models
+  only with `paid_first` / explicit choice, with an estimated cost. Details: docs/BRAIN.md §11.
+- Rejected: racing all contestants from the start (wastes free quotas, more 429s); unbounded « retry until proved »;
+  recursive re-tournaments.

@@ -314,6 +314,30 @@ async def models_test(request: web.Request) -> web.Response:
                "reason": "" if good else "fallback: " + redact("; ".join(c.fallbacks or []))[:300]})
 
 
+@routes.get("/api/models/leaderboard")
+async def models_leaderboard(request: web.Request) -> web.Response:
+    """Which model really solved what here (S-J): rows per model × task (× domain), best first. Read-only."""
+    from ..pipeline.tournament import leaderboard_of
+    ctx = ctx_of(request)
+    task = request.query.get("task") or None
+    lb = leaderboard_of(ctx)
+    s = ctx.settings
+    return ok({"entries": lb.table(task if task in ("prove", "formalize", "explain") else None),
+               "tournament": {k: getattr(s, k) for k in ("tournament_enabled", "tournament_contestants",
+                                                         "tournament_max_rounds", "tournament_max_minutes",
+                                                         "tournament_attempts_per_model")}})
+
+
+@routes.post("/api/models/leaderboard/reset")
+@host_only
+async def models_leaderboard_reset(request: web.Request) -> web.Response:
+    from ..pipeline.tournament import leaderboard_of
+    ctx = ctx_of(request)
+    await asyncio.to_thread(leaderboard_of(ctx).reset)
+    ctx.publish("models.status", {"leaderboard": "reset"})
+    return ok({"entries": []})
+
+
 @routes.post("/api/models/refresh")
 async def models_refresh(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
@@ -383,6 +407,11 @@ async def health(ctx) -> list[dict]:
     jl = deps.tool("jupyter-lab")
     add("jupyter", bool(jl), "JupyterLab présent." if jl else
         "JupyterLab absent : les carnets ne sont pas disponibles.", repair="" if jl else "dep_env")
+    from .. import leansandbox
+    sbx = await asyncio.to_thread(leansandbox.bwrap)
+    add("sandbox", bool(sbx), "Bac à sable actif (bubblewrap) : Lean, LaTeX et les expériences tournent sans réseau "
+        "ni accès à vos fichiers." if sbx else "Bac à sable indisponible (bubblewrap absent ou espaces de noms "
+        "utilisateur désactivés) : Lean, LaTeX et les expériences tournent sans isolation.")
     # components of the prefix (§18): one line each, with its repair action
     for c in await asyncio.to_thread(deps_health.components):
         if c["state"] in ("dev",):

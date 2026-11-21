@@ -117,6 +117,10 @@ proven they enter the library and the parent is retried with them.
   `lean_check`, `search_mathlib`, `read_declaration`, `library_search`, optional `lean_search_online`), bounded by
   steps/tokens/time; `auto` = agent with the strongest online model when allowed, else goedel. The final proof is
   always re-checked by the server with the strict verdict.
+- Adaptive model selection (D30, docs/BRAIN.md §11): a leaderboard of what each model really solved here (per task
+  and domain, Bayesian prior, decay) adds a bonus in the router; the proof stage is a bounded tournament — best model
+  first (4 attempts), then up to 3 parallel races of untried models (the local Goedel prover is one contestant),
+  first Lean-verified proof wins, ≤ 40 min / 16 attempts, paid models only when allowed.
 - RAG: SQLite FTS5 index of the workspace's declarations (name, signature, docstring, module) built from sources
   (extends `names.py`), optional embeddings (Ollama) for semantic search; premises retrieved for the statement are
   given to every prover (as hints for Goedel, as a tool for agents).

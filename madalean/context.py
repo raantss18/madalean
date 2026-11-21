@@ -32,7 +32,9 @@ ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agen
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
                       "experiments_remote", "updates_auto"}
 LIMITS = {"prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
-          "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535)}
+          "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535),
+          "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
+          "tournament_attempts_per_model": (1, 16)}
 
 
 class ServerContext:

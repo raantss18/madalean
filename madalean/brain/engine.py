@@ -16,6 +16,7 @@ from .net import CALL_MODE, Http, is_loopback_host
 from .providers import anthropic as anthropic_api
 from .providers import openai_compat
 from .providers.base import ProviderError, StreamResult, emit
+from .leaderboard import Leaderboard
 from .router import Candidate, compose, rank
 from .settings import EFFORT, MAX_TOKENS, merged
 from .state import States
@@ -39,6 +40,7 @@ class MadaleanBrain:
         self.http = Http(self._key_hosts())
         self.store = CatalogueStore(self.config_dir / "brain-catalogue.json")
         self.states = States(self.config_dir / "brain-state.json")
+        self.leaderboard = Leaderboard(self.config_dir / "brain-leaderboard.json")
         self._sem: asyncio.Semaphore | None = None
         self._refresh_task: asyncio.Task | None = None
         self.last_error: dict[str, str] = {}
@@ -98,24 +100,35 @@ class MadaleanBrain:
         return [Model("local", r.model_id, r.name or r.model_id, tools=bool(self.settings.get("local_native_tools")),
                       quality=q, local=True)]
 
-    def ranking(self, role: str, mode: str = "auto", *, prefer: str | None = None, messages: list[dict] | None = None,
-                need_tools: bool = False) -> list[Candidate]:
+    def _rank(self, role: str, mode: str, prefer: str | None, messages: list[dict] | None, need_tools: bool,
+              domain: str | None) -> list[Candidate]:
+        from ..i18n import language
         mode = self.effective_mode(mode)
         prefer = prefer or (self.settings.get("models") or {}).get(role)
-        ranked = rank(self._view(), self.states, role, messages=messages, prefer=prefer,
-                      paid_first=bool(self.settings.get("paid_first")), need_tools=need_tools,
-                      local_models=self._local_models(role), allow_online=mode != "local",
-                      allow_local=mode != "online")
-        return compose(ranked, int(self.settings.get("max_chain") or 5))
+        return rank(self._view(), self.states, role, messages=messages, prefer=prefer,
+                    paid_first=bool(self.settings.get("paid_first")), need_tools=need_tools,
+                    local_models=self._local_models(role), allow_online=mode != "local",
+                    allow_local=mode != "online", leaderboard=self.leaderboard, domain=domain, lang=language())
+
+    def ranking(self, role: str, mode: str = "auto", *, prefer: str | None = None, messages: list[dict] | None = None,
+                need_tools: bool = False, domain: str | None = None) -> list[Candidate]:
+        return compose(self._rank(role, mode, prefer, messages, need_tools, domain),
+                       int(self.settings.get("max_chain") or 5))
+
+    def pool(self, role: Role, mode: Mode = "auto", *, domain: str | None = None) -> list[ModelRef]:
+        """Every model the router may use for `role`, best first (leaderboard included), not cut to a chain: the
+        tournament's contestants (pipeline/tournament.py). Paused models are left out; paid ones only when chosen or
+        with `paid_first`."""
+        return [ref_of(c.model) for c in self._rank(role, mode, None, None, False, domain)]
 
     def candidates(self, role: Role, mode: Mode = "auto") -> list[ModelRef]:
         self._maybe_refresh()
         return [ref_of(c.model) for c in self.ranking(role, mode)]
 
-    def explain(self, role: Role, mode: Mode = "auto") -> list[dict]:
+    def explain(self, role: Role, mode: Mode = "auto", domain: str | None = None) -> list[dict]:
         """Ranking with the reason of each position (for the UI's « why this model? »)."""
         return [{"model": c.model.key, "name": c.model.name, "score": round(c.score, 3), "why": c.why}
-                for c in self.ranking(role, mode)]
+                for c in self.ranking(role, mode, domain=domain)]
 
     def _maybe_refresh(self) -> None:
         if not self.settings.get("refresh_catalogue", True) or self.settings.get("mode") == "local":
@@ -359,7 +372,8 @@ class MadaleanBrain:
     async def run_agent(self, role: Role, system: str, task: str, tools: list[ToolSpec], *, mode: Mode = "auto",
                         max_steps: int = 24, max_seconds: float = 900, on_chunk: OnChunk | None = None,
                         prefer: str | None = None, require_tool: str | None = None,
-                        max_tokens_budget: int | None = None) -> AgentResult:
+                        max_tokens_budget: int | None = None, only: str | None = None) -> AgentResult:
+        """`only`: run on this model key alone (a tournament contestant): no switch to another model on failure."""
         from .agent import run_agent_loop
         mode = self.effective_mode(mode)
         token = CALL_MODE.set(mode)
@@ -368,7 +382,7 @@ class MadaleanBrain:
             self._maybe_refresh()
             return await run_agent_loop(self, role, system, task, tools, mode=mode, max_steps=max_steps,
                                         max_seconds=max_seconds, on_chunk=on_chunk, prefer=prefer,
-                                        require_tool=require_tool,
+                                        require_tool=require_tool, only=only,
                                         max_tokens_budget=max_tokens_budget or int(self.settings.get("agent_max_tokens") or 600_000))
         finally:
             CALL_MODE.reset(token)

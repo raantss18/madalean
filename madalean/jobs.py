@@ -29,6 +29,7 @@ class Attempt:
     compile_seconds: float = 0.0
     tokens: int = 0
     finish: str = ""
+    round: int = -1                  # proof tournament round (0 = best models, 1… = races); -1 = no tournament
     t: float = field(default_factory=time.time)
 
     def to_dict(self, raw: bool = True) -> dict:
@@ -56,6 +57,7 @@ class Job:
     done_stages: list[str] = field(default_factory=list)
     summary: dict = field(default_factory=dict)      # i18n message {key, params, text}
     error: str = ""                  # error kind (no_model, workspace, infra, cancelled…)
+    tournament: dict = field(default_factory=dict)   # proof tournament: {round, models, state, winner, …} (S-J)
 
     @classmethod
     def new(cls, dossier_id: str, plan: list[dict], mode: str, strategy: str, user: bool = True) -> "Job":

@@ -140,7 +140,8 @@ Use `seq`/`boot` with the WebSocket `resume`.
 `PATCH /settings` `{key: value, …}` (partial; `server` and `sampling` are merged) → `{"settings":Settings}` and
 event `settings.updated`. Validation: unknown key, bad enum (`mode`, `prove_strategy`, `language`), out of range
 (`prove_attempts` 1–64, `translate_attempts` 1–10, `compile_timeout_s` 10–1800, `agent_max_steps` 1–200,
-`agent_max_seconds` 30–7200, `lan_port` 1024–65535) → `400 {"error":"invalid_settings","details":["invalid:mode",…],
+`agent_max_seconds` 30–7200, `lan_port` 1024–65535, `tournament_contestants` 1–6, `tournament_max_rounds` 0–10,
+`tournament_max_minutes` 1–240, `tournament_attempts_per_model` 1–16) → `400 {"error":"invalid_settings","details":["invalid:mode",…],
 "settings":…}`; host-only keys from a remote device → `403` with `details:["host_only:lan_listener"]`. Nothing is
 applied when any key is refused. `lan_listener`/`lan_port` take effect at the next start.
 
@@ -309,6 +310,16 @@ models the router can use. The key is never echoed. Each `roles[role].candidates
 `POST /models/refresh` → `ModelsInfo` (rescan `~/models`, refresh the online catalogue).
 `POST /models/local/stop` → unload the local model (409 `busy` while a job holds the GPU).
 Choosing a model per role: `PATCH /settings {"prefer":{"prove":"anthropic:claude-…"}}`.
+`GET /models/leaderboard[?task=prove|formalize|explain]` (any paired device, read-only) →
+`{"entries":[LeaderboardRow],"tournament":{"tournament_enabled":true,"tournament_contestants":3,…}}`, where
+`LeaderboardRow = {model, task, domain ("" = all domains, else number_theory | algebra | linear_algebra | analysis |
+combinatorics | geometry | logic), tasks, solved, score (0–1), mean_attempts, mean_seconds, lean_errors, pauses,
+last_success, updated}`, best first per (task, domain). `POST /models/leaderboard/reset` (**host only**) →
+`{"entries":[]}`, event `models.status {leaderboard:"reset"}`. See docs/BRAIN.md §11.
+
+Proof tournament settings (all in `Settings`, docs/BRAIN.md §11): `tournament_enabled` (true),
+`tournament_contestants` (3), `tournament_max_rounds` (3), `tournament_max_minutes` (40),
+`tournament_attempts_per_model` (4).
 
 ### 3.10 System, updates
 
@@ -463,6 +474,7 @@ interface Attempt {
   status: "generating" | "compiling" | "accepted" | "rejected" | "error" | "cancelled";
   summary: string; errors_text: string; code: string; raw?: string; model: string;
   gen_seconds: number; compile_seconds: number; tokens: number; finish: string; t: number;
+  round: number;            // proof tournament round: 0 = best models, 1… = races; -1 = not in a tournament
 }
 interface Job {
   id: string; dossier_id: string; plan: { stage: Stage; request?: string }[];   // remaining steps
@@ -470,6 +482,9 @@ interface Job {
   state: "queued" | "running" | "done" | "failed" | "cancelled"; stage: Stage | ""; waiting: "" | "gpu" | "online" | "lean";
   created: number; started: number | null; ended: number | null;
   attempts: Attempt[]; done_stages: Stage[]; summary: Message | {}; error: string;   // error kind: no_model, workspace, no_proof, statement_rejected, unknown, cancelled, internal…
+  tournament: {} | { round: number; models: string[]; names: string[]; domain: string;
+    state: "running" | "won" | "exhausted" | "rounds" | "time" | "attempts" | "tokens";
+    winner?: string; tried?: string[]; rounds?: number; minutes?: number };   // proof tournament (BRAIN.md §11)
 }
 
 interface CheckResult {

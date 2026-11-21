@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from .. import leancheck
+from .. import leancheck, leansandbox
 
 
 async def check_with_lean(ws, code: str, timeout: float = 400) -> dict:
@@ -16,11 +16,15 @@ async def check_with_lean(ws, code: str, timeout: float = 400) -> dict:
     except leancheck.StatementError as e:
         return {"ok": False, "feedback": str(e), "summary": str(e)}
     probe = leancheck.with_axiom_probe(code, name)
+    risks = leancheck.exec_risks(code)
+    if risks:
+        return {"ok": False, "feedback": ", ".join(risks), "summary": ", ".join(risks)}
     with tempfile.TemporaryDirectory(prefix="madalean-check-") as d:
         f = Path(d) / "Check.lean"
         f.write_text(probe, encoding="utf-8")
+        argv = leansandbox.wrap(ws, [str(ws.lean_bin), "--json", str(f)], [f])
         proc = await asyncio.create_subprocess_exec(
-            str(ws.lean_bin), "--json", str(f), cwd=str(ws.path), env=ws.env(),
+            *argv, cwd=str(ws.path), env=leansandbox.lean_env(ws),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         try:
             out, _err = await asyncio.wait_for(proc.communicate(), timeout)

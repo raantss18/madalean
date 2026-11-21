@@ -58,6 +58,9 @@
         {#if job.waiting}<span class="chip running">{tk(`waiting.${job.waiting}`, '')}</span>{/if}
       </div>
       {#if job.stage === 'proof'}
+        {#if job.tournament && 'names' in job.tournament && job.tournament.names.length}
+          <p class="small" role="status">{t('proof.tournament', { k: job.tournament.round, models: job.tournament.names.join(', ') })}</p>
+        {/if}
         <ol class="attempts">
           {#each attempts as a (a.index)}
             <li class={a.status}>

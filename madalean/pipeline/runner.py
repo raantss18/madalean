@@ -5,6 +5,7 @@ rewrites the rest of the plan (D26). Every event written to the thread records t
 from __future__ import annotations
 
 import asyncio
+import inspect
 import re
 import time
 from typing import Any
@@ -19,6 +20,7 @@ from ..logs import get
 from ..runtime.lean import workspace_info
 from .goedel import Formalizer, GoedelProver, ProveResult
 from .io import InfraError, LoopGuard, outer_cancelled
+from . import tournament as tourn
 
 log = get("pipeline")
 STAGES = ("understand", "route", "statement", "notes", "proof", "explanation", "informal")
@@ -283,9 +285,11 @@ class DossierPipeline:
         d.status = "translating"
         await self.ctx.repo.save(d)
         previous = d.statement if req else ""
+        first = len(job.attempts)
         f = await Formalizer(io, job.mode).run(d.understood or d.problem, ws, s.translate_attempts,
                                                 s.compile_timeout_s, name=d.theorem, profile=s.profile,
                                                 previous=previous, request=req)
+        self._record_stage(job, d, first, "statement", "formalize")
         if not f.statement:
             raise Failed("Pas d'énoncé produit. Reformulez le problème (plus précis, avec les hypothèses) ou écrivez "
                          "l'énoncé Lean vous-même dans l'onglet « Énoncé Lean ».", "no_statement")
@@ -321,6 +325,29 @@ class DossierPipeline:
             idx = d.add_notes(text, c.model.key)
             await self.event(d, job, "notes", "Lecture guidée de l'énoncé Lean, rédigée par l'IA :", ref=idx,
                              model=c.model.key)
+
+    # ------------------------------------------------------------ leaderboard (S-J)
+    def _record(self, model: str, task: str, d: Dossier, **kw) -> None:
+        if not model or model == "unknown:unknown":
+            return
+        try:
+            from ..brain.leaderboard import domain_of
+            tourn.leaderboard_of(self.ctx).record(model, task, domain_of(d.statement + "\n" + (d.understood or d.problem
+                                                                                                 or "")), **kw)
+        except Exception:  # noqa: BLE001 (statistics never break a job)
+            log.exception("leaderboard record failed")
+
+    def _record_stage(self, job: Job, d: Dossier, first: int, stage: str, task: str) -> None:
+        """One leaderboard row per model that worked on this stage: success = Lean accepted its output."""
+        per: dict[str, list] = {}
+        for a in job.attempts[first:]:
+            if a.stage == stage and a.model and a.status in ("accepted", "rejected"):
+                per.setdefault(a.model, []).append(a)
+        for model, atts in per.items():
+            ok = any(a.status == "accepted" for a in atts)
+            self._record(model, task, d, ok=ok, attempts=len(atts),
+                         lean_errors=sum(1 for a in atts if a.status == "rejected" and a.code),
+                         seconds=sum(a.gen_seconds + a.compile_seconds for a in atts))
 
     def _choose_strategy(self, job: Job) -> str:
         st = job.strategy or self.settings.prove_strategy
@@ -365,21 +392,30 @@ class DossierPipeline:
             statement = leancheck.prepare_statement(statement)
         except leancheck.StatementError as e:
             raise Failed("{why}", "statement", why=str(e)) from e
+        goedel_tried = False
         if strategy == "agent":
-            # an agent run is one attempt; free providers often fail transiently (quota, overload), so retry with a
-            # fresh run up to the attempt budget, keeping the user's hint (observed 2026-11-21: 1 run → no proof)
-            res = None
-            for _i in range(max(1, min(s.prove_attempts, 4))):
-                res = await self._agent(job, d, io, ws, statement, hint or req)
-                if res is None or res.ok:
-                    break
-            if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto":
+            tcfg = tourn.Config.from_settings(s)
+            if tcfg.enabled:
+                # best model first, then races of untried models (S-J, pipeline/tournament.py): bounded, recorded
+                res, strategy, goedel_tried = await self._tournament(job, d, io, ws, statement, hint or req, refine,
+                                                                     tcfg)
+            else:
+                # an agent run is one attempt; free providers often fail transiently (quota, overload), so retry
+                # with a fresh run up to the attempt budget, keeping the user's hint
+                res = None
+                for _i in range(max(1, min(s.prove_attempts, 4))):
+                    res = await self._agent(job, d, io, ws, statement, hint or req)
+                    if res is None or res.ok:
+                        break
+            if not (res and res.ok) and (job.strategy or s.prove_strategy) == "auto" and not goedel_tried:
                 strategy = "goedel"
                 res = None
         if res is None:
             ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
             res = await GoedelProver(io, "local").run(statement, ws, s.prove_attempts, s.sampling, s.compile_timeout_s,
                                                       ctx_len, refine=refine, hint=hint)
+            self._record(res.model, "prove", d, ok=res.ok, attempts=len(res.attempts), seconds=res.seconds,
+                         lean_errors=sum(1 for x in res.attempts if x.status == "rejected" and x.code))
         if not res.ok:
             d.status = "failed"
             raise Failed("Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, "
@@ -399,10 +435,154 @@ class DossierPipeline:
             await self.event(d, job, "info", "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans "
                              "vos prochaines preuves.", name=entry.name)
 
-    async def _agent(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, hint: str) -> ProveResult | None:
+    async def _tournament(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, hint: str, refine,
+                          cfg: "tourn.Config") -> tuple[ProveResult | None, str, bool]:
+        """Returns (result, strategy of the winner, whether the local Goedel prover took part)."""
+        from ..brain.leaderboard import domain_of
+        ctx, s = self.ctx, self.settings
+        brain = ctx.brain
+        lb = tourn.leaderboard_of(ctx)
+        domain = domain_of(statement + "\n" + (d.understood or d.problem or ""))
+        bset = getattr(brain, "settings", None) or {}
+        paid_ok = bool(bset.get("paid_first"))
+        chosen = (s.prefer or {}).get("prove") or (bset.get("models") or {}).get("prove") or ""
+        fn = _agent_fn()
+        pins = fn is not None and _accepts(fn, "only")
+        gref = None
+        if job.mode != "online":
+            try:
+                gref = ctx.local.model_for("prove")
+            except Exception:  # noqa: BLE001
+                gref = None
+        goedel = tourn.Contestant(gref.key, gref.name or gref.model_id, "goedel", local=True) if gref else None
+
+        def candidates() -> list[tourn.Contestant]:
+            try:
+                refs = brain.pool("prove", job.mode, domain=domain) if hasattr(brain, "pool") \
+                    else brain.candidates("prove", job.mode)
+            except Exception:  # noqa: BLE001
+                refs = []
+            out = [tourn.Contestant(r.key, r.name or r.model_id, "agent", bool(r.paid)) for r in refs
+                   if not r.local and (not r.paid or paid_ok or r.key == chosen)]
+            if not pins:
+                out = out[:1]              # an agent that cannot be pinned to a model is one contestant (the router)
+            if goedel is not None:
+                g = lb.entry(goedel.key, "prove")
+                first = out[0].key if out else ""
+                if out and g is not None and g.n >= 2 and lb.score(goedel.key, "prove") > lb.score(first, "prove"):
+                    out.insert(0, goedel)  # the local prover has done better here: it leads round 0
+                else:
+                    out.append(goedel)
+            return out
+
+        t_start = time.monotonic()
+        state = {"round": 0, "models": [], "names": [], "state": "running", "domain": domain}
+        job.tournament = state
+
+        async def on_round(k: int, cs: list) -> None:
+            state.update(round=k, models=[c.key for c in cs], names=[c.name for c in cs])
+            ctx.publish_job(job)
+            names = ", ".join(c.name for c in cs)
+            ctx.bus.publish("job.info", {"job_id": job.id, "stage": "proof", "text": msg(
+                "Tournoi, round {k} : {models}.", k=k, models=names)["text"], "data": {"tournament": dict(state)}})
+            if k >= 1:
+                await self.event(d, job, "info", "Tournoi, round {k} : {models}.", k=k, models=names)
+            for c in cs:
+                if c.paid:
+                    cost = tourn.estimated_cost(c.key, int(bset.get("agent_max_tokens") or 600_000))
+                    await self.event(d, job, "info", "Modèle payant dans le tournoi : {name} (coût estimé : au plus "
+                                     "{cost} $ par essai).", name=c.name, cost=cost if cost is not None else "?")
+
+        def record(o: tourn.Outcome) -> None:
+            lb.record(o.contestant.key, "prove", domain, ok=o.ok, attempts=o.attempts, lean_errors=o.lean_errors,
+                      seconds=o.seconds, unavailable=o.unavailable)
+
+        async def run(c: tourn.Contestant, k: int, n: int, deadline: float) -> tourn.Outcome:
+            rio = _RoundIO(io, k)
+            t0 = time.monotonic()
+            try:
+                if c.kind == "goedel":
+                    return await self._goedel_contestant(c, k, n, rio, ws, statement, hint, refine, t0)
+                o = tourn.Outcome(c, k)
+                for i in range(n):
+                    left = deadline - time.monotonic()
+                    if left < 30:
+                        break
+                    st: dict = {}
+                    r = await self._agent(job, d, rio, ws, statement, hint, only=c.key if pins else None,
+                                          release_local=not pins, stats=st,
+                                          max_seconds=min(float(s.agent_max_seconds), left))
+                    o.attempts += 1
+                    o.lean_errors += max(0, int(st.get("checks") or 0) - (1 if r is not None and r.ok else 0))
+                    if r is not None and r.ok:
+                        o.ok, o.result = True, r
+                        break
+                    if r is None or st.get("unavailable"):
+                        o.unavailable = i == 0     # could not run at all: a pause, not a mathematical failure
+                        o.error = str(st.get("error") or "")
+                        break
+                o.seconds = time.monotonic() - t0
+                return o
+            except asyncio.CancelledError:
+                for a in rio.attempts:
+                    if a.status in ("generating", "compiling"):
+                        a.status, a.summary = "cancelled", msg("Essai arrêté : la course est terminée.")["text"]
+                raise
+
+        def on_join(k: int, c) -> None:            # a model replaces one that could not run (429…)
+            state["models"] = state["models"] + [c.key]
+            state["names"] = state["names"] + [c.name]
+            ctx.publish_job(job)
+
+        t = tourn.Tournament(cfg, candidates=candidates, run=run, record=record, on_round=on_round, on_join=on_join,
+                             online_slots=int(ctx.slots.caps.get("online", 3)))
+        res = await t.run()
+        w = res.winner
+        state.update(state=res.stop, winner=w.contestant.key if w else "", tried=res.tried, rounds=res.rounds,
+                     minutes=round((time.monotonic() - t_start) / 60, 1))
+        ctx.publish_job(job)
+        if res.rounds > 1:
+            if w is not None:
+                await self.event(d, job, "info", "Tournoi : {name} a trouvé la preuve au round {k}. Classement des "
+                                 "modèles mis à jour.", name=w.contestant.name, k=w.round)
+            else:
+                await self.event(d, job, "info", "Tournoi terminé sans preuve : {n} modèles essayés en {m} min.",
+                                 n=len(res.tried), m=state["minutes"])
+        goedel_tried = goedel is not None and goedel.key in res.tried
+        if w is None:
+            return ProveResult(False), "agent", goedel_tried
+        return w.result, ("goedel" if w.contestant.kind == "goedel" else "agent"), goedel_tried
+
+    async def _goedel_contestant(self, c, k: int, n: int, rio: "_RoundIO", ws, statement: str, hint: str, refine,
+                                 t0: float):
+        s = self.settings
+        ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
+        prover = GoedelProver(rio, "local")
+        o = tourn.Outcome(c, k)
+        try:
+            r = await prover.run(statement, ws, n, s.sampling, s.compile_timeout_s, ctx_len, refine=refine, hint=hint)
+            o.ok, o.result = r.ok, (r if r.ok else None)
+        except InfraError as e:
+            if e.kind == "workspace":
+                raise
+            o.unavailable = not any(a.code for a in rio.attempts)
+            o.error = f"{e.kind}: {e.details}"[:300]
+        atts = getattr(prover, "attempts", rio.attempts)
+        o.attempts = max(1, len(atts))
+        o.lean_errors = sum(1 for a in atts if a.status == "rejected" and a.code)
+        o.tokens = sum(int(a.tokens or 0) for a in atts)
+        o.seconds = time.monotonic() - t0
+        return o
+
+    async def _agent(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, hint: str, *, only: str | None = None,
+                     release_local: bool = True, stats: dict | None = None,
+                     max_seconds: float | None = None) -> ProveResult | None:
+        """One agent run (one attempt). `only`: pin it to one model (tournament contestant); `stats` receives
+        {checks, steps, finish, unavailable, error}."""
         fn = _agent_fn()
         if fn is None:
             return None
+        stats = stats if stats is not None else {}
         name = leancheck.theorem_name(statement)
         a = io.new_attempt("proof", "agent")
 
@@ -436,20 +616,38 @@ class DossierPipeline:
         if need_online:
             await self.ctx.slots.acquire("online", job.id)
         t0 = time.monotonic()
+        kw = {"only": only} if only and _accepts(fn, "only") else {}
         try:
             out = await fn(self.ctx.brain, self.ctx.retriever, statement=statement, workspace_key=ws.key, check=check,
                            library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode,
-                           max_steps=self.settings.agent_max_steps, max_seconds=self.settings.agent_max_seconds)
+                           max_steps=self.settings.agent_max_steps,
+                           max_seconds=max_seconds or self.settings.agent_max_seconds, **kw)
         except BrainError as e:
             a.status, a.summary, a.errors_text = "error", msg("La génération a échoué.")["text"], str(e)
+            a.model = a.model or (only or "")
+            stats.update(unavailable=True, error=str(e)[:300])
             io.update_attempt(a)
             return None
         finally:
             if need_online:
                 self.ctx.slots.release("online", job.id)
-            self.ctx.local.release()
+            if release_local:
+                self.ctx.local.release()
         a.gen_seconds = time.monotonic() - t0
-        a.model = model_key(out.get("model"))
+        a.model = model_key(out.get("model")) or (only or "")
+        a.finish = str(out.get("finish") or "")
+        stats.update(checks=int(out.get("checks") or 0), steps=int(out.get("steps") or 0),
+                     finish=str(out.get("finish") or ""))
+        if out.get("finish") == "error" and not out.get("steps"):
+            stats.update(unavailable=True, error="; ".join(str(m.get("text") or m.get("reason") or "")
+                                                           for m in (out.get("transcript") or [])
+                                                           if isinstance(m, dict) and m.get("type") in
+                                                           ("error", "model_error"))[:300])
+            if not out.get("code"):
+                a.status, a.summary = "error", msg("Modèle indisponible : {why}", why=(stats["error"] or "?")[:200])["text"]
+                a.errors_text = stats["error"]
+                io.update_attempt(a)
+                return ProveResult(False, model=a.model)
         a.raw = "\n".join(str(m.get("content", ""))[:4000] for m in (out.get("transcript") or [])[-40:])
         code = out.get("code")
         if not code:
@@ -497,6 +695,7 @@ class DossierPipeline:
         if not text:
             raise Failed("L'IA n'a rien écrit : réessayez.", "empty")
         idx = d.add_explanation(text, note=req, model=c.model.key)
+        self._record(c.model.key, "explain", d, ok=c.finish != "loop", seconds=c.seconds)
         await self.event(d, job, "explanation", "Explication rédigée par l'IA (la preuve Lean fait foi).", ref=idx,
                          model=c.model.key)
         if c.finish == "loop":
@@ -551,6 +750,31 @@ def model_key(m) -> str:
         return ""
     key = getattr(m, "key", None)
     return key if isinstance(key, str) else str(m)
+
+
+def _accepts(fn, name: str) -> bool:
+    try:
+        ps = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in ps or any(p.kind == p.VAR_KEYWORD for p in ps.values())
+
+
+class _RoundIO:
+    """The job's StageIO for one tournament contestant: its attempts carry the round number and are remembered."""
+
+    def __init__(self, io, k: int):
+        self._io, self.k = io, k
+        self.attempts: list = []
+
+    def new_attempt(self, stage: str, kind: str):
+        a = self._io.new_attempt(stage, kind)
+        a.round = self.k
+        self.attempts.append(a)
+        return a
+
+    def __getattr__(self, name):
+        return getattr(self._io, name)
 
 
 def _agent_fn():

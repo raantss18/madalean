@@ -1001,6 +1001,10 @@ EN.update({
 EN.update({
     'LaTeX (tectonic de Madalean, hors ligne) présent : export PDF possible.':
         "LaTeX (Madalean's own tectonic, offline) present: PDF export available.",
+    'Bac à sable actif (bubblewrap) : Lean, LaTeX et les expériences tournent sans réseau ni accès à vos fichiers.':
+        'Sandbox active (bubblewrap): Lean, LaTeX and experiments run without network or access to your files.',
+    'Bac à sable indisponible (bubblewrap absent ou espaces de noms utilisateur désactivés) : Lean, LaTeX et les expériences tournent sans isolation.':
+        'Sandbox unavailable (bubblewrap missing or user namespaces disabled): Lean, LaTeX and experiments run without isolation.',
     'LaTeX du système (latexmk + XeLaTeX) utilisé : export PDF possible.':
         "System LaTeX (latexmk + XeLaTeX) used: PDF export available.",
     "Nouvelle version fournie par la mise à jour de Madalean : vérifiée (SHA-256) puis installée à côté de "
@@ -1016,4 +1020,14 @@ EN.update({
     'Composant {name} : la version {pinned} est prête à être installée.':
         'Component {name}: version {pinned} is ready to be installed.',
     'Composant {name} absent ou incomplet : réparez-le.': 'Component {name} missing or incomplete: repair it.',
+    # proof tournament (S-J)
+    'Tournoi, round {k} : {models}.': 'Tournament, round {k}: {models}.',
+    'Essai arrêté : la course est terminée.': 'Attempt stopped: the race is over.',
+    'Modèle indisponible : {why}': 'Model unavailable: {why}',
+    'Modèle payant dans le tournoi : {name} (coût estimé : au plus {cost} $ par essai).':
+        'Paid model in the tournament: {name} (estimated cost: at most {cost} $ per attempt).',
+    'Tournoi : {name} a trouvé la preuve au round {k}. Classement des modèles mis à jour.':
+        'Tournament: {name} found the proof in round {k}. Model leaderboard updated.',
+    'Tournoi terminé sans preuve : {n} modèles essayés en {m} min.':
+        'Tournament over without a proof: {n} models tried in {m} min.',
 })

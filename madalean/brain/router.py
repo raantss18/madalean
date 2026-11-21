@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from .catalogue import Catalogue, Model, lean_bonus
 from .classify import role_categories
+from .leaderboard import ROLE_TASK, Leaderboard
 from .state import States
 
 _FAST = re.compile(r"flash|mini|small|fast|lite|haiku|nano|turbo|instant|-8b|-9b|7b|3b", re.I)
@@ -57,8 +58,12 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
 
 def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | None = None, prefer: str | None = None,
          paid_first: bool = False, need_tools: bool = False, local_models: list[Model] | None = None,
-         allow_online: bool = True, allow_local: bool = True) -> list[Candidate]:
+         allow_online: bool = True, allow_local: bool = True, leaderboard: Leaderboard | None = None,
+         domain: str | None = None, lang: str = "fr") -> list[Candidate]:
+    """`leaderboard`: observed results on this machine (session S-J) add a bonus for the role's task (prove /
+    formalize / explain), per problem `domain` when known."""
     cat, cat2, fast = role_categories(role, messages)
+    task = ROLE_TASK.get(role)
 
     def chosen(m: Model) -> bool:
         return bool(prefer) and prefer != "auto" and (m.key == prefer or m.model_id == prefer)
@@ -75,6 +80,11 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
         if m.paid and not (paid_first or chosen(m)):
             continue
         s, why = score_model(m, cat, cat2, fast, states, paid_first)
+        if leaderboard is not None and task:
+            b, bwhy = leaderboard.bonus(m.key, task, domain, lang)
+            if bwhy:
+                s += b
+                why += ", " + bwhy
         if m.provider == "local":
             s += 0.1                          # the server's own model for this role beats Ollama's
             why += ", Madalean's local model for this role"

@@ -206,9 +206,10 @@ class _Session:
 async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, statement: str, workspace_key: str,
                            check: CheckFn, library_search: Callable[[str], Awaitable[Any]] | None = None,
                            hint: str = "", on_chunk: OnChunk | None = None, mode: str = "auto", max_steps: int = 24,
-                           max_seconds: float = 900) -> dict:
+                           max_seconds: float = 900, only: str | None = None) -> dict:
     """Agentic proof search. Returns {code, model, steps, finish, transcript, checks, seconds}; `code` is the best
-    code Lean accepted (the server re-checks it), finish: proved | max_steps | budget | error | gave_up."""
+    code Lean accepted (the server re-checks it), finish: proved | max_steps | budget | error | gave_up.
+    `only`: run on this model key alone (tournament contestant, pipeline/tournament.py)."""
     t0 = time.monotonic()
     s = _Session(statement, check, retriever, workspace_key, on_chunk)
     settings = getattr(brain, "settings", {}) or {}
@@ -326,8 +327,11 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
 
     kwargs: dict = {"mode": mode, "max_steps": max_steps, "max_seconds": max_seconds, "on_chunk": on_chunk}
     run = brain.run_agent
-    if "require_tool" in inspect.signature(run).parameters:
+    params = inspect.signature(run).parameters
+    if "require_tool" in params:
         kwargs["require_tool"] = "submit"
+    if only and "only" in params:
+        kwargs["only"] = only
     try:
         res: AgentResult = await run("prove", system, task, tools, **kwargs)
     except BrainError as e:

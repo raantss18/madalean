@@ -116,6 +116,8 @@ class FakeBrain:
         self.requests.append({"role": role, "mode": mode, "messages": [dict(m) for m in messages],
                               "temperature": temperature, "max_tokens": max_tokens, "extra": dict(extra or {}),
                               "model": model.key})
+        if len(self.requests) > 4000:          # S-H soak: `serve --demo` ran for hours → bounded record
+            del self.requests[:-2000]
         t0 = time.monotonic()
         self.active += 1
         self.max_active = max(self.max_active, self.active)

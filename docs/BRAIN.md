@@ -225,3 +225,74 @@ registered in pytest.ini). `tests/test_brain_fakes.py` holds the fake servers (n
   `cache_read_input_tokens` > 0 from the 2nd agent step, thinking blocks replay without signature errors.
 - Local llama-server through a real `LocalRuntime`, Ollama chat and Ollama embeddings (GPU reserved).
 - `madalean/brain/leanrun.py` is not the server's checker; the server must give `check` with its pooled checker.
+
+## 11. Leaderboard and proof tournament (session S-J, DECISIONS D30)
+
+**Leaderboard** (`leaderboard.py`, `<config_dir>/brain-leaderboard.json`, 0600, ≤ 600 rows, no keys). One row per
+model × task (`prove`, `formalize`, `explain`) and per model × task × coarse domain (`domain_of()`: number_theory,
+algebra, linear_algebra, analysis, combinatorics, geometry, logic; « other » is not stored separately). Counts are
+time-decayed (half-life 30 days): tasks where the model ran, Lean-verified successes, attempts, attempts spent on
+solved tasks, Lean errors, wall time, pauses (could not run at all: 429 / quota / overload / key). Raw totals are kept
+for display. Score = (ok + 0.3·4)/(n + 4) (Bayesian prior 0.3 worth 4 tasks: 1/1 → 0.44, 9/10 → 0.73) − min(0.15,
+0.03·(mean attempts − 1)) − 0.3·pauses/(pauses + n + 2). Router bonus for the role's task (prove/formalize/explain
+only) = 1.0·(score − 0.3)·confidence, confidence = m/(m + 3) with m = n + pauses; the domain row is used when it has
+≥ 2 observations, else the general row. The `why` string says it, e.g. « a prouvé 7/9 problèmes d'algèbre linéaire ici,
+2.0 essais en moyenne (+0.23) » (English when the interface is in English). Recorded by the pipeline: every
+tournament contestant (prove), every model of the statement stage (formalize: success = Lean accepted the
+statement), the explanation's model (explain: success = an answer that was not cut as a loop), the Goedel fallback.
+`MadaleanBrain.leaderboard`, `MadaleanBrain.pool(role, mode, domain=)` (the full ranking, not cut to a chain: the
+tournament's contestants), `run_agent(..., only=key)` / `prove_with_agent(..., only=key)` (pin one model, no switch).
+API: `GET /api/models/leaderboard` (any paired device), `POST /api/models/leaderboard/reset` (host only).
+
+**Tournament** (`madalean/pipeline/tournament.py`, used by `runner._proof` when the strategy resolves to `agent`, i.e.
+`auto`/`agent` with an online-capable mode, and `tournament_enabled`):
+
+| Setting (server `Settings`) | Default | Meaning |
+|---|---|---|
+| `tournament_enabled` | `true` | off = the previous loop (one agent, ≤ 4 runs, then Goedel for `auto`) |
+| `tournament_contestants` | 3 | models raced in parallel per exploration round (online ones ≤ the `online` slots) |
+| `tournament_max_rounds` | 3 | exploration rounds after round 0 |
+| `tournament_max_minutes` | 40 | wall-clock cap of the whole proof stage (round 0 may use at most half of it) |
+| `tournament_attempts_per_model` | 4 | attempts of the best model in round 0 (also ≤ `prove_attempts`) |
+| constants | 16 / 3 M | total attempts (agent runs + Goedel attempts), total tokens when known |
+
+1. Round 0 (exploit): the router's best model for `prove` + this domain (leaderboard bonus included) gets up to 4 agent
+   runs, pinned to that model. If it cannot run at all (429, quota, pause, no step), the second best takes its place
+   at once; if it ran and failed, round 0 ends.
+2. Rounds 1…3 (explore): K = 3 models never tried in this task race in parallel on the same statement (1 agent run
+   each). The local Goedel prover is one of the K when the job may use the GPU (mode ≠ online and a prover model is
+   installed), with up to 4 attempts; it leads round 0 instead when its leaderboard score is better. The first proof
+   that passes the server's strict Lean verdict wins; the others are cancelled (their HTTP requests and Lean
+   processes are killed with their tasks; their attempts show « Essai arrêté »).
+3. Paid models (Anthropic, OpenAI, DeepSeek…) never enter unless `paid_first` (brain setting) or chosen for `prove`;
+   when they do, the thread shows an estimated upper bound per run (`agent_max_tokens` × list price; Opus 5.5
+   $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 $0.10/$0.50 per MTok).
+4. Every finished contestant is recorded (cancelled losers are not); a pause is recorded as a pause, not as a failure.
+
+Termination: no recursion; round 0 runs ≤ 2 contestants; each exploration round only takes models not yet tried in
+this task and the number of rounds is capped; every contestant runs under `asyncio.wait_for(deadline)`; the attempt
+and token budgets are checked before each round; cancelling the job cancels every contestant. Tests
+(`tests/test_tournament.py`): every model always failing, models flapping between 429 and errors with an endless
+candidate list, a contestant that never answers (time cap), cancellation mid-race, winner cancels the others, paid
+exclusion, slots (`online` ≤ 3, `lean` ≤ 2), « the winner leads round 0 next time ».
+
+Safety: contestants share the job's slots (`online` acquired per agent run, `lean` per check) — no oversubscription;
+every candidate proof is re-checked by `io.check` (strict verdict, exec-risk gate D28); attempts carry `round` and the
+model key; `Job.tournament` = `{round, models, names, domain, state, winner, tried, rounds, minutes}`; thread events
+« Tournoi, round k : … » for races and the winner / failure summary.
+
+Real run (2026-11-21, S-J; test server on spare ports with a temporary config, mode online, strategy agent, Lean 4.9
+`lean-prover49`, free keyless models, empty leaderboard at start):
+- `theorem even_sq (n : ℤ) : Even (n ^ 2) → Even n` — round 0: `kilo:inclusionai/ling-3.1-flash` and
+  `llm7:DeepSeek-V4-Flash-0731` could not run (429/pause, 0 steps); rounds 1–2: six OVH/LLM7 models all 429 within
+  ~1 s each; round 3: `kilo:nvidia/nemotron-3-ultra-550b-a55b:free` proved it (59 s generation + 6 s Lean), the two
+  others of that race were rate-limited. 11 attempts (10 « unavailable »), 102 s in total.
+- `theorem six_dvd (n : ℕ) : 6 ∣ n * (n + 1) * (n + 2)` — Nemotron Ultra now led round 0 thanks to the leaderboard
+  and proved it at the first attempt (146 s + 6 s Lean), no race.
+- `theorem cubic_roots (x : ℝ) (h : x ^ 3 - 6 * x ^ 2 + 11 * x - 6 = 0) : x = 1 ∨ x = 2 ∨ x = 3` (after the change
+  below) — round 0, Nemotron Ultra, first attempt, 132 s + 7 s Lean. Leaderboard: Nemotron Ultra 3/3 (score 0.60),
+  ten models « indisponible 1× ».
+- Change made after the first run: a contestant that cannot run at all is replaced at once by the next untried
+  model within the same race (≤ 2 × K replacements per round) and no longer uses the attempt budget, so a race is
+  not wasted on rate-limited providers.
+
