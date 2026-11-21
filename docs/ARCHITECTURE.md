@@ -207,3 +207,26 @@ grounded in *your* sources, with citations), Zotero (reference library), Obsidia
   — every AI output is an editable, versioned draft; manual edits are never overwritten without asking.
 - **Privacy default (user choice)**: online by default, best available model everywhere, including keyless free
   providers. A permanent indicator shows which model receives what; any project can be switched to « local only ».
+
+## 15. Ease of use, security and robustness bar (user requirement, 2026-11-21)
+
+- **As easy as L Katta**: study `~/GitHub/L-Katta` (settings, model choice, how a key is added and tested, first-run
+  guidance, plain-language errors with one action button) and match or beat it. Adding a key = paste → automatic
+  test call → « ça marche » with the model list, or a clear reason; link to where the key is obtained; remove in one
+  click. Nothing requires a terminal. Every setting has a sensible default; every destructive action can be undone.
+- **Security review before release (session S-H, independent of the authors)**: threat model for the sync surface
+  (tailnet device compromised, malicious web page in the host's browser — CSRF/DNS-rebinding against 127.0.0.1:11500,
+  hostile PDF/TeX/BibTeX/notebook input, prompt injection from sources and web results reaching tools, path
+  traversal, SSRF through DOI/arXiv/URL fetchers, LaTeX `\write18`/`\input` abuse → compile with `-no-shell-escape`
+  and `openin_any=p`, Jupyter proxy escape, WebSocket hijacking, token theft via the shells). Host header allow-list
+  on both listeners, strict CSP on the UI (no inline script, no remote origins), rendered Markdown/LaTeX sanitised,
+  model output never executed without the documented tool boundary, tools that write or run code confined to the
+  project directory.
+- **Dependencies and CVEs**: pinned versions with hashes (Python, npm, Rust, Flutter/Gradle), audit in CI and at
+  release (`pip-audit`, `npm audit`, `cargo audit`, `osv-scanner`, Flutter/Gradle dependency check), minimal
+  dependency count, SBOM published with the release, signed release artefacts, GitHub Dependabot + secret scanning
+  enabled. No known high/critical CVE at release; anything accepted is listed with its reason.
+- **Fluidity and reliability**: UI interactive < 1.5 s on the phone, streaming never blocks input, 60 fps scrolling
+  with 10 000-line outputs (virtualised), reconnect without losing state, server survives kill -9 of any child,
+  crash-safe storage (atomic writes, tested by fault injection), soak test (2 h of parallel jobs, flat memory),
+  load test (5 devices connected), every long operation cancellable.

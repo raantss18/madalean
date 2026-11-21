@@ -54,6 +54,12 @@
 - ⬜ Site GitHub Pages (FR + EN), captures, guide d'installation, guide d'appairage
 - ⬜ README, CHANGELOG 2.0.0, DECISIONS, ACCEPTANCE
 
+## 6 bis. Sécurité et robustesse (session S-H, Opus, indépendante des auteurs) — avant publication
+- ⬜ Revue de sécurité de la synchronisation (appareil compromis, page web malveillante, fichiers hostiles, injection par les sources)
+- ⬜ Audit des dépendances et des CVE (Python, npm, Rust, Flutter), versions épinglées, liste des composants publiée
+- ⬜ Tests de robustesse : coupures, redémarrages, 2 h de travaux en parallèle, 5 appareils connectés
+- ⬜ Fluidité mesurée sur téléphone ; facilité d'usage au niveau de L Katta (ajout de clé testé automatiquement, aucun terminal)
+
 ## 7. Intégration et publication (intégrateur)
 - ⬜ Assemblage, tests complets sans carte graphique
 - ⬜ Tests réels : modèles locaux (carte graphique), fournisseurs gratuits, Claude et Gemini avec tes clés
