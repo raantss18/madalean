@@ -6,7 +6,7 @@ Implements only the surface the shells depend on (see docs/SHELLS.md, "Required 
   GET  /api/hello                      -> {name, version, paired, local, host_name}
   POST /api/pair {code, device_name}   -> {token, device_id} | 401 bad_code | 429 locked
   POST /api/session/ticket  (Bearer)   -> {ticket, expires_in}
-  GET  /api/session?ticket=..&next=/   -> sets HttpOnly cookie, 303 -> next
+  GET  /api/session?ticket=..&next=/   -> sets HttpOnly cookie, 200 page that meta-refreshes to next
   GET  /api/ws                         -> WebSocket echo (needs cookie/bearer on remote)
   GET  /                               -> test page: shows whether the cookie / bearer arrived
   GET  /pair                           -> placeholder browser pairing page (shells intercept it)
@@ -25,12 +25,13 @@ import hashlib
 import json
 import secrets
 import time
+from html import escape as html_escape
 from urllib.parse import quote
 
 from aiohttp import WSMsgType, web
 
 VERSION = "2.0.0-mock"
-COOKIE = "madalean_session"
+COOKIE = "madalean_token"  # name used by the real server (docs/API.md)
 
 
 class State:
@@ -159,9 +160,17 @@ async def session(request: web.Request) -> web.Response:
         raise web.HTTPSeeOther("/pair?reason=ticket", headers={"Cache-Control": "no-store",
                                                                 "Referrer-Policy": "no-referrer"})
     token_hash = entry[0]
-    resp = web.HTTPSeeOther(safe_next(request.query.get("next")))
-    resp.headers["Cache-Control"] = "no-store"
-    resp.headers["Referrer-Policy"] = "no-referrer"
+    nxt = safe_next(request.query.get("next"))
+    headers = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
+    if request.app["session_mode"] == "redirect":
+        resp = web.HTTPSeeOther(nxt, headers=headers)
+    else:
+        # 200 + same-origin meta refresh: the next navigation is initiated by the server's own page, so the
+        # SameSite=Strict cookie is sent (after a 303 the chain keeps the shell's cross-site initiator and
+        # WebKitGTK withholds the Strict cookie — observed in the desktop e2e test).
+        page = SESSION_PAGE.format(next=html_escape(nxt, quote=True))
+        resp = web.Response(text=page, content_type="text/html", headers={
+            **headers, "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"})
     secure = st.secure_cookie == "always" or (st.secure_cookie == "auto" and request.secure)
     # The cookie is a new random session secret bound to the device (revoked with it), not the token.
     sess = secrets.token_urlsafe(32)
@@ -169,7 +178,14 @@ async def session(request: web.Request) -> web.Response:
     resp.set_cookie(COOKIE, sess, httponly=True, secure=secure, samesite="Strict", path="/",
                     max_age=365 * 86400)
     st.log("session_opened", secure=secure, device=st.devices[token_hash]["name"])
-    raise resp
+    if isinstance(resp, web.HTTPException):
+        raise resp
+    return resp
+
+
+SESSION_PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<meta http-equiv="refresh" content="0;url={next}"><meta name="referrer" content="no-referrer">
+<title>Madalean</title><style>body{{background:#1f2a44}}</style></head><body></body></html>"""
 
 
 PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
@@ -186,7 +202,7 @@ PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
 <form id="up" action="/api/upload" method="post" enctype="multipart/form-data">
  <input type="file" name="file" accept=".tex,.lean" multiple> <button>Envoyer / Upload</button></form>
 <p><a id="dl" href="/api/export.pdf">Télécharger le PDF / Download PDF</a></p>
-<p><a id="ext" href="https://lean-lang.org/" target="_blank">Lien externe / external link</a></p>
+<p><a id="ext" href="https://lean-lang.org/" target="_blank">Lien externe (nouvel onglet) / external link (new tab)</a> · <a id="ext2" href="https://leanprover-community.github.io/">même onglet / same tab</a></p>
 <p><a id="pairlink" href="/pair?reason=auth">simulate 401 → /pair</a></p>
 <script>
 document.getElementById('bridge').textContent = window.madaleanShell ? JSON.stringify({{kind: madaleanShell.kind, version: madaleanShell.version}}) : 'none';
@@ -274,9 +290,9 @@ async def mock_new_code(request: web.Request) -> web.Response:
     return web.json_response({"code": st.code, "expires": st.code_expires})
 
 
-def make_app(state: State, local: bool) -> web.Application:
+def make_app(state: State, local: bool, session_mode: str = "html") -> web.Application:
     app = web.Application(middlewares=[guard])
-    app["state"], app["local"] = state, local
+    app["state"], app["local"], app["session_mode"] = state, local, session_mode
     app.router.add_get("/api/hello", hello)
     app.router.add_post("/api/pair", pair)
     app.router.add_post("/api/session/ticket", ticket)
@@ -299,7 +315,7 @@ async def main_async(args) -> None:
     for port, local in ((args.local_port, True), (args.remote_port, False)):
         if port <= 0:
             continue
-        runner = web.AppRunner(make_app(state, local), access_log=None)  # no access log: tickets in URLs
+        runner = web.AppRunner(make_app(state, local, args.session_mode), access_log=None)  # no access log: tickets in URLs
         await runner.setup()
         await web.TCPSite(runner, args.bind, port).start()
         runners.append(runner)
@@ -319,6 +335,8 @@ def main() -> None:
     p.add_argument("--host-name", default="mock-host")
     p.add_argument("--secure-cookie", choices=["always", "never", "auto"], default="auto",
                    help="auto = Secure only when the request came over TLS")
+    p.add_argument("--session-mode", choices=["html", "redirect"], default="html",
+                   help="valid ticket answer: 200 page with meta refresh (contract) or 303 (shows the Strict-cookie issue)")
     args = p.parse_args()
     import asyncio
     try:

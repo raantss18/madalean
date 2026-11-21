@@ -61,6 +61,12 @@ void main() {
         return switch (status) {
           200 => j({'token': 'A' * 43, 'device_id': 'd1'}, 200),
           401 => j({'error': 'bad_code'}, 401),
+          403 => j({'error': 'expired', 'message': 'x'}, 403),
+          201 => j({
+            'token': 'B' * 43,
+            'device': {'id': 'dv9', 'name': 'x'},
+          }, 200),
+          430 => j({'error': 'rate_limited'}, 429),
           429 => j(
             {'error': 'locked', 'retry_after': 600},
             429,
@@ -82,6 +88,24 @@ void main() {
     await expectLater(
       api.pair(origin, code: '000000', deviceName: 'x'),
       fails(ApiFailure.badCode),
+    );
+    // Shapes of the current server (docs/API.md): 403, device object, rate_limited.
+    status = 403;
+    await expectLater(
+      api.pair(origin, code: '000000', deviceName: 'x'),
+      fails(ApiFailure.badCode),
+    );
+    status = 201;
+    expect(
+      (await api.pair(origin, code: '123456', deviceName: 'x')).deviceId,
+      'dv9',
+    );
+    status = 430;
+    await expectLater(
+      api.pair(origin, code: '000000', deviceName: 'x'),
+      throwsA(
+        isA<ApiException>().having((e) => e.retryAfter, 'retry', 60),
+      ),
     );
     status = 429;
     await expectLater(

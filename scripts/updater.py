@@ -4,6 +4,8 @@
 usage: updater.py check
        updater.py install-mathlib TAG
        updater.py install-model REPO FILE SHA256 ROLE
+       updater.py bump-package SPEC.json      (madalean.update_checkers.installer)
+       updater.py add-library SPEC.json
 
 Every install builds the new version next to the old one, verifies it, switches, and only then deletes the
 obsolete version (directory, Lean toolchain no longer used anywhere in the home folder, model files).
@@ -259,6 +261,13 @@ def main(argv: list[str]) -> int:
             res = install_mathlib(argv[1])
         elif argv[0] == "install-model" and len(argv) == 5:
             res = install_model(*argv[1:])
+        elif argv[0] in ("bump-package", "add-library"):
+            # generalised verify-then-switch for Lake packages of a managed workspace (madalean.update_checkers)
+            from madalean.update_checkers import installer
+            try:
+                res = installer.main(argv, step)
+            except installer.Fail as e:
+                raise Fail(e.key, e.detail) from e
         else:
             print(__doc__)
             return 2

@@ -149,13 +149,22 @@ class MadaleanApi {
         if (token is! String || token.length < 16) {
           throw const ApiException(ApiFailure.protocol, detail: 'no token');
         }
-        return PairResult(token: token, deviceId: j?['device_id'] as String?);
-      case 401:
+        final dev = j?['device'];
+        return PairResult(
+          token: token,
+          deviceId:
+              (j?['device_id'] ??
+                      (dev is Map<String, dynamic> ? dev['id'] : null))
+                  as String?,
+        );
+      // 401 bad_code (contract) or 403 wrong/expired/no_code (current server).
+      case 401 || 403:
         throw const ApiException(ApiFailure.badCode);
       case 429:
         final ra =
             int.tryParse(r.headers['retry-after'] ?? '') ??
-            (j?['retry_after'] is int ? j!['retry_after'] as int : null);
+            (j?['retry_after'] is int ? j!['retry_after'] as int : null) ??
+            (j?['error'] == 'rate_limited' ? 60 : null);
         throw ApiException(ApiFailure.locked, retryAfter: ra);
       default:
         throw ApiException(ApiFailure.protocol, detail: 'HTTP ${r.statusCode}');
@@ -180,15 +189,25 @@ class MadaleanApi {
     return t;
   }
 
-  /// Optional `POST /api/devices/self/forget` (ignored when absent).
+  /// Ask the server to revoke this device (best effort): optional
+  /// `POST /api/devices/self/forget`, else the current server's
+  /// `POST /api/logout` with Bearer.
   Future<void> forget(Uri origin, String token) async {
     try {
-      await _send(
+      final r = await _send(
         () => _client.post(
           origin.replace(path: '/api/devices/self/forget'),
           headers: _headers(token),
         ),
       );
+      if (r.statusCode == 404 || r.statusCode == 405) {
+        await _send(
+          () => _client.post(
+            origin.replace(path: '/api/logout'),
+            headers: _headers(token),
+          ),
+        );
+      }
     } on ApiException {
       // Best effort: the token is deleted locally anyway.
     }

@@ -199,15 +199,21 @@ pub fn map_pair_response(status: u16, body: &str, retry_after_header: Option<&st
             if token.len() < 32 || token.len() > 512 || !token.bytes().all(|b| b.is_ascii_graphic()) {
                 return Err(ShellError::NotMadalean);
             }
-            let dev = json.get("device_id").and_then(|d| d.as_str()).map(str::to_string);
+            let dev = json
+                .get("device_id")
+                .or_else(|| json.get("device").and_then(|d| d.get("id")))
+                .and_then(|d| d.as_str())
+                .map(str::to_string);
             Ok((token.to_string(), dev))
         }
-        401 => Err(ShellError::BadCode),
+        // 401 bad_code (contract) or 403 wrong / expired / no_code (current server, docs/API.md).
+        401 | 403 => Err(ShellError::BadCode),
         429 => {
             let ra = json
                 .get("retry_after")
                 .and_then(|v| v.as_u64())
-                .or_else(|| retry_after_header.and_then(|h| h.trim().parse().ok()));
+                .or_else(|| retry_after_header.and_then(|h| h.trim().parse().ok()))
+                .or_else(|| (json.get("error").and_then(|e| e.as_str()) == Some("rate_limited")).then_some(60));
             Err(ShellError::Locked { retry_after: ra })
         }
         404 => Err(ShellError::NotMadalean),
@@ -302,6 +308,17 @@ pub fn default_device_name(hostname: &str) -> String {
     }
 }
 
+/// Safe file name for a download: no path separators, no leading dots, no control characters.
+pub fn sanitize_file_name(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| if c == '/' || c == '\\' || c.is_control() { '_' } else { c })
+        .collect();
+    let cleaned = cleaned.trim().trim_start_matches('.').to_string();
+    let cleaned: String = cleaned.chars().take(180).collect();
+    if cleaned.is_empty() { "download".into() } else { cleaned }
+}
+
 pub fn now_secs() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -383,6 +400,15 @@ mod tests {
         );
         assert_eq!(map_pair_response(429, "", Some("42")), Err(ShellError::Locked { retry_after: Some(42) }));
         assert_eq!(map_pair_response(500, "", None), Err(ShellError::Server { status: 500 }));
+        // Shapes of the current server (docs/API.md): 403 wrong/expired, 429 rate_limited, device object.
+        assert_eq!(map_pair_response(403, r#"{"error":"expired","message":"…"}"#, None), Err(ShellError::BadCode));
+        assert_eq!(
+            map_pair_response(429, r#"{"error":"rate_limited"}"#, None),
+            Err(ShellError::Locked { retry_after: Some(60) })
+        );
+        let tok = "B".repeat(43);
+        let ok = map_pair_response(200, &format!(r#"{{"token":"{tok}","device":{{"id":"dv9","name":"x"}}}}"#), None).unwrap();
+        assert_eq!(ok.1.as_deref(), Some("dv9"));
         assert_eq!(map_pair_response(404, "", None), Err(ShellError::NotMadalean));
     }
 
@@ -420,6 +446,14 @@ mod tests {
         assert!(back.remove("https://b.ts.net:10500"));
         assert!(!back.remove("https://b.ts.net:10500"));
         assert_eq!(Settings::load(&dir.path().join("missing.json")), Settings::default());
+    }
+
+    #[test]
+    fn file_names() {
+        assert_eq!(sanitize_file_name("theoreme.pdf"), "theoreme.pdf");
+        assert_eq!(sanitize_file_name("../../etc/passwd"), "_.._etc_passwd");
+        assert_eq!(sanitize_file_name(".hidden"), "hidden");
+        assert_eq!(sanitize_file_name(""), "download");
     }
 
     #[test]

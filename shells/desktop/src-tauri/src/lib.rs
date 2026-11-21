@@ -53,7 +53,7 @@ impl Shell {
         // Test-only trace (MADALEAN_SHELL_TEST_LOG). Never contains tokens or tickets.
         if let Some(p) = &self.test_log {
             if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(p) {
-                let _ = writeln!(f, "{}", serde_json::json!({"t": now_secs(), "kind": kind, "extra": extra}));
+                let _ = writeln!(f, "{}", serde_json::json!({"t_ms": now_ms(), "kind": kind, "extra": extra}));
             }
         }
     }
@@ -64,6 +64,10 @@ impl Shell {
             eprintln!("madalean: cannot save settings: {e}");
         }
     }
+}
+
+fn now_ms() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
 }
 
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
@@ -401,6 +405,19 @@ fn on_navigate(app: &AppHandle, url: &Url) -> bool {
     }
 }
 
+/// `dir/name`, or `dir/stem (n).ext` if it exists.
+fn unique_path(dir: &std::path::Path, name: &str) -> PathBuf {
+    let p = dir.join(name);
+    if !p.exists() {
+        return p;
+    }
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) if !s.is_empty() => (s.to_string(), format!(".{e}")),
+        _ => (name.to_string(), String::new()),
+    };
+    (1..10_000).map(|i| dir.join(format!("{stem} ({i}){ext}"))).find(|p| !p.exists()).unwrap_or(p)
+}
+
 fn toast_js(text: &str, action: Option<(&str, String)>) -> String {
     format!(
         "window.__madaleanToast && window.__madaleanToast({}, {}, {});",
@@ -461,7 +478,17 @@ pub fn run() {
             let h_new = app.handle().clone();
             let h_dl = app.handle().clone();
             let h_load = app.handle().clone();
-            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()));
+            // Test hook (MADALEAN_SHELL_TEST_CLICK=id1,id2…): click elements of the server's start page, 2 s apart.
+            if let Ok(ids) = std::env::var("MADALEAN_SHELL_TEST_CLICK") {
+                let ids: Vec<&str> = ids.split(',').filter(|s| !s.is_empty()).collect();
+                builder = builder.initialization_script(format!(
+                    "if (/^https?:$/.test(location.protocol) && location.pathname === '/') window.addEventListener('load', () => \
+                     {}.forEach((id, i) => setTimeout(() => {{ const e = document.getElementById(id); if (e) e.click(); }}, 2000 * (i + 1))));",
+                    serde_json::to_string(&ids).unwrap_or_default()
+                ));
+            }
+            let window = builder
                 .title("Madalean")
                 .inner_size(1280.0, 840.0)
                 .min_inner_size(420.0, 520.0)
@@ -486,7 +513,17 @@ pub fn run() {
                     let shell = h_dl.state::<Shared>().inner().clone();
                     match event {
                         DownloadEvent::Requested { url, destination } => {
-                            // wry proposes ~/Downloads/<suggested name> (made unique); keep it.
+                            // wry proposes <XDG download dir or *current dir*>/<suggested name>: keep only the
+                            // file name and always save into the user's download folder.
+                            let dir = h_dl
+                                .path()
+                                .download_dir()
+                                .ok()
+                                .or_else(|| h_dl.path().home_dir().ok().map(|h| h.join("Downloads")))
+                                .unwrap_or_else(std::env::temp_dir);
+                            let _ = std::fs::create_dir_all(&dir);
+                            let name = destination.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                            *destination = unique_path(&dir, &sanitize_file_name(&name));
                             shell.log("download_requested", serde_json::json!({ "path": destination.to_string_lossy(), "scheme": url.scheme() }));
                             true
                         }
@@ -512,20 +549,13 @@ pub fn run() {
                         _ => true,
                     }
                 })
-                .on_page_load(move |w, payload| {
+                .on_page_load(move |_w, payload| {
                     if payload.event() != PageLoadEvent::Finished {
                         return;
                     }
                     let shell = h_load.state::<Shared>().inner().clone();
                     let url = payload.url().clone();
                     shell.log("page_loaded", serde_json::json!({ "origin": url.origin().ascii_serialization(), "path": url.path() }));
-                    // Test hook (MADALEAN_SHELL_TEST_CLICK=<element id>): click an element of a server page.
-                    if let Ok(id) = std::env::var("MADALEAN_SHELL_TEST_CLICK") {
-                        if matches!(url.scheme(), "http" | "https") && url.path() == "/" {
-                            let id = serde_json::to_string(&id).unwrap_or_default();
-                            let _ = w.eval(format!("setTimeout(() => {{ const e = document.getElementById({id}); if (e) e.click(); }}, 1500);"));
-                        }
-                    }
                 })
                 .build()?;
             if let Ok(mut u) = window.url() {

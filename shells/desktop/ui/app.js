@@ -9,7 +9,7 @@ const T = {
     title: 'Connectez-vous à votre Madalean',
     intro: 'L’ordinateur hôte fait tout le travail ; cette fenêtre affiche son interface.',
     retry: 'Réessayer', saved: 'Serveurs enregistrés', newServer: 'Nouveau serveur',
-    address: 'Adresse du serveur',
+    address: 'Adresse du serveur', placeholder: 'nom-du-pc.votre-tailnet.ts.net',
     addressHelp: 'Nom Tailscale complet (port 10500 par défaut), ou collez ici un lien madalean://pair.',
     code: 'Code d’appairage', device: 'Nom de cet appareil',
     codeHelp: 'Les 6 chiffres affichés sur l’ordinateur hôte (Réglages → Appareils), valables 5 minutes.',
@@ -45,7 +45,7 @@ const T = {
     title: 'Connect to your Madalean',
     intro: 'The host computer does all the work; this window shows its interface.',
     retry: 'Retry', saved: 'Saved servers', newServer: 'New server',
-    address: 'Server address',
+    address: 'Server address', placeholder: 'your-pc.your-tailnet.ts.net',
     addressHelp: 'Full Tailscale name (port 10500 by default), or paste a madalean://pair link here.',
     code: 'Pairing code', device: 'Name of this device',
     codeHelp: 'The 6 digits shown on the host computer (Settings → Devices), valid for 5 minutes.',
@@ -102,6 +102,7 @@ function applyLang() {
     if (typeof v === 'string') el.textContent = v;
   });
   $('lang').textContent = t().other;
+  $('address').placeholder = t().placeholder;
   renderServers();
 }
 

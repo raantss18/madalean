@@ -90,9 +90,13 @@ pub async fn ticket(origin: &Url, token: &str) -> Result<String, ShellError> {
     }
 }
 
-/// Optional `POST /api/devices/self/forget` (best effort, contract item 8).
+/// Ask the server to revoke this device (best effort, contract item 8): `POST /api/devices/self/forget`,
+/// or the current server's `POST /api/logout` (Bearer) when the former does not exist.
 pub async fn forget(origin: &Url, token: &str) {
     if let Ok(c) = client() {
-        let _ = c.post(api(origin, "/api/devices/self/forget")).bearer_auth(token).send().await;
+        let r = c.post(api(origin, "/api/devices/self/forget")).bearer_auth(token).send().await;
+        if matches!(&r, Ok(resp) if resp.status().as_u16() == 404 || resp.status().as_u16() == 405) {
+            let _ = c.post(api(origin, "/api/logout")).bearer_auth(token).send().await;
+        }
     }
 }
