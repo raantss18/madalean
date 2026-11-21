@@ -236,6 +236,9 @@ class Formalizer:
             # the next attempt sees what Lean said (S-K: the user's Cayley-Hamilton / Riesz translations failed 3×
             # on the same small mistake: `aeval` without `Polynomial.`, `CompleteSpace 𝕜 E`)
             errs = "\n".join(f"line {m.line}: {m.text[:400]}" for m in r.verdict.errors[:4])
+            idx = names.get(ws)
+            if idx is not None:      # real Mathlib names for invented ones (`charPoly` → `LinearMap.charpoly`)
+                errs += idx.feedback_note(leancheck.errors_for_feedback(r.code, r.verdict))
             feedback = (f"\n\nA previous attempt was:\n```lean4\n{leancheck._body(a.code)}\n```\nLean rejected it:\n"
                         f"{errs}\nAvoid this mistake (write fully qualified Mathlib names, e.g. `Polynomial.aeval`, "
                         "`Polynomial R` "

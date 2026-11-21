@@ -19,13 +19,15 @@ import re
 import sqlite3
 import threading
 import time
-from collections import Counter
+from array import array
+from collections import Counter, OrderedDict
 from pathlib import Path
 from typing import Callable
 
 from .lean_parse import PARSER_VERSION, Decl, additive_signature, parse_source  # noqa: F401
 
 log = logging.getLogger("madalean.brain.rag")
+EMBED_CACHE_ITEMS = 4000                   # float32 vectors: ≈ 12 MB for 768-dimension models
 
 # notation -> words (indexed with the signature, and used to expand Lean statements)
 NOTATION = [("≤", "le"), ("≥", "le ge"), ("<", "lt"), (">", "lt gt"), ("≠", "ne"), ("∑", "sum finset"),
@@ -321,7 +323,8 @@ FAMOUS: list[tuple[str, list[str]]] = [
     (r"wilson", ["ZMod.wilsons_lemma", "Nat.prime_iff_fac_equiv_neg_one"]),
     (r"euclid'?s? lemma", ["Nat.Prime.dvd_mul", "Prime.dvd_mul"]),
     (r"lagrange'?s? theorem", ["Subgroup.card_subgroup_dvd_card"]),
-    (r"cayley.?hamilton", ["LinearMap.aeval_self_charpoly", "Matrix.aeval_self_charpoly"]),
+    (r"cayley.?hamilton|polyn[oô]me caract[eé]ristique.{0,80}(annule|P\s*\(\s*f\s*\)\s*=\s*0|nul en)|characteristic polynomial.{0,80}(annihilat|vanish|P\s*\(\s*f\s*\)\s*=\s*0)",
+     ["LinearMap.aeval_self_charpoly", "Matrix.aeval_self_charpoly"]),
     (r"bolzano.?weierstrass", ["tendsto_subseq_of_bounded", "IsCompact.tendsto_subseq"]),
     (r"extreme value theorem|th[ée]or[èe]me des bornes|bornes atteintes|atteint ses bornes|attains (its )?(bounds|max)"
      r"|continuous .{0,40}compact .{0,80}(bounded|attains)|compact.{0,60}continu.{0,80}born[ée]",
@@ -371,11 +374,18 @@ def nl_groups(q: str) -> list[Group]:
     return _dedup(groups)
 
 
+def _fold(q: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", q) if unicodedata.category(c) != "Mn")
+
+
 def famous(q: str) -> list[str]:
+    """Mathlib names for a famous result named or described in `q` (accents ignored: users type « polynome »)."""
     out: list[str] = []
-    for pat, names in FAMOUS:
-        if re.search(pat, q, re.I):
-            out += names
+    for text in (q, _fold(q)):
+        for pat, names in FAMOUS:
+            if re.search(pat, text, re.I):
+                out += [n for n in names if n not in out]
     return out
 
 
@@ -695,7 +705,7 @@ class LeanRetriever:
         if not self.embeddings or len(res) < 3:
             return res
         if self._embed is None:
-            self._embed = Embedder(self.ollama_url)
+            self._embed = shared_embedder(self.ollama_url)   # the same instance as the sources library
         try:
             return await self._embed.rerank(query, res)
         except Exception as e:  # noqa: BLE001 (semantic re-ranking is optional)
@@ -722,11 +732,16 @@ class Embedder:
         self.url = url.rstrip("/")
         self.model: str | None = None
         self.checked: float | None = None
-        self._cache: dict[str, list[float]] = {}
+        # bounded LRU of float32 vectors (session S-Q: 20 000 Python float lists were up to ~0.5 GB)
+        self._cache: "OrderedDict[str, array]" = OrderedDict()
+        self.max_cached = EMBED_CACHE_ITEMS
         self._session = None
 
     async def _sess(self):
         import aiohttp
+        loop = asyncio.get_running_loop()
+        if self._session is not None and getattr(self._session, "_loop", loop) is not loop:
+            self._session = None                       # shared instance used from another event loop (tests)
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30, sock_connect=1.5))
         return self._session
@@ -760,10 +775,16 @@ class Embedder:
             async with s.post(self.url + "/api/embed", json={"model": model, "input": [prefix + t for t in need]}) as r:
                 v = await r.json()
             for t, e in zip(need, v.get("embeddings") or []):
-                self._cache[prefix + t] = e
-            if len(self._cache) > 20000:
-                self._cache.clear()
-        return [self._cache.get(prefix + t, []) for t in texts]
+                self._cache[prefix + t] = array("f", e)
+            while len(self._cache) > self.max_cached:
+                self._cache.popitem(last=False)
+        out = []
+        for t in texts:
+            vec = self._cache.get(prefix + t)
+            if vec is not None:
+                self._cache.move_to_end(prefix + t)
+            out.append(list(vec) if vec is not None else [])
+        return out
 
     async def rerank(self, query: str, res: list[dict]) -> list[dict]:
         if not await self.detect():
@@ -781,6 +802,18 @@ class Embedder:
             out.append(d)
         out.sort(key=lambda d: d["score"], reverse=True)
         return out
+
+
+_SHARED: dict[str, "Embedder"] = {}
+
+
+def shared_embedder(url: str) -> "Embedder":
+    """One Embedder per URL for the whole server (model detection every 5 min and one vector cache, instead of a
+    new instance — new detection, empty cache — for every source search)."""
+    e = _SHARED.get(url)
+    if e is None:
+        e = _SHARED[url] = Embedder(url)
+    return e
 
 
 def _cos(a: list[float], b: list[float]) -> float:

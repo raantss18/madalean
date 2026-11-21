@@ -188,3 +188,10 @@ def test_polynomial_bracket_notation_is_spelled_out():
     from madalean import leancheck as lc
     st = lc.normalize_formal_statement("theorem t {R : Type*} [CommRing R] (P : R[X]) (q : ℝ[X]) : P = P := by sorry")
     assert "(Polynomial R)" in st and "(Polynomial ℝ)" in st and "[X]" not in st
+
+
+def test_famous_matches_unaccented_descriptions():
+    """Real case: « polynome caracteristique … P(f)=0 » (no accents, no theorem name) got no Mathlib reference."""
+    from madalean.brain import rag
+    assert "LinearMap.aeval_self_charpoly" in rag.famous("montre que si P est le polynome caracteristique d'un endomorphisme f alors P(f)=0")
+    assert "LinearMap.aeval_self_charpoly" in rag.famous("Théorème de Cayley-Hamilton")
