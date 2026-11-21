@@ -6,14 +6,15 @@
 - ✅ Dépôt renommé `madalean`, dossier `~/madalean`, branche `v2`
 - ✅ Architecture et contrat des sessions (`docs/ARCHITECTURE.md`), interface du moteur (`madalean/brain/api.py`)
 
-## 1. Serveur (session S-A, Opus)
-- 🔄 Serveur asyncio, API + WebSocket (synchronisation de tous les appareils)
-- 🔄 Sécurité : appairage par code, appareils révocables, clés d'API au trousseau
-- 🔄 Projets, dossiers, sous-dossiers en parallèle, historique par dossier
-- 🔄 Chaîne comprendre → traduire (+ explication de l'énoncé Lean) → prouver → expliquer
-- 🔄 Export PDF/LaTeX très lisible (énoncé, Lean, preuve en langage naturel, tampon de vérification)
-- 🔄 JupyterLab + Sage derrière la même connexion, même assistant
-- 🔄 Migration des dossiers 1.x, mode démonstration, tests
+## 1. Serveur (session S-A, Opus) — terminé, 180 tests sans carte graphique
+- ✅ Serveur asyncio, API + WebSocket (synchronisation de tous les appareils), référence dans `docs/API.md`
+- ✅ Sécurité : appairage par code, appareils révocables, clés d'API au trousseau (tests de contournement)
+- ✅ Projets, dossiers, sous-dossiers en parallèle, historique par dossier
+- ✅ Chaîne comprendre → traduire (+ lecture guidée de l'énoncé Lean) → prouver → expliquer, avec le vrai Lean
+- ✅ Export PDF par XeLaTeX (symboles Lean vérifiés), repli HTML
+- ✅ JupyterLab derrière la même connexion (noyau réel testé à travers le proxy)
+- ⚠️ Pas encore essayé : vrais modèles locaux sous le nouveau serveur, `tailscale serve`, installation réelle d'une mise à jour, migration de tes vrais dossiers
+- ⚠️ Pas de noyau Jupyter Lean 4 : aucun n'est fiable aujourd'hui (documenté)
 
 ## 2. Moteur de modèles (session S-B, Opus) — terminé, 35 tests
 - ✅ Routeur de L Katta (meilleur modèle gratuit, pauses, quotas), repli hors ligne automatique
@@ -28,7 +29,7 @@
 - 🔄 Icône et identité Madalean
 - 🔄 Script Tailscale (une seule entrée ajoutée, celles de Sampana intactes)
 
-## 4. Interface web (session S-D, Opus) — après S-A
+## 4. Interface web (session S-D, Opus) — 🔄 en cours
 - ⬜ Écran 1 : écrire l'énoncé (langage naturel / LaTeX, import .tex)
 - ⬜ Écran 2 : traduction Lean avec explication ligne par ligne (apprendre)
 - ⬜ Écran 3 : prouver, vérifier, expliquer, exporter en PDF
@@ -36,13 +37,13 @@
 - ⬜ Modes « Apprendre » (indices progressifs, exercices) et « Recherche »
 - ⬜ Réglages : modèles, clés, appareils, mises à jour ; français / anglais ; clair / sombre ; téléphone
 
-## 5. Recherche : bibliographie et articles (session S-E, Opus) — après S-A
+## 5. Recherche : bibliographie et articles (session S-E, Opus) — 🔄 en cours
 - ⬜ Bibliographie par projet (DOI, arXiv, zbMATH, BibTeX), citations dans les preuves, jamais de référence inventée
 - ⬜ Lean → article scientifique (LaTeX/PDF, bibliographie, tableau de vérification)
 - ⬜ Article (arXiv / PDF) → énoncés structurés → dossiers Lean (« blueprint » avec dépendances)
 - ⬜ Mises à jour systématiques : toutes les bibliothèques Lean des espaces, Sage et ses composants (notification)
 
-## 5 bis. Atelier de recherche (session S-G, Opus) — après S-A et S-E
+## 5 bis. Atelier de recherche (session S-G, Opus) — 🔄 en cours (côté serveur ; écrans dans une session suivante)
 - ⬜ Bibliothèque de sources intégrée (articles, livres ; ajout manuel, DOI, arXiv ; import/export BibTeX et Zotero)
 - ⬜ Recherche d'articles et d'ouvrages du domaine (arXiv, zbMATH Open, Crossref, OpenAlex)
 - ⬜ Lecteur avec surlignages et notes ; questions sur les sources avec citations cliquables (façon NotebookLM)
