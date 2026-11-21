@@ -36,7 +36,9 @@
     values[p.id] = '';                      // never keep the key in the page
     if (!key) return;
     if (/\s/.test(key) || key.length < 16) { status[p.id] = { level: 'error', text: t('keys.malformed') }; return; }
-    if (p.prefix && !p.prefix.test(key)) { status[p.id] = { level: 'error', text: t('keys.wrongShape', { name: p.name }) }; return; }
+    // providers change their key formats (Google issued new Gemini key shapes): an unusual shape never blocks — the
+    // real test call below decides, and only then is the shape mentioned
+    const oddShape = !!(p.prefix && !p.prefix.test(key));
     status[p.id] = { level: 'busy', text: t('keys.saving') };
     try {
       await api.setKey(p.id, key);
@@ -48,7 +50,7 @@
       if (test.ok === false && (test.reason ?? '') === 'no_model') { status[p.id] = { level: 'warn', text: t('keys.savedNoModel') }; return; }
       if (test.ok === false) {
         const reason = (test.reason ?? '').split(':')[0] ?? '';
-        status[p.id] = { level: 'error', text: t('keys.refused', { reason: tk(`keys.reason.${reason}`, test.reason ?? '') }) };
+        status[p.id] = { level: 'error', text: t('keys.refused', { reason: tk(`keys.reason.${reason}`, test.reason ?? '') }) + (oddShape ? ' ' + t('keys.wrongShape', { name: p.name }) : '') };
         return;
       }
       status[p.id] = test.ok === true
