@@ -14,6 +14,14 @@
 7. ⬜ (4 sur 5 prouvés en test : compact, sous-suites corrigées, Cayley-Hamilton, E/ker f ; Riesz non) Relancer tes dossiers échoués avec ces corrections : Cayley-Hamilton, Banach, compact, sous-suites, E/ker f ≅ Im f
 8. ✅ Énoncé refusé compté valide ; carte graphique non détectée ; un seul essai en ligne → tournoi (corrigés, installés)
 
+### P0 bis — demandes du 21/11 au soir
+- 🔄 « Publier » ne marche pas avec ta clé GitHub : cause, message clair, bouton « Tester la connexion GitHub » (session S-Q)
+- 🔄 Calcul = vrai carnet Sage façon JupyterLab : cellules qui se suivent (un seul noyau partagé avec JupyterLab, fichier .ipynb), demandes en langage naturel → code Sage, graphes, courbes et géométrie dynamique inspirés de Fikajiana, export vers Publier (S-P)
+- 🔄 Consigne de recherche sur un article : vérifications Lean, exemples et figures Sage, améliorations et généralisations proposées une par une, tu valides chaque changement (S-Q)
+- 🔄 Mémoire : noyaux gardés chauds (~1,5–2 Go au repos), aucun doublon de processus, d'index ou de tâche (S-Q)
+- 🔄 Défauts vus sur tes vrais dossiers : Riesz manqué par la recherche Mathlib, modèle Gemini « Live » choisi, doublon dans une course, Gemini qui se bloque, PDF (S-O)
+- ⬜ Relancer Cayley-Hamilton et Riesz après mise à jour
+
 ### P1 — à faire avant la publication
 - 🔄 Outil à part « fitantanana » (`~/GitHub/fitantanana`) : inventaire des services, ports, carte graphique, modèles, Lean, environnements Python, Jupyter, TeX ; doublons proposés (liens physiques de préférence, rien sans ton accord) ; prêt automatique de la carte graphique entre Ollama et Madalean (Madalean rend la carte après 10 min d'inactivité)
 9. 🔄 Glossaire par catégories et niveaux ; bibliothèque des résultats par domaine, projet, étiquette
