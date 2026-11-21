@@ -20,7 +20,8 @@
 - ✅ Routeur de L Katta (meilleur modèle gratuit, pauses, quotas), repli hors ligne automatique
 - ✅ Fournisseurs gratuits sans clé : preuve réelle trouvée et vérifiée par Lean 4.9 (2 essais sur 2)
 - ⚠️ Claude (API native, outils), Gemini, OpenRouter : testés contre de faux serveurs seulement (clés à fournir)
-- ⚠️ Modèles locaux Goedel/Qwen et Ollama par le nouveau moteur : pas encore essayés en réel (carte graphique réservée)
+- ✅ Modèles locaux Goedel/Qwen sous le nouveau serveur, en réel (2026-11-21) : 3 preuves de bout en bout, dont une relance « et la réciproque » et deux dossiers en parallèle, 0 erreur
+- ⚠️ Ollama pas essayé
 - ✅ Mode agentique : prouveur qui compile avec Lean et cherche dans Mathlib
 - ✅ Index Mathlib (179 000 déclarations Lean 4.9, 290 000 Lean récent) ; bon lemme dans les 8 premiers : 13/20 et 12/20 sur le jeu final
 

@@ -159,3 +159,13 @@ Not verified: real tailnet login / HTTPS with the Tailscale certificate / proxy 
 llama.cpp and any real model load (GPU reserved); other distributions; `--build-workspace`; madalean-net built on
 another Go version. Accepted: pillow 12.3.0 in the Sage env (sage 10.10 pins pillow <13); x/crypto GO-2026-5932
 (not called).
+
+## 2.0 — real local-model run (integrator, 2026-11-21)
+Real server (`bin/madalean serve`, test config dir), RTX 4060, local mode, strategy goedel, lean-prover49:
+| Request | Result | Time |
+|---|---|---|
+| « Montrer que si n² est pair alors n est pair, pour tout entier n. » | understood in the right direction → `∀ n : ℤ, Even (n^2) → Even n` → proved on attempt 1 → notes, explanation, informal proof; PDF export readable | 8 min 36 |
+| follow-up « et la réciproque » (auto routing by Qwen3) | new statement `∀ n : ℤ, Even n → Even (n^2)` → proved on attempt 2 | 21 min 31 (in parallel with the next) |
+| « 6 divise n(n+1)(n+2) » (started at the same time) | proved on attempt 1 | 18 min 41 |
+Two jobs shared the single GPU slot with model swaps; no error or warning in the server log. PDF defects seen: Mathlib
+revision shown as « — » for lean-prover49, the informal proof repeats « Théorème. … », annex numbering restarts.
