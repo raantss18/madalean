@@ -23,6 +23,7 @@
 - 🔄 Écriture d'articles : éditeur visuel (formules, théorèmes, figures, citations) avec source LaTeX à un clic, aperçu PDF, assistant en suggestions, paquets gérés par le moteur interne sans doublon, Overleaf en option, interface épurée + options avancées et personnalisation (S-R)
 - ✅ Tes 5 théorèmes prouvés sur ton installation (Cayley-Hamilton, Riesz, compact, sous-suites, E/ker f)
 - 🔄 Appairage de la tablette : port 443 au lieu de 10500, QR code en lien https avec bouton « Ouvrir dans l'application », nouvel APK à réinstaller (S-C)
+- 🔄 Écran « Fournisseurs » : spécialistes Lean (Aristotle de Harmonic, Goedel 32B…), code Sage, rédaction LaTeX, recherche Internet (Tavily, Exa…), modèles gratuits (Gemini, Mistral, Groq, Cerebras, GitHub Models, NVIDIA, OpenRouter…), clés à créer par toi, le moins cher d'abord (S-U)
 - 🔄 Goedel-Prover-V2-32B en ligne (Hugging Face, ta clé à ajouter) en tête du tournoi ; modèles locaux seulement hors connexion (S-T)
 
 ### P1 — à faire avant la publication
