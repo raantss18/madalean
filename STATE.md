@@ -106,7 +106,7 @@ No root change was needed (D1) → no timeshift snapshot taken. Latest existing:
     `config.py` (new settings), `updates.py` (data-driven `CHECKERS` + `register_checker`), `i18n.py` (`msg()`),
     `i18n_en.py` (+40 server strings).
 - `docs/API.md`: full reference (endpoints, WS events, TypeScript types, plugins, demo).
-- `bin/madalean`, `packaging/madalean.service` (systemd user unit), `packaging/madalean.desktop.in`; `install.sh`
+- `bin/madalean`, `packaging/madalean.service` (systemd user unit); menu entry via the shells' `scripts/install_desktop_entry.sh`; `install.sh`
   (aiohttp, font/TeX report, unit install + start, `--no-service`, server probe), `uninstall.sh` (unit, keyring,
   ~/.config|cache/madalean*), `export_offline.sh` (madalean/ + aiohttp wheels + unit). `scripts/updater.py` now imports
   `madalean`. `scripts/dev/madalean_i18n_keys.py` (catalogue check).
@@ -150,3 +150,15 @@ No root change was needed (D1) → no timeshift snapshot taken. Latest existing:
 - Lean 4 Jupyter kernel: not installed (lean4_jupyter 0.0.x / xeus-lean prototypes are not reliable); documented in
   `/api/jupyter` `lean_kernel.note`.
 - Job attempts keep raw model answers (capped 200 k chars) in jobs/<dossier>.json history (last 50 jobs): watch size.
+
+### S-A follow-up (shell endpoints, 2026-11-21)
+- Added `POST /api/session/ticket` (Bearer only), `GET /api/session?ticket&next` (200 + meta refresh, HttpOnly
+  SameSite=Strict cookie = a per-device session secret, hash stored in devices.json, revoked with the device;
+  Secure when HTTPS / X-Forwarded-Proto=https; bad ticket → 303 /pair?reason=ticket), `POST /api/devices/self/forget`
+  (204). Tests: tests/test_session.py (8). The access log is disabled (AppRunner access_log=None); no code logs this
+  route's query string (tested).
+- install.sh no longer installs its own madalean.desktop (removed packaging/madalean.desktop.in): it calls
+  scripts/install_desktop_entry.sh when a desktop AppImage exists.
+- shells/desktop/tests/e2e.sh was NOT run against the real server: it is hard-wired to shells/dev/mock_server.py
+  (fixed ports 11630/11631, fixed code 123456 and the mock-only helpers /mock/new_code, /mock/revoke_all,
+  /mock/events), so it cannot target `madalean serve --demo` without changes in shells/ (not S-A's directory).

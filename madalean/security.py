@@ -38,10 +38,12 @@ class Device:
     created: float = field(default_factory=time.time)
     last_seen: float = 0.0
     last_ip: str = ""
+    sessions: list = field(default_factory=list)   # SHA-256 of browser-session secrets (cookie), revoked with it
 
     def public(self) -> dict:
         d = asdict(self)
         d.pop("token_sha256")
+        d["sessions"] = len(self.sessions)
         return d
 
 
@@ -119,7 +121,14 @@ class Devices:
             except TypeError:
                 continue
             self.items[dev.id] = dev
-        self._by_hash = {d.token_sha256: d.id for d in self.items.values()}
+        self._index()
+
+    def _index(self) -> None:
+        self._by_hash = {}
+        for d in self.items.values():
+            self._by_hash[d.token_sha256] = d.id
+            for sh in d.sessions:
+                self._by_hash[sh] = d.id
 
     def save(self) -> None:
         config.atomic_write_text(self.file, json.dumps([asdict(d) for d in self.items.values()], indent=1))
@@ -163,10 +172,23 @@ class Devices:
             dev = self.items.pop(did, None)
             if dev is None:
                 return False
-            self._by_hash.pop(dev.token_sha256, None)
+            self._index()
             self.save()
         log.info("device revoked: %s", did)
         return True
+
+    def add_session(self, did: str, max_sessions: int = 20) -> str | None:
+        """New browser-session secret for device `did` (the cookie set by GET /api/session). Only its hash is
+        stored; it is revoked with the device. Returns None when the device no longer exists."""
+        secret = secrets.token_urlsafe(32)
+        with self._lock:
+            dev = self.items.get(did)
+            if dev is None:
+                return None
+            dev.sessions = (list(dev.sessions) + [hash_token(secret)])[-max_sessions:]
+            self._index()
+            self.save()
+        return secret
 
     def list(self) -> list[dict]:
         return [d.public() for d in sorted(self.items.values(), key=lambda d: d.created)]
@@ -190,3 +212,30 @@ class RateLimiter:
         if len(self.hits) > 10000:
             self.hits = {k: v for k, v in self.hits.items() if v and now - v[-1] < self.window}
         return True
+
+
+class Tickets:
+    """One-time tickets that a shell swaps for the browser cookie (docs/SHELLS.md « Required server endpoints »):
+    192 random bits, single use, valid `ttl` seconds, bound to a device, kept in memory only."""
+
+    def __init__(self, ttl: float = 60.0, clock=time.monotonic):
+        self.ttl, self.clock = ttl, clock
+        self._t: dict[str, tuple[str, float]] = {}
+        self._lock = threading.Lock()
+
+    def issue(self, device_id: str) -> str:
+        t = secrets.token_urlsafe(24)
+        with self._lock:
+            now = self.clock()
+            self._t = {k: v for k, v in self._t.items() if v[1] > now}
+            self._t[t] = (device_id, now + self.ttl)
+        return t
+
+    def consume(self, ticket: str) -> str | None:
+        if not isinstance(ticket, str) or not ticket or len(ticket) > 200:
+            return None
+        with self._lock:
+            entry = self._t.pop(ticket, None)        # single use, even when expired
+        if entry is None or entry[1] <= self.clock():
+            return None
+        return entry[0]

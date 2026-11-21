@@ -17,6 +17,7 @@ ITEMS=(
   "$H/.config/systemd/user/madalean.service"             # systemd user unit
   "$H/.local/share/applications/madalean.desktop"
   "$H/.local/share/icons/hicolor/scalable/apps/madalean.svg"
+  "$H/.local/opt/madalean"                               # desktop shell AppImage (scripts/install_desktop_entry.sh)
   "$H/.local/share/applications/lean-ai-station.desktop" # menu entry
   "$H/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
   "$H/models/Goedel-Prover-V2-8B.Q4_K_M.gguf"            # model files (+ checksums)
@@ -53,6 +54,8 @@ if command -v systemctl >/dev/null 2>&1; then
 fi
 command -v secret-tool >/dev/null 2>&1 && secret-tool clear service madalean 2>/dev/null || true   # API keys in the keyring
 pkill -f "^$(cd "$(dirname "$0")" && pwd)/vendor/llama.cpp/build/bin/llama-server" 2>/dev/null || true
+[ -x "$(cd "$(dirname "$0")" && pwd)/scripts/install_desktop_entry.sh" ] && \
+  "$(cd "$(dirname "$0")" && pwd)/scripts/install_desktop_entry.sh" --uninstall >/dev/null 2>&1 || true   # icons, scheme handler
 for p in "${ITEMS[@]}"; do rm -rf -- "$p"; done
 [ $WITH_TC = 1 ] && for p in "${TOOLCHAINS[@]}"; do rm -rf -- "$p"; done
 rmdir "$H/models/src" 2>/dev/null || true

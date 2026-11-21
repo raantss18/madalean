@@ -52,13 +52,15 @@ def test_demo_server_pair_status_and_sigterm(tmp_path):
         code = r.stdout.split(":")[1].split()[0]
         assert len(code) == 6 and code.isdigit()
         r = cli(tmp_path, "status")
-        assert r.returncode == 0 and "(demo)" in r.stdout and "dossiers: 2" in r.stdout
+        assert r.returncode == 0 and "(demo)" in r.stdout
+        n = int(r.stdout.split("dossiers: ", 1)[1].split(",")[0])
+        assert n >= 2                     # demo seeds; other sessions (research workshop) seed more
         second = subprocess.run([sys.executable, "-m", "madalean", "serve", "--demo", "--port", "0", "--remote-port",
                                  "0", "--config-dir", str(tmp_path / "cfg")], cwd=ROOT, capture_output=True, text=True,
                                 timeout=60)
         assert second.returncode == 2 and "another server" in second.stderr
         st = get(f"http://127.0.0.1:{info['local']}/api/state")
-        assert st["demo"] and len(st["projects"]) == 1
+        assert st["demo"] and len(st["projects"]) >= 1
         d = get(f"http://127.0.0.1:{info['local']}/api/dossiers", "POST",
                 json.dumps({"problem": "Montrer que la somme de deux entiers pairs est paire."}).encode())
         assert d["job"]["state"] in ("queued", "running")

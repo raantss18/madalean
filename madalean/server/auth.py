@@ -19,7 +19,10 @@ from .common import CTX, error
 
 log = get("auth")
 LOCAL_PORTS = web.AppKey("local_ports", set)
-PUBLIC_API = {("GET", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout")}
+# /api/session authenticates with its one-time ticket; /api/session/ticket and /api/devices/self/forget check the
+# Bearer token themselves (they also work on the local listener, where no device is attached to the request).
+PUBLIC_API = {("GET", "/api/hello"), ("HEAD", "/api/hello"), ("POST", "/api/pair"), ("POST", "/api/logout"),
+              ("GET", "/api/session")}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]"}
 
@@ -95,6 +98,7 @@ async def security_middleware(request: web.Request, handler):
         if dev is None and not public:
             return error(401, "unauthorized")
         request["device"] = dev
+    request["auth"] = how if request["device"] is not None else ""
     if (request.method not in SAFE_METHODS or is_ws) and how != "bearer" and not origin_ok(request, local):
         log.warning("refused origin %s on %s %s", request.headers.get("Origin"), request.method, path)
         return error(403, "bad_origin")

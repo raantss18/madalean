@@ -63,6 +63,74 @@ async def logout(request: web.Request) -> web.Response:
     return resp
 
 
+# ---------------------------------------------------------------- shells: ticket → cookie (docs/SHELLS.md)
+def _bearer_device(request: web.Request):
+    """The device of the `Authorization: Bearer` token (never the cookie: no CSRF surface)."""
+    h = request.headers.get("Authorization", "")
+    if h[:7].lower() != "bearer ":
+        return None
+    return ctx_of(request).devices.check(h[7:].strip(), request.headers.get("X-Forwarded-For", request.remote or ""))
+
+
+@routes.post("/api/session/ticket")
+async def session_ticket(request: web.Request) -> web.Response:
+    dev = _bearer_device(request)
+    if dev is None:
+        return error(401, "unauthorized")
+    ctx = ctx_of(request)
+    return ok({"ticket": ctx.tickets.issue(dev.id), "expires_in": int(ctx.tickets.ttl)})
+
+
+def safe_next(value: str | None) -> str:
+    """Same-origin relative path only: starts with one `/`, no `//`, no backslash, no control character."""
+    v = value or ""
+    if (not v.startswith("/") or v.startswith("//") or "\\" in v or "//" in v.split("?", 1)[0]
+            or any(ord(c) < 0x20 or ord(c) == 0x7f for c in v) or len(v) > 2000):
+        return "/"
+    return v
+
+
+SESSION_PAGE = ('<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">'
+                '<meta http-equiv="refresh" content="0;url={url}"><title>Madalean</title></head>'
+                '<body><p><a href="{url}">Madalean</a></p></body></html>')
+
+
+@routes.get("/api/session")
+async def session_open(request: web.Request) -> web.Response:
+    """Swap a one-time ticket for the HttpOnly session cookie. 200 + meta refresh (not a 303: WebKitGTK withholds a
+    SameSite=Strict cookie after a redirect started by a cross-site page). The query string is never logged."""
+    import html
+    ctx = ctx_of(request)
+    did = ctx.tickets.consume(request.query.get("ticket", ""))
+    secret = await asyncio.to_thread(ctx.devices.add_session, did) if did else None
+    if secret is None:
+        return web.Response(status=303, headers={"Location": "/pair?reason=ticket", "Cache-Control": "no-store",
+                                                 "Referrer-Policy": "no-referrer"})
+    url = html.escape(safe_next(request.query.get("next")), quote=True)
+    resp = web.Response(text=SESSION_PAGE.format(url=url), content_type="text/html", headers={
+        "Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+        "Content-Security-Policy": "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; "
+                                   "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"})
+    secure = request.secure or request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip().lower() == "https"
+    resp.set_cookie(TOKEN_COOKIE, secret, max_age=10 * 365 * 86400, httponly=True, secure=secure, samesite="Strict",
+                    path="/")
+    return resp
+
+
+@routes.post("/api/devices/self/forget")
+async def device_forget_self(request: web.Request) -> web.Response:
+    """A device revokes itself (Bearer, or the cookie of a paired browser) → 204."""
+    ctx = ctx_of(request)
+    dev = request["device"] or _bearer_device(request)
+    if dev is None:
+        return error(401, "unauthorized")
+    await asyncio.to_thread(ctx.devices.revoke, dev.id)
+    ctx.publish("devices.updated", {"devices": ctx.devices.list()})
+    resp = web.Response(status=204)
+    resp.del_cookie(TOKEN_COOKIE, path="/")
+    return resp
+
+
 @routes.post("/api/pairing/start")
 @host_only
 async def pairing_start(request: web.Request) -> web.Response:

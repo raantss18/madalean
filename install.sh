@@ -158,10 +158,15 @@ step "6/8 Espaces Lean"
 step "7/8 Service Madalean et raccourcis du menu"
 mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$ROOT/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/lean-ai-station.svg"
-cp "$ROOT/app/lean_ai_station/assets/icon.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/madalean.svg"
 sed "s|@ROOT@|$ROOT|" "$ROOT/packaging/lean-ai-station.desktop.in" > "$HOME/.local/share/applications/lean-ai-station.desktop"
-sed "s|@ROOT@|$ROOT|" "$ROOT/packaging/madalean.desktop.in" > "$HOME/.local/share/applications/madalean.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+# Madalean launcher (desktop shell AppImage, menu entry, icons, madalean:// links): owned by the shells session.
+if ls "$ROOT"/shells/desktop/dist/Madalean-*-x86_64.AppImage >/dev/null 2>&1; then
+  "$ROOT/scripts/install_desktop_entry.sh" || echo "⚠️  Raccourci Madalean non installé (voir scripts/install_desktop_entry.sh)."
+else
+  echo "(Pas d'AppImage du client de bureau : construisez-la avec scripts/build_appimage.sh puis lancez"
+  echo " scripts/install_desktop_entry.sh ; en attendant, ouvrez http://127.0.0.1:11500/ dans le navigateur.)"
+fi
 if [ $SERVICE = 1 ] && have systemctl; then
   mkdir -p "$HOME/.config/systemd/user"
   sed "s|@ROOT@|$ROOT|g" "$ROOT/packaging/madalean.service" > "$HOME/.config/systemd/user/madalean.service"

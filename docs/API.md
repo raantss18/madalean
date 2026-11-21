@@ -22,7 +22,7 @@ start with `/api`. Timestamps are Unix seconds (float). Ids are strings matching
 The running ports are written to `<config>/server.json` (`{pid, local, remote, lan?, version, demo}`).
 
 **Remote/LAN listener.** Every request needs a device token except: `GET /api/hello`, `POST /api/pair`,
-`POST /api/logout`, and `GET` of static UI files (anything not under `/api` or `/jupyter`, so the pairing screen
+`POST /api/logout`, `GET /api/session` (one-time ticket, §3.1b), and `GET` of static UI files (anything not under `/api` or `/jupyter`, so the pairing screen
 loads). Token transport:
 - apps (shells): `Authorization: Bearer <token>` (also on the WebSocket handshake);
 - browser: the cookie `madalean_token` (`HttpOnly; Secure; SameSite=Strict; Path=/`, 10 years) set by `POST /api/pair`.
@@ -89,6 +89,33 @@ previous code). `GET /pairing` **host** → `{"active":true,"expires_in":212.4,"
 
 `GET /devices` **host** → `{"devices":[Device]}`. `DELETE /devices/{id}` **host** → `{"ok":true}` (404 unknown).
 Both publish `devices.updated`.
+
+### 3.1b Shell sessions (desktop / Android shells, docs/SHELLS.md)
+
+The shells never put the device token in a URL: they ask for a one-time ticket with their token and let the web view
+swap it for the cookie.
+
+`POST /session/ticket` — `Authorization: Bearer <device token>` only (a cookie is refused: no CSRF surface; works on
+both listeners) → `200 {"ticket":"<32 chars, 192 random bits>","expires_in":60}`, `Cache-Control: no-store`;
+otherwise `401 {"error":"unauthorized"}`. The ticket is single use, valid 60 s, bound to the device, kept in memory
+only (lost on restart).
+
+`GET /session?ticket=<t>&next=<path>` — public (the ticket is the credential):
+- valid ticket → **`200 text/html`** (not a redirect: WebKitGTK withholds a `SameSite=Strict` cookie after a
+  redirect chain started by a cross-site page) with
+  `Set-Cookie: madalean_token=<session secret>; HttpOnly; SameSite=Strict; Path=/; Max-Age=315360000` (+ `Secure`
+  when the request came over HTTPS or with `X-Forwarded-Proto: https`), `Cache-Control: no-store`,
+  `Referrer-Policy: no-referrer`, `Content-Security-Policy: default-src 'none'; script-src 'none'; …`, body
+  `<meta http-equiv="refresh" content="0;url=NEXT">`. NEXT = `next` HTML-escaped when it is a relative path
+  starting with a single `/`, without `//` in the path, backslash or control characters; otherwise `/`.
+  The cookie value is a fresh session secret bound to the device (only its SHA-256 is stored, in `devices.json`;
+  revoked with the device), not the device token.
+- missing / unknown / expired / reused ticket, or revoked device → `303 Location: /pair?reason=ticket`, no cookie.
+- The query string of this route is never logged (no access log; tested).
+
+`POST /devices/self/forget` — the calling device (Bearer, or the cookie of a paired browser) revokes itself →
+`204` (cookie cleared); `401` without a device credential (also on the local listener: the host is not a device).
+Same effect as `POST /logout`.
 
 ### 3.2 State
 
@@ -340,7 +367,7 @@ type Mode = "local" | "auto" | "online";
 type Strategy = "goedel" | "agent" | "auto";
 type Stage = "understand" | "route" | "statement" | "notes" | "proof" | "explanation" | "informal";
 
-interface Device { id: string; name: string; created: number; last_seen: number; last_ip: string }
+interface Device { id: string; name: string; created: number; last_seen: number; last_ip: string; sessions: number }
 
 interface Project {
   id: string; title: string; description: string; workspace: string; created: number; updated: number;
@@ -462,8 +489,10 @@ called by `make_app` (also `make_app(ctx, extra_plugins=[fn])`). A plugin adds r
 with `@madalean.server.common.host_only`, answer with `common.ok(...)` / `common.error(...)`, publish events with
 `ctx.publish("<type>", {...})`. Authentication, Origin checks and host-only enforcement apply automatically.
 Update checks: `madalean.updates.register_checker(name, fn)` (`fn() -> list[Candidate]`; candidates without an
-installer must be `installable=False`). Export: `export_dossier(..., bib_keys=[...], bib_path=Path)` accepted
-(citations: to be filled by S-E).
+installer must be `installable=False`). Export: `export_dossier(..., bib_entries=[(key, csl)])` (or
+`bib_keys=[...], bib_path=Path`) prints the cited references; citations `[@key, loc]` in texts. Research layer
+(sources, literature search, grounded answers, blueprint, article, bibliography): see
+[RESEARCH_SOURCES.md](RESEARCH_SOURCES.md) (`/api/research/…`).
 
 ## 7. Demo mode
 
