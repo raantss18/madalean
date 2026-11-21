@@ -22,6 +22,10 @@ DEFAULTS: dict[str, Any] = {
     "local_native_tools": False,    # local llama-server: OpenAI tools (needs --jinja) instead of the text protocol
     "stall_online": 90,             # seconds without data before an online stream is abandoned
     "stall_local": 180,
+    "claude_reinforce": True,       # Claude joins the proof tournament's final round when the free models failed
+    "claude_model": "auto",         # which Claude for that round ("auto" = best for the role)
+    "claude_cap_proof_usd": 1.0,    # spending cap per proof (USD, list prices, real usage) — every paid Claude call
+    "claude_cap_month_usd": 20.0,   # spending cap per calendar month (USD)
     "embeddings": True,             # semantic re-ranking with an Ollama embedding model when installed
 }
 

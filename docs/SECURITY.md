@@ -217,6 +217,13 @@ A boundary is crossed in four places, and each place must hold:
   - Lean, Mathlib and Lake installs are refused (`no_prefix_elan`) when `ELAN_HOME` would be `~/.elan`.
   - `ELAN_HOME` is passed explicitly to the updater.
 
+**Calcul (S-M).** The Calcul screen executes code only through `SageBridge` (same sandbox, offline kernel, timeouts,
+output caps). Model-written cells need the explicit approval of their exact code (hash), as experiments; a user's
+edit of model code does not lift that requirement. Rich outputs: LaTeX rendered by KaTeX with `trust: false`, never as
+HTML; PNG checked by magic number; SVG sanitised and served with `Content-Security-Policy: default-src 'none';
+style-src 'unsafe-inline'; img-src data:; sandbox`, displayed via `<img>`. Spending: `<config>/brain-spend.json`
+(0600) holds token counts and costs only, no prompt and no key.
+
 ## 5. Findings
 
 | # | Severity | Finding | Status |

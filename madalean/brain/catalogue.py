@@ -45,6 +45,7 @@ class Model:
     local: bool = False
     paid: bool = False
     context: int = 0
+    est: str = ""                   # how the quality was estimated when the model is not in the seed (family name)
 
     @property
     def key(self) -> str:
@@ -91,9 +92,130 @@ LEAN_FAMILIES: list[tuple[str, float, str]] = [
     (r"prover|goedel|kimina|deepseek-?math|leanabell|stepfun-?prover", 0.30, "trained for formal proofs"),
     (r"claude-(opus|sonnet|fable)", 0.15, "strong at Lean 4 / Mathlib"),
     (r"gemini.*pro|gpt-?[56]|o[34]-|grok-?[45]", 0.12, "strong reasoning model"),
-    (r"deepseek|qwen-?3|qwen3|kimi|glm-?[45]|gpt-oss-120b|ling-|minimax|nemotron.*ultra", 0.08,
+    (r"deepseek|qwen-?3|qwen3|kimi|glm-?[45]|gpt-oss-120b|ling-|minimax|nemotron.*ultra|magistral|devstral", 0.08,
      "good at maths and code"),
 ]
+
+
+def _q(chat: float, code: float, math_: float, reasoning: float | None = None, agentic: float | None = None) -> dict:
+    r = reasoning if reasoning is not None else math_
+    return {"chat": chat, "code": code, "math": math_, "reasoning": r, "writing": chat, "translation": chat,
+            "agentic": agentic if agentic is not None else (code + r) / 2, "search": chat}
+
+
+# Quality of the keyed providers' families (session S-M). The seed only knows the keyless providers, so without
+# this every Gemini / Mistral model got the size-based default (0.41 for an unknown size) and a small open model
+# with a size in its name (« gemma-4-31b-it », « ministral-14b ») outranked Gemini Pro or Mistral Large. Values are
+# on the seed's scale (top free models ≈ 0.55–0.85, Claude ≈ 0.95): an estimate from public benchmarks and model
+# tiers, corrected on this machine by the observed reliability and the leaderboard (docs/BRAIN.md §3). First match
+# wins: specific patterns (« flash-lite ») before general ones (« flash »). Matched on the lower-cased model id
+# (« models/ » removed) — ids checked against the providers' documented model lists, to be confirmed with the user's
+# key (GET /v1beta/openai/models, GET /v1/models).
+FAMILIES: list[tuple[str, dict, str]] = [
+    # Google Gemini (generativelanguage.googleapis.com)
+    (r"gemini-3(\.\d+)?-pro|gemini-pro-latest", _q(0.86, 0.86, 0.88, 0.88, 0.84), "Gemini 3 Pro family"),
+    (r"gemini-3(\.\d+)?-flash-lite|gemini-flash-lite-latest", _q(0.62, 0.6, 0.62), "Gemini Flash-Lite family"),
+    (r"gemini-3(\.\d+)?-flash|gemini-flash-latest", _q(0.78, 0.78, 0.8, 0.8, 0.76), "Gemini 3 Flash family"),
+    (r"gemini-2\.5-pro", _q(0.8, 0.8, 0.82, 0.82, 0.76), "Gemini 2.5 Pro family"),
+    (r"gemini-2\.5-flash-lite", _q(0.55, 0.52, 0.55), "Gemini 2.5 Flash-Lite family"),
+    (r"gemini-2\.5-flash", _q(0.7, 0.68, 0.72, 0.72, 0.66), "Gemini 2.5 Flash family"),
+    (r"gemini-2\.0-flash-lite", _q(0.4, 0.38, 0.38), "Gemini 2.0 Flash-Lite family"),
+    (r"gemini-2\.0-flash", _q(0.5, 0.48, 0.48), "Gemini 2.0 Flash family"),
+    (r"gemini-1\.5|gemini-1\.0|gemini-pro$", _q(0.3, 0.3, 0.28), "older Gemini"),
+    (r"gemma-?4", _q(0.42, 0.4, 0.4), "Gemma 4 (open model, below Gemini)"),
+    (r"gemma-?3n", _q(0.18, 0.15, 0.15), "Gemma 3n (small open model)"),
+    (r"gemma", _q(0.28, 0.26, 0.26), "Gemma (open model, below Gemini)"),
+    (r"learnlm", _q(0.4, 0.3, 0.35), "LearnLM"),
+    # Mistral AI (api.mistral.ai)
+    (r"magistral-medium", _q(0.68, 0.64, 0.76, 0.76, 0.64), "Magistral Medium (reasoning)"),
+    (r"magistral-small", _q(0.52, 0.5, 0.6, 0.6, 0.48), "Magistral Small (reasoning)"),
+    (r"mistral-large", _q(0.68, 0.68, 0.64, 0.66, 0.68), "Mistral Large family"),
+    (r"devstral-medium|devstral-2|devstral-latest", _q(0.6, 0.78, 0.52, 0.6, 0.74), "Devstral (code agent)"),
+    (r"devstral", _q(0.5, 0.64, 0.42, 0.48, 0.6), "Devstral Small (code agent)"),
+    (r"mistral-medium", _q(0.64, 0.64, 0.6, 0.62, 0.62), "Mistral Medium family"),
+    (r"codestral", _q(0.45, 0.66, 0.4), "Codestral (code)"),
+    (r"pixtral-large", _q(0.55, 0.52, 0.5), "Pixtral Large"),
+    (r"mistral-small", _q(0.5, 0.5, 0.46), "Mistral Small family"),
+    (r"ministral-14b", _q(0.42, 0.42, 0.4), "Ministral 14B"),
+    (r"ministral-8b|pixtral-12b", _q(0.32, 0.32, 0.3), "Ministral 8B"),
+    (r"ministral-3b", _q(0.22, 0.22, 0.2), "Ministral 3B"),
+    (r"open-mistral-nemo|mistral-tiny|open-mistral-7b", _q(0.18, 0.18, 0.15), "small Mistral"),
+    # other keyed providers' flagship families (same scale)
+    (r"gpt-5(\.\d+)?-(mini)", _q(0.72, 0.74, 0.76), "GPT-5 mini"),
+    (r"gpt-5(\.\d+)?-(nano)", _q(0.5, 0.5, 0.52), "GPT-5 nano"),
+    (r"gpt-5", _q(0.86, 0.88, 0.9, 0.9, 0.86), "GPT-5 family"),
+    (r"deepseek-reasoner", _q(0.74, 0.76, 0.82, 0.82, 0.7), "DeepSeek reasoner"),
+    (r"deepseek-chat", _q(0.72, 0.78, 0.7, 0.7, 0.72), "DeepSeek chat"),
+]
+_FAMILY_RX = [(re.compile(p), q, why) for p, q, why in FAMILIES]
+
+
+def family_quality(model_id: str) -> tuple[dict[str, float], str] | None:
+    mid = model_id.lower().removeprefix("models/").split("/")[-1]
+    for rx, q, why in _FAMILY_RX:
+        if rx.search(mid):
+            return dict(q), why
+    return None
+
+
+# Cheap, reliable model of each keyed provider for the key test (one tiny call): stable ids first.
+TEST_MODELS: dict[str, list[str]] = {
+    "gemini": [r"^gemini-2\.5-flash-lite$", r"^gemini-flash-lite-latest$", r"^gemini-2\.5-flash$",
+               r"^gemini-flash-latest$", r"^gemini-2\.0-flash$", r"^gemini-.*flash"],
+    "mistral": [r"^mistral-small-latest$", r"^ministral-8b-latest$", r"^mistral-small", r"^ministral",
+                r"^mistral-medium"],
+    "anthropic": [r"^claude-haiku"],
+    "groq": [r"llama-3\.1-8b-instant", r"instant", r"8b"],
+    "cerebras": [r"llama3?\.1-8b", r"8b"],
+    "openai": [r"gpt-5(\.\d+)?-nano", r"mini"],
+    "deepseek": [r"^deepseek-chat$"],
+    "openrouter": [r":free$"],
+}
+_CHEAP = re.compile(r"flash|mini|small|lite|haiku|nano|instant|8b", re.I)
+_UNSTABLE = re.compile(r"preview|exp|beta|alpha|-\d{2}-\d{2}$|gemma", re.I)
+
+
+def key_test_model(models: list["Model"], provider: str) -> tuple["Model", str] | None:
+    """The model a key test should call: the provider's cheap, reliable model (not its strongest: the test only
+    checks that the key works). Returns (model, reason)."""
+    mine = [m for m in models if m.provider == provider]
+    if not mine:
+        return None
+    for pat in TEST_MODELS.get(provider, []):
+        rx = re.compile(pat, re.I)
+        hit = sorted((m for m in mine if rx.search(m.model_id)), key=lambda m: m.model_id)
+        if hit:
+            return hit[0], "cheap, stable model of this provider"
+    stable = [m for m in mine if not _UNSTABLE.search(m.model_id)] or mine
+    stable.sort(key=lambda m: (not _CHEAP.search(m.model_id), m.model_id))
+    return stable[0], "first stable model of this provider"
+
+
+
+# Models that must not prove, formalise or route (S-M, seen in real runs: « ovh:Olala-v1.0-summarise » got the
+# prove role twice and its Lean never compiled): task-specific families, and tiny models (< 7 B parameters).
+_UNFIT = re.compile(r"summar|embed|rerank|guard|moderat|classif|tts|whisper|transcri|caption|ocr|vision-only|"
+                    r"-vl\b|\bvl-|translat(e|or|ion)\b|\bmini-?lm", re.I)
+_SMALL = re.compile(r"nano\b|tiny|\be[1-4]b\b", re.I)
+_SIZE = re.compile(r"(?<![a-z])(\d+(?:\.\d+)?)\s*b\b", re.I)
+TINY_B = 7.0
+
+
+def unfit_reason(m: Model) -> str:
+    """Why `m` should not do formal work (prove / formalize / route), or "" when it may."""
+    if m.provider == "local":
+        return ""                                  # Madalean's own model for the role (Goedel / Qwen, 8 B)
+    n = f"{m.model_id} {m.name}".lower()
+    hit = _UNFIT.search(n)
+    if hit:
+        return f"task-specific model ({hit.group(0)})"
+    small = _SMALL.search(n)
+    if small:
+        return f"small model ({small.group(0)})"
+    sizes = [float(x) for x in _SIZE.findall(n.replace("a3b", "").replace("a4b", ""))]
+    if sizes and max(sizes) < TINY_B and not re.search(r"\bx\d|moe", n):
+        return f"too small ({max(sizes):g} B)"
+    return ""
 
 
 def lean_bonus(m: Model) -> tuple[float, str]:
@@ -114,7 +236,7 @@ def is_text_chat(model_id: str) -> bool:
     return not any(w in low for w in (
         "embed", "bge", "guard", "whisper", "diffusion", "tts", "flux", "lyria", "rerank", "moderation", "image",
         "veo", "dall-e", "audio", "realtime", "transcribe", "sora", "babbage", "davinci", "voxtral", "-vl", "vl-",
-        "ocr", "nano-banana"))
+        "ocr", "nano-banana", "computer-use", "robotics", "-live", "gemini-live", "aqa", "deep-research"))
 
 
 def estimate(name: str, known: list[Model]) -> dict[str, float]:
@@ -149,6 +271,27 @@ class Catalogue:
     def from_json(cls, raw: dict) -> "Catalogue":
         return cls(raw.get("updated", 0.0), [Provider(**p) for p in raw.get("providers", [])],
                    [Model(**m) for m in raw.get("models", [])])
+
+
+_SEED_KEYS: set[str] | None = None
+
+
+def _seed_keys() -> set[str]:
+    global _SEED_KEYS
+    if _SEED_KEYS is None:
+        _SEED_KEYS = {m.key for m in seed().models}
+    return _SEED_KEYS
+
+
+def _with_family(m: Model) -> Model:
+    """A catalogue saved before the family table (or by an older version) still holds the size-based guess for
+    keyed models: re-estimate them on the fly (models known to the seed or local ones keep their quality)."""
+    if m.local or m.paid or m.est or m.key in _seed_keys():
+        return m
+    fam = family_quality(m.model_id)
+    if fam is None:
+        return m
+    return Model(m.provider, m.model_id, m.name, m.tools, m.vision, fam[0], m.local, m.paid, m.context, fam[1])
 
 
 def seed() -> Catalogue:
@@ -208,7 +351,7 @@ class CatalogueStore:
     def with_keys(self, has_key: Callable[[str], bool]) -> Catalogue:
         """The catalogue as the router sees it: keyed providers only when their key is set (static lists added)."""
         provs = [p for p in self.cat.providers if not p.keyed or has_key(p.id)]
-        models = [m for m in self.cat.models if any(p.id == m.provider for p in provs)]
+        models = [_with_family(m) for m in self.cat.models if any(p.id == m.provider for p in provs)]
         for p in KEYED:
             if has_key(p.id):
                 if not any(x.id == p.id for x in provs):
@@ -231,8 +374,9 @@ class CatalogueStore:
                 if not mid or not is_text_chat(mid) or any(m.provider == pid and m.model_id == mid for m in models):
                     return
                 known = next((m for m in base.models if m.provider == pid and m.model_id == mid), None)
-                q = dict(known.quality) if known else estimate(name, base.models)
-                models.append(Model(pid, mid, name, tools, vision, q, local, paid, context))
+                fam = None if known or local else family_quality(mid)
+                q = dict(known.quality) if known else (fam[0] if fam else estimate(name, base.models))
+                models.append(Model(pid, mid, name, tools, vision, q, local, paid, context, fam[1] if fam else ""))
 
             async def fetch_free(p: Provider):
                 return p, await http.get_json(f"{p.base_url}/models", mode="online", timeout=15)

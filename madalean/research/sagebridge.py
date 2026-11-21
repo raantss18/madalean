@@ -33,6 +33,9 @@ DEFAULT_MEM_MB = 4096
 DEFAULT_TIMEOUT_S = 60.0
 MAX_TIMEOUT_S = 1800.0
 MAX_OUTPUT = 200_000
+RICH_MIMES = ("image/png", "image/svg+xml", "text/latex")   # kept for the Calcul screen (S-M); text/html never
+MAX_RICH = 12
+MAX_RICH_BYTES = 3_000_000
 
 
 # ---------------------------------------------------------------- launcher (runs before the kernel, stdlib only)
@@ -242,6 +245,7 @@ class ExecResult:
     language: str = ""
     sandbox: str = ""
     reports: list[dict] = field(default_factory=list)
+    rich: list[dict] = field(default_factory=list)   # S-M (Calcul): [{mime, data}] text/latex, image/png (base64), image/svg+xml
 
     @property
     def output(self) -> str:
@@ -504,7 +508,15 @@ class SageBridge:
                     if mt == "stream":
                         emit("stdout" if c.get("name") == "stdout" else "stderr", c.get("text", ""))
                     elif mt in ("execute_result", "display_data"):
-                        emit("result", str((c.get("data") or {}).get("text/plain", "")) + "\n")
+                        data = c.get("data") or {}
+                        emit("result", str(data.get("text/plain", "")) + "\n")
+                        for mime in RICH_MIMES:            # first rich representation only, bounded
+                            v = data.get(mime)
+                            if isinstance(v, list):
+                                v = "".join(str(x) for x in v)
+                            if isinstance(v, str) and v and len(res.rich) < MAX_RICH and len(v) <= MAX_RICH_BYTES:
+                                res.rich.append({"mime": mime, "data": v})
+                                break
                     elif mt == "error":
                         tb = "\n".join(re.sub(r"\x1b\[[0-9;]*m", "", t) for t in (c.get("traceback") or [])[-6:])
                         res.error = f"{c.get('ename')}: {c.get('evalue')}\n{tb}"[-4000:]
@@ -541,9 +553,11 @@ class SageBridge:
         return res
 
     async def run(self, key: str, language: str, code: str, *, timeout: float = DEFAULT_TIMEOUT_S,
-                  max_output: int = MAX_OUTPUT, on_output=None, fresh: bool = False, workdir: str = "") -> ExecResult:
-        """Execute `code` (preceded by PREAMBLE) in the conjecture's kernel (`fresh`: a new kernel, shut down after)."""
-        prefix = PREAMBLE
+                  max_output: int = MAX_OUTPUT, on_output=None, fresh: bool = False, workdir: str = "",
+                  preamble: str = "") -> ExecResult:
+        """Execute `code` (preceded by PREAMBLE) in the conjecture's kernel (`fresh`: a new kernel, shut down after).
+        `preamble`: more helper definitions run with PREAMBLE (the Calcul screen's `tex`)."""
+        prefix = PREAMBLE + (("\n" + preamble) if preamble else "")
         if workdir:
             prefix += f"\nimport os as _mos\n_mos.makedirs({workdir!r}, exist_ok=True)\n_mos.chdir({workdir!r})\n"
         kid = ""

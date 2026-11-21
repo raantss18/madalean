@@ -54,7 +54,7 @@
         return;
       }
       status[p.id] = test.ok === true
-        ? { level: 'ok', text: n ? tn('keys.worksN', n) : t('keys.works') }
+        ? { level: 'ok', text: (n ? tn('keys.worksN', n) : t('keys.works')) + (test.model ? ' ' + t('keys.testedWith', { model: test.model.split(':').slice(1).join(':') || test.model }) : '') }
         : test.reason === 'local_mode' ? { level: 'warn', text: t('keys.localMode') }
         : n ? { level: 'ok', text: tn('keys.savedN', n) } : { level: 'warn', text: t('keys.savedNoModel') };
     } catch (e) {

@@ -288,29 +288,47 @@ async def models_test(request: web.Request) -> web.Response:
             return [c for c in ctx.brain.candidates(role, "online") if c.provider == provider]
         except Exception:  # noqa: BLE001
             return []
+    pick_fn = getattr(ctx.brain, "test_model", None)        # S-M: a cheap, reliable model of this provider
+
+    def pick() -> dict | None:
+        try:
+            return pick_fn(provider) if pick_fn is not None else None
+        except Exception:  # noqa: BLE001
+            return None
     cands = mine("explain")
-    if not cands:
+    chosen = pick()
+    if not cands and chosen is None:
         try:
             await asyncio.wait_for(ctx.brain.refresh(), 30)
         except Exception:  # noqa: BLE001
             pass
         cands = mine("explain") or mine("assistant") or mine("prove")
+        chosen = pick()
     unlocked = {c.key for role in ("explain", "prove", "formalize", "assistant") for c in mine(role)}
-    if not cands:
+    if chosen is not None:
+        unlocked = unlocked or {chosen["key"]}
+        n_models = max(len(unlocked), int(chosen.get("models") or 0))
+    else:
+        n_models = len(unlocked)
+    if not cands and chosen is None:
         return ok({"provider": provider, "ok": False, "reason": "no_model", "models": 0})
+    test_key = chosen["key"] if chosen is not None else cands[0].key
     t0 = time.monotonic()
     try:
+        # max_tokens 16 is too short for a model that thinks first: 256 still costs almost nothing
         c = await asyncio.wait_for(ctx.brain.complete("explain", [{"role": "user", "content": "Reply with exactly: OK"}],
-                                                      mode="online", prefer=cands[0].key, max_tokens=16,
+                                                      mode="online", prefer=test_key, max_tokens=256 if chosen else 16,
                                                       temperature=0.0), 60)
     except asyncio.TimeoutError:
-        return ok({"provider": provider, "ok": False, "reason": "timeout", "models": len(unlocked)})
+        return ok({"provider": provider, "ok": False, "reason": "timeout", "models": n_models, "tested": test_key})
     except Exception as e:  # noqa: BLE001
-        return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": len(unlocked)})
+        return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": n_models,
+                   "tested": test_key})
     latency = round(time.monotonic() - t0, 2)
     used = model_key(c.model)
     good = getattr(c.model, "provider", "") == provider
-    return ok({"provider": provider, "ok": good, "model": used, "models": len(unlocked), "latency_s": latency,
+    return ok({"provider": provider, "ok": good, "model": used, "models": n_models, "latency_s": latency,
+               "tested": test_key, "why": (chosen or {}).get("why", ""),
                "reason": "" if good else "fallback: " + redact("; ".join(c.fallbacks or []))[:300]})
 
 
@@ -336,6 +354,22 @@ async def models_leaderboard_reset(request: web.Request) -> web.Response:
     await asyncio.to_thread(leaderboard_of(ctx).reset)
     ctx.publish("models.status", {"leaderboard": "reset"})
     return ok({"entries": []})
+
+
+@routes.get("/api/models/spend")
+async def models_spend(request: web.Request) -> web.Response:
+    """Paid-model spending (S-M): this month's total, the caps, recent calls (model, tokens, USD), list prices.
+    Read-only; the caps are settings (`claude_cap_proof_usd`, `claude_cap_month_usd`)."""
+    ctx = ctx_of(request)
+    fn = getattr(ctx.brain, "spend_summary", None)
+    if fn is not None:
+        return ok(await asyncio.to_thread(fn))
+    from ..brain.spend import Ledger
+    s = ctx.settings
+    out = Ledger(ctx.paths.config / "brain-spend.json").summary(s.claude_cap_proof_usd, s.claude_cap_month_usd)
+    out.update(enabled=s.claude_reinforce, key_set="anthropic" in set(ctx.keys.providers()), model=s.claude_model,
+               models=[])
+    return ok(out)
 
 
 @routes.post("/api/models/refresh")
@@ -427,6 +461,12 @@ async def health(ctx) -> list[dict]:
     low = [d for d in disks if d["free_gb"] < 10]
     add("disk", not low, "Espace disque suffisant." if not low else "Disque presque plein : {n} Go libres.",
         n=low[0]["free_gb"] if low else 0)
+    from ..runtime.llama import gpu_share          # S-N: who holds the GPU (automatic lending with Ollama)
+    share = gpu_share(ctx.monitor.gpu, getattr(ctx.local, "last_pid", None))
+    if share:
+        add("gpu_share", True, "Carte graphique : {who} ; {free} Mo libres. Si la place manque, Madalean fait "
+            "décharger les modèles d'Ollama (rechargés à la demande) et rend la carte après inactivité.",
+            who=", ".join(f"{h['app']} {h['mib']} Mo" for h in share["holders"]) or "personne", free=share["free"])
     add("brain", ctx.brain_kind != "fake" or ctx.demo, "Moteur de modèles : {kind}." if ctx.brain_kind != "fake"
         or ctx.demo else "Moteur de modèles absent : réponses simulées (installation incomplète).", kind=ctx.brain_kind)
     return checks

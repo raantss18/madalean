@@ -96,7 +96,12 @@ def score_of(e: Entry) -> float:
     mean_att = e.att_ok / e.ok if e.ok > 0.05 else 1.0
     eff = min(0.15, 0.03 * max(0.0, mean_att - 1.0))
     pause = 0.3 * e.pauses / (e.pauses + e.n + 2.0)
-    return max(0.0, min(1.0, p - eff - pause))
+    # S-M: a model that ran several times, never succeeded and whose Lean is always rejected is demoted further
+    # (summarisation or chat models that write text instead of Lean): up to -0.25
+    junk = 0.0
+    if e.ok < 0.05 and e.n >= 1.5 and e.runs > 0:
+        junk = 0.25 * min(1.0, e.lean_err / e.runs) * (e.n / (e.n + 2.0))
+    return max(0.0, min(1.0, p - eff - pause - junk))
 
 
 def confidence(e: Entry) -> float:

@@ -7,8 +7,10 @@ upwards when busy. Holding the `gpu` slot is reentrant per job (`slots.CURRENT_J
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
+import shutil
 import signal
 import socket
 import time
@@ -168,6 +170,111 @@ def oom_fallback(pl: LaunchPlan) -> LaunchPlan:
                       _("Mémoire graphique insuffisante : nouvel essai avec {n} couches sur la carte.").format(n=n))
 
 
+# ---------------------------------------------------------------- GPU lending (S-N, user decision 2026-11-21)
+# When the GPU is short, Ollama (user service, used by mi-saina / Sampana / L Katta) is asked to unload its models
+# through its documented API (keep_alive 0) — nothing is killed or stopped, Ollama reloads on its next request.
+# Preferred path: the separate tool `fitantanana gpu lend` (inventory + coordination); fallback: the same request
+# made here directly. Madalean gives the GPU back by stopping llama-server after `local_idle_unload_minutes`.
+def full_gpu_need_mib(model: Path, s: config.ServerSettings) -> int | None:
+    """VRAM (MiB) for the whole model + KV cache on the GPU, with the margins of `plan_launch`."""
+    try:
+        info = read_info(model)
+    except (OSError, GGUFError):
+        return None
+    ctx = min(s.ctx_size, info.ctx_train) if info.ctx_train else s.ctx_size
+    kv = s.kv_type if s.flash_attn else "f16"
+    return int((info.size + info.kv_bytes(ctx, kv) + 750 * 1024 * 1024) / 2**20) + 1
+
+
+def fitantanana_exe() -> str | None:
+    for c in (os.environ.get("MADALEAN_FITANTANANA"), shutil.which("fitantanana"),
+              str(Path.home() / ".local/bin/fitantanana"), str(Path.home() / "GitHub/fitantanana/bin/fitantanana")):
+        if c and os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    return None
+
+
+def ollama_url() -> str:
+    h = os.environ.get("OLLAMA_HOST") or "127.0.0.1:11434"
+    return (h if h.startswith("http") else "http://" + h).rstrip("/")
+
+
+async def _ollama_loaded(http: aiohttp.ClientSession, base: str) -> list[dict] | None:
+    try:
+        async with http.get(base + "/api/ps") as r:
+            return list((await r.json(content_type=None)).get("models") or []) if r.status == 200 else None
+    except (aiohttp.ClientError, asyncio.TimeoutError, OSError, ValueError):
+        return None
+
+
+async def lend_gpu(need_mib: int, timeout: float = 60.0, base: str | None = None) -> dict:
+    """Ask for `need_mib` MiB of free VRAM. Never raises; returns the lending report (`via`: fitantanana|builtin)."""
+    exe = fitantanana_exe()
+    if exe:
+        proc = None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                exe, "gpu", "lend", "--to", "madalean", "--need", str(need_mib), "--timeout", str(int(timeout)),
+                "--json", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+            out, _e = await asyncio.wait_for(proc.communicate(), timeout + 15)
+            d = json.loads(out.decode() or "{}")
+            if isinstance(d, dict) and "reason" in d:
+                return {**d, "via": "fitantanana"}
+        except (OSError, asyncio.TimeoutError, ValueError):
+            if proc is not None and proc.returncode is None:
+                proc.kill()
+    # built-in minimal fallback: unload every model Ollama keeps in VRAM, then wait until they are gone
+    base = base or ollama_url()
+    out: dict = {"via": "builtin", "need_mib": need_mib, "unloaded": [], "ok": False}
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as http:
+        loaded = await _ollama_loaded(http, base)
+        if loaded is None:
+            return {**out, "reason": "ollama_unreachable"}
+        for m in sorted((m for m in loaded if m.get("size_vram")), key=lambda m: -m["size_vram"]):
+            try:
+                async with http.post(base + "/api/generate", json={"model": m["name"], "keep_alive": 0,
+                                                                   "stream": False}) as r:
+                    if r.status == 200:
+                        out["unloaded"].append(m["name"])
+            except (aiohttp.ClientError, asyncio.TimeoutError, OSError):
+                continue
+        t0 = time.monotonic()
+        while out["unloaded"] and time.monotonic() - t0 < timeout:
+            still = {m.get("name") for m in (await _ollama_loaded(http, base) or [])} & set(out["unloaded"])
+            if not still:
+                break
+            await asyncio.sleep(0.5)
+        await asyncio.sleep(1.0 if out["unloaded"] else 0)    # the runner process releases its CUDA memory
+    return {**out, "ok": bool(out["unloaded"]), "reason": "freed" if out["unloaded"] else "nothing_to_unload"}
+
+
+async def give_back_gpu() -> None:
+    exe = fitantanana_exe()
+    if not exe:
+        return
+    try:
+        p = await asyncio.create_subprocess_exec(exe, "gpu", "return", "--from", "madalean", "--json",
+                                                 stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        await asyncio.wait_for(p.wait(), 15)
+    except (OSError, asyncio.TimeoutError):
+        pass
+
+
+def gpu_share(gpu: dict | None, own_pid: int | None) -> dict | None:
+    """Who holds the GPU now (for Système → santé): Ollama, Madalean, others — from the monitor snapshot."""
+    if not gpu:
+        return None
+    by: dict[str, int] = {}
+    for pid, mib in (gpu.get("apps") or {}).items():
+        pid = int(pid)
+        cmd = _proc_cmdline(pid)
+        name = ("Madalean" if pid == own_pid or "llama-server" in cmd else "Ollama" if "ollama" in cmd
+                else (Path(cmd.split(" ")[0]).name if cmd else f"pid {pid}"))
+        by[name] = by.get(name, 0) + int(mib)
+    return {"holders": [{"app": k, "mib": v} for k, v in sorted(by.items(), key=lambda x: -x[1])],
+            "free": gpu.get("free"), "total": gpu.get("total")}
+
+
 class LaunchError(Exception):
     def __init__(self, kind: str, details: str = ""):
         super().__init__(f"{kind}: {details[-300:]}")
@@ -201,6 +308,10 @@ class LocalLlama:
         self._load_lock = asyncio.Lock()
         self._reader: asyncio.Task | None = None
         self.on_change: Callable[[], None] | None = None
+        self.last_used = time.monotonic()       # S-N: idle unload gives the GPU back to the other apps
+        self.idle_poll = 30.0
+        self._idle_task: asyncio.Task | None = None
+        self.last_lend: dict | None = None
 
     # ------------------------------------------------------------ models
     async def refresh_models(self) -> list:
@@ -240,7 +351,8 @@ class LocalLlama:
                 "port": self.port if self.state != self.STOPPED else None, "offload": self.offload,
                 "load_seconds": self.load_seconds, "ctx": self.plan.ctx if self.plan else None,
                 "gpu_layers": self.plan.gpu_layers if self.plan else None, "notes": self.notes[-3:],
-                "error": self.last_error, "holder": self._holder,
+                "error": self.last_error, "holder": self._holder, "last_lend": self.last_lend,
+                "gpu_share": gpu_share(self.monitor.gpu, self.last_pid if self.state != self.STOPPED else None),
                 "roles": {r: (self.path_for(r).name if self.path_for(r) else None)
                           for r in ("formalize", "prove", "explain")}}
 
@@ -257,6 +369,7 @@ class LocalLlama:
         if target is None:
             return None
         owner = current_owner()
+        self.last_used = time.monotonic()
         if self._holder != owner:
             await self.slots.acquire("gpu", owner)
             self._holder = owner
@@ -272,6 +385,7 @@ class LocalLlama:
             raise
 
     def release(self) -> None:
+        self.last_used = time.monotonic()
         owner = current_owner()
         if self._holder is not None and (self._holder == owner or not self._holder_alive()):
             self.slots.release("gpu", self._holder)
@@ -279,6 +393,7 @@ class LocalLlama:
             self._changed()
 
     def release_owner(self, owner: str) -> None:
+        self.last_used = time.monotonic()
         if self._holder == owner:
             self.slots.release("gpu", owner)
             self._holder = None
@@ -298,6 +413,7 @@ class LocalLlama:
         await self.monitor.first_snapshot()
         s = self.get_settings().server
         vram = None if not self.monitor.gpu_ok else self.monitor.free_excluding(self.last_pid)
+        vram = await self._borrow_gpu(model, s, vram)
         plan = plan_launch(model, s, vram)
         for retry in range(4):
             try:
@@ -308,6 +424,43 @@ class LocalLlama:
                     plan = oom_fallback(plan)
                     continue
                 self._fail(e.kind, e.details)
+
+    async def _borrow_gpu(self, model: Path, s: config.ServerSettings, vram: int | None) -> int | None:
+        """Free VRAM held by Ollama when the model would not fit entirely (S-N); returns the new free VRAM."""
+        need = full_gpu_need_mib(model, s) if vram is not None else None
+        if need is None or vram >= need or not self._ollama_holds_gpu():
+            return vram
+        res = await lend_gpu(need - vram + int(self.monitor.gpu["free"]) if self.monitor.gpu else need)
+        self.last_lend = {k: res.get(k) for k in ("ok", "reason", "via", "unloaded", "free_before", "free_after",
+                                                   "need_mib")}
+        self.last_lend["t"] = time.time()
+        if res.get("unloaded"):
+            self.notes.append(_("Carte graphique prêtée par Ollama : {models} déchargé(s) (Ollama les rechargera "
+                                "à la demande).").format(models=", ".join(res["unloaded"])))
+            log.info("GPU lent by Ollama: %s (%s)", res["unloaded"], res.get("via"))
+        try:
+            await self.monitor.poll()
+        except Exception:  # noqa: BLE001
+            log.exception("monitor poll after GPU lending failed")
+        return self.monitor.free_excluding(self.last_pid) if self.monitor.gpu_ok else vram
+
+    def _ollama_holds_gpu(self) -> bool:
+        return any("ollama" in _proc_cmdline(int(p)) for p in (self.monitor.gpu or {}).get("apps", {}))
+
+    async def _idle_watch(self) -> None:
+        """Stop llama-server after `local_idle_unload_minutes` without use, to give the GPU back (0 = never)."""
+        while self.state == self.READY:
+            await asyncio.sleep(self.idle_poll)
+            minutes = float(getattr(self.get_settings(), "local_idle_unload_minutes", 10) or 0)
+            if (minutes > 0 and self.state == self.READY and self._holder is None and not self._load_lock.locked()
+                    and time.monotonic() - self.last_used >= minutes * 60):
+                log.info("local model idle for %s min: stopping llama-server to give the GPU back", minutes)
+                await self.stop()
+                self.notes.append(_("Modèle local arrêté après {m} min sans utilisation : la carte graphique est "
+                                    "rendue aux autres applications.").format(m=int(minutes)))
+                await give_back_gpu()
+                self._changed()
+                return
 
     def _fail(self, kind: str, details: str) -> None:
         self.last_error = {"kind": kind, "details": details[-2000:]}
@@ -385,6 +538,9 @@ class LocalLlama:
         except OSError:
             pass
         log.info("llama-server ready in %.1f s (%s, offload %s)", self.load_seconds, plan.model.name, self.offload)
+        self.last_used = time.monotonic()
+        if self._idle_task is None or self._idle_task.done():
+            self._idle_task = asyncio.create_task(self._idle_watch(), name="llama-idle")
         self._changed()
 
     async def _read(self, proc: asyncio.subprocess.Process) -> None:
@@ -416,6 +572,9 @@ class LocalLlama:
             self._changed()
 
     async def stop(self, timeout: float = 5.0) -> None:
+        idle = self._idle_task
+        if idle is not None and idle is not asyncio.current_task() and not idle.done():
+            idle.cancel()
         proc, self.proc = self.proc, None
         if proc is None or proc.returncode is not None:
             self.state = self.STOPPED

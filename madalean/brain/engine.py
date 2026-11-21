@@ -17,7 +17,8 @@ from .providers import anthropic as anthropic_api
 from .providers import openai_compat
 from .providers.base import ProviderError, StreamResult, emit
 from .leaderboard import Leaderboard
-from .router import Candidate, compose, rank
+from . import spend
+from .router import Candidate, compose, rank, score_model
 from .settings import EFFORT, MAX_TOKENS, merged
 from .state import States
 
@@ -41,6 +42,7 @@ class MadaleanBrain:
         self.store = CatalogueStore(self.config_dir / "brain-catalogue.json")
         self.states = States(self.config_dir / "brain-state.json")
         self.leaderboard = Leaderboard(self.config_dir / "brain-leaderboard.json")
+        self.ledger = spend.Ledger(self.config_dir / "brain-spend.json")
         self._sem: asyncio.Semaphore | None = None
         self._refresh_task: asyncio.Task | None = None
         self.last_error: dict[str, str] = {}
@@ -129,6 +131,83 @@ class MadaleanBrain:
         """Ranking with the reason of each position (for the UI's « why this model? »)."""
         return [{"model": c.model.key, "name": c.model.name, "score": round(c.score, 3), "why": c.why}
                 for c in self.ranking(role, mode, domain=domain)]
+
+    def test_model(self, provider: str) -> dict | None:
+        """The model the key test calls for `provider`: cheap and stable, not the strongest (catalogue.test_model)."""
+        from .catalogue import key_test_model
+        models = [m for m in self._view().models if m.provider == provider and not self.states.pause_of(m.key)]
+        r = key_test_model(models, provider)
+        if r is None:
+            return None
+        return {"key": r[0].key, "name": r[0].name, "why": r[1], "models": len(models)}
+
+    # ------------------------------------------------------------------ paid reinforcement (Claude) and spending
+    def caps(self) -> tuple[float, float]:
+        def f(name: str, default: float) -> float:
+            v = self.settings.get(name)
+            return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else default
+        return f("claude_cap_proof_usd", spend.DEFAULT_CAP_PROOF), f("claude_cap_month_usd", spend.DEFAULT_CAP_MONTH)
+
+    def spend_summary(self) -> dict:
+        cp, cm = self.caps()
+        out = self.ledger.summary(cp, cm)
+        out.update(enabled=bool(self.settings.get("claude_reinforce", True)), key_set=self.key("anthropic") is not None,
+                   model=str(self.settings.get("claude_model") or "auto"),
+                   models=[{"key": m.key, "name": m.name} for m in self._view().models
+                           if m.paid and m.provider == "anthropic"])
+        return out
+
+    def reinforcements(self, role: Role, mode: Mode = "auto", *, domain: str | None = None) -> list[ModelRef]:
+        """The paid model that may join the tournament's final round when the free models failed (user decision
+        2026-11-21): Claude, only with its key, `claude_reinforce` on, outside local mode and while the month's cap
+        leaves room. The model is `claude_model` when set, else the best Claude for the role. At most one."""
+        if not self.settings.get("claude_reinforce", True) or self.effective_mode(mode) == "local" \
+                or self.key("anthropic") is None:
+            return []
+        cp, cm = self.caps()
+        if self.ledger.month_total() >= cm or cp <= 0:
+            return []
+        from .classify import role_categories
+        cat, cat2, fast = role_categories(role, None)
+        pool = [m for m in self._view().models if m.paid and m.provider == "anthropic"
+                and not self.states.pause_of(m.key)]
+        want = str(self.settings.get("claude_model") or "auto")
+        chosen = [m for m in pool if want in (m.key, m.model_id)]
+        if chosen:
+            return [ref_of(chosen[0])]
+        pool.sort(key=lambda m: score_model(m, cat, cat2, fast, self.states, True)[0], reverse=True)
+        return [ref_of(m) for m in pool[:1]]
+
+    def _budget(self, m: Model, role: str, payload, max_tokens: int, on_chunk) -> tuple[int, float]:
+        """Before a paid call: fit `max_tokens` to what the caps leave, reserve the estimate. Raises
+        ProviderError("budget") when even a short answer would pass a cap (nothing is sent)."""
+        p = spend.price_of(m.model_id)
+        if p is None:
+            return max_tokens, 0.0
+        scope = spend.SPEND_SCOPE.get()
+        cp, cm = self.caps()
+        n_in = spend.tokens_of(payload)
+        p = spend.price_of(m.model_id, n_in) or p
+        room = self.ledger.room(scope, cp, cm)
+        affordable = int((room - n_in * p[0] / 1e6) / p[1] * 1e6) if p[1] else max_tokens
+        floor_ = min(max_tokens, spend.MIN_OUTPUT)
+        if affordable < floor_:
+            which = "proof" if scope and self.ledger.proof_room(scope, cp) <= self.ledger.month_room(cm) else "month"
+            why = (f"spending cap reached ({which}: {cp if which == 'proof' else cm:.2f} $); "
+                   f"{m.name} not called")
+            emit(on_chunk, "info", why, event="budget", model=m.key, cap=which)
+            raise ProviderError("budget", why)
+        mt = min(max_tokens, affordable)
+        est = n_in * p[0] / 1e6 + mt * p[1] / 1e6
+        try:
+            self.ledger.check(scope, est, cp, cm)
+        except spend.BudgetExceeded as e:
+            why = f"spending cap reached ({e.which}: {e.cap:.2f} $); {m.name} not called"
+            emit(on_chunk, "info", why, event="budget", model=m.key, cap=e.which)
+            raise ProviderError("budget", why) from None
+        emit(on_chunk, "info", f"{m.name}: at most {est:.2f} $ for this call", event="cost", model=m.key,
+             estimate=round(est, 4))
+        return mt, est
 
     def _maybe_refresh(self) -> None:
         if not self.settings.get("refresh_catalogue", True) or self.settings.get("mode") == "local":
@@ -238,13 +317,33 @@ class MadaleanBrain:
                 system, amsgs = anthropic_api.split_system(messages or [])
             effort = (self.settings.get("anthropic_effort") or {}).get(role) or (extra or {}).get("effort") \
                 or EFFORT.get(role, "medium")
-            async with self.sem():
-                return await anthropic_api.stream_messages(
-                    self.http, base_url=base, model=m.model_id, system=system, messages=amsgs, mode=mode, key=key,
-                    max_tokens=max_tokens or MAX_TOKENS.get(role, 16000), tools=tools, effort=effort,
-                    thinking=bool(self.settings.get("anthropic_thinking", True)),
-                    fallbacks=bool(self.settings.get("anthropic_fallbacks", True)), cache=True,
-                    on_chunk=on_chunk, stall=stall, first_byte=first)
+            mt = max_tokens or MAX_TOKENS.get(role, 16000)
+            est = 0.0
+            scope = spend.SPEND_SCOPE.get()
+            if m.paid:
+                mt, est = self._budget(m, role, [system, amsgs, tools], mt, on_chunk)
+            try:
+                async with self.sem():
+                    res = await anthropic_api.stream_messages(
+                        self.http, base_url=base, model=m.model_id, system=system, messages=amsgs, mode=mode, key=key,
+                        max_tokens=mt, tools=tools, effort=effort,
+                        thinking=bool(self.settings.get("anthropic_thinking", True)),
+                        fallbacks=bool(self.settings.get("anthropic_fallbacks", True)), cache=True,
+                        on_chunk=on_chunk, stall=stall, first_byte=first)
+            except ProviderError as e:
+                if m.paid and est and e.kind in ("network", "stall", "empty"):
+                    # the request may have been billed without usage reaching us: count its prompt (estimated)
+                    self.ledger.record(m.model_id, scope, spend.tokens_of([system, amsgs, tools]), 0)
+                raise
+            finally:
+                if est:
+                    self.ledger.release(scope, est)
+            if m.paid:
+                row = self.ledger.record(m.model_id, scope, res.tokens_in, res.tokens_out, res.cache_read,
+                                         res.cache_write)
+                emit(on_chunk, "info", f"{m.name}: {row.usd:.4f} $", event="spent", model=m.key, usd=row.usd,
+                     month=round(self.ledger.month_total(), 4))
+            return res
         msgs = messages if history is None else convo.to_openai(history, bool(tools))
         ex = {k: v for k, v in (extra or {}).items() if k not in ("effort",)}
         if not m.local:
@@ -268,7 +367,7 @@ class MadaleanBrain:
                 return "offline"
             self.states.record(m.key, False, 0, e.message)
             return f"network error: {e.message}"
-        if e.kind in ("unavailable",):
+        if e.kind in ("unavailable", "budget"):
             return e.message
         if e.kind == "context":
             return "conversation too long for this model"

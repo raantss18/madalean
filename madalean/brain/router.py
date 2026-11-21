@@ -7,13 +7,16 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .catalogue import Catalogue, Model, lean_bonus
+from .catalogue import Catalogue, Model, lean_bonus, unfit_reason
 from .classify import role_categories
 from .leaderboard import ROLE_TASK, Leaderboard
 from .state import States
 
 _FAST = re.compile(r"flash|mini|small|fast|lite|haiku|nano|turbo|instant|-8b|-9b|7b|3b", re.I)
 _SLOW = re.compile(r"opus|fable|-r1|thinking|reasoner|405b|397b|550b|ultra", re.I)
+
+
+FORMAL_ROLES = ("prove", "formalize", "route")
 
 
 @dataclass
@@ -29,6 +32,8 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
     rel = states.reliability(m.key)
     s = 0.75 * q + 0.25 * rel
     parts = [f"{cat} {q1:.2f}"]
+    if m.est:
+        parts.append(f"(estimated: {m.est})")
     if cat == "lean" and "lean" not in m.quality:
         b, why = lean_bonus(m)
         if b:
@@ -80,6 +85,13 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
         if m.paid and not (paid_first or chosen(m)):
             continue
         s, why = score_model(m, cat, cat2, fast, states, paid_first)
+        if role in FORMAL_ROLES and not chosen(m):
+            unfit = unfit_reason(m)
+            if unfit and role != "route":
+                continue                      # never a prover / formaliser (still usable when the user picks it)
+            if unfit:
+                s -= 0.3
+                why += f", {unfit} -0.30"
         if leaderboard is not None and task:
             b, bwhy = leaderboard.bonus(m.key, task, domain, lang)
             if bwhy:
