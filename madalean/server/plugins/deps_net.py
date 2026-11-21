@@ -35,6 +35,22 @@ NET = web.AppKey("net_manager", NetManager)
 COMPONENT_RE = r"{component:[a-z0-9.-]{1,40}}"
 
 
+def shared_node_blocked(config_dir) -> str | None:
+    """Why this server must not auto-start the shared Tailscale node (None: it is the installed server)."""
+    from pathlib import Path
+    from ... import config
+    if os.environ.get("MADALEAN_NET") == "1":
+        return None
+    try:
+        if deps.home().resolve() not in config.STATION_DIR.resolve().parents:
+            return "dev_checkout"
+        if Path(config_dir).resolve() != (Path.home() / ".config" / "madalean").resolve():
+            return "custom_config_dir"
+    except OSError:
+        return "unknown_layout"
+    return None
+
+
 def _net_settings(ctx) -> dict:
     data = read_json(ctx.paths.config / "net.json")[0] or {}
     host = data.get("hostname") if isinstance(data.get("hostname"), str) else "madalean"
@@ -145,6 +161,7 @@ def register(app: web.Application, ctx) -> None:
     s = _net_settings(ctx)
     nm = NetManager(ctx.publish, hostname=s["hostname"])
     app[NET] = nm
+    ctx.net = nm            # the pairing screen's remote_url comes from this node's status
 
     def on_status(st: dict) -> None:
         names = app[REMOTE_HOSTS]
@@ -162,6 +179,13 @@ def register(app: web.Application, ctx) -> None:
         if getattr(ctx, "demo", False) or os.environ.get("MADALEAN_NO_NET") == "1":
             return
         if not _net_settings(ctx)["enabled"] or deps.tool_info("madalean-net")["source"] != "prefix":
+            return
+        why = shared_node_blocked(ctx.paths.config)
+        if why:
+            # the node's state lives in the PREFIX (one Tailscale identity « madalean »): a dev checkout or a test
+            # server (--config-dir) must never start a second node on it (incident 2026-11-21, session S-Q: it
+            # took over the installed server's status socket). Explicit POST /api/net/start still works.
+            log.info("Tailscale node not started automatically (%s)", why)
             return
 
         async def later():

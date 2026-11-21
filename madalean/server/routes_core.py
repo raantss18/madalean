@@ -190,6 +190,15 @@ async def pairing_start(request: web.Request) -> web.Response:
 async def remote_url(ctx) -> str | None:
     """Address other devices use: from the Tailscale node status (madalean.runtime.net, session S-I, when present),
     else from the configured host name when it is a tailnet name; None when unknown."""
+    nm = getattr(ctx, "net", None)          # embedded Tailscale node (S-I): its own HTTPS name, port 443
+    if nm is not None:
+        try:
+            st = nm.status()
+            dns = (st.get("dns_name") or "").rstrip(".")
+            if st.get("state") == "running" and dns:
+                return f"https://{dns}"
+        except Exception:  # noqa: BLE001
+            pass
     try:
         from ..runtime import net  # type: ignore[attr-defined]
         fn = getattr(net, "remote_url", None)
@@ -322,6 +331,15 @@ async def models_test(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     data = await body(request)
     provider = str(data.get("provider", ""))[:41]
+    if provider == "github":
+        # not a model provider: the GitHub token is tested by a read-only identity check (« Publier »), never by an LLM
+        # call (which reported « no model, is the key valid? » for a perfectly good token) nor a catalogue refresh
+        from ..research import publish
+        res = await publish.check(ctx)
+        first_bad = next((c for c in res["checks"] if c["ok"] is False), None)
+        return ok({"provider": provider, "ok": bool(res.get("ok")), "login": res.get("login", ""),
+                   "token_kind": res.get("token_kind", ""), "github": res, "models": 0,
+                   "reason": "" if res.get("ok") else ("github:" + (first_bad or {}).get("code", "unknown"))})
     fn = getattr(ctx.brain, "test", None)
     if fn is not None:
         try:
