@@ -396,6 +396,8 @@ def normalize_formal_statement(code: str) -> str:
     lines = [l for l in code.replace("\r\n", "\n").split("\n")
              if not re.match(r"\s*(import\s|set_option\s+maxHeartbeats|#(eval|check|print|reduce)\b)", l)
              and l.strip() != "open " + std_open]       # stray #eval/#check lines from the model are dropped (D28)
+    # `R[X]` is Mathlib notation that needs `open Polynomial`, absent from Goedel's fixed header: spell it out
+    lines = [re.sub(r"(?<![\w.'])([A-Za-z𝕜ℝℚℂℤℕ][\w'₀-₉]*)\[X\]", r"(Polynomial \1)", l) for l in lines]
     return prepare_statement("\n".join(lines).strip())
 
 

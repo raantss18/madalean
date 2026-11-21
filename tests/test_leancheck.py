@@ -181,3 +181,10 @@ def test_model_statement_with_stray_eval_is_cleaned_and_gate_reports_an_error():
     from madalean import leancheck as lc
     st = lc.normalize_formal_statement('import Mathlib\n#eval "Lean 4"\ntheorem t : 1 = 1 := by sorry')
     assert "#eval" not in st and "theorem" in st
+
+
+def test_polynomial_bracket_notation_is_spelled_out():
+    """Real case (2026-11-21): `(P : R[X])` failed in the user's Cayley-Hamilton translation (no `open Polynomial`)."""
+    from madalean import leancheck as lc
+    st = lc.normalize_formal_statement("theorem t {R : Type*} [CommRing R] (P : R[X]) (q : ℝ[X]) : P = P := by sorry")
+    assert "(Polynomial R)" in st and "(Polynomial ℝ)" in st and "[X]" not in st
