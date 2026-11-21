@@ -20,6 +20,7 @@
 - 🔄 Consigne de recherche sur un article : vérifications Lean, exemples et figures Sage, améliorations et généralisations proposées une par une, tu valides chaque changement (S-Q)
 - 🔄 Mémoire : noyaux gardés chauds (~1,5–2 Go au repos), aucun doublon de processus, d'index ou de tâche (S-Q)
 - 🔄 Défauts vus sur tes vrais dossiers : Riesz manqué par la recherche Mathlib, modèle Gemini « Live » choisi, doublon dans une course, Gemini qui se bloque, PDF (S-O)
+- 🔄 Écriture d'articles : éditeur visuel (formules, théorèmes, figures, citations) avec source LaTeX à un clic, aperçu PDF, assistant en suggestions, paquets gérés par le moteur interne sans doublon, Overleaf en option, interface épurée + options avancées et personnalisation (S-R)
 - ⬜ Relancer Cayley-Hamilton et Riesz après mise à jour
 
 ### P1 — à faire avant la publication
