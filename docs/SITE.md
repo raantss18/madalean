@@ -132,7 +132,8 @@ How the UI consumes it:
 
 ## 3. Signed update channel (`updates/`) — for S-G / the release process
 
-The site **consumes** the channel; it never signs. The release process writes into `site/updates/`:
+The site **consumes** the channel; it never signs. The release process writes into `site/updates/` with the ONE
+producer of the format, `scripts/make_update_manifest.py` (called by `scripts/sign_release.sh`):
 
 `stable.json` (UTF-8 JSON):
 ```json
@@ -142,18 +143,23 @@ The site **consumes** the channel; it never signs. The release process writes in
  "version": "2.0.0",
  "tag": "v2.0.0",
  "date": "2026-12-01",
+ "published": "2026-12-01T10:00:00+00:00",
  "notes": {"fr": "…", "en": "…"},
  "notes_url": "https://github.com/raantss18/madalean/releases/tag/v2.0.0",
- "sums_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS",
- "sums_sig_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS.sig",
- "apk_certificate_sha256": "0d43426b…c544",
+ "min_version": "2.0.0",
  "files": [
   {"kind": "server",   "name": "madalean-2.0.0.tar.gz", "url": "https://github.com/…/madalean-2.0.0.tar.gz", "size": 9800000, "sha256": "<64 hex>"},
   {"kind": "appimage", "arch": "x86_64", "name": "Madalean-2.0.0-x86_64.AppImage", "url": "…", "size": 0, "sha256": "…"},
   {"kind": "apk", "arch": "arm64-v8a|armeabi-v7a|x86_64|universal", "name": "madalean-<arch>-release.apk", "url": "…", "size": 0, "sha256": "…"}
- ]
+ ],
+ "sums_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS",
+ "sums_sig_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS.sig",
+ "apk_certificate_sha256": "0d43426b…c544"
 }
 ```
+`channel` is signed and must equal the requested file's base name (`stable`); `min_version` is the oldest version
+that may update directly (older → manual install). Updaters (server, AppImage, APK) check, in this order: signature →
+channel → strictly newer → https-only file URL → size → SHA-256 (docs/SHELLS.md "Updates").
 `stable.json.sig` = base64 of the Ed25519 signature of the **exact bytes** of `stable.json`, with the release key
 (the one of `SHA256SUMS.sig`):
 ```
@@ -246,9 +252,14 @@ claims are published), `failed` (build fails, a result missing, a non-standard a
 `site/verification/badge.svg` + `result.json`, then deploys (a failing badge is deployed too, and the job fails).
 Before CI runs, the local preview shows a grey « en attente / pending » badge.
 
-The sample (`site/publication/sample/`) was **not** compiled with Lean (no GPU/Lean run in this session): its Lean code
-is plausible Lean 4.9-era Mathlib, its Mathlib revision is marked `EXEMPLE`, and its lakefile pins
-`mathlib4 @ "v4.9.0"` — check the tag before using it as a real CI test.
+The sample (`site/publication/sample/`) **was compiled with Lean** by session S-E (2026-11-21): toolchain
+`leanprover/lean4:v4.34.1`, Mathlib pinned to the exact commit `d13f23b723b8a846827a245b89c10fc7d3f11612` (tag
+v4.34.1, the `lean-current` workspace), `lake-manifest.json` included (every dependency pinned), `lake build` OK
+(only `isEven_sq_add_self` uses `sorry`, as intended) and `lake env lean Verify.lean` prints only standard axioms.
+Fixes made then: the former pin `mathlib4 @ "v4.9.0"` did not match any built Mathlib here; the package name must
+be a plain identifier (`package ParityNotes`, not `«parity-notes»`: lake rejects it in `lake-manifest.json`); the
+Mathlib URL in the lakefile must equal the manifest's (`…/mathlib4`, without `.git`), else lake reports the
+manifest out of date. « Publier » (`madalean/research/publish.py`) generates projects the same way.
 
 ## 5. Checks run by every build
 

@@ -5,7 +5,8 @@
 //! anything is downloaded; the AppImage is then downloaded next to the running one, checked (size + SHA-256),
 //! made executable, the running file is kept as `<name>.previous` (hard link, rollback) and the new one is renamed
 //! over it atomically. The new version runs at the next start, or when the shell restarts itself at a quiet moment.
-//! Never a downgrade, never an unsigned or mis-signed manifest.
+//! Never a downgrade, never an unsigned or mis-signed manifest. `min_version` = oldest version that may update
+//! directly (same meaning as the server's self-update): older → manual install from the download page.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -59,6 +60,8 @@ pub enum UpdError {
     Size,
     Checksum,
     NotWritable,
+    /// Older than the manifest's `min_version` (oldest version that may update directly): manual install.
+    TooOld,
 }
 
 /// Numeric dotted version compare; a pre-release suffix (`2.0.0-rc1`) sorts before the release.

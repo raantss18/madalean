@@ -47,6 +47,7 @@ enum UpdateError {
   certificate,
   notConfigured,
   install,
+  tooOld,
 }
 
 class UpdateException implements Exception {
@@ -225,13 +226,15 @@ UpdateFile? chooseApk(List<UpdateFile> files, List<String> abis) {
   return null;
 }
 
-/// What to do with a verified manifest.
-enum Offer { none, optional, required }
+/// What to do with a verified manifest. `min_version` = oldest version that may
+/// update directly (same meaning for the server, the AppImage and the APK):
+/// an older install gets [Offer.manual] (install from the site by hand).
+enum Offer { none, optional, manual }
 
 Offer offerFor(Manifest m, String installed) {
   if (compareVersions(m.version, installed) <= 0) return Offer.none;
   if (m.minVersion.isNotEmpty && compareVersions(installed, m.minVersion) < 0) {
-    return Offer.required;
+    return Offer.manual;
   }
   return Offer.optional;
 }
@@ -407,6 +410,9 @@ class Updater extends ChangeNotifier {
       _set(UpdateUpToDate(installed));
       return;
     }
+    if (offer == Offer.manual) {
+      throw UpdateException(UpdateError.tooOld, m.minVersion);
+    }
     final file = chooseApk(m.files, await platform.abis());
     if (file == null) throw const UpdateException(UpdateError.noFile);
     if (file.size > maxApkBytes) {
@@ -421,7 +427,7 @@ class Updater extends ChangeNotifier {
       UpdateReady(
         version: m.version,
         path: path,
-        required: offer == Offer.required,
+        required: false,
       ),
     );
   }

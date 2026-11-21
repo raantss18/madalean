@@ -216,7 +216,10 @@ async fn run_update(app: &AppHandle, manual: bool) -> Result<(), update::UpdErro
         });
         return Ok(());
     }
-    let below_floor = !m.min_version.is_empty() && update::cmp_versions(current, &m.min_version) == std::cmp::Ordering::Less;
+    if !m.min_version.is_empty() && update::cmp_versions(current, &m.min_version) == std::cmp::Ordering::Less {
+        set_upd(app, |u| u.version = Some(m.version.clone()));
+        return Err(E::TooOld);
+    }
     let auto = shell.settings.lock().unwrap().auto_update.unwrap_or(true);
     let f = update::pick_appimage(&m)?;
     set_upd(app, |u| {
@@ -229,7 +232,7 @@ async fn run_update(app: &AppHandle, manual: bool) -> Result<(), update::UpdErro
         set_upd(app, |u| u.state = "available".into());
         return Ok(());
     };
-    if !(auto || manual || below_floor) {
+    if !(auto || manual) {
         set_upd(app, |u| u.state = "available".into());
         return Ok(());
     }

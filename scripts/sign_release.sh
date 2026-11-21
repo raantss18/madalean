@@ -5,7 +5,8 @@
 # with the private key kept OUTSIDE git: ~/.config/madalean/release-keys/ed25519.pem (or $MADALEAN_RELEASE_KEY).
 # Then checks the signature against the public key embedded in madalean/update_checkers/selfupdate.py, and writes
 # the signed update channel (ARCHITECTURE §17): $SITE_DIR/updates/stable.json (+ .sig, Ed25519 over the exact bytes),
-# SITE_DIR defaults to <repo>/site. Env: MIN_VERSION (oldest version that may update directly), NOTES_URL.
+# SITE_DIR defaults to <repo>/site, written by scripts/make_update_manifest.py (single format). Env: MIN_VERSION
+# (oldest version that may update directly), NOTES_URL, NOTES_FR, NOTES_EN, RELEASE_URL_BASE, APK_CERT_SHA256.
 # Never publish a release without SHA256SUMS.sig: installed Madalean versions refuse it.
 set -euo pipefail
 DIR=${1:?usage: sign_release.sh DIR}
@@ -32,22 +33,14 @@ VERSION=$(printf '%s\n' $files | sed -n 's/^madalean-\(.*\)\.tar\.gz$/\1/p' | he
 if [ -n "$VERSION" ]; then
   SITE=${SITE_DIR:-$ROOT/site}
   mkdir -p "$SITE/updates"
+  # The ONE producer of the channel format (docs/SITE.md §3, docs/SHELLS.md "Updates"): signed `channel` field included.
+  BASE=${RELEASE_URL_BASE:-https://github.com/raantss18/madalean/releases/download/v$VERSION}
   # shellcheck disable=SC2086
-  "$PY" - "$VERSION" "$SITE/updates/stable.json" $files <<'PYEOF'
-import datetime, hashlib, json, os, sys
-version, out, names = sys.argv[1], sys.argv[2], sys.argv[3:]
-base = os.environ.get("RELEASE_URL_BASE", f"https://github.com/raantss18/madalean/releases/download/v{version}")
-def kind(n):
-    return "server" if n.endswith(".tar.gz") else "appimage" if n.endswith(".AppImage") else "apk" if n.endswith(".apk") else "other"
-files = [{"name": n, "url": f"{base}/{n}", "sha256": hashlib.sha256(open(n, "rb").read()).hexdigest(),
-          "size": os.path.getsize(n), "kind": kind(n)} for n in names]
-m = {"version": version, "published": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-     "notes_url": os.environ.get("NOTES_URL", f"https://github.com/raantss18/madalean/releases/tag/v{version}"),
-     "files": files, "min_version": os.environ.get("MIN_VERSION", "2.0.0")}
-open(out, "w").write(json.dumps(m, indent=1, ensure_ascii=False) + "\n")
-PYEOF
-  openssl pkeyutl -sign -inkey "$KEY" -rawin -in "$SITE/updates/stable.json" | base64 -w0 > "$SITE/updates/stable.json.sig"
-  echo >> "$SITE/updates/stable.json.sig"
+  "$PY" "$ROOT/scripts/make_update_manifest.py" --channel stable --version "$VERSION" --base-url "$BASE" \
+    --notes-url "${NOTES_URL:-https://github.com/raantss18/madalean/releases/tag/v$VERSION}" \
+    --min-version "${MIN_VERSION:-2.0.0}" --notes-fr "${NOTES_FR:-}" --notes-en "${NOTES_EN:-}" \
+    --apk-cert "${APK_CERT_SHA256:-0d43426ba9682f791707ee3233361c369c8ebec3f1209c6e000d7322936fc544}" \
+    --sums --key "$KEY" --out "$SITE/updates" $files >/dev/null
   echo "update channel written: $SITE/updates/stable.json (+ .sig)"
 fi
 cat SHA256SUMS

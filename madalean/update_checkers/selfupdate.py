@@ -203,16 +203,32 @@ def manifest_release(url: str = MANIFEST_URL, public_key: bytes = PUBLIC_KEY, cu
         m = json.loads(raw)
     except ValueError as e:
         raise UpdateError("bad_manifest", str(e)) from e
+    if not isinstance(m, dict):
+        raise UpdateError("bad_manifest", "not an object")
+    # Same order as the shells (docs/SHELLS.md "Updates"): signature → channel → strictly newer → https-only file →
+    # size → SHA-256. The signed `channel` must name the requested file, so a test-channel manifest is never accepted.
+    want_channel = url.rsplit("/", 1)[-1].removesuffix(".json")
+    if m.get("channel") != want_channel:
+        raise UpdateError("bad_channel", f"{m.get('channel')!r} != {want_channel!r}")
     ver = str(m.get("version") or "")
     if not ver or not newer(ver, current):
         return None
     srv = next((f for f in m.get("files") or [] if isinstance(f, dict) and f.get("kind") == "server"), None)
     if srv is None or not re.fullmatch(r"[0-9a-f]{64}", str(srv.get("sha256", ""))):
         raise UpdateError("no_archive", ver)
+    surl = str(srv.get("url", ""))
+    if not (surl.startswith("https://") or surl.startswith("http://127.0.0.1")):   # loopback: tests only
+        raise UpdateError("bad_url", surl[:120])
+    try:
+        size = int(srv.get("size") or 0)
+    except (TypeError, ValueError):
+        size = 0
+    if not 0 < size <= MAX_DOWNLOAD:
+        raise UpdateError("bad_manifest", "size")
     min_v = str(m.get("min_version") or "")
     return {"version": ver.lstrip("v"), "tag": "v" + ver.lstrip("v"), "notes": "", "page": m.get("notes_url", ""),
             "archive": srv.get("url", ""), "archive_name": srv.get("name", ""), "sha256": srv["sha256"],
-            "size": int(srv.get("size") or 0), "sums": "", "sig": "", "signed": True, "source": "manifest",
+            "size": size, "sums": "", "sig": "", "signed": True, "source": "manifest",
             "published": m.get("published", ""), "min_version": min_v,
             "manual": bool(min_v) and newer(min_v, current)}
 
@@ -360,6 +376,8 @@ class SelfUpdater:
                 raise UpdateError("bad_archive", str(name))
             download(rel["archive"], stage / name)
             if manifest:
+                if (stage / name).stat().st_size != int(rel.get("size") or 0):
+                    raise UpdateError("bad_size", name)
                 want = rel["sha256"]                     # from the signed manifest (verified in check)
             else:
                 download(rel["sums"], stage / "SHA256SUMS")

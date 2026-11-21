@@ -158,7 +158,7 @@ void main() {
       expect(offerFor(m('1.9.0'), '2.0.0'), Offer.none);
       expect(offerFor(m('2.0.0'), '2.0.0'), Offer.none);
       expect(offerFor(m('2.0.1'), '2.0.0'), Offer.optional);
-      expect(offerFor(m('2.1.0', '2.0.5'), '2.0.0'), Offer.required);
+      expect(offerFor(m('2.1.0', '2.0.5'), '2.0.0'), Offer.manual);
       expect(offerFor(m('2.1.0', '2.0.0'), '2.0.0'), Offer.optional);
     });
 

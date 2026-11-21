@@ -154,6 +154,12 @@ class S {
         'tap “Install” again.',
   );
   String updateError(String kind) => switch (kind) {
+    'tooOld' => _t(
+      'Cette version est trop ancienne pour la mise à jour automatique : '
+          'installez la nouvelle APK depuis la page de téléchargement.',
+      'This version is too old to update automatically: install the new '
+          'APK from the download page.',
+    ),
     'network' => _t(
       'Mise à jour : canal injoignable (réseau).',
       'Update: channel unreachable (network).',

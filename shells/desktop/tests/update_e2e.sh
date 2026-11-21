@@ -7,8 +7,8 @@
 # The fake channel (http://127.0.0.1:<port>/test.json + .sig) is signed with the release key through
 # scripts/make_update_manifest.py --channel test (a "test" manifest is refused by real clients, which expect "stable").
 # Scenarios, each on a fresh copy of the AppImage: good (installs, keeps .previous, relaunches the new file), tampered
-# manifest, missing signature, downgrade, same version, manifest of another channel, SHA-256 mismatch, automatic
-# updates switched off.
+# manifest, missing signature, downgrade, same version, manifest of another channel, SHA-256 mismatch, older than
+# min_version (manual install), automatic updates switched off.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 SRC="${1:-$(ls -t "$ROOT"/shells/desktop/dist/Madalean-*-x86_64.AppImage 2>/dev/null | head -1)}"
@@ -37,6 +37,7 @@ channel() {  # channel <scenario>: writes www/test.json(.sig)
                sed -i 's/"version": "2.0.1"/"version": "2.0.2"/' "$WWW/test.json" ;;
     unsigned)  "$PY" "$MK" --channel test --version 2.0.1 --base-url "$BASE" --out "$WWW" --no-sign "$f" ;;
     downgrade) "$PY" "$MK" --channel test --version 1.9.0 --base-url "$BASE" --out "$WWW" "$f" ;;
+    tooold)    "$PY" "$MK" --channel test --version 2.1.0 --min-version 2.0.5 --base-url "$BASE" --out "$WWW" "$f" ;;
     same)      "$PY" "$MK" --channel test --version 2.0.0 --base-url "$BASE" --out "$WWW" "$f" ;;
     channel)   "$PY" "$MK" --channel stable --version 2.0.1 --base-url "$BASE" --out "$WWW" "$f"
                mv "$WWW/stable.json" "$WWW/test.json"; mv "$WWW/stable.json.sig" "$WWW/test.json.sig" ;;
@@ -54,7 +55,7 @@ P
   esac
 }
 
-SCEN="good tampered unsigned downgrade same channel checksum autooff"
+SCEN="good tampered unsigned downgrade same channel checksum tooold autooff"
 for s in $SCEN; do mkdir -p "$WORK/$s/app" "$WORK/$s/home"; cp "$SRC" "$WORK/$s/app/Madalean.AppImage"; chmod +x "$WORK/$s/app/Madalean.AppImage"; done
 export MADALEAN_UPD_WORK="$WORK" MADALEAN_UPD_PORT="$PORT" MADALEAN_UPD_SCEN="$SCEN"
 export -f channel; export PY MK WWW BASE SRC
@@ -113,6 +114,7 @@ checks = {
   "same version: nothing installed": any(l["kind"] == "update_none" for l in log("same")) and untouched("same"),
   "other channel: refused (bad_channel), untouched": err("channel", "bad_channel") and untouched("channel"),
   "checksum: refused (checksum), untouched, temp removed": err("checksum", "checksum") and untouched("checksum") and not list((w / "checksum/app").glob(".*.download")),
+  "too old (below min_version): refused (too_old), untouched": err("tooold", "too_old") and untouched("tooold"),
   "auto off: no check at all": not any(l["kind"].startswith("update_") for l in log("autooff")) and untouched("autooff"),
 }
 for k, v in checks.items(): print(("PASS " if v else "FAIL ") + k)

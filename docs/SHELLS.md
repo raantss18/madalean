@@ -177,29 +177,25 @@ shared_preferences 2.5.6, url_launcher 6.3.3, androidx core-splashscreen 1.0.1 (
 
 ## Updates (signed, automatic) — both shells
 
-**Channel**: `https://raantss18.github.io/madalean/updates/stable.json` + `stable.json.sig`.
-
-```json
-{"channel":"stable","version":"2.0.1","published":"2026-12-01T10:00:00+00:00","notes_url":"https://…",
- "min_version":"2.0.0",
- "files":[{"name":"Madalean-2.0.1-x86_64.AppImage","url":"https://github.com/raantss18/madalean/releases/download/v2.0.1/…",
-           "sha256":"<64 hex>","size":109062648,"kind":"appimage"},
-          {"name":"madalean-arm64-v8a-release.apk","url":"…","sha256":"…","size":…,"kind":"apk"}, …]}
-```
+**Channel**: `https://raantss18.github.io/madalean/updates/stable.json` + `stable.json.sig`. **One format, one
+producer**: `scripts/make_update_manifest.py` (called by `scripts/sign_release.sh`); the format is documented in
+docs/SITE.md §3 and read by the server self-update (`madalean/update_checkers/selfupdate.py`), the AppImage, the APK
+and the site build (which also checks it). Fields used by the updaters: `channel`, `version`, `min_version`,
+`files[{kind: server|appimage|apk|other, arch, name, url, size, sha256}]`; the rest (`schema`, `tag`, `date`,
+`published`, `notes{fr,en}`, `notes_url`, `sums_url`, `sums_sig_url`, `apk_certificate_sha256`) is for the site.
 
 - `.sig` = base64 of the raw 64-byte Ed25519 signature of the **exact bytes** of the JSON file (whitespace in the
-  .sig ignored) — same key and scheme as `scripts/sign_release.sh`. Produce both with
-  `scripts/make_update_manifest.py --version X --base-url <release download URL> FILES…` (signs with
-  `~/.config/madalean/release-keys/ed25519.pem` through openssl; `kind` from the extension).
-- `channel` is signed and must equal the requested file's base name (`stable`): a manifest signed for a test
-  channel can never be replayed on stable. `min_version`: a client older than it installs even when automatic
-  updates are off. Never a downgrade nor the same version (numeric dotted compare; `-suffix` < release).
-- Public key (hex `8a3380f9…0ca690`, the same as `madalean/update_checkers/selfupdate.py`) is embedded at **build
-  time** from the private key file (or `MADALEAN_UPDATE_PUBKEY`): `build_appimage.sh` and `build_apk.sh` refuse a
-  release build without it. The private key is never in the repository.
-- Order of checks: manifest signature → channel → version → file entry sanity (https only, except loopback http for
-  test channels; size ≤ 600 MB; plain file name) → download → size → SHA-256 (→ Android: APK signing certificate
-  equals the installed one) → install.
+  .sig ignored) — same key and scheme as `SHA256SUMS.sig`.
+- Every reader applies the same checks in the same order: **signature → `channel` equals the requested file's
+  base name (`stable`) → strictly newer version → file URL https only (loopback http accepted for local test
+  channels) → size → SHA-256** (→ APK: signing certificate equals the installed one). A manifest signed for a test
+  channel can therefore never be replayed on stable.
+- `min_version` = **oldest version that may update directly** (same meaning everywhere): an older install does not
+  update automatically and says so (« trop ancienne : installez la nouvelle version depuis la page de
+  téléchargement »; server: `manual`).
+- Public key (hex `8a3380f9…0ca690`, = `PUBLIC_KEY` of `selfupdate.py`) is embedded at **build time** from the
+  private key file (or `MADALEAN_UPDATE_PUBKEY`): `build_appimage.sh` and `build_apk.sh` refuse a release build
+  without it. The private key is never in the repository.
 
 **Desktop (AppImage)** — own Rust module (`src-tauri/src/update.rs`), not Tauri's updater (which only trusts its
 minisign signature of each file, not our signed manifest). First check 20 s after start, then every 12 h (switch

@@ -107,15 +107,20 @@ class FakeGitHub:
         self.release = {"tag_name": f"v{version}", "html_url": "https://example/release", "body": "notes",
                         "assets": [{"name": n, "browser_download_url": f"{self.base}/dl/{n}"} for n in self.files]}
 
-    def publish_manifest(self, version: str, key: Path, tamper_archive=False, bad_sig_key=None, min_version="2.0.0"):
+    def publish_manifest(self, version: str, key: Path, tamper_archive=False, bad_sig_key=None, min_version="2.0.0",
+                         channel="stable", url_scheme=None, size_delta=0):
         """The signed channel stable.json (+ .sig) pointing at the release asset (as scripts/sign_release.sh)."""
         self.publish(version, key, tamper=tamper_archive)
         name = f"madalean-{version}.tar.gz"
         good = self.good
-        m = {"version": version, "published": "2026-11-21T00:00:00+00:00", "notes_url": "https://x",
-             "min_version": min_version, "files": [{"name": name, "url": f"{self.base}/dl/{name}",
-                                                    "sha256": hashlib.sha256(good).hexdigest(), "size": len(good),
-                                                    "kind": "server"}]}
+        url = f"{self.base}/dl/{name}"
+        if url_scheme:
+            url = url.replace("http://127.0.0.1", url_scheme)
+        m = {"schema": "madalean-updates/1", "channel": channel, "version": version, "tag": f"v{version}",
+             "date": "2026-11-21", "published": "2026-11-21T00:00:00+00:00", "notes": {"fr": "", "en": ""},
+             "notes_url": "https://x", "min_version": min_version,
+             "files": [{"kind": "server", "name": name, "url": url, "size": len(good) + size_delta,
+                        "sha256": hashlib.sha256(good).hexdigest()}]}
         raw = json.dumps(m).encode()
         self.channel = {"stable.json": raw, "stable.json.sig": sign(bad_sig_key or key, raw, self.tmp).encode()}
         self.manifest = self.base + "/updates/stable.json"
@@ -294,6 +299,24 @@ async def test_self_update_signed_manifest_channel(tmp_path):
         with pytest.raises(su.UpdateError) as e:
             await asyncio.to_thread(u.check)
         assert e.value.kind == "bad_signature"
+        # a manifest signed for another channel (e.g. a test channel) is refused on stable
+        gh.publish_manifest("2.1.0", key, channel="test")
+        with pytest.raises(su.UpdateError) as e:
+            await asyncio.to_thread(u.check)
+        assert e.value.kind == "bad_channel"
+        # a signed manifest pointing at a non-https (non-loopback) file is refused
+        gh.publish_manifest("2.1.0", key, url_scheme="http://example.org")
+        with pytest.raises(su.UpdateError) as e:
+            await asyncio.to_thread(u.check)
+        assert e.value.kind == "bad_url"
+        # wrong size in the signed manifest: refused before the hash, nothing installed
+        gh.publish_manifest("2.1.0", key, size_delta=1)
+        with pytest.raises(su.UpdateError) as e:
+            await asyncio.to_thread(u.install, await asyncio.to_thread(u.check))
+        assert e.value.kind == "bad_size" and not (root / "current").exists()
+        # same version / older: nothing offered
+        gh.publish_manifest("2.0.0", key)
+        assert await asyncio.to_thread(u.check) is None
         # too old to update directly: manual step required
         gh.publish_manifest("2.1.0", key, min_version="2.0.5")
         rel = await asyncio.to_thread(u.check)
