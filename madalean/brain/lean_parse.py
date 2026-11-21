@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-PARSER_VERSION = 5
+PARSER_VERSION = 6
 
 _MODS = r"(?:(?:private|protected|noncomputable|nonrec|partial|unsafe|scoped|local)\s+)*"
 _KW = r"(theorem|lemma|def|abbrev|instance|structure|class\s+inductive|class|inductive|alias|opaque|axiom|irreducible_def)"
@@ -67,6 +67,10 @@ def additive_name(name: str) -> str:
         for piece in re.split(r"(_)", c):
             if piece == "_" or not piece:
                 out.append(piece)
+                continue
+            primes = len(piece) - len(piece.rstrip("'"))
+            if primes and piece.rstrip("'"):
+                out.append(comp(piece.rstrip("'")) + "'" * primes)
                 continue
             low = piece[:1].lower() + piece[1:]
             if low.lower() in _ADD:

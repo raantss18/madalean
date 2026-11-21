@@ -15,11 +15,13 @@
 - 🔄 JupyterLab + Sage derrière la même connexion, même assistant
 - 🔄 Migration des dossiers 1.x, mode démonstration, tests
 
-## 2. Moteur de modèles (session S-B, Opus)
-- 🔄 Routeur de L Katta (meilleur modèle gratuit, pauses, quotas), repli hors ligne automatique
-- 🔄 Claude (API native, outils), Gemini, OpenRouter, Ollama, modèles locaux Goedel/Qwen
-- 🔄 Mode agentique : prouveur qui compile avec Lean et cherche dans Mathlib
-- 🔄 RAG : index plein texte des déclarations Mathlib (+ recherche par le sens si possible)
+## 2. Moteur de modèles (session S-B, Opus) — terminé, 35 tests
+- ✅ Routeur de L Katta (meilleur modèle gratuit, pauses, quotas), repli hors ligne automatique
+- ✅ Fournisseurs gratuits sans clé : preuve réelle trouvée et vérifiée par Lean 4.9 (2 essais sur 2)
+- ⚠️ Claude (API native, outils), Gemini, OpenRouter : testés contre de faux serveurs seulement (clés à fournir)
+- ⚠️ Modèles locaux Goedel/Qwen et Ollama par le nouveau moteur : pas encore essayés en réel (carte graphique réservée)
+- ✅ Mode agentique : prouveur qui compile avec Lean et cherche dans Mathlib
+- ✅ Index Mathlib (179 000 déclarations Lean 4.9, 290 000 Lean récent) ; bon lemme dans les 8 premiers : 13/20 et 12/20 sur le jeu final
 
 ## 3. Applications (session S-C, Opus)
 - 🔄 AppImage (ce PC et autres ordinateurs), APK Android (téléphone, tablette)

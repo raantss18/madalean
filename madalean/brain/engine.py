@@ -304,7 +304,20 @@ class MadaleanBrain:
             fallbacks: list[str] = []
             reasons: list[str] = []
             lost = 0.0
-            for c in chain:
+            extended = False
+            i = -1
+            while True:
+                i += 1
+                if i >= len(chain):
+                    if extended or lost > LOST_TIME_LIMIT:
+                        break
+                    extended = True                  # all failed: once more with models not tried yet
+                    used = {x.model.key for x in chain}
+                    chain = chain + [x for x in self.ranking(role, mode, messages=messages)
+                                     if x.model.key not in used and not x.model.paid][:5]
+                    if i >= len(chain):
+                        break
+                c = chain[i]
                 m = c.model
                 if not m.local and (self.http.known_offline() or lost > LOST_TIME_LIMIT):
                     fallbacks.append(f"{m.key}: skipped ({'offline' if self.http.known_offline() else 'too much time lost'})")

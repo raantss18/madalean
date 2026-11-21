@@ -43,6 +43,8 @@ async def main(argv: list[str]) -> int:
     ap.add_argument("--cache", default=str(Path.home() / ".cache" / "madalean"))
     ap.add_argument("--max-steps", type=int, default=16)
     ap.add_argument("--skip-prove", action="store_true")
+    ap.add_argument("--only-prove", action="store_true")
+    ap.add_argument("--transcript", default="", help="write the agent transcript (JSON) to this file")
     args = ap.parse_args(argv)
     prov = args.provider
     key = os.environ.get(ENV.get(prov, ""), "") if prov != "free" else ""
@@ -64,6 +66,8 @@ async def main(argv: list[str]) -> int:
         print("ranking (prove):")
         for r in brain.explain("prove", "online")[:6]:
             print(f"  {r['score']:.3f} {r['model']}: {r['why']}")
+        if args.only_prove:
+            return await _prove(brain, args)
         # 1. completion
         t0 = time.monotonic()
         c = await brain.complete("explain", [{"role": "user", "content": "Reply with exactly the word: OK"}],
@@ -86,6 +90,13 @@ async def main(argv: list[str]) -> int:
               f"steps {r.steps}, finish {r.finish}, {time.monotonic() - t0:.1f} s")
         if args.skip_prove:
             return 0
+        return await _prove(brain, args)
+    finally:
+        await brain.close()
+
+
+async def _prove(brain, args) -> int:
+    if True:
         # 3. agentic proof with the real Lean
         from .leanrun import check_with_lean, workspace
         from .prover_agent import prove_with_agent
@@ -110,10 +121,10 @@ async def main(argv: list[str]) -> int:
               f"{time.monotonic() - t0:.0f} s, model {m.key if m else None}")
         if res["code"]:
             print(res["code"])
+        if args.transcript:
+            Path(args.transcript).write_text(json.dumps(res["transcript"], ensure_ascii=False, indent=1, default=str))
         await retr.close()
         return 0 if res["code"] else 1
-    finally:
-        await brain.close()
 
 
 if __name__ == "__main__":

@@ -712,7 +712,7 @@ class Embedder:
             raise ValueError("embeddings only from a local Ollama")
         self.url = url.rstrip("/")
         self.model: str | None = None
-        self.checked = 0.0
+        self.checked: float | None = None
         self._cache: dict[str, list[float]] = {}
         self._session = None
 
@@ -727,7 +727,7 @@ class Embedder:
             await self._session.close()
 
     async def detect(self) -> str | None:
-        if time.monotonic() - self.checked < 300:
+        if self.checked is not None and time.monotonic() - self.checked < 300:
             return self.model
         self.checked = time.monotonic()
         try:

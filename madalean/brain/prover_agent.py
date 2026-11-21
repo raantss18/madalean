@@ -10,7 +10,7 @@ from typing import Any, Awaitable, Callable
 
 from .. import leancheck, names
 from .agent import StopAgent
-from .api import AgentResult, Brain, BrainError, Chunk, ModelRef, OnChunk, Retriever, ToolSpec
+from .api import AgentResult, Brain, BrainError, OnChunk, Retriever, ToolSpec
 
 CheckFn = Callable[[str], Awaitable[dict]]
 
@@ -103,6 +103,24 @@ def _fmt_decls(items: list[dict], limit_sig: int = 300) -> str:
     return "\n".join(lines)
 
 
+def dedent_tactics(body: str) -> str:
+    """Re-indent a tactic block to 2 spaces. Models often give the first line unindented and the following ones
+    indented as inside `:= by` (copied from a file): then the base indent is that of the last top-level line."""
+    lines = [l.rstrip() for l in body.split("\n")]
+    ind = [len(l) - len(l.lstrip()) for l in lines]
+    nonempty = [i for i, l in enumerate(lines) if l.strip()]
+    if not nonempty:
+        return ""
+    base = min(ind[i] for i in nonempty)
+    rest = [i for i in nonempty[1:]]
+    if ind[nonempty[0]] == 0 and rest and min(ind[i] for i in rest) > 0 and ind[rest[-1]] == min(ind[i] for i in rest):
+        k = min(ind[i] for i in rest)
+        lines[nonempty[0]] = " " * k + lines[nonempty[0]]
+        ind[nonempty[0]] = k
+        base = k
+    return "\n".join("  " + l[base:] if l.strip() else "" for l in lines)
+
+
 class _Session:
     def __init__(self, statement: str, check: CheckFn, retriever: Retriever | None, workspace_key: str,
                  on_chunk: OnChunk | None):
@@ -116,8 +134,11 @@ class _Session:
         self.rejected_names: list[str] = []
 
     def assemble(self, args: dict) -> str:
-        code, proof = (args.get("code") or "").strip(), (args.get("proof") or "").strip()
-        if not code and not proof:
+        code, proof = (args.get("code") or "").strip("\n"), (args.get("proof") or "").strip("\n")
+        if not code.strip() and re.search(r"(?m)^\s*(?:theorem|lemma)\s", leancheck.remove_comments(proof)):
+            code, proof = proof, ""                     # a whole theorem given as `proof`
+        code = code.strip()
+        if not code and not proof.strip():
             raise ValueError("give `proof` (tactic block) or `code` (full theorem)")
         if code and re.search(r"(?m)^\s*(?:theorem|lemma)\b", leancheck.remove_comments(code)):
             src = code if re.search(r"(?m)^\s*theorem\b", code) else re.sub(r"(?m)^(\s*)lemma\b", r"\1theorem", code)
@@ -126,9 +147,7 @@ class _Session:
         body = re.sub(r"^\s*:=\s*by\b", "", body).strip("\n")
         if body.lstrip().startswith("by\n") or body.lstrip() == "by":
             body = body.lstrip()[2:]
-        lines = body.split("\n")
-        indent = min((len(l) - len(l.lstrip()) for l in lines if l.strip()), default=0)
-        body = "\n".join("  " + l[indent:] if l.strip() else "" for l in lines)
+        body = dedent_tactics(body)
         model_code = self.statement.rsplit("sorry", 1)[0].rstrip() + "\n" + body + "\n"
         return leancheck.assemble_proof(self.statement, model_code)
 
@@ -155,12 +174,19 @@ class _Session:
             return True, prefix + "Lean ACCEPTED this proof (strict check passed). Now call `submit` with it.", code
         fb = r.get("feedback") or r.get("summary") or "rejected"
         note = await self._names_note(fb)
-        return False, f"{prefix}Lean rejected the attempt: {r.get('summary', '')}\n{fb}{note}", code
+        return False, f"{prefix}Lean rejected the attempt.\n{fb}{note}", code
 
     async def _names_note(self, feedback: str) -> str:
         if "Note on unknown names" in feedback or self.retriever is None:
             return ""
         missing = names.missing_names(feedback)
+        for name, _rest, msg in names._BLOCK.findall(feedback):      # Lean 4.9: `T.foo x` reported as a field error
+            if ("invalid field notation" in msg or "unknown" in msg) and "." in name and name not in missing:
+                try:
+                    if await self.retriever.declaration(self.ws, name) is None:
+                        missing.append(name)
+                except Exception:  # noqa: BLE001
+                    pass
         if not missing:
             return ""
         parts = []

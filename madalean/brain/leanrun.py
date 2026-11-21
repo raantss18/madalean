@@ -3,7 +3,6 @@ own (pooled, sandboxed) checker; this one only runs `lean --json` once per call.
 from __future__ import annotations
 
 import asyncio
-import os
 import tempfile
 from pathlib import Path
 

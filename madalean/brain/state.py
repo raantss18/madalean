@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -86,7 +87,8 @@ def wait_from_headers(headers) -> float | None:
             return float(ra)
         except ValueError:
             pass
-    for k in ("x-ratelimit-reset-requests", "x-ratelimit-reset", "x-ratelimit-reset-tokens"):
+    for k in ("x-ratelimit-reset-requests", "x-ratelimit-reset", "x-ratelimit-reset-tokens",
+              "anthropic-ratelimit-requests-reset"):
         v = get(k)
         if v and (d := parse_duration(v)) is not None:
             return d
@@ -141,6 +143,10 @@ class States:
                 st.failures, st.until, st.reason = 0, 0.0, ""
             elif status != 400:
                 st.failures += 1
+                if wait is None:
+                    mw = re.search(r"(?:retry|try again) (?:in|after) (\d+(?:\.\d+)?) ?(s|sec|seconds|m|min|minutes)\b", message, re.I)
+                    if mw:
+                        wait = float(mw.group(1)) * (60 if mw.group(2).lower().startswith("m") else 1)
                 low = message.lower()
                 t = now()
                 if status == 402:

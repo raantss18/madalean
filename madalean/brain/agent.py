@@ -91,7 +91,7 @@ async def run_agent_loop(brain: "MadaleanBrain", role: str, system: str, task: s
     native = chain[0].model.tools
     history: list[dict] = [{"role": "system", "content": system}, {"role": "user", "content": task}]
     transcript: list[dict] = [{"type": "task", "text": task}]
-    steps, tokens, nudges = 0, 0, 0
+    steps, tokens, nudges, extensions = 0, 0, 0, 0
     final_text, finish = "", "error"
     tried: list[str] = []
     model = chain[0].model
@@ -136,6 +136,13 @@ async def run_agent_loop(brain: "MadaleanBrain", role: str, system: str, task: s
             idx += 1
             while idx < len(chain) and not chain[idx].model.local and brain.http.known_offline():
                 idx += 1
+            if idx >= len(chain) and extensions < 2:      # chain exhausted: ask the router for models not tried yet
+                extensions += 1
+                used = {c.model.key for c in chain}
+                more = [c for c in brain.ranking(role, mode, prefer=None, need_tools=False)
+                        if c.model.key not in used and not c.model.paid]
+                more = [c for c in more if c.model.tools] + [c for c in more if not c.model.tools]
+                chain.extend(more[:5])
             if idx >= len(chain):
                 final_text = "no model could continue:\n" + "\n".join(tried)
                 finish = "error"
