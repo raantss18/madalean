@@ -10,7 +10,7 @@
 # Never publish a release without SHA256SUMS.sig: installed Madalean versions refuse it.
 set -euo pipefail
 DIR=${1:?usage: sign_release.sh DIR}
-KEY=${MADALEAN_RELEASE_KEY:-$HOME/.config/madalean/release-keys/ed25519.pem}
+KEY=${MADALEAN_RELEASE_KEY:-$(cd "$(dirname "$0")/.." && pwd)/release-keys/ed25519.pem}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 [ -f "$KEY" ] || { echo "missing private key $KEY" >&2; exit 1; }
 # S-H review (docs/SECURITY.md F7): the key that every installed Madalean trusts must not sit unencrypted next to

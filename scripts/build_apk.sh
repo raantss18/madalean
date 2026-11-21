@@ -17,7 +17,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/shells/android"
-KEYDIR="${MADALEAN_KEY_DIR:-$HOME/.config/madalean/release-keys}"
+KEYDIR="${MADALEAN_KEY_DIR:-$(cd "$(dirname "$0")/.." && pwd)/release-keys}"
 export MADALEAN_KEYSTORE_PROPERTIES="${MADALEAN_KEYSTORE_PROPERTIES:-$KEYDIR/keystore.properties}"
 FLUTTER="${FLUTTER:-$(command -v flutter || echo "$HOME/development/flutter/bin/flutter")}"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
