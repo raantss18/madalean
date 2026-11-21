@@ -60,6 +60,13 @@
 - ⬜ Lean, Mathlib, paquets Lean, modèles Goedel : installés automatiquement après vérification (réglable)
 - ⬜ Sage, JupyterLab, TeX : détection + bouton qui ouvre un terminal avec la commande exacte (jamais de sudo automatique)
 
+## 5 quater. Installation autonome (session S-I, Opus) — 🔄 en cours
+- ⬜ Un seul dossier `~/.local/share/madalean` : Python, JupyterLab, LaTeX, outils PDF, Lean/Mathlib, llama.cpp, tout épinglé et vérifié
+- ⬜ Sage installé par Madalean au premier usage, puis mis à jour par lui
+- ⬜ Tailscale intégré : Madalean est son propre appareil `madalean` sur ton réseau, sans toucher au Tailscale du PC
+- ⬜ Un seul service ; aucun processus ne survit à l'arrêt ; désinstallation complète
+- ⬜ Audit des failles connues et liste des composants (SBOM)
+
 ## 6. Site GitHub Pages utile (session S-F) — pas de vitrine
 - ⬜ « Publier » un projet : site statique (article, graphe blueprint, Lean, vérification, bibliographie) poussé sur un dépôt de ton choix, revérifié par une action GitHub
 - ⬜ Canal de mises à jour signé (manifeste Ed25519, page d'installation avec QR code)
