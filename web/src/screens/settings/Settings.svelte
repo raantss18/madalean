@@ -4,20 +4,21 @@
   import { t, type Key } from '../../lib/i18n/index.svelte';
   import { app } from '../../lib/store/app.svelte';
   import Icon from '../../components/Icon.svelte';
+  import HelpLink from '../../components/HelpLink.svelte';
 
   let { params }: { params: Record<string, string> } = $props();
-  interface Sec { id: string; label: Key; icon: string; load: () => Promise<{ default: Component }> }
+  interface Sec { id: string; label: Key; icon: string; load: () => Promise<{ default: Component }>; help?: string }
   const sections: Sec[] = [
-    { id: 'modeles', label: 'settings.sec.models', icon: 'cpu', load: () => import('./Models.svelte') },
-    { id: 'cles', label: 'settings.sec.keys', icon: 'key', load: () => import('./Keys.svelte') },
-    { id: 'appareils', label: 'settings.sec.devices', icon: 'device', load: () => import('./Devices.svelte') },
+    { id: 'modeles', help: 'models-keys', label: 'settings.sec.models', icon: 'cpu', load: () => import('./Models.svelte') },
+    { id: 'cles', help: 'models-keys', label: 'settings.sec.keys', icon: 'key', load: () => import('./Keys.svelte') },
+    { id: 'appareils', help: 'pairing', label: 'settings.sec.devices', icon: 'device', load: () => import('./Devices.svelte') },
     { id: 'espaces', label: 'settings.sec.workspaces', icon: 'folder', load: () => import('./Workspaces.svelte') },
-    { id: 'mises-a-jour', label: 'settings.sec.updates', icon: 'refresh', load: () => import('./Updates.svelte') },
+    { id: 'mises-a-jour', help: 'updates', label: 'settings.sec.updates', icon: 'refresh', load: () => import('./Updates.svelte') },
     { id: 'profil', label: 'settings.sec.profile', icon: 'heart', load: () => import('./Profile.svelte') },
-    { id: 'langue', label: 'settings.sec.language', icon: 'globe', load: () => import('./Language.svelte') },
-    { id: 'apparence', label: 'settings.sec.appearance', icon: 'sun', load: () => import('./Appearance.svelte') },
-    { id: 'carnet', label: 'settings.sec.notebook', icon: 'notebook', load: () => import('./NotebookSettings.svelte') },
-    { id: 'systeme', label: 'settings.sec.system', icon: 'terminal', load: () => import('./System.svelte') },
+    { id: 'langue', help: 'first-run', label: 'settings.sec.language', icon: 'globe', load: () => import('./Language.svelte') },
+    { id: 'apparence', help: 'shortcuts', label: 'settings.sec.appearance', icon: 'sun', load: () => import('./Appearance.svelte') },
+    { id: 'carnet', help: 'security', label: 'settings.sec.notebook', icon: 'notebook', load: () => import('./NotebookSettings.svelte') },
+    { id: 'systeme', help: 'troubleshooting', label: 'settings.sec.system', icon: 'terminal', load: () => import('./System.svelte') },
     { id: 'a-propos', label: 'settings.sec.about', icon: 'info', load: () => import('./About.svelte') },
   ];
   const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767px)').matches;
@@ -43,7 +44,7 @@
   {#if current}
     <section class="content" aria-labelledby="sec-h">
       <button class="btn quiet small back" onclick={() => navigate('/reglages')}><Icon name="chevronLeft" size={16} />{t('settings.title')}</button>
-      <h2 id="sec-h" data-route-focus>{t(current.label)}</h2>
+      <div class="row"><h2 id="sec-h" data-route-focus>{t(current.label)}</h2>{#if current.help}<HelpLink page={current.help} />{/if}</div>
       {#await load(current) then C}<C />{/await}
     </section>
   {/if}

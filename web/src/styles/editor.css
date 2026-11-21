@@ -38,6 +38,9 @@
   :root:not([data-theme='light']) .tk-op { color: #ff9ab5; }
 }
 .cm-tooltip.cm-tooltip-hover { background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow-2); }
+.cm-tooltip.cm-tooltip-autocomplete { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow-2); }
+.cm-tooltip-autocomplete ul li[aria-selected] { background: var(--accent-soft) !important; color: var(--text) !important; }
+.cm-tooltip-autocomplete .cm-completionDetail { color: var(--text-3); margin-left: 8px; font-style: normal; }
 .cm-gloss { max-width: 340px; padding: var(--s-2) var(--s-3); font-family: var(--font-ui); font-size: var(--fs-sm); }
 .cm-gloss strong { font-family: var(--font-mono); }
 .cm-gloss p { margin: 4px 0 0; }

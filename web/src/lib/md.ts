@@ -121,3 +121,52 @@ export function renderMarkdown(src: string): string {
 export function renderInline(src: string): string {
   return purify(md.renderInline(src ?? ''));
 }
+
+// ---------------------------------------------------------------- trusted content (the manual, docs/SITE.md §2)
+const KW = /\b(theorem|lemma|example|def|by|have|show|from|fun|let|in|with|match|at|calc|import|open|namespace|end|section|variable|where|if|then|else)\b/g;
+const TAC = /\b(intro|intros|exact|apply|rw|simp|norm_num|linarith|nlinarith|ring|ring_nf|field_simp|omega|decide|constructor|cases|rcases|obtain|induction|use|refine|positivity|gcongr|aesop|tauto|exfalso|contradiction|unfold|specialize|push_cast|norm_cast|trivial|rfl|left|right|by_contra|sorry)\b/g;
+function leanHighlight(code: string): string {
+  const esc = md.utils.escapeHtml(code);
+  return esc.split('\n').map((line) => {
+    const c = line.indexOf('--');
+    const head = c >= 0 ? line.slice(0, c) : line;
+    const tail = c >= 0 ? `<span class="tk-com">${line.slice(c)}</span>` : '';
+    return head.replace(KW, '<span class="tk-kw">$1</span>').replace(TAC, '<span class="tk-tac">$1</span>') + tail;
+  }).join('\n');
+}
+
+export interface TrustedOpts {
+  headingIds: string[];                        // ids in document order (from index.json headings[])
+  link: (href: string) => { href: string; external: boolean };
+  image: (src: string) => string;
+}
+
+const trusted = new MarkdownIt({ html: false, linkify: false, typographer: false });
+trusted.inline.ruler.after('escape', 'math', mathInline);
+trusted.block.ruler.after('blockquote', 'math_block', mathBlock, { alt: ['paragraph', 'reference', 'blockquote', 'list'] });
+trusted.renderer.rules['math'] = md.renderer.rules['math']!;
+trusted.renderer.rules['math_block'] = md.renderer.rules['math_block']!;
+trusted.renderer.rules.fence = (tokens, idx) => {
+  const tok = tokens[idx]!;
+  const lang = tok.info.trim().split(/\s+/)[0] ?? '';
+  const body = /^lean4?$/.test(lang) ? leanHighlight(tok.content) : md.utils.escapeHtml(tok.content);
+  return `<pre class="code lang-${md.utils.escapeHtml(lang)}"><code>${body}</code></pre>`;
+};
+
+export function renderTrusted(src: string, o: TrustedOpts): string {
+  const env = { h: 0 };
+  const tokens = trusted.parse(src, env);
+  for (const tok of tokens) {
+    if (tok.type === 'heading_open') { const id = o.headingIds[env.h++]; if (id) tok.attrSet('id', id); }
+    if (tok.type === 'inline') for (const ch of tok.children ?? []) {
+      if (ch.type === 'link_open') {
+        const r = o.link(String(ch.attrGet('href') ?? ''));
+        ch.attrSet('href', r.href);
+        if (r.external) { ch.attrSet('target', '_blank'); ch.attrSet('rel', 'noopener noreferrer'); }
+      } else if (ch.type === 'image') ch.attrSet('src', o.image(String(ch.attrGet('src') ?? '')));
+    }
+  }
+  const html = trusted.renderer.render(tokens, trusted.options, env);
+  if (typeof window === 'undefined') return html;
+  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'], USE_PROFILES: { html: true, mathMl: true }, FORBID_TAGS: ['style', 'iframe', 'form', 'input'] });
+}

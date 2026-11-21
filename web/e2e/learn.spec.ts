@@ -7,38 +7,7 @@ async function proved(): Promise<string> {
   return dossier.id;
 }
 
-test('Learn mode: hint ladder before the proof (reflection required), explain-back, faded exercise checked by Lean', async ({ page }) => {
-  const id = await proved();
-  await open(page, `/d/${id}/preuve`, { mode: 'learn' });
-  await expect(page.getByRole('heading', { name: 'Indices, avant la preuve' })).toBeVisible();
-  await expect(page.locator('.cm-content')).toHaveCount(0);            // proof hidden
-  await page.getByLabel('Qu’avez-vous essayé, ou quelle est votre idée ?').fill('Écrire a = 2k et b = 2l.');
-  await page.getByRole('radio', { name: 'Trouver l’approche' }).check();
-  await page.getByRole('button', { name: 'Un premier indice' }).click();
-  await expect(page.locator('.hintbox').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel('Qu’est-ce que cet indice vous a appris ?')).toBeVisible({ timeout: 30_000 });
-  // Next hint is refused until the reflection is written.
-  await page.getByRole('button', { name: /Indice suivant/ }).click();
-  await expect(page.getByText('Écrivez d’abord ce que l’indice précédent vous a appris')).toBeVisible();
-  await page.getByLabel('Qu’est-ce que cet indice vous a appris ?').fill('Il faut utiliser la définition de pair.');
-  await page.getByRole('button', { name: /Indice suivant/ }).click();
-  await expect(page.locator('.hintbox')).toHaveCount(2, { timeout: 30_000 });
-  await page.getByRole('button', { name: 'J’ai trouvé, montrer la preuve' }).click();
-  await expect(page.locator('.cm-content').first()).toContainText('theorem');
-  // Explain it back.
-  await page.getByLabel('Votre explication').last().fill('On écrit a = 2k, b = 2l donc a + b = 2(k + l), qui est pair.');
-  await page.getByRole('button', { name: 'Faire relire mon explication' }).last().click();
-  await expect(page.locator('.turns .tutor').last()).not.toBeEmpty({ timeout: 30_000 });
-  // Faded exercise: the last step is removed; the original line makes Lean accept it.
-  await expect(page.getByRole('heading', { name: 'Exercice : terminez la preuve' })).toBeVisible();
-  const d = await api<{ dossier: { current: { proof: string } } }>('GET', `/dossiers/${id}`);
-  const exercise = page.getByRole('textbox', { name: 'Preuve à compléter' });
-  await exercise.click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.insertText(d.dossier.current.proof);
-  await page.getByRole('button', { name: 'Vérifier la preuve avec Lean' }).click();
-  await expect(page.getByText('Lean accepte la preuve.')).toBeVisible({ timeout: 30_000 });
-});
+// Learn mode (hint ladder, explain-back, exercises) is covered against the server's learning endpoints in research.spec.ts.
 
 test('Research mode: proof shown at once, no hint ladder; split into lemmas shows the tree', async ({ page }) => {
   const id = await proved();

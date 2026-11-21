@@ -7,6 +7,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { StreamLanguage, HighlightStyle, syntaxHighlighting, bracketMatching, type StringStream } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
 import { abbreviationAt, insideDollarMath } from './abbrev';
 import { lookupGloss, tokenAt, type GlossEntry } from './glossary';
 
@@ -126,6 +127,8 @@ export interface EditorOptions {
   declLookup?: GlossLookup;
   onTokenTap?: (token: string, entry: GlossEntry | null) => void;
   onSubmit?: () => void;
+  /** `[[` link completion (notes): returns options for the text typed after `[[`. */
+  linkComplete?: (typed: string) => Promise<{ label: string; apply: string; detail?: string }[]>;
 }
 
 export interface EditorHandle {
@@ -154,6 +157,16 @@ export function createEditor(o: EditorOptions): EditorHandle {
     EditorView.updateListener.of((u) => { if (u.docChanged) o.onChange?.(u.state.doc.toString()); }),
   ];
   if (o.placeholder) ext.push(cmPlaceholder(o.placeholder));
+  if (o.linkComplete) {
+    const fn = o.linkComplete;
+    ext.push(autocompletion({ override: [async (ctx: CompletionContext) => {
+      const m = ctx.matchBefore(/\[\[[^\]\n]*/);
+      if (!m) return null;
+      const typed = m.text.slice(2);
+      const opts = await fn(typed);
+      return { from: m.from + 2, options: opts.map((x) => ({ label: x.label, detail: x.detail, apply: `${x.apply}]]` })), filter: false };
+    }], activateOnTyping: true }));
+  }
   if (o.language === 'lean') {
     ext.push(StreamLanguage.define(leanMode), syntaxHighlighting(leanHighlight), bracketMatching(), errorField);
     if (o.lineNumbers !== false) ext.push(lineNumbers(), highlightActiveLineGutter());

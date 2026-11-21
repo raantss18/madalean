@@ -73,7 +73,7 @@ export const api = {
     try { await request<unknown>('POST', '/devices/self/forget', {}, { allow401: true }); }
     catch (e) { if (e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 401)) await request('POST', '/logout', {}, { allow401: true }); else throw e; }
   },
-  pairingStart: () => request<{ code: string; expires: number; expires_in: number }>('POST', '/pairing/start', {}),
+  pairingStart: () => request<{ code: string; expires: number; expires_in: number; remote_url?: string | null }>('POST', '/pairing/start', {}),
   pairing: () => request<{ active: boolean; expires_in: number; locked_for: number }>('GET', '/pairing'),
   devices: () => request<{ devices: Device[] }>('GET', '/devices'),
   revokeDevice: (id: string) => request<{ ok: boolean }>('DELETE', `/devices/${enc(id)}`),
@@ -107,6 +107,9 @@ export const api = {
   run: (id: string, plan: (Stage | { stage: Stage; request?: string })[], extra: { mode?: Mode; strategy?: Strategy } = {}) =>
     request<{ job: Job }>('POST', `/dossiers/${enc(id)}/run`, { plan, ...extra }),
   stop: (id: string) => request<{ stopped: boolean }>('POST', `/dossiers/${enc(id)}/stop`, {}),
+  /** Manual edit as a new user version (proof re-checked strictly by Lean). */
+  saveVersion: (id: string, kind: 'proof' | 'explanation' | 'informal' | 'notes', code: string, check = true) =>
+    request<{ dossier: Dossier; check: CheckResult | null }>('POST', `/dossiers/${enc(id)}/versions/${kind}`, { code, check }),
   restoreVersion: (id: string, kind: VersionKind, index: number) =>
     request<{ dossier: Dossier }>('POST', `/dossiers/${enc(id)}/versions/${kind}/${index}/restore`, {}),
   dossierJobs: (id: string, raw = false) => request<{ jobs: Job[] }>('GET', `/dossiers/${enc(id)}/jobs${raw ? '?raw' : ''}`),
@@ -115,6 +118,12 @@ export const api = {
   exportUrl: (id: string, format: ExportFormat) => `/api/dossiers/${enc(id)}/export?format=${format}`,
 
   jobs: () => request<{ active: Job[]; recent: Job[] }>('GET', '/jobs'),
+  jobStream: (id: string, from = 0) => request<{ job_id: string; start: number; end: number; truncated: boolean; ended: boolean;
+    segments: { offset: number; stage: string; attempt: number; kind: string; text: string }[] }>('GET', `/jobs/${enc(id)}/stream?from=${from}`),
+  examples: () => request<{ examples: { key: string; statement: string; title: string; level: string; blurb: string;
+    fr: { title: string; level: string; blurb: string }; en: { title: string; level: string; blurb: string } }[] }>('GET', '/examples'),
+  declaration: (name: string, workspace?: string) => request<{ workspace: string; name: string; status: 'ok' | 'unknown' | 'indexing' | 'unavailable';
+    declaration: { name: string; kind?: string; signature: string; doc: string; module: string } | null }>('GET', `/lean/declaration?name=${enc(name)}${workspace ? `&workspace=${enc(workspace)}` : ''}`),
   job: (id: string) => request<{ job: Job }>('GET', `/jobs/${enc(id)}`),
   cancelJob: (id: string) => request<{ cancelled: boolean }>('POST', `/jobs/${enc(id)}/cancel`, {}),
 
@@ -136,7 +145,7 @@ export const api = {
   setKey: (provider: string, key: string) =>
     request<{ provider: string; set: boolean; backend: string }>('POST', '/models/keys', { provider, key }),
   deleteKey: (provider: string) => request<{ provider: string; set: boolean; existed: boolean }>('DELETE', `/models/keys/${enc(provider)}`),
-  testKey: (provider: string) => request<{ provider: string; ok: boolean | null; reason?: string }>('POST', '/models/test', { provider }),
+  testKey: (provider: string) => request<{ provider: string; ok: boolean | null; reason?: string; model?: string; models?: number; latency_s?: number }>('POST', '/models/test', { provider }),
   refreshModels: () => request<ModelsInfo>('POST', '/models/refresh', {}),
   stopLocal: () => request<unknown>('POST', '/models/local/stop', {}),
 

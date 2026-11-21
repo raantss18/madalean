@@ -8,7 +8,8 @@ for (const scheme of ['light', 'dark'] as const) {
     await open(page, '/', { mode: 'learn' });
     await axe(page, `home ${scheme}`);
     for (const path of [`/d/${d.id}/enonce`, `/d/${d.id}/lean`, `/d/${d.id}/preuve`, '/activite', '/bibliotheque', '/glossaire', '/carnet',
-      '/reglages/modeles', '/reglages/appareils', '/reglages/systeme', '/reglages/apparence', '/reglages/mises-a-jour']) {
+      '/reglages/modeles', '/reglages/appareils', '/reglages/systeme', '/reglages/apparence', '/reglages/mises-a-jour',
+      '/projet', '/sources', '/notes', '/graphe', '/blueprint', '/article', '/conjectures', '/publier', '/aide', '/aide/pairing', `/d/${d.id}/plan`]) {
       await page.goto(process.env['MADALEAN_URL'] + path);
       await page.waitForTimeout(500);
       await axe(page, `${path} ${scheme}`);

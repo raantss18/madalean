@@ -104,10 +104,10 @@ export class StreamStore {
   }
 
   /** Seeds a stream from saved attempts (page opened while a job runs). */
-  seed(jobId: string, parts: { stage: string; attempt: number; text: string }[]): void {
+  seed(jobId: string, parts: { stage: string; attempt: number; text: string; kind?: string }[]): void {
     const s = this.get(jobId);
     if (s.parts.length) return;
-    for (const p of parts) if (p.text) s.append(p.stage, p.attempt, 'text', p.text);
+    for (const p of parts) if (p.text) s.append(p.stage, p.attempt, (p.kind as TokenKind) ?? 'text', p.text);
     this.mark(jobId);
   }
 

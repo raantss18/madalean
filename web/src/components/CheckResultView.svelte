@@ -3,8 +3,19 @@
   import { t } from '../lib/i18n/index.svelte';
   import Icon from './Icon.svelte';
   let { check, mode = 'statement' }: { check: CheckResult; mode?: 'statement' | 'proof' } = $props();
+  import { refusalOf } from '../lib/lean/refusal';
   const ok = $derived(mode === 'proof' ? check.ok : check.statement_ok);
+  const refusal = $derived(refusalOf(check));
 </script>
+
+{#if refusal}
+  <div class="check refused" role="alert">
+    <p class="head"><Icon name="lock" size={16} /><strong>{t('d28.title')}</strong></p>
+    <p class="small">{t('d28.text')}</p>
+    <ul class="small">{#each refusal as r}<li>{r}</li>{/each}</ul>
+    <p class="xs muted">{t('d28.what')}</p>
+  </div>
+{:else}
 
 <div class="check" class:ok class:bad={!ok} role="status">
   <p class="head"><Icon name={ok ? 'check' : 'warn'} size={16} />
@@ -22,10 +33,14 @@
   {#if mode === 'proof' && check.reasons.length && !check.ok}<p class="small">{check.reasons.join(' · ')}</p>{/if}
   {#if mode === 'proof' && check.axioms}<p class="xs muted">{t('check.axioms', { a: check.axioms.join(', ') || '—' })}</p>{/if}
 </div>
+{/if}
 
 <style>
   .check { border-radius: var(--r-2); padding: var(--s-3); margin-top: var(--s-3); border: 1px solid var(--line); }
   .check.ok { background: var(--proved-soft); border-color: color-mix(in srgb, var(--proved) 40%, transparent); }
+  .check.refused { background: var(--running-soft); border-color: color-mix(in srgb, var(--running) 45%, transparent); }
+  .refused .head { color: var(--running); }
+  .refused ul { margin: 4px 0; padding-left: 1.2em; }
   .check.bad { background: var(--failed-soft); border-color: color-mix(in srgb, var(--failed) 40%, transparent); }
   .head { display: flex; align-items: center; gap: 8px; margin: 0; flex-wrap: wrap; }
   .ok .head { color: var(--proved); }

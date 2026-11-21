@@ -100,9 +100,15 @@
           <label><input type="radio" name="uimode-rail" value="learn" checked={prefs.mode === 'learn'} onchange={() => setMode('learn')} /><Icon name="graduate" size={16} />{t('mode.learn')}</label>
           <label><input type="radio" name="uimode-rail" value="research" checked={prefs.mode === 'research'} onchange={() => setMode('research')} /><Icon name="microscope" size={16} />{t('mode.research')}</label>
         </div>
+        <ul class="projnav" aria-label={t('nav.project')}>
+          <li><a href="/" aria-current={route.name === 'home' || route.name === 'dossier' ? 'page' : undefined} onclick={() => (drawer = false)}><Icon name="list" size={16} />{t('nav.dossiers')}</a></li>
+          {#each navItems.filter((r) => r.nav?.group === 'project') as r (r.name)}
+            <li><a href={r.pattern.replace(/\/:[^/]+\??/g, '')} aria-current={route.name === r.name || (r.name === 'sources' && route.name === 'reader') ? 'page' : undefined} onclick={() => (drawer = false)}><Icon name={r.nav!.icon} size={16} />{t(r.nav!.label)}</a></li>
+          {/each}
+        </ul>
         <DossierList onpick={() => (drawer = false)} />
         <ul class="secondary">
-          {#each navItems.filter((r) => r.name !== 'home') as r (r.name)}
+          {#each navItems.filter((r) => r.name !== 'home' && r.name !== 'project' && r.nav?.group !== 'project') as r (r.name)}
             <li><a href={r.pattern.replace(/\/:[^/]+\??/g, '')} aria-current={route.name === r.name ? 'page' : undefined} onclick={() => (drawer = false)}><Icon name={r.nav!.icon} />{t(r.nav!.label)}</a></li>
           {/each}
         </ul>
@@ -167,8 +173,13 @@
   .body { flex: 1; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: 0; }
   .rail { position: sticky; top: var(--topbar-h); height: calc(100dvh - var(--topbar-h)); overflow: hidden; border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; }
   .rail > :global(.dl) { flex: 1; min-height: 0; overflow: auto; }
-  .secondary { list-style: none; margin: auto 0 0; padding: var(--s-2) 0; border-top: 1px solid var(--line); }
-  .secondary a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 var(--s-4); color: var(--text-2); text-decoration: none; font-size: var(--fs-sm); font-weight: 600; }
+  .projnav { list-style: none; margin: 0; padding: var(--s-2) var(--s-2) var(--s-1); display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-bottom: 1px solid var(--line); }
+  .projnav a { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 var(--s-2); border-radius: var(--r-1); color: var(--text-2); text-decoration: none; font-size: var(--fs-sm); font-weight: 600; }
+  @media (pointer: coarse) { .projnav a { min-height: 44px; } }
+  .projnav a:hover { background: var(--surface-2); color: var(--text); }
+  .projnav a[aria-current='page'] { background: var(--accent-soft); color: var(--accent); }
+  .secondary { list-style: none; margin: auto 0 0; padding: var(--s-1) 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; }
+  .secondary a { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 var(--s-3); color: var(--text-2); text-decoration: none; font-size: var(--fs-sm); font-weight: 600; }
   .secondary a:hover { background: var(--surface-2); color: var(--text); }
   .secondary a[aria-current='page'] { color: var(--accent); }
   main { min-width: 0; padding: var(--s-5) var(--s-6) var(--s-7); }

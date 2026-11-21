@@ -60,6 +60,8 @@ img, svg { max-width: 100%; }
 .btn.icon { padding: 0; width: var(--touch); }
 .btn .ico { width: 18px; height: 18px; flex: none; }
 
+/* Fields (fieldsets default to min-width: min-content, which breaks narrow layouts) */
+fieldset { min-width: 0; }
 /* Fields */
 .field { display: grid; gap: var(--s-1); margin-bottom: var(--s-4); }
 .field > label, .label { font-weight: 600; font-size: var(--fs-sm); color: var(--text); }

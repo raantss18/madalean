@@ -76,36 +76,87 @@ Built on the shells' brand (shells/branding/: a baobab whose crown is ∀, ink `
 
 Skills loaded: `progressive-hint-ladder`, `worked-example-fading-designer`, `self-explanation-prompt-designer`,
 `explain-first-interrogator` (+ `frontend-design`, `design:ux-copy`, `design:accessibility-review`, `a11y-enforcer`).
-- **Hint ladder before the proof** (`HintLadder.svelte`): diagnosis first (« Qu'avez-vous essayé ? » + « De quelle aide
-  avez-vous besoin ? concept / approche / étape »), then nudge → strategy → key lemma → next step → full proof. Each rung
-  requires a one-sentence reflection on the previous hint (« Qu'est-ce que cet indice vous a appris ? ») — the skill's
-  anti hint-clicking safeguard; the reflections are sent with the next request so the tutor builds on them. An honest
-  escape stays available (« J'ai trouvé » / « Voir directement la preuve »). Progress is kept per device and per
-  statement version. Hint prompts never contain the proof (unit-tested).
-- **Explain it back** (`ExplainBack.svelte`): the learner writes first (minimum length), the tutor names what is right
-  and asks *one* question about the weakest part, never rewrites the explanation; after three rounds it asks for a
-  cleaner final version (explain-first interrogator's synthesis step). Offered on the Lean statement (« que dit cet
-  énoncé ? ») and on the proof (« pourquoi marche-t-elle ? ») — self-explanation prompts placed at the points of highest
-  conceptual density, not everywhere.
-- **Faded worked example** (`Exercise.svelte`): from a proven dossier, the proof with its last *k* tactic lines replaced
-  by `sorry` — fading from the end backwards — checked by Lean in strict mode; success unlocks « remove one more step »
-  and asks « why does your step work? ». Level « whole proof » = independent practice (expertise-reversal: the learner
-  can jump there directly).
-- **Glossary and token meanings**: hover (desktop) or tap (phone) any Lean token to see its meaning in the learn
-  panel; a bilingual glossary screen with the abbreviation table.
+Since phase 2 every learning feature is **served and checked by the server** (docs/RESEARCH_WORKSHOP.md §4): the
+client holds no prompt any more (`web/src/lib/learn/tutor.ts` only calls the endpoints and translates their gates).
+- **Hint ladder before the proof** (`HintLadder.svelte` → `POST /dossiers/{id}/hint`, `GET /learn/{id}/ladder`):
+  retrieve-first gate (« Qu'avez-vous essayé ? » + « De quelle aide avez-vous besoin ? »), then nudge → strategy →
+  key lemma → next step → full proof (level 5 = the Lean-verified proof, never model text). Each rung needs a one-sentence
+  reflection on the previous hint (the skill's anti hint-clicking safeguard; the server enforces it from level 3, the UI
+  from level 2). Leaking hints are regenerated or shortened by the server and marked « indice raccourci ». Progress
+  is kept by the host per device, refreshed live by `learn.progress`.
+- **Explain it back** (`ExplainBack.svelte` → `POST /dossiers/{id}/explain-back`): the learner writes first; the answer
+  is graded against criteria taken from the Lean-verified proof (or the Lean statement): « 1 critère sur 2 rempli »,
+  ✓/✗ per criterion, the gap, and *one* question; after three rounds a cleaner final version is asked for.
+- **Exercises** (`Exercise.svelte`): *faded proof* (`/learn/{id}/exercises/faded`: last k steps removed from the end
+  backwards, each blank proven non-trivial by a real Lean run; the learner fills the blanks, Lean checks strictly) and
+  *erroneous example* (`…/erroneous`: a plausible wrong step that Lean really rejects; diagnosis first, then Lean's real
+  error, then the fix checked by Lean). When every step is automatic the server says so and the UI shows it.
+- **Token meanings**: hover (desktop) or tap (phone) any Lean token: the built-in bilingual glossary first, then
+  `GET /learn/token` (tactic table + the workspace's declaration index; unknown names reported unknown, never invented).
 - **Research mode** removes all of this from the way: proof shown at once, learn panel collapsed, denser spacing,
   keyboard shortcuts (`n` new, `/` palette).
+
+### Research screens (phase 2): NotebookLM + Zotero + Obsidian, unified around Lean
+
+- **Sources** (`/sources`, reader `/sources/:shelf/:id`): Zotero-like library per project shelf (global and Mathlib
+  shelves too), filters by tag / reading status, add by identifier (DOI, arXiv, ISBN, zbMATH, OpenAlex, URL), file
+  (PDF, TeX, BibTeX/RIS/CSL-JSON/RDF, Zotero export zip) or paste, duplicates explained; merged literature search
+  (arXiv, zbMATH, Crossref, OpenAlex, Semantic Scholar) with per-provider status and « Ajouter ». The reader shows the
+  paper as a TeX-derived *structure* (theorem-like blocks typeset like the paper) or as the *PDF* (pdf.js, lazy:
+  pages rendered when scrolled to, text layer for selection, highlights from annotation quads, « Surligner » on a
+  selection), side by side with **grounded questions** (`QaPanel`): every sentence carries its passage buttons
+  (P1, P2…); a click opens the PDF page at the passage box (flash) or the structure view at the chunk; sentences
+  without a verified citation are struck « non étayé »; optional general knowledge is a separate, labelled part;
+  « Résumer » and « Comparer avec… ». « Copier le lien » gives `[[passage:…]]` for notes; « Extraire le blueprint ».
+- **Notes** (`/notes/:id`): Markdown + KaTeX + ```` ```lean ```` blocks with « Vérifier avec Lean » per block and « En faire
+  un dossier »; `[[` opens a completion list (notes, dossiers, `@keys`); side-by-side preview with working links;
+  backlinks; tags; daily note; versions with diff and restore; autosave with `base_rev`: the server merges edits from
+  two devices, and when the same lines changed a **merge view** shows « Ma version / L'autre version / Les deux » per
+  hunk with an editable result (never a silent overwrite).
+- **Graph** (`/graphe`): notes, dossiers, sources and their links; dependency-free force layout (grid-bucketed
+  repulsion, 500 nodes < 3 s, deterministic); labels appear near the pointer / selection or when zoomed in, constant
+  screen size; filters (kinds, link kinds, tag, isolated nodes), find, keyboard pan/zoom, and a **list view** (table)
+  that is the default on phones and the screen-reader alternative.
+- **Blueprint** (`/blueprint`): layered DAG (dependencies on the left), each node with a status that is colour **and**
+  border pattern **and** text (verified / proved with unverified dependencies / defined / Lean statement / stated /
+  blocked / failed / no dossier); node panel with the paper's text beside the Lean statement, proposed edges to confirm
+  or discard, « Créer les dossiers », « Formaliser la sélection » (the paper's proof goes to the Goedel prover only).
+- **Article** (`/article`): blocks with « Brouillon IA · modèle » vs « Votre texte » vs result blocks (« vérifié par
+  Lean » / « non vérifié »); regenerate one block (streams live); regenerating a block you edited asks first and keeps
+  your text in its versions; reorder, add, delete with undo, cite from the project's keys, preview typeset like the
+  paper (unverified results as « Affirmation », never « Théorème »), export PDF/TeX/zip/md.
+- **Conjectures** (`/conjectures/:id`): propose from the project's notes / results (filtered duplicates explained) or
+  write one; status steps (proposée → testée sur des cas → énoncé Lean → prouvée, or réfutée); counter-example card
+  (re-verified by Sage/Python and Lean); experiments whose code is shown and runs only after « J'ai lu ce code :
+  approuver et lancer » (editing the code drops the approval; host-only unless the host allows it), live output;
+  append-only evidence timeline with its hash chain status; promote to theorem only after a Lean proof.
+- **Proof plan** (dossier tab « Plan »): a tree of claims (keep / discard / edit / add / reorder / delete), run kept steps
+  in parallel as sub-dossiers with live state, stop a branch, split a failed node further, « admettre pour l'instant »
+  → the node and anything proved through it is **Conditionnel — pas vérifié** (dashed amber border + badge + text,
+  also in the dossier header and the Preuve step); « Prouvé et vérifié par Lean » only when the strict verdict holds.
+- **Publier** (`/publier`): choose results (verified by default; unproved ones are published as « Affirmation ») and
+  notes (none by default), « Préparer la liste exacte » (nothing sent), the exact file list with sizes and origins,
+  what was excluded and why, what is never published, local preview, then push to GitHub with the id of the list you
+  reviewed (host only; GitHub token in Réglages › Clés).
+- **Aide** (`/aide/:page`): the manual of `docs/manual` (one source with the website), see §2b.
+- **Project hub** (`/projet`, the phone's « Projet » tab): one door to every section of the current project with counts.
+- **D28** (Lean code that could run programs on the host is refused before compiling): every check result shows the
+  refusal as « Lean n'a pas été lancé : code refusé par sécurité » with the refused constructs in plain words
+  (`lib/lean/refusal.ts`), distinct from a Lean error.
 
 ## 2. Information architecture
 
 ```
 Top bar:  [☰ dossiers] [Madalean] [Projet ▾]  ……  [Chercher Ctrl K] [Qui reçoit quoi] [Activité n] [Apprendre|Recherche] [⚙]
-Rail (≥1024 px, drawer below): dossiers of the project, live status per row, lemmas nested; Activité, Bibliothèque,
-                                Glossaire, Carnet, Réglages
+Rail (≥1024 px, drawer below): project sections (Dossiers · Sources · Notes · Graphe · Blueprint · Article ·
+                                Conjectures · Publier), dossiers of the project with live status, lemmas nested;
+                                Activité · Bibliothèque · Glossaire · Carnet · Aide · Réglages
 Main:
   /                         Énoncé of a NEW dossier (natural language/LaTeX with live preview, or Lean), .tex import,
                             examples, recent dossiers
-  /d/:id/(enonce|lean|preuve)  one dossier: stepper Énoncé → Traduction Lean → Preuve + thread (side ≥1280 px, below otherwise)
+  /d/:id/(enonce|lean|preuve|plan)  one dossier: stepper Énoncé → Traduction Lean → Preuve, + Plan; thread beside/below
+  /projet                   project hub · /sources, /sources/:shelf/:id · /notes/:id? · /graphe · /blueprint · /article
+  /conjectures/:id? · /publier · /aide/:page?
   /activite                 all jobs of all dossiers, resource slots, cancel each
   /bibliotheque             proven results (remove with undo, export .lean per workspace)
   /glossaire                Lean words + abbreviations
@@ -113,7 +164,8 @@ Main:
   /reglages/:section        modeles · cles · appareils · espaces · mises-a-jour · profil · langue · apparence · carnet · systeme · a-propos
   /pair                     pairing screen (public; remote browsers)
   /__perf                   measurement page used by e2e/perf.spec.ts
-Phone (<768 px): bottom navigation Accueil · Activité · Bibliothèque · Réglages; mode switch moves into the drawer;
+Ctrl+K searches everything: screens, actions, dossiers, notes (full text), sources of the project, the manual.
+Phone (<768 px): bottom navigation Accueil · Projet · Activité · Aide · Réglages; mode switch moves into the drawer;
                  the privacy indicator becomes an icon when idle, shows the model while work runs.
 ```
 
@@ -123,6 +175,19 @@ resync, pure), `store/model.ts` (reducer, pure), `store/connection.ts` (WebSocke
 visibility), `store/streams.ts` (token streams outside reactive state, one notification per frame),
 `store/app.svelte.ts` (the single reactive store), `store/optimistic.ts`. Screens never hold their own copy of server
 data: they read `app.m` and the server's events update it, which is what keeps every device in sync.
+
+## 2b. In-app help from the manual (docs/SITE.md §2)
+
+`web/src/lib/manual.ts` loads `docs/manual/index.json` (schema `madalean-manual/1`) as a lazy chunk (≈ 82 kB gzip) —
+the same texts as the website, never a second copy. Pages of the interface language, grouped by `sections` order;
+`body` rendered by `renderTrusted` (`lib/md.ts`: markdown-it with GFM tables, KaTeX, Lean fences highlighted, images
+allowed only from `/help/img/`, then DOMPurify); heading ids are assigned **in order from `headings[]`** (never
+re-slugified) so anchors match the site; links rewritten (`<id>.md#a` → `/aide/<id>#a`; `site:updates` /
+`site:install` → Réglages › Mises à jour; other `site:<name>` → `site_url + lang + "/" + site_links[name]`, external);
+`docs/manual/img/` is copied to `madalean/static/help/img/` by a small Vite plugin (served in dev too). Search over
+title, headings, summary and text, accent-folded (also in Ctrl+K). Contextual « Aide » links (`HelpLink`) on Home
+(workflow), each dossier step (workflow / reading-lean / proof-plans), Sources, Notes, Graph, Blueprint, Article,
+Conjectures, Publier, Carnet and the settings sections (models-keys, pairing, updates, security, troubleshooting…).
 
 ## 3. Design tokens (`web/src/styles/tokens.css`)
 
@@ -147,13 +212,15 @@ Ratios measured with the a11y-enforcer contrast script (all AA for their use). R
 tightens spacing and the top bar. Themes: system by default, per-device override (`data-theme`), applied before first
 paint by `public/theme-init.js` (external file: CSP forbids inline scripts).
 
-## 4. How to add a screen (for the research-layer session)
+## 4. How to add a screen
 
 1. Create `web/src/screens/Sources.svelte` taking `{ params }: { params: Record<string, string> }`. Put an `<h1>` first
    (focus moves there on navigation).
 2. Register it in `web/src/routes.ts`:
    `addRoute({ name: 'sources', pattern: '/sources/:id?', load: () => import('./screens/Sources.svelte'), nav: { label: 'nav.sources', icon: 'book', order: 5 } })`
    — it becomes its own chunk, appears in the rail, the command palette (and the phone bar with `phone: true`).
+   A screen of the current project uses `nav.group: 'project'` (rail top block + project hub), wraps its content in
+   `<ProjectGate>` and reads the project with `currentProjectId()`; put a `<HelpLink page="…" />` next to its `<h1>`.
 3. Add the strings to **both** `web/src/lib/i18n/fr.ts` and `en.ts` (TypeScript refuses an incomplete `en.ts`;
    `npm test` checks placeholders and every `t('…')` key used in the sources).
 4. Data: add endpoint functions to `api` in `lib/api/client.ts` and types to `lib/api/types.ts`. If the server
@@ -173,6 +240,8 @@ paint by `public/theme-init.js` (external file: CSP forbids inline scripts).
 | `markdown-it` 15.0.3 | Markdown of model output with `html:false` (raw HTML shown as text) |
 | `dompurify` 3.4.18 | defence in depth on the final HTML (model output is untrusted) |
 | `uqr` 0.1.3 | QR code for `madalean://pair?…` (rendered as our own SVG, no `{@html}`) |
+| `pdfjs-dist` 5.4.394 | PDF reader with page anchors, text layer and highlights (lazy chunk of the reader only; `isEvalSupported:false` for the CSP; worker served from `/assets`) |
+| `@codemirror/autocomplete` 6.20.0 | `[[` link completion in notes |
 | `@fontsource-variable/source-sans-3`, `@fontsource-variable/source-serif-4`, `@fontsource/dejavu-mono` | self-hosted fonts (OFL / Bitstream Vera) |
 
 | Dev | Why |
@@ -192,18 +261,20 @@ sizing and Svelte `style:` directives; no inline *script* anywhere. No remote or
 
 ## 6. Measured performance (headless Chromium on this PC, demo server; `npm run perf`)
 
-Bundle (gzip): entry `index` 20.6 kB + Svelte runtime/i18n/shared 49.7 kB = **~70 kB before first render**; screens are
-separate chunks (Dossier 21 kB, Home 5 kB, settings sections 1–6 kB each); lazy: CodeMirror 102 kB, KaTeX+markdown
-131 kB (+ KaTeX fonts). Everything together ≈ 330 kB gzip, within the ≈ 350 kB budget. Served pre-compressed
-(brotli: 1133 kB raw → 323 kB).
+Bundle (gzip, after phase 2): first render needs **≈ 93 kB** (entry 23 + Svelte runtime 24 + store/i18n catalogues 44
++ client 2); every screen is its own chunk (research screens 1–7 kB each). All application code together: **219 kB**.
+Heavy optional chunks, loaded only by the screens that need them: KaTeX + markdown-it + DOMPurify 125 kB (+ KaTeX
+fonts), CodeMirror 107 kB, pdf.js 112 kB + its worker 282 kB (reader's PDF view only), the manual's index.json 81 kB
+(Aide only). Served pre-compressed (brotli), hashed and immutable.
 
 | Measurement | Result |
 |---|---|
-| Time to interactive, phone 360×780, 4× CPU throttling, fast-3G (150 ms RTT, 1.6 Mb/s), **cold cache** (first heading visible + statement field accepts a key) | **2.6 s** (DOMContentLoaded 0.96 s; 185 kB JS transferred) |
-| Same, **warm cache** (hashed assets are immutable) | **1.3 s** (target < 1.5 s) |
-| 10 000-line stream (40 lines every 16 ms, faster than the server's 100 ms coalescing): frame times | p50 16.7 ms, p95 16.8, p99 16.8, max 16.8 ms, 0 frames > 50 ms |
-| Typing in an input while that stream runs | keystroke → value: p50 8 ms, max 16 ms |
-| Scrolling through the 10 000 lines (201 422 px, 600 px per frame) | p50 16.7 ms, p95 17.8, p99 18.5, max 19.2 ms — 60 fps |
+| Time to interactive, phone 360×780, 4× CPU throttling, fast-3G (150 ms RTT, 1.6 Mb/s), **cold cache** (heading visible + statement field accepts a key) | **2.6 s** (DOMContentLoaded 1.0 s; 206 kB JS transferred) |
+| Same, **warm cache** | **1.26 s** (target < 1.5 s) |
+| 10 000-line stream (40 lines every 16 ms): frame times | p50 16.7 ms, p99 16.8, max 16.8 ms, 0 frames > 50 ms |
+| Typing while that stream runs | keystroke → value p50 7 ms, max 16 ms |
+| Scrolling the 10 000 lines (201 422 px) | p50 16.7 ms, p95 17.2, p99 17.6, max 17.9 ms — 60 fps |
+| Graph force layout (Node, this PC) | 100 nodes 62 ms · 300 nodes 111 ms · 500 nodes 121 ms · 1 000 nodes 223 ms |
 
 How streaming stays smooth: tokens never enter reactive state; one paint per animation frame; text split into
 frozen 200-line blocks (only the tail re-renders, splitting is O(new text)); finished blocks use
@@ -226,57 +297,57 @@ is at the bottom; `overflow-anchor:none` and fixed boxes so nothing shifts.
   Research mode with a fine pointer. **Reduced motion**: all animation off. **Zoom/text size**: rem-based, text size
   setting 100/112/125 %, no horizontal scroll at 360 px (checked on every screenshot).
 
-## 7b. Test results (2026-11-21)
+## 7b. Test results (2026-11-21, after phase 2)
 
-- `npm test`: 24 unit tests pass (sequencer: order, duplicates, gap → resume, boot change → resync with buffered events,
-  overflow → resync; reducer; optimistic rollback; stream coalescing; i18n: same keys, same placeholders, every static
-  key used exists, dynamic families complete, bilingual glossary/examples; abbreviations, token lookup, proof fading,
-  hint prompt without proof, router, model labels). The sequencer test found and fixed a real bug (events after a
-  server restart were dropped while the resync was pending).
-- `npm run e2e` (+ screens + perf): 26 Playwright tests pass — full flow statement → Lean → proof → export (.lean
-  download) → follow-up → version restore; pairing on the remote listener (no code, wrong code, good code, host-only
-  lock, unlink); revoked device → back to pairing; parallel dossiers in the activity centre + cancel one; 409 busy;
-  keys flow; models/mode/per-role + out-of-range refusal; language switch FR→EN→FR; devices code + QR; phone layout,
-  token tap, touch targets; two contexts in sync live (create, status, rename, settings, delete + undo); reconnect after
-  offline with missed events; Learn mode (hint ladder with required reflection, explain-back, faded exercise accepted
-  by Lean) and Research mode (+ split into lemmas tree); axe on 14 screens × 2 themes; keyboard; 13 screenshot sets.
+- `npm test`: **27 unit tests** pass — sequencer (order, duplicates, gap → resume, boot change → resync with buffered
+  events, overflow → resync), reducer, optimistic rollback, stream coalescing, i18n (same keys, same placeholders,
+  every static key used exists, dynamic families complete, bilingual glossary/examples), Lean helpers, D28 refusal
+  recognition, `[[link]]` rendering, Lean-block finding, conflict resolution, graph layouts (500 nodes, determinism,
+  layering, cycles), router, model labels.
+- `npx playwright test` (e2e + screens + perf): **all pass** — phase 1 (flow statement → Lean → proof → export →
+  follow-up → version restore, pairing, revocation, parallel + cancel, 409, keys, models, language, devices, phone,
+  live sync of two contexts, reconnect, research mode + split, axe ×2 themes, keyboard) and phase 2 (`research.spec.ts`:
+  sources add-by-paste / literature search / grounded answer → passage / highlight / PDF rendered; notes autosave, `[[`
+  completion, versions + diff, live conflict → merge view → saved, Lean block check; graph + list; blueprint panel +
+  formalise selected; article AI draft vs your text, regenerate asks before overwriting; conjectures counter-example,
+  evidence, write one, experiment approval gate; plan accept / admit → conditional, never « vérifié »; learn ladder +
+  explain-back criteria + faded/erroneous exercises through the server; manual proof version checked by Lean; D28
+  refusal view; help from the manual (anchors from `headings[]`), publish, updates, Ctrl+K across notes/sources/manual).
+  axe (WCAG 2.1 AA) has 0 violations on every checked view (29 routes of `a11y.spec.ts` in light and dark, plus 13 views in `research.spec.ts`) (findings fixed: label-in-name on graph nodes,
+  duplicate accessible names). 13 screenshot sets for phase 1 + 4 research sets (desktop light/dark, tablet, phone)
+  in `docs/screenshots/v2/`, all without horizontal scroll.
 - `npm audit`: 0 vulnerabilities. `svelte-check`: 0 errors, 0 warnings.
 
-## 8. Requests to the server (precise; the UI works around each today)
+## 8. Requests to the server
 
-1. **Manual edits as versions** — `POST /api/dossiers/{id}/versions/{kind}` `{code, check?}` for `kind` = `proof |
-   explanation | informal | notes` (user version, `source:"user"`, proof re-checked strictly, event + `dossier.updated`).
-   *Today*: proof/explanation/informal-proof edits are local drafts on the device (`LocalDraft.svelte`, clearly
-   labelled), checkable with `POST /check strict`, never overwritten without asking.
-2. **Router explanations** — include `brain.explain(role, mode)` in `GET /models` (`roles[role].candidates[i].why` and
-   `.score`). *Today*: the « Pourquoi ? » list shows rank, local/online, free/paid.
-3. **Key test** — `brain.test(provider)` is missing, so `POST /models/test` always answers `ok:null,
-   reason:"not_supported"`. Implement a cheap authenticated call (list models) returning `{ok, reason, models:n}`.
-   *Today*: models unlocked are counted after `/models/refresh`.
-4. **Declaration lookup** for hover/tap on Mathlib names — `GET /api/lean/declaration?name=&workspace=` →
-   `{name, kind, signature, doc, module}` and `GET /api/lean/search?q=` (the S-B retriever has both). The editor already
-   has the hook (`declLookup` in `lib/lean/editor.ts`). *Today*: built-in bilingual glossary only.
-5. **Learn endpoints** — `POST /api/dossiers/{id}/hint {level, tried, help, reflections}` (server builds the prompt from
-   the dossier, guarantees the proof is not leaked before `full`) and `POST /api/dossiers/{id}/explain-back {target,
-   text, previous}`; plus storing learner progress server-side so it follows the user across devices. *Today*: both
-   go through `POST /assistant` with prompts built in `lib/learn/tutor.ts`; progress is per device.
-6. **Model key repr** — in demo (FakeBrain) runs, `Attempt.model` / `job.attempts[].model` contain a Python repr
-   (`ModelRef(provider='fake', model_id='fake-prove', …)`) instead of `"provider:model_id"`. *Today*: `modelLabel()`
-   parses it.
-7. **Remote address for pairing** — `POST /pairing/start` should return the address other devices use
-   (`remote_url`, e.g. `https://<host>.<tailnet>.ts.net:10500`, from `tailscale serve status`) so the QR link needs no
-   typing. *Today*: the host types it once (remembered per device).
-8. **Examples** — `GET /api/examples` (server `madalean/examples.py`) so both sides share one list. *Today*: duplicated
-   bilingually in `web/src/lib/examples.ts`.
-9. **CSP as a header** — send the CSP of §5 as a `Content-Security-Policy` header on `index.html` (meta cannot carry
-   `frame-ancestors`); `X-Frame-Options: SAMEORIGIN` already covers framing.
-10. **Assistant/WS ordering** — `assistant.*` events can arrive before the `202 {request_id}` reaches the client.
-    *Today*: the store buffers unclaimed assistant events for 60 s. Optionally accept a client-chosen `request_id`.
-11. **`POST /api/devices/self/forget`** (docs/SHELLS.md §8) — used by « Délier cet appareil »; the UI falls back to
-    `POST /logout` while it returns 404/405/401.
-12. **Job history in `dossier.updated`** — when a page is opened mid-job, earlier streamed text is rebuilt from
-    `GET /jobs/{id}` `attempts[].raw` (proof attempts only). Single-call stages (understand, notes, explanation…) lose
-    their partial text on reload; a `GET /jobs/{id}/stream?since=` (or keeping the last N tokens per job) would fix it.
+**Done by the server since phase 1 and now used by the UI**: manual edits as versions (`POST /dossiers/{id}/versions/
+{kind}`, the « Modifier » editors save new versions; a manual proof counts only if Lean accepts it); real key test
+(`POST /models/test` with `models`, `reason`); router `why`/`score` (shown in « Pourquoi ? »); declaration lookup
+(through `GET /learn/token`, which adds the curated tactic table); `GET /examples` (Home; built-in list only as a
+fallback); CSP header on HTML; `GET /jobs/{id}/stream` (replay of every stage when a page opens mid-job);
+`remote_url` from `POST /pairing/start` (pre-fills the QR address); `POST /devices/self/forget`; learning endpoints
+(hint, explain-back, faded and erroneous exercises, progress); publication (`/research/publish/*`).
+
+Still open (the UI works around each):
+1. **`Attempt.model` as a Python repr** in demo runs (`ModelRef(provider='fake', …)`) instead of `provider:model_id`;
+   `modelLabel()` parses it.
+2. **Assistant/qa/article streams can overtake their 202** (`request_id` unknown when the first events arrive): the
+   store buffers unclaimed request events 60 s. A client-chosen `request_id` would remove the race.
+3. **Learner reflections**: the hint endpoint takes `reflections` but the ladder (`GET /learn/{id}/ladder`) does not
+   return them, so on a second device the UI asks for the last reflection again. Returning them would make the ladder
+   fully device-independent.
+4. **`GET /updates/recheck`** answers `report: {}` before any re-check; a `null` (as documented) would be clearer (the UI
+   handles both).
+5. **D28 refusal as data**: the refusal is recognised by the summary prefix (« Refusé avant compilation » / « Refused
+   before compiling ») and the French `reasons` labels; a machine-readable `refused: ["eval", "io", …]` field in
+   `CheckResult` would make it robust to rewording. The demo's fake Lean does not apply D28, so the refusal view is
+   tested with a mocked response.
+6. **Publication in demo mode** answers `no_mathlib_pin` (the demo workspace has no pinned Mathlib), so the manifest,
+   preview and push views were only exercised up to that plain error; a demo manifest would allow testing them.
+7. **Note conflict hunks** give base line numbers but not the position in the current text: the merge view finds the
+   « theirs » text in the current body (unique in practice) and shows the editable result before saving.
+8. **Search across everything**: Ctrl+K calls notes search, the project's sources and the manual separately; one
+   `GET /search?q=` over dossiers, notes, sources, passages and library would rank results together.
 
 ## 9. What was NOT verified
 
@@ -293,4 +364,12 @@ is at the bottom; `overflow-anchor:none` and fixed boxes so nothing shifts.
   not run (Chromium only). Real phones/tablets not used (viewport emulation).
 - Updates install progress, system repairs and the « Libérer la carte graphique » action were rendered but not
   triggered against real installers/models.
-- Tutor quality (hints, explain-back) depends on the real assistant model; the demo assistant echoes its prompt.
+- Tutor quality (hints, explain-back) depends on the real models; in demo the scripted brain answers.
+- Research layer: grounded answers, literature search, blueprint extraction, article drafts and conjecture proposals
+  ran only against the demo's scripted brain and recorded HTTP answers; experiments were created and approved in the UI
+  but **never run** in tests (a run starts a real Sage/Python kernel on the host); publication was exercised only up to
+  the demo's `no_mathlib_pin` refusal (no manifest, preview or push against a real workspace / GitHub); the PDF reader
+  was checked on the demo's one-page PDF only (no long or scanned PDF, no annotation created from a mouse selection in
+  a test — the highlight test uses the structure view).
+- Self-update install / rollback / restart and system-component terminals were rendered, not triggered (the demo is
+  not a managed install; opening a terminal would pop a window on the host).

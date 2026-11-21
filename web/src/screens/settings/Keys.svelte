@@ -18,6 +18,7 @@
     { id: 'cerebras', name: 'Cerebras', url: 'https://cloud.cerebras.ai/', prefix: /^csk-/, paid: false },
     { id: 'openai', name: 'OpenAI', url: 'https://platform.openai.com/api-keys', prefix: /^sk-/, paid: true },
     { id: 'deepseek', name: 'DeepSeek', url: 'https://platform.deepseek.com/api_keys', prefix: /^sk-/, paid: true },
+    { id: 'github', name: 'GitHub (publication)', url: 'https://github.com/settings/tokens?type=beta', prefix: /^(ghp_|github_pat_|gho_)/, paid: false },
   ];
   const keys = $derived(app.m.models?.keys ?? {});
   let values = $state<Record<string, string>>({});
@@ -41,12 +42,18 @@
       await api.setKey(p.id, key);
       if (app.m.models) app.m.models.keys = { ...app.m.models.keys, [p.id]: true };
       status[p.id] = { level: 'busy', text: t('keys.testing') };
-      const test = await api.testKey(p.id).catch(() => ({ ok: null as boolean | null, reason: 'not_supported' }));
-      if (test.ok === false) { status[p.id] = { level: 'error', text: t('keys.refused', { reason: tk(`keys.reason.${test.reason}`, test.reason ?? '') }) }; return; }
+      const test = await api.testKey(p.id).catch(() => ({ ok: null as boolean | null, reason: 'not_supported', models: undefined as number | undefined, model: '' }));
       app.m.models = await api.refreshModels().catch(() => app.m.models);
-      const n = countModels(p.id);
+      const n = test.models ?? countModels(p.id);
+      if (test.ok === false && (test.reason ?? '') === 'no_model') { status[p.id] = { level: 'warn', text: t('keys.savedNoModel') }; return; }
+      if (test.ok === false) {
+        const reason = (test.reason ?? '').split(':')[0] ?? '';
+        status[p.id] = { level: 'error', text: t('keys.refused', { reason: tk(`keys.reason.${reason}`, test.reason ?? '') }) };
+        return;
+      }
       status[p.id] = test.ok === true
         ? { level: 'ok', text: n ? tn('keys.worksN', n) : t('keys.works') }
+        : test.reason === 'local_mode' ? { level: 'warn', text: t('keys.localMode') }
         : n ? { level: 'ok', text: tn('keys.savedN', n) } : { level: 'warn', text: t('keys.savedNoModel') };
     } catch (e) {
       status[p.id] = { level: 'error', text: errorText(e) };

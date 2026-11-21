@@ -7,12 +7,13 @@
 
   let {
     value = $bindable(''), language = 'lean', readonly = false, label, placeholder = '', errors = [], gloss = false,
-    onTokenTap, onSubmit, minLines = 3, id = '', lineNumbers = true, describedby = '',
+    onTokenTap, onSubmit, minLines = 3, id = '', lineNumbers = true, describedby = '', workspace = '', linkComplete,
   }: {
     value?: string; language?: 'lean' | 'natural'; readonly?: boolean; label: string; placeholder?: string;
     errors?: { line: number; text: string; severity: string }[]; gloss?: boolean;
     onTokenTap?: (token: string, entry: GlossEntry | null) => void; onSubmit?: () => void; minLines?: number; id?: string;
-    lineNumbers?: boolean; describedby?: string;
+    lineNumbers?: boolean; describedby?: string; workspace?: string;
+    linkComplete?: (typed: string) => Promise<{ label: string; apply: string; detail?: string }[]>;
   } = $props();
 
   let host: HTMLDivElement | undefined = $state();
@@ -30,7 +31,8 @@
       ed = createEditor({
         parent: host, doc: value, language, readOnly: readonly, ariaLabel: label, placeholder,
         lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.lang, gloss, onTokenTap, onSubmit,
-        onChange: (d) => { value = d; },
+        declLookup: gloss ? (name) => import('../lib/lean/lookup').then((m) => m.lookupToken(name, workspace || undefined)) : undefined,
+        onChange: (d) => { value = d; }, linkComplete,
       });
       if (describedby) ed.view.contentDOM.setAttribute('aria-describedby', describedby);
       if (id) ed.view.contentDOM.id = id;

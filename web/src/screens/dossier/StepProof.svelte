@@ -15,7 +15,7 @@
   import HintLadder from './HintLadder.svelte';
   import ExplainBack from './ExplainBack.svelte';
   import Exercise from './Exercise.svelte';
-  import LocalDraft from './LocalDraft.svelte';
+  import ManualEdit from './ManualEdit.svelte';
   import SplitDialog from './SplitDialog.svelte';
   import { follow, run } from './actions';
   import { navigate } from '../../lib/router.svelte';
@@ -37,6 +37,9 @@
   let editExpl = $state(false);
   let splitting = $state(false);
   let textTab = $state<'informal' | 'explanation'>('informal');
+  const extra = $derived((d['extra'] as Record<string, unknown> | undefined) ?? {});
+  const cond = $derived((extra['conditional_proof'] ?? d['conditional_proof']) as { verdict?: string; admitted?: string[]; code?: string } | undefined);
+  const recheck = $derived(((extra['recheck'] ?? d['recheck']) as { state?: string } | undefined)?.state ?? '');
   const children = $derived(Object.values(app.m.dossiers).filter((c) => c.parent_id === d.id).sort((a, b) => a.created - b.created));
   const explV = $derived(d.explanations[d.cur_explanation]);
   const informalV = $derived(d.informal_proofs.find((v) => v.parent === d.cur_proof) ?? d.informal_proofs[d.informal_proofs.length - 1]);
@@ -82,7 +85,18 @@
     </section>
   {/if}
 
+  {#if cond?.verdict === 'proved_modulo'}
+    <section class="panel conditional" role="status" aria-labelledby="cond-h">
+      <h2 id="cond-h"><Icon name="warn" size={16} /> {t('plan.conditional')}</h2>
+      <p class="small">{t('plan.conditionalText', { n: cond.admitted?.length ?? 0, names: (cond.admitted ?? []).join(', ') })}</p>
+      {#if cond.code}<details><summary class="small">{t('plan.conditionalCode')}</summary><pre class="errs neutral">{cond.code}</pre></details>{/if}
+      <a class="btn small" href="/d/{encodeURIComponent(d.id)}/plan">{t('plan.openPlan')}</a>
+    </section>
+  {/if}
   {#if hasProof}
+    {#if recheck === 'pending' || recheck === 'regressed'}
+      <p class="recheck {recheck}" role="status"><Icon name="warn" size={14} /> {tk(`recheck.${recheck}.long`, recheck)}</p>
+    {/if}
     <section class="panel result" class:proved aria-labelledby="res-h">
       <div class="row">
         <h2 id="res-h"><StatusMark phase={proved ? 'proved' : phaseOf(d.status)} size={16} /> {proved ? t('proof.verified') : t('proof.notVerified')}</h2>
@@ -105,11 +119,11 @@
         <p class="xs"><button class="linkish" onclick={reveal}>{t('hints.skipToProof')}</button></p>
       {:else}
         <h3>{t('proof.lean')}</h3>
-        <CodeEditor value={d.current.proof} language="lean" readonly label={t('proof.lean')} gloss={prefs.mode === 'learn'} minLines={6} />
+        <CodeEditor value={d.current.proof} language="lean" readonly label={t('proof.lean')} gloss={prefs.mode === 'learn'} workspace={d.workspace} minLines={6} />
         <div class="row tools">
           <button class="btn small" aria-expanded={editProof} onclick={() => (editProof = !editProof)}><Icon name="edit" size={14} />{t('proof.editByHand')}</button>
         </div>
-        <LocalDraft dossier={d} kind="proof" server={d.current.proof} bind:open={editProof} />
+        <ManualEdit dossier={d} kind="proof" server={d.current.proof} bind:open={editProof} />
       {/if}
     </section>
 
@@ -125,7 +139,7 @@
             <div class="prose"><Md src={d.current.informal_proof} /></div>
             {#if informalV?.model}<p class="xs muted">{t('common.by', { model: modelLabel(informalV.model).name })} · {t('proof.leanIsTruth')}</p>{/if}
             <button class="btn small" aria-expanded={editInformal} onclick={() => (editInformal = !editInformal)}><Icon name="edit" size={14} />{t('common.edit')}</button>
-            <LocalDraft dossier={d} kind="informal" server={d.current.informal_proof} bind:open={editInformal} />
+            <ManualEdit dossier={d} kind="informal" server={d.current.informal_proof} bind:open={editInformal} />
           {:else}
             <p class="muted small">{t('proof.noInformal')}</p>
             {#if !job}<button class="btn small" onclick={() => run(d.id, ['informal'])}>{t('proof.makeInformal')}</button>{/if}
@@ -139,7 +153,7 @@
               <Versions dossier={d} kind="explanation" busy={Boolean(job)} />
               <button class="btn small" aria-expanded={editExpl} onclick={() => (editExpl = !editExpl)}><Icon name="edit" size={14} />{t('common.edit')}</button>
             </div>
-            <LocalDraft dossier={d} kind="explanation" server={d.current.explanation} bind:open={editExpl} />
+            <ManualEdit dossier={d} kind="explanation" server={d.current.explanation} bind:open={editExpl} />
           {:else}
             <p class="muted small">{t('proof.noExplanation')}</p>
             {#if !job}<button class="btn small" onclick={() => run(d.id, ['explanation'])}>{t('proof.makeExplanation')}</button>{/if}
@@ -204,6 +218,11 @@
   .attempts { list-style: none; padding: 0; margin: var(--s-3) 0 0; display: grid; gap: var(--s-2); }
   .attempts summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: var(--touch); cursor: pointer; font-size: var(--fs-sm); }
   .errs { font: 0.75rem/1.45 var(--font-mono); white-space: pre-wrap; background: var(--failed-soft); padding: var(--s-2); border-radius: var(--r-1); max-height: 180px; overflow: auto; }
+  .conditional { border: 2px dashed var(--running-fill); background: var(--running-soft); }
+  .conditional h2 { color: var(--running); }
+  .errs.neutral { background: var(--surface-2); }
+  .recheck { margin: 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-2); background: var(--running-soft); color: var(--running); font-weight: 600; font-size: var(--fs-sm); display: flex; gap: 6px; align-items: center; }
+  .recheck.regressed { background: var(--failed-soft); color: var(--failed); }
   .result.proved { border-color: color-mix(in srgb, var(--proved) 50%, var(--line)); border-left: 4px solid var(--proved); }
   .stamp { color: var(--text-2); margin: var(--s-2) 0; }
   .tools { margin-top: var(--s-2); }

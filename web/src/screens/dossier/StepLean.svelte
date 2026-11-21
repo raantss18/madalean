@@ -26,7 +26,14 @@
   let checking = $state(false);
   let correcting = $state(false);
   let correction = $state('');
-  let tapped = $state<{ token: string; entry: GlossEntry | null } | null>(null);
+  let tapped = $state<{ token: string; entry: GlossEntry | null; server?: { title: string; body: string } | null; loading?: boolean } | null>(null);
+  async function tap(token: string, entry: GlossEntry | null) {
+    tapped = { token, entry, loading: !entry };
+    if (entry) return;
+    const { lookupToken } = await import('../../lib/lean/lookup');
+    const r = await lookupToken(token, d.workspace);
+    if (tapped?.token === token) tapped = { token, entry, server: r, loading: false };
+  }
   let learnOpen = $state(prefs.mode === 'learn');
   let ctl: AbortController | null = null;
 
@@ -94,7 +101,7 @@
         {#if v}<p class="xs muted">{v.source === 'user' ? t('versions.byYou') : t('common.by', { model: modelLabel(v.model).name || t('versions.byAi') })}{#if v.note} — {v.note}{/if}</p>{/if}
         {#if editing && serverChangedWhileEditing}<p class="notice small" role="status">{t('lean.serverChanged')} <button class="btn small" onclick={() => { code = statement; editBase = statement; serverChangedWhileEditing = false; }}>{t('lean.takeServer')}</button></p>{/if}
         <CodeEditor bind:value={code} language="lean" readonly={!editing} label={t('lean.leanStatement')} {errors} gloss={prefs.mode === 'learn' || learnOpen}
-          onTokenTap={(token, entry) => (tapped = { token, entry })} minLines={4} onSubmit={editing ? saveEdit : undefined} />
+          onTokenTap={tap} workspace={d.workspace} minLines={4} onSubmit={editing ? saveEdit : undefined} />
         <div class="row tools">
           {#if editing}
             <button class="btn primary" onclick={saveEdit} disabled={checking}>{checking ? t('lean.checking') : t('lean.saveAndCheck')}</button>
@@ -149,7 +156,10 @@
             <div class="token-box" aria-live="polite">
               {#if tapped}
                 <p><code>{tapped.token}</code>{#if tapped.entry} <span class="chip">{tk(`gloss.kind.${tapped.entry.kind}`, tapped.entry.kind)}</span>{/if}</p>
-                <p class="small">{tapped.entry ? tapped.entry[i18n.lang] : t('learn.tokenUnknown')}</p>
+                {#if tapped.entry}<p class="small">{tapped.entry[i18n.lang]}</p>
+                {:else if tapped.loading}<p class="small muted">{t('common.loading')}</p>
+                {:else if tapped.server}<pre class="sig">{tapped.server.body}</pre>
+                {:else}<p class="small">{t('learn.tokenUnknown')}</p>{/if}
               {:else}
                 <p class="muted small">{t('learn.tokenHint')}</p>
               {/if}
@@ -181,4 +191,5 @@
   .learn :global(.gloss li) { margin-bottom: 4px; }
   .token-box { background: var(--surface-2); border-radius: var(--r-2); padding: var(--s-3); min-height: 5.5rem; margin-bottom: var(--s-2); }
   .token-box p { margin: 0 0 4px; }
+  .sig { font: 0.8125rem/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 </style>

@@ -9,7 +9,7 @@ import { activeJobFor, applyEvent, emptyModel, lastJobFor, loadSnapshot, type Mo
 import { Sequencer } from './sequencer';
 import { StreamStore } from './streams';
 
-type AssistantListener = (ev: { type: string; kind?: string; text: string; model?: string; finish?: string; error?: string }) => void;
+type AssistantListener = (ev: { type: string; kind?: string; text: string; model?: string; finish?: string; error?: string; result?: unknown; [k: string]: unknown }) => void;
 
 class AppStore {
   m: Model = $state(emptyModel());
@@ -113,7 +113,20 @@ class AppStore {
         return;
       case 'assistant.token':
       case 'assistant.done':
-      case 'assistant.error': {
+      case 'assistant.error':
+      case 'qa.token':
+      case 'qa.done':
+      case 'qa.error':
+      case 'article.token':
+      case 'article.done':
+      case 'article.error':
+      case 'litsearch.progress':
+      case 'litsearch.done':
+      case 'litsearch.error':
+      case 'publish.progress':
+      case 'publish.done':
+      case 'publish.error': {
+        if (e.type.startsWith('article.')) for (const fn of this.extraHandlers.get(e.type) ?? []) fn(ev);
         const rid = e['request_id'] as string;
         const fn = this.assistantListeners.get(rid);
         if (!fn) {
@@ -125,7 +138,7 @@ class AppStore {
           return;
         }
         fn(e as never);
-        if (e.type !== 'assistant.token') this.assistantListeners.delete(rid);
+        if (/\.(done|error)$/.test(e.type)) this.assistantListeners.delete(rid);
         return;
       }
       case 'settings.updated': {
@@ -148,6 +161,11 @@ class AppStore {
     return () => set!.delete(fn);
   }
 
+  /** Any server stream identified by a request_id (assistant, grounded answers, article drafts, reading lists). */
+  listenRequest(requestId: string, fn: AssistantListener): () => void {
+    return this.listenAssistant(requestId, fn);
+  }
+
   listenAssistant(requestId: string, fn: AssistantListener): () => void {
     this.assistantListeners.set(requestId, fn);
     const early = this.assistantEarly.get(requestId);
@@ -155,7 +173,7 @@ class AppStore {
       this.assistantEarly.delete(requestId);
       for (const ev of early) {
         fn(ev);
-        if (ev.type !== 'assistant.token') this.assistantListeners.delete(requestId);
+        if (/\.(done|error)$/.test(ev.type)) this.assistantListeners.delete(requestId);
       }
     }
     return () => this.assistantListeners.delete(requestId);
@@ -169,9 +187,15 @@ class AppStore {
     if (r.job) this.m.jobs[r.job.id] = r.job;
     if (r.job && !this.streams.has(r.job.id)) {
       try {
-        const j = await api.job(r.job.id);
-        this.streams.seed(j.job.id, j.job.attempts.map((a) => ({ stage: a.stage, attempt: a.index, text: a.raw ?? '' })));
-      } catch { /* not important */ }
+        // Replay everything the job streamed so far (all stages), then live job.token events continue.
+        const s = await api.jobStream(r.job.id, 0);
+        this.streams.seed(r.job.id, s.segments.map((g) => ({ stage: g.stage, attempt: g.attempt, text: g.text, kind: g.kind })));
+      } catch {
+        try {
+          const j = await api.job(r.job.id);
+          this.streams.seed(j.job.id, j.job.attempts.map((a) => ({ stage: a.stage, attempt: a.index, text: a.raw ?? '' })));
+        } catch { /* not important */ }
+      }
     }
     return r.dossier;
   }

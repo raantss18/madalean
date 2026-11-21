@@ -87,3 +87,67 @@ test('screens: live parallel work and devices (desktop light)', async ({ page })
   await shot(page, 'phone-light-activity');
   for (const d of (await api<{ active: { dossier_id: string }[] }>('GET', '/jobs')).active) await api('POST', `/dossiers/${d.dossier_id}/stop`, {});
 });
+
+// Research screens (phase 2).
+for (const [size, scheme] of [['desktop', 'light'], ['desktop', 'dark'], ['phone', 'light'], ['tablet', 'light']] as const) {
+  test(`screens research ${size} ${scheme}`, async ({ page }) => {
+    const s = SIZES.find((x) => x.name === size)!;
+    await page.setViewportSize({ width: s.width, height: s.height });
+    await page.emulateMedia({ colorScheme: scheme });
+    const projects = (await api<{ projects: { id: string; title: string }[] }>('GET', '/projects')).projects;
+    const research = projects.find((p) => /Recherche/.test(p.title))!.id;
+    const examples = projects.find((p) => /Exemples/.test(p.title))!.id;
+    const U = process.env['MADALEAN_URL'];
+    await open(page, '/projet', { mode: 'research' });
+    await page.evaluate((pid) => localStorage.setItem('madalean.project', pid), research);
+    await page.reload();
+    await shot(page, `${size}-${scheme}-research-hub`);
+    await page.goto(`${U}/sources`);
+    await expect(page.getByRole('link', { name: /A note on parity/ })).toBeVisible();
+    await shot(page, `${size}-${scheme}-sources`);
+    await page.getByRole('link', { name: /A note on parity/ }).click();
+    await expect(page.locator('.chunk').first()).toBeVisible();
+    await page.getByLabel('Votre question').fill('Pourquoi la somme de deux entiers pairs est-elle paire ?');
+    await page.getByRole('button', { name: 'Demander' }).click();
+    await expect(page.locator('.qa .answer').first()).toBeVisible({ timeout: 30_000 });
+    await shot(page, `${size}-${scheme}-reader-qa`);
+    if (size === 'desktop') {
+      await page.getByRole('radio', { name: 'PDF' }).check({ force: true });
+      await expect(page.locator('.pdf canvas').first()).toBeVisible();
+      await page.waitForTimeout(1200);
+      await shot(page, `${size}-${scheme}-reader-pdf`);
+    }
+    await page.goto(`${U}/blueprint`);
+    await expect(page.getByRole('list', { name: 'Légende des états' })).toBeVisible();
+    if (size !== 'phone') await page.locator('svg .gn').filter({ hasText: 'Lemma 1.2' }).first().click();
+    await shot(page, `${size}-${scheme}-blueprint`);
+    await page.goto(`${U}/article`);
+    await expect(page.locator('li.block').first()).toBeVisible();
+    await shot(page, `${size}-${scheme}-article`);
+    await page.evaluate((pid) => localStorage.setItem('madalean.project', pid), examples);
+    await page.reload();
+    const notes = (await api<{ notes: { id: string; title: string }[] }>('GET', `/notes?project=${examples}`)).notes;
+    await page.goto(`${U}/notes/${notes.find((n) => /Parité/.test(n.title))!.id}`);
+    await expect(page.locator('.cm-content').first()).toBeVisible();
+    await shot(page, `${size}-${scheme}-notes`);
+    await page.goto(`${U}/graphe`);
+    await page.waitForTimeout(600);
+    await shot(page, `${size}-${scheme}-graph`);
+    const conj = (await api<{ conjectures: { id: string; status: string }[] }>('GET', `/conjectures?project=${examples}`)).conjectures.find((c) => c.status === 'refuted')!;
+    await page.goto(`${U}/conjectures/${conj.id}`);
+    await expect(page.locator('.counter')).toBeVisible();
+    await shot(page, `${size}-${scheme}-conjecture`);
+    const plan = (await api<{ dossiers: { id: string; title: string }[] }>('GET', '/dossiers')).dossiers.find((d) => /carré d'un entier pair/.test(d.title))!;
+    await page.goto(`${U}/d/${plan.id}/plan`);
+    await expect(page.getByRole('heading', { name: 'Plan de preuve' })).toBeVisible();
+    await shot(page, `${size}-${scheme}-plan`);
+    await page.goto(`${U}/aide/notes`);
+    await expect(page.locator('.manual h1')).toBeVisible();
+    await shot(page, `${size}-${scheme}-help`);
+    await page.goto(`${U}/publier`);
+    await shot(page, `${size}-${scheme}-publish`);
+    await page.goto(`${U}/reglages/mises-a-jour`);
+    await expect(page.getByRole('heading', { name: 'Madalean lui-même' })).toBeVisible();
+    await shot(page, `${size}-${scheme}-settings-updates`);
+  });
+}

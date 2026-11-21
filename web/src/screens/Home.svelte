@@ -7,7 +7,7 @@
   import { navigate } from '../lib/router.svelte';
   import { t, i18n, fmtTime } from '../lib/i18n/index.svelte';
   import { prefs, loadJSON, saveJSON, removeKey } from '../lib/prefs.svelte';
-  import { EXAMPLES } from '../lib/examples';
+  import { EXAMPLES, type Example } from '../lib/examples';
   import { phaseOf } from '../lib/status';
   import { toast } from '../lib/ui/toasts.svelte';
   import { errorText } from '../lib/ui/errors';
@@ -16,6 +16,7 @@
   import TexImport from '../components/TexImport.svelte';
   import StatusMark from '../components/StatusMark.svelte';
   import Icon from '../components/Icon.svelte';
+  import HelpLink from '../components/HelpLink.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const draft = loadJSON<{ text: string; lean: string; asLean: boolean }>('draft.new', { text: '', lean: '', asLean: false });
@@ -30,6 +31,14 @@
   let showOptions = $state(false);
 
   $effect(() => { saveJSON('draft.new', { text, lean, asLean }); });
+  // One source for examples: the server's list (GET /examples); the built-in copy only if the server lacks it.
+  let examples = $state<Example[]>(EXAMPLES);
+  $effect(() => {
+    api.examples().then((r) => {
+      if (r.examples?.length) examples = r.examples.map((x) => ({ key: x.key, statement: x.statement,
+        level: { fr: x.fr.level, en: x.en.level }, title: { fr: x.fr.title, en: x.en.title }, problem: { fr: x.fr.blurb, en: x.en.blurb } }));
+    }).catch(() => {});
+  });
 
   const recent = $derived(Object.values(app.m.dossiers).filter((d) => !d.archived && (!prefs.lastProject || d.project_id === prefs.lastProject)).sort((a, b) => b.updated - a.updated).slice(0, 6));
   const project = $derived(prefs.lastProject ? app.m.projects[prefs.lastProject] : undefined);
@@ -55,7 +64,7 @@
     } finally { busy = false; }
   }
   function useExample(i: number) {
-    const ex = EXAMPLES[i]!;
+    const ex = examples[i]!;
     if (asLean) lean = ex.statement;
     else text = ex.problem[i18n.lang];
     title = ex.title[i18n.lang].replace(/\$[^$]*\$/g, '').trim();
@@ -65,7 +74,7 @@
 
 <div class="home">
   <section class="compose" aria-labelledby="home-h">
-    <h1 id="home-h">{t('home.title')}</h1>
+    <div class="row"><h1 id="home-h">{t('home.title')}</h1><HelpLink page="workflow" /></div>
     <p class="lead">{project ? t('home.inProject', { title: project.title }) : t('home.lead')}</p>
 
     <div class="seg kind" role="radiogroup" aria-label={t('home.inputKind')}>
@@ -135,7 +144,7 @@
   <section class="examples" aria-labelledby="ex-h">
     <h2 id="ex-h">{t('home.examples')}</h2>
     <ul>
-      {#each EXAMPLES as ex, i (ex.key)}
+      {#each examples as ex, i (ex.key)}
         <li>
           <button class="ex" onclick={() => useExample(i)}>
             <span class="lvl xs">{ex.level[i18n.lang]}</span>

@@ -30,6 +30,7 @@
   async function start() {
     try {
       const r = await api.pairingStart();
+      if (r.remote_url) address = r.remote_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
       code = { code: r.code, expires: Date.now() / 1000 + r.expires_in };
       left = r.expires_in;
       if (timer) clearInterval(timer);

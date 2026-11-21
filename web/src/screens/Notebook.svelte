@@ -8,6 +8,7 @@
   import { toast } from '../lib/ui/toasts.svelte';
   import Md from '../components/Md.svelte';
   import Icon from '../components/Icon.svelte';
+  import HelpLink from '../components/HelpLink.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const j = $derived(app.m.jupyter);
@@ -64,7 +65,7 @@
 
 <div class="nb">
   <div class="row head">
-    <h1>{t('notebook.title')}</h1>
+    <h1>{t('notebook.title')}</h1><HelpLink page="jupyter" />
     <span class="chip {j?.state === 'ready' ? 'proved' : j?.state === 'failed' ? 'failed' : ''}">{tk(`jupyter.${j?.state ?? 'stopped'}`, j?.state ?? '')}</span>
     <span class="spacer"></span>
     {#if j?.state === 'ready'}<a class="btn small" href="/jupyter/lab" target="_blank" rel="noopener"><Icon name="external" size={14} />{t('notebook.newTab')}</a>{/if}

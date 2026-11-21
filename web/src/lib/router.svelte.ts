@@ -8,7 +8,7 @@ export interface RouteDef {
   pattern: string;
   load: () => Promise<{ default: Component<{ params: Record<string, string> }> }>;
   /** Shown in the navigation (desktop rail + phone bottom bar + command palette). */
-  nav?: { label: Key; icon: string; order: number; phone?: boolean; shortcut?: string };
+  nav?: { label: Key; icon: string; order: number; phone?: boolean; shortcut?: string; group?: 'project' };
   /** Visible without a paired session (pairing screen). */
   public?: boolean;
 }

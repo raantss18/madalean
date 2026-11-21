@@ -12,8 +12,10 @@
   import StepStatement from './StepStatement.svelte';
   import StepLean from './StepLean.svelte';
   import StepProof from './StepProof.svelte';
+  import PlanTree from './PlanTree.svelte';
   import Thread from './Thread.svelte';
   import DossierMenu from './DossierMenu.svelte';
+  import HelpLink from '../../components/HelpLink.svelte';
   import { stop } from './actions';
 
   let { params }: { params: Record<string, string> } = $props();
@@ -31,12 +33,14 @@
   const job = $derived(app.activeJob(id));
   const last = $derived(app.lastJob(id));
   const phase = $derived(phaseOf(d?.status ?? app.m.dossiers[id]?.status ?? 'draft', job));
+  const conditional = $derived((d?.['extra'] as { conditional_proof?: { verdict?: string } } | undefined)?.conditional_proof?.verdict === 'proved_modulo' || (d?.['conditional_proof'] as { verdict?: string } | undefined)?.verdict === 'proved_modulo');
+  const recheck = $derived(((d?.['extra'] as { recheck?: { state?: string } } | undefined)?.recheck ?? (d?.['recheck'] as { state?: string } | undefined))?.state ?? '');
   const LEAN_STAGES = ['understand', 'route', 'statement', 'notes'];
   const PROOF_STAGES = ['proof', 'explanation', 'informal'];
 
-  type StepKey = 'enonce' | 'lean' | 'preuve';
-  const steps: StepKey[] = ['enonce', 'lean', 'preuve'];
-  const stepState = $derived.by<Record<StepKey, 'todo' | 'running' | 'queued' | 'done' | 'failed'>>(() => {
+  type StepKey = 'enonce' | 'lean' | 'preuve' | 'plan';
+  const steps: StepKey[] = ['enonce', 'lean', 'preuve', 'plan'];
+  const stepState = $derived.by<Record<StepKey, 'todo' | 'running' | 'queued' | 'done' | 'failed' | 'conditional'>>(() => {
     const st = job?.stage ?? '';
     const queued = job && (job.state === 'queued' || job.waiting);
     const r = (k: string[]) => (job && k.includes(st) ? (queued ? 'queued' : 'running') : null);
@@ -46,6 +50,7 @@
       enonce: d?.problem || hasStatement ? 'done' : 'todo',
       lean: r(LEAN_STAGES) ?? (statementOk ? 'done' : hasStatement ? 'failed' : last?.state === 'failed' && !hasStatement ? 'failed' : 'todo'),
       preuve: r(PROOF_STAGES) ?? (d?.status === 'proved' ? 'done' : d?.status === 'failed' && hasStatement ? 'failed' : 'todo'),
+      plan: conditional ? 'conditional' : 'todo',
     };
   });
   const autoStep = $derived.by<StepKey>(() => {
@@ -62,10 +67,11 @@
   function go(s: StepKey) { navigate(`/d/${encodeURIComponent(id)}/${s}`, { focus: false }); }
   function tabKey(e: KeyboardEvent, i: number) {
     let j = -1;
-    if (e.key === 'ArrowRight') j = (i + 1) % 3;
-    else if (e.key === 'ArrowLeft') j = (i + 2) % 3;
+    const n = steps.length;
+    if (e.key === 'ArrowRight') j = (i + 1) % n;
+    else if (e.key === 'ArrowLeft') j = (i + n - 1) % n;
     else if (e.key === 'Home') j = 0;
-    else if (e.key === 'End') j = 2;
+    else if (e.key === 'End') j = n - 1;
     if (j >= 0) { e.preventDefault(); go(steps[j]!); queueMicrotask(() => document.getElementById(`tab-${steps[j]}`)?.focus()); }
   }
   const parent = $derived(d?.parent_id ? app.m.dossiers[d.parent_id] : undefined);
@@ -90,9 +96,12 @@
       <div class="row meta small">
         <span class="phase-txt">{tk(`phase.${phase}`, phase)}{#if job}&nbsp;— {tk(`stage.${job.stage}`, t('stage.starting'))}{#if job.waiting} · <span class="wait">{tk(`waiting.${job.waiting}`, '')}</span>{/if}{/if}</span>
         {#if model.name}<span class="chip {model.local ? 'local' : 'online'}" title={providerName(model.provider)}><Icon name={model.local ? 'cpu' : 'cloud'} size={12} />{model.name}</span>{/if}
+        {#if conditional}<span class="chip running cond">{t('plan.conditional')}</span>{/if}
+        {#if recheck === 'pending' || recheck === 'regressed'}<span class="chip {recheck === 'regressed' ? 'failed' : 'running'}">{tk(`recheck.${recheck}`, recheck)}</span>{/if}
         <span class="mono xs muted theorem-name" title={t('dossier.theoremName')}>{d.theorem}</span>
         <span class="spacer"></span>
         {#if job}<button class="btn small danger" onclick={() => stop(id)}><Icon name="stop" size={14} />{t('common.stop')}</button>{/if}
+        <HelpLink page={step === 'plan' ? 'proof-plans' : step === 'lean' ? 'reading-lean' : 'workflow'} />
         <DossierMenu dossier={d} busy={Boolean(job)} />
       </div>
     </header>
@@ -113,7 +122,8 @@
       <div id="panel-{step}" class="panel-step" role="tabpanel" aria-labelledby="tab-{step}">
         {#if step === 'enonce'}<StepStatement dossier={d} {job} />
         {:else if step === 'lean'}<StepLean dossier={d} {job} />
-        {:else}<StepProof dossier={d} {job} />{/if}
+        {:else if step === 'preuve'}<StepProof dossier={d} {job} />
+        {:else}<PlanTree dossier={d} />{/if}
       </div>
       <aside class="side" aria-label={t('thread.title')}>
         <Thread dossier={d} {job} />
@@ -131,7 +141,7 @@
   .wait { color: var(--running); font-weight: 600; }
   .theorem-name { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip :global(.ico) { margin-right: 2px; }
-  .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-bottom: 1px solid var(--line); margin-bottom: var(--s-4); position: sticky; top: var(--topbar-h); z-index: 50; background: var(--bg); }
+  .tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-bottom: 1px solid var(--line); margin-bottom: var(--s-4); position: sticky; top: var(--topbar-h); z-index: 50; background: var(--bg); }
   .tab { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; min-height: 56px; padding: 8px 12px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--text-2); cursor: pointer; font: inherit; }
   .tab:hover { background: var(--surface-2); }
   .tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--laterite-mark); }
@@ -140,6 +150,9 @@
   .tab.running .num { border-color: var(--running-fill); background: var(--running-soft); color: var(--running); }
   .tab.queued .num { border-style: dashed; }
   .tab.failed .num { border-color: var(--failed); color: var(--failed); }
+  .tab.conditional .num { border: 2px dashed var(--running-fill); color: var(--running); }
+  .tab.conditional .ts { color: var(--running); font-weight: 600; }
+  .cond { border: 1.5px dashed var(--running); }
   .tl { font-weight: 700; font-family: var(--font-serif); font-size: 1.0625rem; }
   .ts { color: var(--text-3); }
   .tab.running .ts { color: var(--running); font-weight: 600; }

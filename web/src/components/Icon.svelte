@@ -12,6 +12,7 @@
     stop: 'M7 7h10v10H7z',
     play: 'M8 5l11 7-11 7z',
     chevronDown: 'M6 9l6 6 6-6',
+    chevronUp: 'M6 15l6-6 6 6',
     chevronRight: 'M9 6l6 6-6 6',
     chevronLeft: 'M15 6l-6 6 6 6',
     undo: 'M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',

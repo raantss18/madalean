@@ -8,6 +8,9 @@
   import { phaseOf } from '../lib/status';
   import StatusMark from './StatusMark.svelte';
   import type { Phase } from '../lib/status';
+  import { research } from '../lib/api/research';
+  import { currentProjectId } from '../lib/project.svelte';
+  import { loadManual, searchManual } from '../lib/manual';
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
   let q = $state('');
@@ -16,7 +19,25 @@
   let dlg: HTMLDialogElement | undefined = $state();
   let opener: Element | null = null;
 
-  interface Cmd { id: string; label: string; hint?: string; phase?: Phase; run: () => void }
+  interface Cmd { id: string; label: string; hint?: string; phase?: Phase; group?: string; run: () => void }
+  // Search across everything: notes (full text), sources of the project, the manual — fetched as you type.
+  let remote = $state<Cmd[]>([]);
+  $effect(() => {
+    const s = q.trim();
+    if (s.length < 2 || !open) { remote = []; return; }
+    const h = setTimeout(async () => {
+      const pid = currentProjectId();
+      const out: Cmd[] = [];
+      const [notes, sources, manual] = await Promise.allSettled([
+        research.searchNotes(s, pid || undefined), pid ? research.sources(pid, { q: s }) : Promise.resolve({ sources: [] }), loadManual(),
+      ]);
+      if (notes.status === 'fulfilled') for (const n of notes.value.results.slice(0, 6)) out.push({ id: `n-${n.id}`, label: n.title, hint: t('cmd.note'), group: 'note', run: () => navigate(`/notes/${encodeURIComponent(n.id)}`) });
+      if (sources.status === 'fulfilled') for (const x of sources.value.sources.slice(0, 6)) out.push({ id: `s-${x.id}`, label: x.title, hint: `@${x.key}`, group: 'source', run: () => navigate(`/sources/${encodeURIComponent(pid)}/${encodeURIComponent(x.id)}`) });
+      if (manual.status === 'fulfilled') for (const r of searchManual(manual.value, i18n.lang, s).slice(0, 5)) out.push({ id: `h-${r.page.id}`, label: r.page.title + (r.heading ? ` › ${r.heading.text}` : ''), hint: t('cmd.help'), group: 'help', run: () => navigate(`/aide/${r.page.id}${r.heading ? `#${r.heading.id}` : ''}`) });
+      if (q.trim() === s) remote = out;
+    }, 150);
+    return () => clearTimeout(h);
+  });
   const commands = $derived.by<Cmd[]>(() => {
     const list: Cmd[] = [
       { id: 'new', label: t('cmd.new'), hint: 'N', run: () => navigate('/') },
@@ -36,7 +57,7 @@
     const s = q.trim().toLowerCase();
     if (!s) return commands.slice(0, 30);
     const words = s.split(/\s+/);
-    return commands.filter((c) => words.every((w) => (c.label + ' ' + (c.hint ?? '')).toLowerCase().includes(w))).slice(0, 30);
+    return [...commands.filter((c) => words.every((w) => (c.label + ' ' + (c.hint ?? '')).toLowerCase().includes(w))).slice(0, 24), ...remote];
   });
 
   $effect(() => {
