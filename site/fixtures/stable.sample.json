@@ -1,0 +1,27 @@
+{
+ "schema": "madalean-updates/1",
+ "channel": "stable",
+ "version": "2.0.0",
+ "tag": "v2.0.0",
+ "date": "2026-12-01",
+ "notes": {"fr": "EXEMPLE — données fictives pour l'aperçu de la page d'installation.",
+           "en": "SAMPLE — fictitious data for previewing the install page."},
+ "notes_url": "https://github.com/raantss18/madalean/releases/tag/v2.0.0",
+ "sums_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS",
+ "sums_sig_url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/SHA256SUMS.sig",
+ "apk_certificate_sha256": "0d43426ba9682f791707ee3233361c369c8ebec3f1209c6e000d7322936fc544",
+ "files": [
+  {"kind": "server", "name": "madalean-2.0.0.tar.gz", "size": 9800000, "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-2.0.0.tar.gz"},
+  {"kind": "appimage", "arch": "x86_64", "name": "Madalean-2.0.0-x86_64.AppImage", "size": 104000000, "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/Madalean-2.0.0-x86_64.AppImage"},
+  {"kind": "apk", "arch": "arm64-v8a", "name": "madalean-arm64-v8a-release.apk", "size": 18000000, "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-arm64-v8a-release.apk"},
+  {"kind": "apk", "arch": "armeabi-v7a", "name": "madalean-armeabi-v7a-release.apk", "size": 16500000, "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-armeabi-v7a-release.apk"},
+  {"kind": "apk", "arch": "x86_64", "name": "madalean-x86_64-release.apk", "size": 18200000, "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-x86_64-release.apk"},
+  {"kind": "apk", "arch": "universal", "name": "madalean-universal-release.apk", "size": 46000000, "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+   "url": "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-universal-release.apk"}
+ ]
+}

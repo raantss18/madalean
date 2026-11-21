@@ -22,7 +22,7 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import texio
+from . import deps, texio
 from .dossiers import Dossier, slugify
 
 FORMATS = ("pdf", "tex", "lean", "md", "zip", "html")
@@ -138,9 +138,11 @@ def _bib_entries(entries: list | None, keys: list[str] | None, path: Path | None
 # ---------------------------------------------------------------- bibliography (S-E)
 def bib_backend() -> str:
     """biblatex + biber when both are installed, else bibtex + amsalpha, else a hand-formatted thebibliography."""
-    if shutil.which("biber") and texio.tex_font_file("biblatex.sty"):
+    if tectonic_cmd():
+        return "bibtex"              # tectonic runs its built-in BibTeX itself (amsalpha.bst is in the pinned bundle)
+    if deps.tool("biber") and texio.tex_font_file("biblatex.sty"):
         return "biblatex"
-    if shutil.which("bibtex") and texio.tex_font_file("amsalpha.bst"):
+    if deps.tool("bibtex") and texio.tex_font_file("amsalpha.bst"):
         return "bibtex"
     return "manual"
 
@@ -424,12 +426,30 @@ def build_html(c: Content) -> str:
 
 
 # ---------------------------------------------------------------- compilation
+def tectonic_cmd() -> list[str] | None:
+    """The prefix's tectonic with the pinned bundle, cache only (offline), untrusted input (no shell escape)
+    — ARCHITECTURE §18. None when the prefix has no tectonic or its bundle was not installed."""
+    tec = deps.tool("tectonic")
+    if not tec or deps.tool_info("tectonic")["source"] != "prefix" or not deps.tex_files_dir().is_dir():
+        return None
+    try:
+        from .deps import manifest
+        url = manifest.component("tex-bundle")["url"]
+    except (OSError, KeyError, ValueError):
+        return None
+    return [tec, "-X", "compile", "--untrusted", "--only-cached", "--keep-logs", "--bundle", url]
+
+
 def _engines() -> list[list[str]]:
-    """Commands to try, best first. Each is run in the document's directory with the file name appended."""
+    """Commands to try, best first. Each is run in the document's directory with the file name appended.
+    tectonic from the prefix first; a system XeLaTeX/LuaLaTeX only as a fallback (§18)."""
     out = []
-    latexmk = shutil.which("latexmk")
+    tec = tectonic_cmd()
+    if tec:
+        out.append(tec)
+    latexmk = deps.tool("latexmk")
     for eng in ("xelatex", "lualatex"):
-        if not shutil.which(eng):
+        if not deps.tool(eng):
             continue
         if eng == "lualatex" and not texio.tex_font_file("luaotfload-main.lua"):
             continue                       # LuaLaTeX without luaotfload cannot load any OpenType font (fontspec)
@@ -437,7 +457,7 @@ def _engines() -> list[list[str]]:
             out.append([latexmk, f"-{eng}", "-norc", "-interaction=nonstopmode", "-halt-on-error", "-file-line-error",
                         "-latexoption=-no-shell-escape", "-silent"])
         else:
-            out.append([shutil.which(eng), "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape",
+            out.append([deps.tool(eng), "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape",
                         "\x00twice"])
     return out
 
@@ -446,6 +466,10 @@ def tex_env() -> dict:
     """Our generated TeX only: no shell escape, TeX may only read/write files below the working directory."""
     env = dict(os.environ)
     env.update({"openin_any": "p", "openout_any": "p", "shell_escape": "f"})
+    if deps.installed():
+        env.setdefault("TECTONIC_CACHE_DIR", str(deps.tectonic_cache()))
+        if deps.fontconfig_file().exists():
+            env.setdefault("FONTCONFIG_FILE", str(deps.fontconfig_file()))
     return env
 
 
@@ -500,8 +524,8 @@ async def compile_pdf(tex: str, tmp_root: Path, timeout: float = 120.0,
             if twice and rc == 0:
                 if "refs.bib" in (extra_files or {}):            # no latexmk: run the bibliography tool by hand
                     tool = "biber" if "\\addbibresource" in tex else "bibtex"
-                    if shutil.which(tool):
-                        await _run([shutil.which(tool), "doc"], work, timeout)
+                    if deps.tool(tool):
+                        await _run([deps.tool(tool), "doc"], work, timeout)
                     rc, out = await _run(base + ["doc.tex"], work, timeout)
                 rc, out = await _run(base + ["doc.tex"], work, timeout)
             if rc is None:

@@ -211,8 +211,9 @@ def markdown_to_latex(text: str) -> str:
 # sanitised: only known math commands/environments pass, anything doubtful is printed literally.
 import functools as _functools
 import html as _html
-import shutil as _shutil
 import subprocess as _subprocess
+
+from . import deps as _deps
 
 MONO_FAMILY = "DejaVu Sans Mono"
 MAIN_FONT_FILE = "lmroman10-regular.otf"
@@ -233,9 +234,10 @@ def _run_out(cmd: list[str]) -> str:
 @_functools.lru_cache(maxsize=None)
 def font_file(family: str) -> str | None:
     """Path of an installed font family (exact family match), or None."""
-    if not _shutil.which("fc-match"):
+    fc = _deps.tool("fc-match")
+    if not fc:
         return None
-    out = _run_out(["fc-match", "-f", "%{file}|%{family}", family]).strip()
+    out = _run_out([fc, "-f", "%{file}|%{family}", family]).strip()
     if "|" not in out:
         return None
     path, fams = out.split("|", 1)
@@ -244,9 +246,15 @@ def font_file(family: str) -> str | None:
 
 @_functools.lru_cache(maxsize=None)
 def tex_font_file(name: str) -> str | None:
-    if not _shutil.which("kpsewhich"):
+    """A file of the TeX distribution: the prefix's pinned bundle (files extracted at install, §18) first, else the
+    system TeX's kpsewhich (export fallback)."""
+    own = _deps.tex_files_dir() / name
+    if _deps.tool("tectonic") and own.is_file():
+        return str(own)
+    kp = _deps.tool("kpsewhich")
+    if not kp:
         return None
-    out = _run_out(["kpsewhich", name]).strip()
+    out = _run_out([kp, name]).strip()
     return out or None
 
 
@@ -263,7 +271,8 @@ def font_cmap(path: str | None) -> frozenset:
         return frozenset(cm)
     except Exception:  # noqa: BLE001 (fontTools missing or font unreadable: ask fontconfig)
         pass
-    out = _run_out(["fc-query", "--format", "%{charset}", path])
+    fq = _deps.tool("fc-query")
+    out = _run_out([fq, "--format", "%{charset}", path]) if fq else ""
     cps: set[int] = set()
     for part in out.split():
         a, _, b = part.partition("-")

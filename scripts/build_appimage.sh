@@ -27,6 +27,15 @@ if command -v rsvg-convert >/dev/null; then
   rsvg-convert -w 512 -h 512 "$B" -o icons/icon.png
 fi
 
+# Ed25519 public key of the update channel, embedded by build.rs (from MADALEAN_UPDATE_PUBKEY or derived from the
+# private release key kept outside git). A release AppImage without it could never update: refuse.
+KEY="${MADALEAN_RELEASE_KEY:-$HOME/.config/madalean/release-keys/ed25519.pem}"
+if [ -z "${MADALEAN_UPDATE_PUBKEY:-}" ]; then
+  [ -f "$KEY" ] || die "no update key: set MADALEAN_UPDATE_PUBKEY (base64) or provide $KEY"
+  export MADALEAN_UPDATE_PUBKEY="$(openssl pkey -in "$KEY" -pubout -outform DER | tail -c 32 | base64)"
+fi
+echo "update public key: $MADALEAN_UPDATE_PUBKEY"
+
 cargo test --locked -q
 # NO_STRIP: linuxdeploy's bundled strip is too old for current Arch libraries (.relr.dyn sections).
 NO_STRIP=true APPIMAGE_EXTRACT_AND_RUN=1 cargo tauri build --bundles appimage -- --locked

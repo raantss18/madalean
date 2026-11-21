@@ -1,0 +1,10 @@
+# Source spec of the on-demand SageMath environment ($MADALEAN_HOME/envs/sage), installed the first time a Sage
+# feature is used. conda-forge only. Locked with:
+#   conda-lock -f sage.environment.yml -p linux-64 --lockfile sage.conda-lock.yml
+name: madalean-sage
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - sage =10.10
+  - ipykernel

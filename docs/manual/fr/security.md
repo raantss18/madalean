@@ -50,6 +50,13 @@ fournisseur que le leur.
 
 - **Lean** compile les preuves écrites par les modèles. Les constructions interdites (`sorry`, nouveaux axiomes,
   commandes de recherche) sont refusées avant compilation.
+- **Lean peut aussi exécuter du code** pendant qu'il lit un fichier : `#eval`, `initialize`, `run_cmd`, des
+  tactiques, macros ou élaborateurs définis dans le fichier (`elab`, `macro`, `syntax`…), `unsafe`,
+  `implemented_by`. Comme le code Lean peut venir d'un modèle, du texte d'un article ou d'un appareil relié, Madalean
+  **refuse de compiler** tout fichier qui contient l'une de ces constructions, en un point unique par lequel passe
+  chaque compilation. Les `import` sont limités à Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets et Plausible. Le
+  contrôle porte sur les mots, hors commentaires et chaînes : il peut refuser à tort un fichier légitime (une
+  variable nommée `prefix`, par exemple) ; le message de refus nomme la construction en cause.
 - **Expériences de l'atelier de conjectures** : le code vous est montré, et ne s'exécute qu'après votre accord sur
   **ce code exact**. Il tourne avec des limites de temps, de mémoire et de taille de fichiers, sans vos clés ni
   variables secrètes ; si `bubblewrap` est installé, avec un système de fichiers en lecture seule où votre dossier

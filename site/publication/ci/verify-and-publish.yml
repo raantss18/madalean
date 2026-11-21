@@ -1,0 +1,90 @@
+# Template copied by Madalean's « Publier » into the PUBLISHED repository as .github/workflows/verify-and-publish.yml
+# (with make_badge.py as .github/madalean/make_badge.py). It is NOT active in the Madalean repository.
+#
+# Published repository layout:
+#   site/   static site rendered by Madalean (site/build.py publication …), incl. site/verification/expected.json
+#   lean/   the Lake project (lean-toolchain, lakefile, lake-manifest.json, sources, Verify.lean)
+#
+# What it does, independently of the author's computer: installs the exact toolchain of lean/lean-toolchain (elan,
+# through lean-action pinned by commit), fetches the Mathlib cache, runs `lake build`, runs `#print axioms` for every
+# result the site calls verified, records the verdict in site/verification/{result.json,badge.svg}, then deploys the
+# site to GitHub Pages. No secret is needed; the token only has the Pages permissions in the deploy job.
+name: Verify with Lean and publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the pinned Lean toolchain and the Mathlib cache
+        uses: leanprover/lean-action@ba3fdfe5c4476c925da13bf11a005ddb47e47aee # v1.7.1
+        with:
+          lake-package-directory: lean
+          auto-config: "false"
+          build: "false"
+          test: "false"
+          lint: "false"
+          use-mathlib-cache: "auto"
+
+      - name: lake build
+        id: build
+        continue-on-error: true
+        working-directory: lean
+        run: |
+          set -o pipefail
+          lake build 2>&1 | tee ../build.log
+
+      - name: Axioms of the results the site calls verified
+        if: always()
+        continue-on-error: true
+        working-directory: lean
+        run: lake env lean Verify.lean 2>&1 | tee ../axioms.log
+
+      - name: Record the verdict (badge + result.json)
+        if: always()
+        run: >
+          python3 .github/madalean/make_badge.py --strict
+          --site site
+          --build-outcome "${{ steps.build.outcome }}"
+          --build-log build.log --axioms-log axioms.log
+          --toolchain "$(cat lean/lean-toolchain)"
+          --commit "${GITHUB_SHA}"
+          --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        if: always()
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: always()
+        with:
+          path: site
+
+  deploy:
+    needs: verify
+    if: always() && needs.verify.result != 'cancelled'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

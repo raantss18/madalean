@@ -1,0 +1,230 @@
+{
+ "schema": "madalean-publication/1",
+ "lang": "fr",
+ "project": {
+  "title": "Parité des carrés d'entiers",
+  "short_title": "Parité des carrés",
+  "subtitle": "Exemple de publication vérifiée par Lean (gabarit Madalean)",
+  "authors": [
+   {
+    "name": "A. Rakoto",
+    "affiliation": "Exemple"
+   }
+  ],
+  "date": "2026-11-21",
+  "license": "CC-BY-4.0",
+  "keywords": [
+   "parité",
+   "Lean 4",
+   "Mathlib"
+  ],
+  "abstract": "Nous formalisons quelques faits élémentaires sur la parité des entiers relatifs : la somme de deux entiers pairs est paire, et si $n^2$ est pair alors $n$ l'est [@hardy-wright, §1.3]. Chaque résultat marqué « vérifié par Lean » a une preuve acceptée par Lean 4 avec Mathlib [@mathlib2020]. La proposition 2.2 reste **non prouvée** : elle est publiée comme affirmation, pas comme théorème."
+ },
+ "lean": {
+  "toolchain": "leanprover/lean4:v4.9.0",
+  "mathlib": "EXEMPLE-0000000",
+  "checked_at": "2026-11-21",
+  "checker": "Madalean 2.0.0, verdict strict",
+  "root_module": "ParityNotes",
+  "lake_project": "files/parity-notes-lake.zip"
+ },
+ "article": {
+  "pdf": "files/parity-notes.pdf",
+  "sections": [
+   {
+    "id": "intro",
+    "title": "1. Introduction",
+    "body": "Un entier $n \\in \\mathbb{Z}$ est **pair** s'il s'écrit $n = 2k$ avec $k \\in \\mathbb{Z}$. Les énoncés ci-dessous suivent l'ordre de leurs dépendances ; le [graphe des dépendances](page:graph) montre l'état de chacun.",
+    "nodes": [
+     "def-even",
+     "lem-add",
+     "lem-emod"
+    ]
+   },
+   {
+    "id": "results",
+    "title": "2. Résultats",
+    "body": "Le théorème 2.1 se prouve par contraposée : si $n$ est impair, $n^2 \\equiv 1 \\pmod 2$.\n\n$$n^2 + n = n(n+1)$$\n\nest un produit de deux entiers consécutifs, d'où la proposition 2.2, dont la preuve Lean n'a pas encore été trouvée.",
+    "nodes": [
+     "thm-sq",
+     "prop-consec"
+    ]
+   }
+  ]
+ },
+ "nodes": [
+  {
+   "id": "def-even",
+   "kind": "definition",
+   "number": "1.1",
+   "title": "Entier pair",
+   "statement": "Un entier $n \\in \\mathbb{Z}$ est pair s'il existe $k \\in \\mathbb{Z}$ tel que $n = 2k$.",
+   "uses": [],
+   "refs": [
+    {
+     "key": "hardy-wright",
+     "locator": "§1.3"
+    }
+   ],
+   "lean": {
+    "name": "IsEven",
+    "statement_ok": true,
+    "proof_ok": false,
+    "axioms": null,
+    "code": "def IsEven (n : ℤ) : Prop := ∃ k, n = 2 * k"
+   }
+  },
+  {
+   "id": "lem-add",
+   "kind": "lemma",
+   "number": "1.2",
+   "title": "Somme de deux pairs",
+   "statement": "Si $a$ et $b$ sont pairs, alors $a + b$ est pair.",
+   "informal_proof": "Écrivons $a = 2k$ et $b = 2l$. Alors $a + b = 2(k + l)$, qui est pair.",
+   "uses": [
+    "def-even"
+   ],
+   "lean": {
+    "name": "isEven_add",
+    "statement_ok": true,
+    "proof_ok": true,
+    "axioms": [
+     "propext"
+    ],
+    "code": "theorem isEven_add {a b : ℤ} (ha : IsEven a) (hb : IsEven b) : IsEven (a + b) := by\n  obtain ⟨k, rfl⟩ := ha\n  obtain ⟨l, rfl⟩ := hb\n  exact ⟨k + l, by ring⟩"
+   }
+  },
+  {
+   "id": "lem-emod",
+   "kind": "lemma",
+   "number": "1.3",
+   "title": "Parité et reste modulo 2",
+   "statement": "$n$ est pair si et seulement si $n \\bmod 2 = 0$.",
+   "informal_proof": "Si $n = 2k$, le reste de $n$ modulo $2$ est nul. Réciproquement, si ce reste est nul, $n = 2 \\lfloor n/2 \\rfloor$.",
+   "uses": [
+    "def-even"
+   ],
+   "lean": {
+    "name": "isEven_iff_emod",
+    "statement_ok": true,
+    "proof_ok": true,
+    "axioms": [
+     "propext"
+    ],
+    "code": "theorem isEven_iff_emod (n : ℤ) : IsEven n ↔ n % 2 = 0 := by\n  constructor\n  · rintro ⟨k, rfl⟩\n    simp\n  · intro h\n    exact ⟨n / 2, by omega⟩"
+   }
+  },
+  {
+   "id": "thm-sq",
+   "kind": "theorem",
+   "number": "2.1",
+   "title": "Carré pair",
+   "statement": "Pour tout $n \\in \\mathbb{Z}$, si $n^2$ est pair, alors $n$ est pair.",
+   "informal_proof": "Par l'absurde, supposons $n$ impair : $n \\bmod 2 = 1$. Alors $n^2 \\bmod 2 = (n \\bmod 2)^2 \\bmod 2 = 1$, donc $n^2$ n'est pas pair par le [lemme 1.3](node:lem-emod), contradiction.",
+   "uses": [
+    "def-even",
+    "lem-emod"
+   ],
+   "refs": [
+    {
+     "key": "hardy-wright",
+     "locator": "Thm 43"
+    }
+   ],
+   "lean": {
+    "name": "isEven_of_isEven_sq",
+    "statement_ok": true,
+    "proof_ok": true,
+    "axioms": [
+     "propext",
+     "Classical.choice",
+     "Quot.sound"
+    ],
+    "code": "theorem isEven_of_isEven_sq {n : ℤ} (h : IsEven (n ^ 2)) : IsEven n := by\n  rw [isEven_iff_emod] at h ⊢\n  rcases Int.emod_two_eq_zero_or_one n with h0 | h1\n  · exact h0\n  · exfalso\n    have : n ^ 2 % 2 = 1 := by\n      rw [pow_two, Int.mul_emod, h1]\n      norm_num\n    omega"
+   }
+  },
+  {
+   "id": "prop-consec",
+   "kind": "proposition",
+   "number": "2.2",
+   "title": "Produit de consécutifs",
+   "statement": "Pour tout $n \\in \\mathbb{Z}$, $n^2 + n$ est pair.",
+   "uses": [
+    "lem-add",
+    "lem-emod"
+   ],
+   "lean": {
+    "name": "isEven_sq_add_self",
+    "statement_ok": true,
+    "proof_ok": false,
+    "axioms": null,
+    "code": "theorem isEven_sq_add_self (n : ℤ) : IsEven (n ^ 2 + n) := by\n  sorry"
+   }
+  }
+ ],
+ "bibliography": [
+  {
+   "key": "hardy-wright",
+   "label": "HW08",
+   "csl": {
+    "type": "book",
+    "title": "An Introduction to the Theory of Numbers",
+    "edition": "6",
+    "author": [
+     {
+      "family": "Hardy",
+      "given": "G. H."
+     },
+     {
+      "family": "Wright",
+      "given": "E. M."
+     }
+    ],
+    "publisher": "Oxford University Press",
+    "issued": {
+     "date-parts": [
+      [
+       2008
+      ]
+     ]
+    },
+    "ISBN": "978-0-19-921986-5"
+   }
+  },
+  {
+   "key": "mathlib2020",
+   "label": "mC20",
+   "csl": {
+    "type": "paper-conference",
+    "title": "The Lean Mathematical Library",
+    "author": [
+     {
+      "literal": "The mathlib Community"
+     }
+    ],
+    "container-title": "Proceedings of the 9th ACM SIGPLAN International Conference on Certified Programs and Proofs (CPP 2020)",
+    "issued": {
+     "date-parts": [
+      [
+       2020
+      ]
+     ]
+    },
+    "page": "367–381",
+    "DOI": "10.1145/3372885.3373824"
+   }
+  }
+ ],
+ "files": [
+  {
+   "path": "files/parity-notes-lake.zip",
+   "title": "Projet Lean (Lake) — exemple",
+   "kind": "lake"
+  },
+  {
+   "path": "files/parity-notes.pdf",
+   "title": "Article (PDF) — exemple",
+   "kind": "pdf"
+  }
+ ]
+}

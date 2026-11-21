@@ -28,7 +28,7 @@ There is no Madalean account, no Madalean server on the Internet, no telemetry.
   read the host's files could not recover the token.
 - On the phone, the token is in Android's protected storage; on a PC, in the system keyring; in a browser, in a
   cookie inaccessible to the page's scripts.
-- **Unlinking** a device (« Settings › Devices ») cuts its access immediately.
+- **Unlinking** a device (“Settings › Devices”) cuts its access immediately.
 
 A lost or stolen device: unlink it from the host, and remove it from your Tailscale network.
 
@@ -49,6 +49,13 @@ knows whether a key is saved), never written to a log, never sent to a provider 
 
 - **Lean** compiles the proofs written by the models. Forbidden constructs (`sorry`, new axioms, search commands)
   are refused before compiling.
+- **Lean can also run code** while it reads a file: `#eval`, `initialize`, `run_cmd`, tactics, macros or elaborators
+  defined in the file (`elab`, `macro`, `syntax`…), `unsafe`, `implemented_by`. Since Lean code may come from a
+  model, from the text of a paper or from a paired device, Madalean **refuses to compile** any file containing one of
+  these constructs, at a single point that every compilation goes through. `import`s are limited to Mathlib, Aesop,
+  Batteries, Std, Qq, ProofWidgets and Plausible. The check works on words, outside comments and strings: it can
+  wrongly refuse a legitimate file (a variable named `prefix`, for instance); the refusal message names the
+  construct.
 - **Experiments of the conjecture workshop**: the code is shown to you, and runs only after your approval of **this
   exact code**. It runs with time, memory and file-size limits, without your keys or secret variables; if
   `bubblewrap` is installed, with a read-only file system in which your configuration folder, `~/.ssh` and your
@@ -60,7 +67,7 @@ knows whether a key is saved), never written to a log, never sent to a provider 
 
 PDFs, TeX sources, BibTeX files and website responses can be booby-trapped. Madalean never compiles a paper's TeX
 (it only reads it), compiles its own TeX exports without any shell access, limits the size and content of archives,
-and treats the text of sources as **data**: a passage saying « ignore your instructions » has no effect on the tools,
+and treats the text of sources as **data**: a passage saying “ignore your instructions” has no effect on the tools,
 because answers grounded in your sources have access to no tool.
 
 ## What Madalean never does

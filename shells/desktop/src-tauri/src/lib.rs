@@ -9,12 +9,13 @@
 pub mod core;
 pub mod net;
 pub mod store;
+pub mod update;
 
 use crate::core::*;
 use crate::store::{AutoStore, TokenStore};
 use serde::Serialize;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::webview::{DownloadEvent, NewWindowResponse, PageLoadEvent};
@@ -44,6 +45,20 @@ pub struct Shell {
     reauth_count: Mutex<(Instant, u32)>,
     downloads: Mutex<Vec<PathBuf>>,
     test_log: Option<PathBuf>,
+    upd: Mutex<UpdState>,
+    unfocused_since: Mutex<Option<Instant>>,
+}
+
+/// What the updater is doing, shown on the connect screen.
+#[derive(Clone, Default, Serialize)]
+struct UpdState {
+    /// idle | checking | downloading | ready | available | up_to_date | error
+    state: String,
+    version: Option<String>,
+    error: Option<update::UpdError>,
+    progress: u8,
+    notes_url: String,
+    pending_restart: bool,
 }
 
 type Shared = Arc<Shell>;
@@ -137,6 +152,255 @@ async fn open_origin(app: &AppHandle, origin: Url) -> Result<(), ShellError> {
     let title = if hello.host_name.is_empty() { "Madalean".to_string() } else { format!("Madalean — {}", hello.host_name) };
     let _ = w.set_title(&title);
     w.navigate(target).map_err(|e| ShellError::Internal { detail: e.to_string() })
+}
+
+// ---------------------------------------------------------------- signed self-update (update.rs)
+
+fn set_upd(app: &AppHandle, f: impl FnOnce(&mut UpdState)) {
+    let shell = app.state::<Shared>();
+    let mut u = shell.upd.lock().unwrap();
+    f(&mut u);
+}
+
+fn channel_url() -> String {
+    // Test channels: https, or http to loopback only. The signature is checked either way.
+    std::env::var("MADALEAN_UPDATE_CHANNEL")
+        .ok()
+        .filter(|u| u.starts_with("https://") || update::is_loopback_http(u))
+        .unwrap_or_else(|| update::DEFAULT_CHANNEL.to_string())
+}
+
+async fn fetch_small(c: &reqwest::Client, url: &str) -> Result<Option<Vec<u8>>, update::UpdError> {
+    let r = c.get(url).send().await.map_err(|_| update::UpdError::Network)?;
+    if r.status().as_u16() == 404 {
+        return Ok(None);
+    }
+    if !r.status().is_success() {
+        return Err(update::UpdError::Network);
+    }
+    let b = r.bytes().await.map_err(|_| update::UpdError::Network)?;
+    if b.len() > 1 << 20 {
+        return Err(update::UpdError::BadManifest);
+    }
+    Ok(Some(b.to_vec()))
+}
+
+/// Check the channel; when a newer signed AppImage exists, download, verify and swap it in.
+async fn run_update(app: &AppHandle, manual: bool) -> Result<(), update::UpdError> {
+    use update::UpdError as E;
+    let shell = app.state::<Shared>().inner().clone();
+    set_upd(app, |u| {
+        u.state = "checking".into();
+        u.error = None;
+    });
+    let current = env!("CARGO_PKG_VERSION");
+    let url = channel_url();
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .user_agent(concat!("madalean-desktop/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|_| E::Network)?;
+    let bytes = fetch_small(&client, &url).await?.ok_or(E::Network)?;
+    let sig = fetch_small(&client, &format!("{url}.sig")).await?;
+    let sig = sig.map(|s| String::from_utf8_lossy(&s).to_string());
+    let m = update::verify_manifest(&bytes, sig.as_deref(), update::embedded_pubkey(), &update::channel_name(&url))?;
+    {
+        shell.settings.lock().unwrap().last_update_check = now_secs();
+    }
+    shell.save_settings();
+    if update::cmp_versions(&m.version, current) != std::cmp::Ordering::Greater {
+        shell.log("update_none", serde_json::json!({ "channel_version": m.version, "current": current }));
+        set_upd(app, |u| {
+            u.state = "up_to_date".into();
+            u.version = Some(m.version.clone());
+        });
+        return Ok(());
+    }
+    let below_floor = !m.min_version.is_empty() && update::cmp_versions(current, &m.min_version) == std::cmp::Ordering::Less;
+    let auto = shell.settings.lock().unwrap().auto_update.unwrap_or(true);
+    let f = update::pick_appimage(&m)?;
+    set_upd(app, |u| {
+        u.version = Some(m.version.clone());
+        u.notes_url = m.notes_url.clone();
+    });
+    // APPIMAGE is set by the AppImage runtime to the running file; without it (plain binary) we only notify.
+    let Some(target) = std::env::var_os("APPIMAGE").map(PathBuf::from).filter(|p| p.is_file()) else {
+        shell.log("update_available", serde_json::json!({ "version": m.version, "installable": false }));
+        set_upd(app, |u| u.state = "available".into());
+        return Ok(());
+    };
+    if !(auto || manual || below_floor) {
+        set_upd(app, |u| u.state = "available".into());
+        return Ok(());
+    }
+    let dir = target.parent().map(Path::to_path_buf).unwrap_or_default();
+    let tmp = dir.join(format!(".{}.download", f.name));
+    let result = download_verified(app, &client, &f, &tmp).await;
+    if let Err(e) = result {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    let prev = update::swap_in(&tmp, &target).map_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+        E::NotWritable
+    })?;
+    shell.log(
+        "update_installed",
+        serde_json::json!({ "version": m.version, "target": target, "previous": prev, "sha256": f.sha256 }),
+    );
+    set_upd(app, |u| {
+        u.state = "ready".into();
+        u.pending_restart = true;
+        u.progress = 100;
+    });
+    let fr = shell.settings.lock().unwrap().lang.as_deref() != Some("en");
+    if let Some(w) = main_window(app) {
+        let msg = if fr {
+            format!("Madalean {} est installé : il s’ouvrira au prochain démarrage.", m.version)
+        } else {
+            format!("Madalean {} is installed: it opens at the next start.", m.version)
+        };
+        let _ = w.eval(toast_js(&msg, Some((if fr { "Redémarrer" } else { "Restart" }, "madalean://shell/restart".into()))));
+    }
+    if std::env::var("MADALEAN_SHELL_TEST_RESTART_AFTER_UPDATE").is_ok_and(|v| v == "1") {
+        restart(app);
+    }
+    Ok(())
+}
+
+async fn download_verified(app: &AppHandle, c: &reqwest::Client, f: &update::FileEntry, tmp: &Path) -> Result<(), update::UpdError> {
+    use sha2::Digest;
+    use update::UpdError as E;
+    let mut r = c.get(&f.url).send().await.map_err(|_| E::Network)?;
+    if !r.status().is_success() {
+        return Err(E::Network);
+    }
+    let mut out = std::fs::File::create(tmp).map_err(|_| E::NotWritable)?;
+    let mut h = sha2::Sha256::new();
+    let mut n: u64 = 0;
+    set_upd(app, |u| {
+        u.state = "downloading".into();
+        u.progress = 0;
+    });
+    while let Some(chunk) = r.chunk().await.map_err(|_| E::Network)? {
+        n += chunk.len() as u64;
+        if n > f.size {
+            return Err(E::Size);
+        }
+        h.update(&chunk);
+        out.write_all(&chunk).map_err(|_| E::NotWritable)?;
+        let pct = (n * 100 / f.size.max(1)) as u8;
+        set_upd(app, |u| u.progress = pct);
+    }
+    out.sync_all().map_err(|_| E::NotWritable)?;
+    if n != f.size {
+        return Err(E::Size);
+    }
+    if update::hex(&h.finalize()) != f.sha256.to_lowercase() {
+        return Err(E::Checksum);
+    }
+    Ok(())
+}
+
+fn spawn_update(app: AppHandle, manual: bool) {
+    std::thread::spawn(move || {
+        let r = tauri::async_runtime::block_on(run_update(&app, manual));
+        if let Err(e) = r {
+            app.state::<Shared>().log("update_error", serde_json::json!({ "error": e }));
+            set_upd(&app, |u| {
+                u.state = "error".into();
+                u.error = Some(e);
+            });
+        }
+    });
+}
+
+/// Relaunch the (new) AppImage and quit. The new process waits a second so the single-instance lock is free.
+fn restart(app: &AppHandle) {
+    let Some(target) = std::env::var_os("APPIMAGE") else { return };
+    app.state::<Shared>().log("update_restart", serde_json::json!({}));
+    let mut cmd = std::process::Command::new("sh");
+    cmd.arg("-c").arg("sleep 1; exec \"$0\"").arg(target);
+    // Do not leak the old mount's library paths into the new AppImage.
+    for k in [
+        "LD_LIBRARY_PATH", "APPDIR", "APPIMAGE", "ARGV0", "OWD", "GDK_PIXBUF_MODULE_FILE", "GDK_PIXBUF_MODULEDIR",
+        "GTK_PATH", "GTK_EXE_PREFIX", "GTK_DATA_PREFIX", "GTK_IM_MODULE_FILE", "GIO_EXTRA_MODULES",
+        "GSETTINGS_SCHEMA_DIR", "MADALEAN_SHELL_TEST_RESTART_AFTER_UPDATE",
+    ] {
+        cmd.env_remove(k);
+    }
+    use std::os::unix::process::CommandExt;
+    cmd.process_group(0);
+    if cmd.spawn().is_ok() {
+        app.exit(0);
+    }
+}
+
+/// Background loop: first check shortly after start, then every 12 h; restart into an installed update when the
+/// window has been in the background for 20 minutes (a quiet moment).
+fn start_update_worker(app: AppHandle) {
+    std::thread::spawn(move || {
+        let delay = std::env::var("MADALEAN_UPDATE_DELAY_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(20u64);
+        std::thread::sleep(Duration::from_secs(delay));
+        loop {
+            let shell = app.state::<Shared>().inner().clone();
+            let (auto, last) = {
+                let s = shell.settings.lock().unwrap();
+                (s.auto_update.unwrap_or(true), s.last_update_check)
+            };
+            let busy = matches!(shell.upd.lock().unwrap().state.as_str(), "checking" | "downloading");
+            let pending = shell.upd.lock().unwrap().pending_restart;
+            if auto && !busy && !pending && now_secs().saturating_sub(last) >= update::CHECK_EVERY_SECS {
+                spawn_update(app.clone(), false);
+            }
+            let quiet = shell.unfocused_since.lock().unwrap().is_some_and(|t| t.elapsed() > Duration::from_secs(20 * 60));
+            if pending && quiet {
+                restart(&app);
+            }
+            std::thread::sleep(Duration::from_secs(60));
+        }
+    });
+}
+
+#[derive(Serialize)]
+struct UpdView {
+    auto: bool,
+    current: &'static str,
+    installable: bool,
+    last_check: u64,
+    #[serde(flatten)]
+    st: UpdState,
+}
+
+#[tauri::command]
+fn update_status(shell: State<'_, Shared>) -> UpdView {
+    let s = shell.settings.lock().unwrap();
+    UpdView {
+        auto: s.auto_update.unwrap_or(true),
+        current: env!("CARGO_PKG_VERSION"),
+        installable: std::env::var_os("APPIMAGE").is_some() && update::embedded_pubkey().is_some(),
+        last_check: s.last_update_check,
+        st: shell.upd.lock().unwrap().clone(),
+    }
+}
+
+#[tauri::command]
+fn set_auto_update(shell: State<'_, Shared>, on: bool) {
+    shell.settings.lock().unwrap().auto_update = Some(on);
+    shell.save_settings();
+}
+
+#[tauri::command]
+fn check_updates_now(app: AppHandle) {
+    let busy = matches!(app.state::<Shared>().upd.lock().unwrap().state.as_str(), "checking" | "downloading");
+    if !busy {
+        spawn_update(app, true);
+    }
+}
+
+#[tauri::command]
+fn restart_now(app: AppHandle) {
+    restart(&app);
 }
 
 // ---------------------------------------------------------------- commands (bundled UI only)
@@ -293,6 +557,13 @@ fn handle_shell_url(app: &AppHandle, url: &Url) {
     match url.path().trim_start_matches('/') {
         "change-server" => show_connect(app, "manual"),
         "check" => recheck(app.clone(), true),
+        "restart" => restart(app),
+        // Test-only trace from MADALEAN_SHELL_TEST_PROBE (logged only when MADALEAN_SHELL_TEST_LOG is set).
+        "test-report" => {
+            let kv: serde_json::Map<String, serde_json::Value> =
+                url.query_pairs().map(|(k, v)| (k.to_string(), serde_json::Value::String(v.chars().take(80).collect()))).collect();
+            app.state::<Shared>().log("probe", serde_json::Value::Object(kv));
+        }
         "open-download" => {
             let shell = app.state::<Shared>();
             let idx: Option<usize> = url.query_pairs().find(|(k, _)| k == "i").and_then(|(_, v)| v.parse().ok());
@@ -448,7 +719,19 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![init_state, probe_local, connect, pair, parse_link, forget, set_lang])
+        .invoke_handler(tauri::generate_handler![
+            init_state,
+            probe_local,
+            connect,
+            pair,
+            parse_link,
+            forget,
+            set_lang,
+            update_status,
+            set_auto_update,
+            check_updates_now,
+            restart_now
+        ])
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             let local_url = std::env::var("MADALEAN_LOCAL_URL")
@@ -470,8 +753,14 @@ pub fn run() {
                 reauth_count: Mutex::new((Instant::now(), 0)),
                 downloads: Mutex::new(Vec::new()),
                 test_log: std::env::var_os("MADALEAN_SHELL_TEST_LOG").map(PathBuf::from),
+                upd: Mutex::new(UpdState { state: "idle".into(), ..Default::default() }),
+                unfocused_since: Mutex::new(None),
             });
-            shell.log("start", serde_json::json!({ "token_backend": shell.tokens.backend() }));
+            shell.log("start", serde_json::json!({
+                "token_backend": shell.tokens.backend(),
+                "version": env!("CARGO_PKG_VERSION"),
+                "update_key": update::embedded_pubkey().is_some(),
+            }));
             app.manage(shell.clone());
 
             let h_nav = app.handle().clone();
@@ -487,6 +776,20 @@ pub fn run() {
                      {}.forEach((id, i) => setTimeout(() => {{ const e = document.getElementById(id); if (e) e.click(); }}, 2000 * (i + 1))));",
                     serde_json::to_string(&ids).unwrap_or_default()
                 ));
+            }
+            // Test hook (MADALEAN_SHELL_TEST_PROBE=1): from the server's start page, report whether the web view's own
+            // requests are authenticated (GET /api/state with the cookie, WebSocket /api/ws).
+            if std::env::var("MADALEAN_SHELL_TEST_PROBE").is_ok_and(|v| v == "1") {
+                builder = builder.initialization_script(
+                    "if (/^https?:$/.test(location.protocol) && location.pathname === '/') window.addEventListener('load', () => {\
+                       const rep = (q) => { location.href = 'madalean://shell/test-report?' + q; };\
+                       fetch('/api/state', {credentials: 'same-origin'}).then(r => rep('what=state&status=' + r.status))\
+                         .catch(e => rep('what=state&status=error'));\
+                       setTimeout(() => { const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/api/ws');\
+                         ws.onopen = () => { rep('what=ws&status=open'); ws.close(); };\
+                         ws.onclose = (e) => { if (!e.wasClean || e.code !== 1005) rep('what=ws&status=close' + e.code); }; }, 1500);\
+                     });",
+                );
             }
             let window = builder
                 .title("Madalean")
@@ -566,10 +869,14 @@ pub fn run() {
             }
             let h_ev = app.handle().clone();
             window.on_window_event(move |ev| {
-                if let tauri::WindowEvent::Focused(true) = ev {
-                    recheck(h_ev.clone(), false);
+                if let tauri::WindowEvent::Focused(focused) = ev {
+                    *h_ev.state::<Shared>().unfocused_since.lock().unwrap() = (!focused).then(Instant::now);
+                    if *focused {
+                        recheck(h_ev.clone(), false);
+                    }
                 }
             });
+            start_update_worker(app.handle().clone());
             Ok(())
         })
         .run(tauri::generate_context!())

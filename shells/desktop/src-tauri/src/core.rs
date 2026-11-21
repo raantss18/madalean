@@ -241,6 +241,12 @@ pub struct Settings {
     /// "fr" (default) or "en".
     #[serde(default)]
     pub lang: Option<String>,
+    /// « Mises à jour automatiques » (default on).
+    #[serde(default)]
+    pub auto_update: Option<bool>,
+    /// Unix seconds of the last successful channel check.
+    #[serde(default)]
+    pub last_update_check: u64,
 }
 
 impl Settings {

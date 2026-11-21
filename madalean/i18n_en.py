@@ -952,6 +952,7 @@ EN.update({
     'Aucun terminal trouvé : copiez la commande et lancez-la vous-même.': 'No terminal found: copy the command and run it yourself.',
     'Madalean {v} est installé et vérifié ; redémarrage au prochain moment calme.': 'Madalean {v} is installed and verified; restart at the next quiet moment.',
     "Mise à jour de Madalean refusée ({why}) : rien n'a changé.": 'Madalean update refused ({why}): nothing changed.',
+    'Refusé avant compilation : {why}.': 'Refused before compiling: {why}.',
     # messages carried by exceptions (keys passed as variables)
     'Le code doit contenir « # PREDICATE » (avec def holds) puis « # SEARCH ».': 'The code must contain « # PREDICATE » (with def holds) then « # SEARCH ».',
     "Le modèle n'a pas produit de code d'expérience utilisable.": 'The model produced no usable experiment code.',

@@ -70,6 +70,14 @@ La traduction n'est pas du Lean valide pour cet espace (nom inconnu, notation d'
 message de Lean est affiché sous l'énoncé. « Corriger l'énoncé… » relance la traduction avec l'erreur ; ou
 « Modifier à la main ».
 
+### « Lean refuse de compiler ce code : … »
+
+Le code contient une construction qui pourrait exécuter du code sur l'hôte (`#eval`, `macro`, `elab`, `unsafe`…) ou
+un `import` hors de Mathlib et de ses dépendances : Madalean refuse de le compiler (voir
+[Sécurité](security.md#code-execute-sur-lhote)). Retirez la construction nommée dans le message. Si le mot en cause
+est un simple nom de variable (`prefix`, `syntax`…), renommez la variable.
+<!-- verify after integration: exact wording of the exec_risks refusal message -->
+
 ### « Pas de preuve trouvée »
 
 Les essais sont épuisés. Ce n'est pas une preuve que l'énoncé est faux. Essayez : relire l'énoncé (hypothèse

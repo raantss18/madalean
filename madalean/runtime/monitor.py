@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from .. import deps
 from ..logs import get
 
 log = get("monitor")
@@ -58,7 +59,7 @@ class Monitor:
         return {"gpu": gpu, "gpu_ok": self.gpu_ok, "gpu_error": self.gpu_error, "disk": self.disk, "t": self.t}
 
     async def poll(self) -> None:
-        exe = shutil.which("nvidia-smi")
+        exe = deps.tool("nvidia-smi")
         if not exe:
             self.gpu, self.gpu_ok, self.gpu_error = None, False, "nvidia-smi not found"
         else:

@@ -14,7 +14,6 @@ import json
 import os
 import re
 import secrets
-import shutil
 import signal
 import socket
 import time
@@ -24,8 +23,9 @@ from typing import Callable
 import aiohttp
 from aiohttp import web
 
+from . import deps
 from .logs import get
-from .runtime import guarded
+from .runtime import SETPRIV, guarded
 
 log = get("jupyter")
 
@@ -84,7 +84,7 @@ class JupyterManager:
         self.share_dir = self.runtime_dir / "share"     # JUPYTER_PATH: Madalean's own kernelspecs (sagebridge)
         self.publish = publish
         self.base_url = "/" + base_url.strip("/") + "/"
-        self.exe = exe or shutil.which("jupyter-lab")
+        self.exe = exe or deps.tool("jupyter-lab")
         self.state = "stopped"
         self.port: int | None = None
         self.error = ""
@@ -151,6 +151,7 @@ class JupyterManager:
                                                                                      "password": ""}}, f)
             env = scrub_env(dict(os.environ))
             self.share_dir.mkdir(parents=True, exist_ok=True)
+            self._guard_kernelspecs()
             env.update({"JUPYTER_CONFIG_DIR": str(cfg_dir), "JUPYTER_RUNTIME_DIR": str(self.runtime_dir / "runtime"),
                         "JUPYTER_PATH": str(self.share_dir), "PYTHONUNBUFFERED": "1"})
             self.state, self.error, self._tail = "starting", "", []
@@ -206,6 +207,26 @@ class JupyterManager:
             log.info("jupyter-lab ready on port %s (%.1f s)", self.port, time.monotonic() - t0)
             self._changed()
             return self.status()
+
+    def _guard_kernelspecs(self) -> None:
+        """Kernels are started by jupyter-lab in their own session, so killing jupyter-lab's process group (or
+        jupyter-lab dying with the server through PR_SET_PDEATHSIG) does not stop them. Madalean's JUPYTER_PATH
+        therefore overrides the `python3` kernelspec with the same kernel started through `guarded` (setpriv
+        --pdeathsig KILL): a kernel dies with its jupyter-lab, which dies with the server."""
+        py = Path(self.exe).resolve().parent / "python3" if self.exe else None
+        if py is None or not py.exists():
+            py = Path(deps.tool("python") or "")
+        if not py or not py.exists():
+            return
+        d = self.share_dir / "kernels" / "python3"
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            spec = {"argv": guarded(str(py), ["-m", "ipykernel_launcher", "-f", "{connection_file}"]),
+                    "display_name": "Python 3 (ipykernel)", "language": "python",
+                    "metadata": {"debugger": True, "madalean_guarded": bool(SETPRIV)}}
+            (d / "kernel.json").write_text(json.dumps(spec, indent=1), encoding="utf-8")
+        except OSError:
+            log.exception("cannot write the guarded python3 kernelspec")
 
     async def _drain(self, proc: asyncio.subprocess.Process) -> None:
         assert proc.stdout is not None

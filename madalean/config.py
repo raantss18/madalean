@@ -8,14 +8,22 @@ import time
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
+from . import deps
+
 HOME = Path.home()
 STATION_DIR = Path(os.environ.get("MADALEAN_DIR", Path(__file__).resolve().parents[1]))  # repo root
 CONFIG_DIR = Path(os.environ.get("MADALEAN_CONFIG_DIR", HOME / ".config" / "madalean"))
 MODELS_DIR = Path(os.environ.get("MADALEAN_MODELS_DIR", HOME / "models"))
 CACHE_DIR = Path(os.environ.get("MADALEAN_CACHE_DIR", HOME / ".cache" / "madalean"))
-LLAMA_BIN_DIR = Path(os.environ.get("MADALEAN_LLAMA_BIN", STATION_DIR / "vendor" / "llama.cpp" / "build" / "bin"))
-WORKSPACES_DIR = STATION_DIR / "workspaces"
-ELAN_BIN = HOME / ".elan" / "bin"
+# Self-contained install (ARCHITECTURE §18): external programs live in MADALEAN_HOME (see madalean/deps); the paths
+# below fall back to the development-checkout locations only when the prefix does not provide them.
+MADALEAN_HOME = deps.home()
+LLAMA_BIN_DIR = Path(os.environ.get("MADALEAN_LLAMA_BIN") or deps.llama_bin_dir()
+                     or STATION_DIR / "vendor" / "llama.cpp" / "build" / "bin")
+WORKSPACES_DIR = Path(os.environ.get("MADALEAN_WORKSPACES_DIR") or (
+    deps.workspaces_dir() if deps.workspaces_dir().is_dir() else STATION_DIR / "workspaces"))
+ELAN_HOME = deps.elan_home() if (deps.elan_home() / "bin" / "elan").exists() else HOME / ".elan"
+ELAN_BIN = ELAN_HOME / "bin"
 
 LEGACY_CONFIG_DIR = HOME / ".config" / "lean-ai-station"   # 1.x data, copied on first start (never modified)
 SETTINGS_FILE = CONFIG_DIR / "settings.json"

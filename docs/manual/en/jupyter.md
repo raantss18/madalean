@@ -9,7 +9,7 @@ summary: Built-in JupyterLab with the Python and SageMath kernels, the assistant
 
 # Jupyter and Sage
 
-The « Notebook » screen opens **JupyterLab**, started on demand by the host computer, behind the same connection as
+The “Notebook” screen opens **JupyterLab**, started on demand by the host computer, behind the same connection as
 the rest of Madalean. Notebooks are stored in `~/Documents/Madalean/notebooks/`.
 
 ## Kernels
@@ -20,7 +20,7 @@ the rest of Madalean. Notebooks are stored in `~/Documents/Madalean/notebooks/`.
 | SageMath | Sage is installed on the host (your distribution's package) |
 | Lean 4 | not provided: no Lean 4 kernel is reliable enough today. Use dossiers or the `lean` blocks of [notes](notes.md). |
 
-Madalean does not install Sage itself (it never runs `sudo`): « Settings › Updates » gives the exact command for your
+Madalean does not install Sage itself (it never runs `sudo`): “Settings › Updates” gives the exact command for your
 distribution.
 
 ## The assistant next to the notebook
@@ -33,7 +33,7 @@ yourself. It answers with the model of the current mode; in *Local* mode, only a
 A Jupyter kernel runs arbitrary code on the host computer. Therefore:
 
 - on the host, the notebook is always available;
-- from a linked device, it is reachable only if the host allowed it (« Settings › Notebook and access »), a setting
+- from a linked device, it is reachable only if the host allowed it (“Settings › Notebook and access”), a setting
   that can be changed **only from the host**;
 - Jupyter's internal token never leaves the server.
 

@@ -9,9 +9,9 @@ summary: Publish a verified project as a static site on a GitHub repository of y
 
 # Publishing a project
 
-<!-- verify after integration: the « Publier » feature is not built yet; this page describes the design of ARCHITECTURE §17 and the template in site/publication -->
+<!-- verify after integration: the “Publier” feature is not built yet; this page describes the design of ARCHITECTURE §17 and the template in site/publication -->
 
-« Publish » turns a project into a **static site** that anyone can read and re-verify:
+“Publish” turns a project into a **static site** that anyone can read and re-verify:
 
 - the article (HTML and PDF);
 - the blueprint's **dependency graph**, with the state of each result;
@@ -26,7 +26,7 @@ computer: a reader does not have to take Madalean's word for it.
 
 ## What leaves the machine, and only with your consent
 
-1. « Preview » builds the site locally: you browse it before anything is published.
+1. “Preview” builds the site locally: you browse it before anything is published.
 2. The publish screen lists **exactly** what will leave the machine: files, dossiers, notes, sources. Nothing private
    is published without an explicit choice, item by item. The PDFs of your sources are never published: only their
    bibliographic reference is.

@@ -47,7 +47,7 @@ theorem sum_odds (n : ℕ) : ∑ i in Finset.range n, (2 * i + 1) = n ^ 2 := by
 
 `induction n with | zero => … | succ n ih => …` produces the base case and the inductive step; `ih` is the induction
 hypothesis. `rcases`/`cases` handle the cases of an inductive type or of a disjunction; `interval_cases n` enumerates
-the values of an integer bounded by the hypotheses. (In the « Recent Lean » workspace, write
+the values of an integer bounded by the hypotheses. (In the “Recent Lean” workspace, write
 `∑ i ∈ Finset.range n`.)
 
 ## Rewriting and simplifying
@@ -73,7 +73,7 @@ the values of an integer bounded by the hypotheses. (In the « Recent Lean » wo
 | `positivity` | goals `0 < e`, `0 ≤ e`, `e ≠ 0` when the shape of `e` shows it (squares, sums of positives, exponentials…) | use complicated hypotheses |
 | `omega` | **exact** linear arithmetic over `ℕ` and `ℤ`, with `/` and `%` by constants | products of variables; the reals |
 | `decide` | decidable propositions on **concrete** values: `Nat.Prime 7` if the instance allows it, `2 ∣ 10` | free variables; large computations (slow) |
-| `gcongr` | « same shape on both sides »: `a ≤ b → a + c ≤ b + c`, leaves the comparisons of the pieces | |
+| `gcongr` | “same shape on both sides”: `a ≤ b → a + c ≤ b + c`, leaves the comparisons of the pieces | |
 
 Example:
 

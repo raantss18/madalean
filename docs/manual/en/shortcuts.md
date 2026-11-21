@@ -4,20 +4,44 @@ title: Keyboard shortcuts
 order: 430
 section: reference
 audience: all
-summary: The interface's keyboard shortcuts (to be completed from the interface).
+summary: Keyboard shortcuts of the interface and of the Lean editor.
 ---
 
 # Keyboard shortcuts
 
-On macOS, read `Ctrl` as `⌘`. In the Lean editor, `\` followed by a name inserts a symbol: `\forall` → `∀`,
-`\R` → `ℝ`, `\le` → `≤`, `\to` → `→`, `\mid` → `∣`.
+On macOS, read `Ctrl` as `⌘`. Single-key shortcuts (`/`, `n`) do not apply while you type in a text field.
 
-<!-- verify after integration: S-D completes this table from the web UI (CommandPalette, editor keymap) -->
+## Everywhere
 
-| Shortcut | Action | Where |
-|---|---|---|
-| `Ctrl+K` | search (dossiers, commands, help) | everywhere |
-| `Ctrl+Enter` | send the request | dossier thread |
-| `Esc` | close the open dialog or menu | everywhere |
-| `Ctrl+Shift+K` | change server | desktop application |
-| — | *to be completed* | |
+| Shortcut | Action |
+|---|---|
+| `Ctrl+K` or `/` | open the palette: find a dossier, a command, a help page |
+| `n` | new dossier (*Research* mode only) |
+| `Esc` | close the open menu, palette, dossier drawer or activity panel |
+| `Tab`, `Shift+Tab` | move between controls; a “Skip to content” link comes first |
+
+## Palette, menus and tabs
+
+| Shortcut | Action |
+|---|---|
+| `↑` `↓` | choose in the palette or a menu |
+| `Enter` | run the chosen item |
+| `Home`, `End` | first, last item of a menu |
+| `←` `→`, `Home`, `End` | move between the Statement, Lean translation and Proof steps of a dossier |
+
+## Editors (statement, Lean, dossier thread)
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Enter` | send: start the statement, send the follow-up request |
+| `\le` then `Space` or `Tab` | insert a symbol: `\forall` → `∀`, `\R` → `ℝ`, `\le` → `≤`, `\to` → `→`, `\mid` → `∣` (full list in the “Glossary” screen) |
+| `Ctrl+Z`, `Ctrl+Shift+Z` | undo, redo |
+| `Tab`, `Shift+Tab` | indent, unindent (in the Lean editor) |
+
+In a natural-language statement, abbreviations are not expanded between `$…$`, to keep the LaTeX.
+
+## Desktop application
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Shift+K` | change server |

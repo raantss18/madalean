@@ -9,10 +9,10 @@ client, `Authorization: Bearer`), then hand the web view a **one-time ticket** t
 `HttpOnly` cookie. Everything below is under `/api`; "remote" = listener `127.0.0.1:11501` published as
 `https://<host>.<tailnet>.ts.net:10500`, "local" = trusted listener `127.0.0.1:11500`.
 
-**Status against the current server (`madalean/server/`, docs/API.md, 2026-11-21):** items 1, 2 exist (the shells
-accept both the shapes below and the current ones: `403 wrong|expired|no_code`, `429 rate_limited|locked`,
-`{token, device:{id…}}`); **items 3, 4 are missing and block the shells on remote devices**; item 5/6 differ (see
-notes). On the host itself nothing is needed: the local listener is opened directly.
+**Status against the current server (`madalean/server/`, docs/API.md §3.1b):** items 1–4 and 8 are implemented
+(cookie = per-device session secret) and the desktop e2e passes against `madalean serve --demo` (see Tests). The
+shells accept both the shapes below and the server's: `403 wrong|expired|no_code`, `429 rate_limited|locked`,
+`{token, device:{id…}}`.
 
 1. **`GET /api/hello`** (no auth, both listeners) → `200 {name:"madalean", version, paired, local, host_name}`,
    `Cache-Control: no-store`. `paired` = true on the local listener; on the remote listener true **iff the request
@@ -175,6 +175,53 @@ Pinned: Flutter 3.47.9 / Dart 3.13.7, AGP 8.13.2, Kotlin 2.4.0, Gradle 9.3.1, JD
 minSdk 26 (Android 8.0); flutter_inappwebview 6.1.5, flutter_secure_storage 11.2.0, app_links 7.2.2, http 1.6.0,
 shared_preferences 2.5.6, url_launcher 6.3.3, androidx core-splashscreen 1.0.1 (versions locked in pubspec.lock).
 
+## Updates (signed, automatic) — both shells
+
+**Channel**: `https://raantss18.github.io/madalean/updates/stable.json` + `stable.json.sig`.
+
+```json
+{"channel":"stable","version":"2.0.1","published":"2026-12-01T10:00:00+00:00","notes_url":"https://…",
+ "min_version":"2.0.0",
+ "files":[{"name":"Madalean-2.0.1-x86_64.AppImage","url":"https://github.com/raantss18/madalean/releases/download/v2.0.1/…",
+           "sha256":"<64 hex>","size":109062648,"kind":"appimage"},
+          {"name":"madalean-arm64-v8a-release.apk","url":"…","sha256":"…","size":…,"kind":"apk"}, …]}
+```
+
+- `.sig` = base64 of the raw 64-byte Ed25519 signature of the **exact bytes** of the JSON file (whitespace in the
+  .sig ignored) — same key and scheme as `scripts/sign_release.sh`. Produce both with
+  `scripts/make_update_manifest.py --version X --base-url <release download URL> FILES…` (signs with
+  `~/.config/madalean/release-keys/ed25519.pem` through openssl; `kind` from the extension).
+- `channel` is signed and must equal the requested file's base name (`stable`): a manifest signed for a test
+  channel can never be replayed on stable. `min_version`: a client older than it installs even when automatic
+  updates are off. Never a downgrade nor the same version (numeric dotted compare; `-suffix` < release).
+- Public key (hex `8a3380f9…0ca690`, the same as `madalean/update_checkers/selfupdate.py`) is embedded at **build
+  time** from the private key file (or `MADALEAN_UPDATE_PUBKEY`): `build_appimage.sh` and `build_apk.sh` refuse a
+  release build without it. The private key is never in the repository.
+- Order of checks: manifest signature → channel → version → file entry sanity (https only, except loopback http for
+  test channels; size ≤ 600 MB; plain file name) → download → size → SHA-256 (→ Android: APK signing certificate
+  equals the installed one) → install.
+
+**Desktop (AppImage)** — own Rust module (`src-tauri/src/update.rs`), not Tauri's updater (which only trusts its
+minisign signature of each file, not our signed manifest). First check 20 s after start, then every 12 h (switch
+« Mises à jour automatiques » on the connect screen, default on; « Vérifier maintenant »). The new AppImage is
+downloaded next to the running one (`$APPIMAGE`, set by the AppImage runtime) as `.<name>.download`, verified,
+`chmod 755`, the running file is hard-linked to `<name>.previous` (rollback: `mv Madalean.AppImage.previous
+Madalean.AppImage`), then the new one is renamed over it atomically. It runs at the next start, or when the shell
+restarts itself after 20 minutes in the background, or at once via « Redémarrer » (toast in the web UI / button on the
+connect screen). Not running as an AppImage (plain binary) → only « version X disponible ». Read-only folder →
+clear error, nothing changed. Test hooks: `MADALEAN_UPDATE_CHANNEL` (https or loopback http), `MADALEAN_UPDATE_DELAY_SECS`,
+`MADALEAN_SHELL_TEST_RESTART_AFTER_UPDATE=1`.
+
+**Android** — `lib/src/update.dart` + `update_ui.dart` + Kotlin in `MainActivity.kt`: checks on start/resume at most
+once per 12 h (switch « Mises à jour automatiques », default on; « Vérifier maintenant »), picks the APK of the
+device's primary ABI (else universal), downloads into the app cache (`cache/updates`), verifies size, SHA-256 and that
+the APK's signing certificate equals the installed app's (PackageManager), then shows a small banner « Mise à jour X
+prête — Installer / Plus tard ». Install = system installer through a FileProvider URI (`REQUEST_INSTALL_PACKAGES`;
+the first time Android asks to allow "install unknown apps" for Madalean — the banner explains it). Android always
+requires the user's tap: this cannot be bypassed. Debug builds only can point to a test channel
+(`MADALEAN_UPDATE_CHANNEL` dart-define).
+
+
 ## Network setup on the host (`scripts/tailscale_setup.sh`)
 
 Manages exactly one entry: `tailscale serve --bg --https=10500 http://127.0.0.1:11501`. Idempotent; refuses if
@@ -222,7 +269,17 @@ the baobab-∀ was chosen because it stays legible at 16–48 px and as a one-co
   the real keyring.
 - Android: `flutter test` in `shells/android` — 34 tests (addresses, API client incl. both server shapes, controller
   flows: revocation, unreachable, re-auth loop guard, storage).
-- End to end, desktop: `shells/desktop/tests/e2e.sh` runs the AppImage against the mock server inside a private
+- End to end, desktop, **real server**: `shells/desktop/tests/e2e.sh --server real` starts
+  `bin/madalean serve --demo` on free ports with a temporary `--config-dir`, gets codes from the local listener's
+  `POST /api/pairing/start`, revokes with `DELETE /api/devices/{id}`, and checks from inside the web view
+  (test-only probe) that `GET /api/state` answers 200 with the cookie and the WebSocket opens. 12/12 PASS
+  (pairing, session cookie, authenticated API + WebSocket, auto-reconnect = 2nd session, wrong code, single
+  instance, revocation, unreachable, host mode).
+- Updates, desktop: `shells/desktop/tests/update_e2e.sh` (local fake channel signed with `--channel test`, each
+  scenario on a fresh copy of the AppImage, same isolated session): good (new SHA-256 in place, `.previous` kept,
+  relaunched from the new file), tampered, unsigned, downgrade, same version, other channel, SHA-256 mismatch, automatic
+  off — 12/12 PASS. Unit tests: `update.rs` (signature, channel, versions, file checks, swap).
+- End to end, desktop (mock): `shells/desktop/tests/e2e.sh` runs the AppImage against the mock server inside a private
   `kwin_wayland --virtual` session with its own D-Bus bus, a temporary HOME, a rootful Xwayland for screenshots
   (ffmpeg x11grab) and a fake `xdg-open`. Nothing appears on the user's screen; no input is injected (clicks are
   done by a test-only init script). Checks: pairing via deep link → ticket → cookie → page authenticated by cookie
@@ -234,8 +291,14 @@ the baobab-∀ was chosen because it stays legible at 16–48 px and as a one-co
 
 ## NOT verified (honest list)
 
+Updates:
+- The real channel on GitHub Pages does not exist yet (only local test channels); HTTPS download from GitHub
+  Releases (redirects to objects.githubusercontent.com) not exercised; an update from an *actually newer* build
+  (tests used the same build plus a marker); the 20-minute "quiet moment" restart (only the immediate restart hook
+  ran); a read-only AppImage folder (code path only). Android: see the Android list.
+
 Desktop:
-- Against the real server (its ticket endpoints do not exist yet) and over the real tailnet HTTPS/port 10500
+- Over the real tailnet HTTPS/port 10500
   (rustls + Let's Encrypt chain not exercised; the `Secure` cookie flag was not exercised: the mock serves http).
 - The OS keyring path (KWallet/ksecretd or GNOME Keyring): only the file fallback ran in tests (an isolated
   ksecretd needs an interactive wallet-creation prompt). The keyring code path is untested.

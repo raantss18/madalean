@@ -29,14 +29,14 @@ Renaming a note updates the `[[Old title]]` links in the project's other notes.
 
 ## Lean in notes
 
-« Check with Lean » compiles every `lean` block of the note in the project's workspace and shows the errors at the
-right line. « Create a dossier » from a block containing a theorem opens a dossier with that statement (or, from a
+“Check with Lean” compiles every `lean` block of the note in the project's workspace and shows the errors at the
+right line. “Create a dossier” from a block containing a theorem opens a dossier with that statement (or, from a
 paragraph, a dossier whose problem it is) and adds a link to it below the block.
 <!-- verify after integration: button labels in the notes editor (S-D) -->
 
 ## Research log
 
-« Today's note » creates (or opens) the note dated today, with the list of dossiers worked on that day.
+“Today's note” creates (or opens) the note dated today, with the list of dossiers worked on that day.
 
 ## Versions and several devices
 

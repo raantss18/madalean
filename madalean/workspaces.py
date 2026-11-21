@@ -78,11 +78,28 @@ class Workspace:
         return problems
 
 
+def toolchain_roots() -> list[Path]:
+    """Where toolchains are looked up: the prefix's ELAN_HOME first (§18), then ~/.elan read-only (only for the
+    user's own existing projects, or a development checkout without an installed prefix)."""
+    roots = [config.ELAN_HOME / "toolchains"]
+    legacy = Path.home() / ".elan" / "toolchains"
+    if legacy not in roots:
+        roots.append(legacy)
+    return roots
+
+
 def toolchain_dir(toolchain: str) -> Path | None:
     tc = toolchain.strip()
     if not tc:
         return None
-    root = Path.home() / ".elan" / "toolchains"
+    for root in toolchain_roots():
+        d = _toolchain_in(root, tc)
+        if d is not None:
+            return d
+    return None
+
+
+def _toolchain_in(root: Path, tc: str) -> Path | None:
     if ":" in tc:
         d = root / tc.replace("/", "--").replace(":", "---")
         return d if d.is_dir() else None

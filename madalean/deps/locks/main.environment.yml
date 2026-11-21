@@ -1,0 +1,22 @@
+# Source spec of Madalean's main runtime environment ($MADALEAN_HOME/env). conda-forge only.
+# Locked with: conda-lock -f main.environment.yml -p linux-64 --lockfile main.conda-lock.yml
+# (conda-lock is only used to GENERATE locks, never at run time; installs use micromamba + the lock.)
+name: madalean
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python =3.13
+  - aiohttp >=3.9,<4          # server
+  - cryptography              # Ed25519 release signatures (self-update)
+  - pillow                    # notes: images
+  - fonttools                 # PDF export: glyph coverage of fonts
+  - jupyterlab =4.6           # notebooks (§8)
+  - ipykernel                 # python3 kernel
+  - poppler                   # pdftotext / pdfinfo / pdftoppm (sources)
+  - tesseract                 # OCR of scanned PDFs (optional feature, small)
+  - tectonic =0.17            # LaTeX engine (bundle cached in the prefix)
+  - fontconfig                # fc-match / fc-list / fc-query (fonts of the export)
+  - font-ttf-dejavu-sans-mono # Lean listings
+  - fonts-conda-forge
+  - git                       # lake (Lean packages), update checks (git ls-remote)

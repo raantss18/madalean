@@ -11,6 +11,10 @@
     "allow-pair",
     "allow-parse-link",
     "allow-forget",
-    "allow-set-lang"
+    "allow-set-lang",
+    "allow-update-status",
+    "allow-set-auto-update",
+    "allow-check-updates-now",
+    "allow-restart-now"
   ]
 }

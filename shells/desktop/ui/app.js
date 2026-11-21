@@ -15,6 +15,23 @@ const T = {
     codeHelp: 'Les 6 chiffres affichés sur l’ordinateur hôte (Réglages → Appareils), valables 5 minutes.',
     pairBtn: 'Appairer et ouvrir', openBtn: 'Ouvrir', forgetBtn: 'Oublier', other: 'English',
     localHint: 'Sur l’ordinateur hôte, l’interface s’ouvre directement, sans code.',
+    updTitle: 'Mises à jour', updAuto: 'Mises à jour automatiques', updCheck: 'Vérifier maintenant', updRestart: 'Redémarrer',
+    updHelp: 'Vérifie deux fois par jour, télécharge et contrôle la signature, puis installe au prochain démarrage.',
+    upd: {
+      idle: (u) => `Version ${u.current}.`, checking: () => 'Vérification…',
+      downloading: (u) => `Téléchargement de la version ${u.version}… ${u.progress} %`,
+      ready: (u) => `Version ${u.version} installée : elle s’ouvrira au prochain démarrage.`,
+      available: (u) => u.installable ? `Version ${u.version} disponible.` : `Version ${u.version} disponible : téléchargez la nouvelle AppImage (ce programme n’est pas lancé comme AppImage).`,
+      up_to_date: (u) => `Version ${u.current} : à jour.`,
+    },
+    updErr: {
+      no_key: 'Mises à jour désactivées dans cette version de développement (pas de clé).',
+      unsigned: 'Mise à jour refusée : manifeste non signé.', bad_signature: 'Mise à jour refusée : signature invalide.',
+      bad_channel: 'Mise à jour refusée : manifeste d’un autre canal.', bad_manifest: 'Mise à jour refusée : manifeste incorrect.',
+      no_file: 'Aucune AppImage dans cette version.', network: 'Serveur de mises à jour injoignable : nouvel essai plus tard.',
+      size: 'Mise à jour refusée : taille incorrecte.', checksum: 'Mise à jour refusée : empreinte SHA-256 incorrecte.',
+      not_writable: 'Impossible de remplacer l’AppImage (dossier en lecture seule).',
+    },
     thisComputer: 'Cet ordinateur (hôte)', lastUsed: 'utilisé le', paired: 'appairé', notPaired: 'à appairer',
     checkingLocal: 'Recherche d’un serveur Madalean sur cet ordinateur…',
     opening: (h) => `Ouverture de ${h}…`, pairing: 'Appairage…',
@@ -51,6 +68,23 @@ const T = {
     codeHelp: 'The 6 digits shown on the host computer (Settings → Devices), valid for 5 minutes.',
     pairBtn: 'Pair and open', openBtn: 'Open', forgetBtn: 'Forget', other: 'Français',
     localHint: 'On the host computer itself, the interface opens directly, no code needed.',
+    updTitle: 'Updates', updAuto: 'Automatic updates', updCheck: 'Check now', updRestart: 'Restart',
+    updHelp: 'Checks twice a day, downloads and verifies the signature, then installs at the next start.',
+    upd: {
+      idle: (u) => `Version ${u.current}.`, checking: () => 'Checking…',
+      downloading: (u) => `Downloading version ${u.version}… ${u.progress} %`,
+      ready: (u) => `Version ${u.version} installed: it opens at the next start.`,
+      available: (u) => u.installable ? `Version ${u.version} available.` : `Version ${u.version} available: download the new AppImage (this program is not running as an AppImage).`,
+      up_to_date: (u) => `Version ${u.current}: up to date.`,
+    },
+    updErr: {
+      no_key: 'Updates disabled in this development build (no key).',
+      unsigned: 'Update refused: unsigned manifest.', bad_signature: 'Update refused: invalid signature.',
+      bad_channel: 'Update refused: manifest of another channel.', bad_manifest: 'Update refused: malformed manifest.',
+      no_file: 'No AppImage in this release.', network: 'Update server unreachable: will retry later.',
+      size: 'Update refused: wrong size.', checksum: 'Update refused: SHA-256 mismatch.',
+      not_writable: 'Cannot replace the AppImage (read-only folder).',
+    },
     thisComputer: 'This computer (host)', lastUsed: 'used on', paired: 'paired', notPaired: 'needs pairing',
     checkingLocal: 'Looking for a Madalean server on this computer…',
     opening: (h) => `Opening ${h}…`, pairing: 'Pairing…',
@@ -226,6 +260,18 @@ async function onSubmit(ev) {
   }
 }
 
+async function refreshUpdate() {
+  const u = await invoke('update_status').catch(() => null);
+  if (!u) return;
+  $('auto-upd').checked = u.auto;
+  const text = u.state === 'error'
+    ? (t().updErr[u.error] || t().updErr.bad_manifest)
+    : (t().upd[u.state] || t().upd.idle)(u);
+  $('upd-status').textContent = text;
+  $('upd-restart').hidden = !u.pending_restart;
+  $('upd-check').disabled = u.state === 'checking' || u.state === 'downloading';
+}
+
 async function main() {
   state = await invoke('init_state');
   lang = state.lang === 'en' ? 'en' : 'fr';
@@ -233,7 +279,12 @@ async function main() {
   $('device').value = state.device_name;
   applyLang();
 
-  $('lang').onclick = async () => { lang = lang === 'fr' ? 'en' : 'fr'; applyLang(); await invoke('set_lang', { lang }); };
+  $('lang').onclick = async () => { lang = lang === 'fr' ? 'en' : 'fr'; applyLang(); refreshUpdate(); await invoke('set_lang', { lang }); };
+  $('auto-upd').onchange = () => invoke('set_auto_update', { on: $('auto-upd').checked });
+  $('upd-check').onclick = async () => { await invoke('check_updates_now'); refreshUpdate(); };
+  $('upd-restart').onclick = () => invoke('restart_now');
+  refreshUpdate();
+  setInterval(refreshUpdate, 1000);
   $('retry').onclick = () => lastAction && lastAction();
   $('pair').addEventListener('submit', onSubmit);
   $('address').addEventListener('paste', (e) => {

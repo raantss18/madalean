@@ -44,9 +44,9 @@ Terms are grouped by theme. For tactics, see [First tactics](tactics.md).
 | `example` | an unnamed theorem |
 | `def` | a definition |
 | `abbrev` | a definition that Lean unfolds readily |
-| `structure`, `class`, `instance` | types with fields; type classes (« ℝ is a field ») and their instances |
+| `structure`, `class`, `instance` | types with fields; type classes (“ℝ is a field”) and their instances |
 | `axiom` | a statement admitted without proof; forbidden in a proof accepted by Madalean |
-| `sorry` | « proof to be completed »: Lean accepts it provisionally, but reports a gap |
+| `sorry` | “proof to be completed”: Lean accepts it provisionally, but reports a gap |
 | `variable` | declares variables shared by several statements |
 | `namespace X … end X` | prefixes names: `X.foo` |
 | `open X` | lets you write `foo` instead of `X.foo` |
@@ -60,7 +60,7 @@ Terms are grouped by theme. For tactics, see [First tactics](tactics.md).
 |---|---|
 | `(x : α)` | explicit argument, to be given |
 | `{x : α}` | implicit argument, inferred by Lean |
-| `[inst : Field α]` | instance argument, found by Lean (« α is a field ») |
+| `[inst : Field α]` | instance argument, found by Lean (“α is a field”) |
 | `(h : P)` | a hypothesis named `h`; a proof of `P` |
 
 ## Types and universes
@@ -68,7 +68,7 @@ Terms are grouped by theme. For tactics, see [First tactics](tactics.md).
 | Term | Meaning |
 |---|---|
 | `Prop` | the type of propositions; a proof of `P : Prop` is a term of type `P` |
-| `Type` | the type of « ordinary » types (`ℕ : Type`) |
+| `Type` | the type of “ordinary” types (`ℕ : Type`) |
 | `ℕ`, `ℤ`, `ℚ`, `ℝ`, `ℂ` | natural numbers (with 0), integers, rationals, reals, complex numbers |
 | `Fin n` | $\{0, \dots, n-1\}$ as a type |
 | `Set α`, `Finset α` | subsets of `α`; finite (computable) subsets |
@@ -90,7 +90,7 @@ Terms are grouped by theme. For tactics, see [First tactics](tactics.md).
 | `⟨a, b⟩` | builds a pair, a conjunction, or a witness with its proof |
 | `·` | starts handling one of the goals |
 | `<;>` | applies the next tactic to all the goals produced |
-| `rfl` | « by definition »: both sides are equal after computation |
+| `rfl` | “by definition”: both sides are equal after computation |
 
 ## Ecosystem
 

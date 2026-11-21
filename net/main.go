@@ -7,6 +7,8 @@
 // 127.0.0.1:11501), which still requires a device token for everything. Plain HTTP on :80 of the tailnet address only
 // redirects to HTTPS.
 //
+// No log upload: TS_NO_LOGS_NO_SUPPORT is forced and logtail is disabled (no telemetry).
+//
 // Never Funnel: this program never calls ListenFunnel and never changes serve/funnel configuration — the node is
 // reachable from the user's own tailnet only. It does not touch the host's tailscaled (if one runs, both coexist).
 //
@@ -38,6 +40,7 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+	"tailscale.com/logtail"
 	"tailscale.com/tsnet"
 )
 
@@ -256,6 +259,9 @@ func main() {
 		ephemeral  = flag.Bool("ephemeral", false, "register as an ephemeral node (tests)")
 	)
 	flag.Parse()
+	// No telemetry (ARCHITECTURE §4): never upload Tailscale client logs to log.tailscale.com.
+	_ = os.Setenv("TS_NO_LOGS_NO_SUPPORT", "true")
+	logtail.Disable()
 	if *stateDir == "" {
 		log.Fatal("madalean-net: --state-dir is required")
 	}

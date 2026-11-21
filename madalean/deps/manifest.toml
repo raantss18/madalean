@@ -1,0 +1,151 @@
+# Madalean 2.0 — every external component, pinned (ARCHITECTURE §18). Read by madalean.deps (installer, health,
+# `deps` update checker) and by install.sh. Updated only through a Madalean release (this file is part of the
+# signed package): a new pin = new version + SHA-256 here, then the update system installs it (verify → switch).
+#
+# need: required | optional | on-demand        kind: binary | archive | conda-env | tectonic-bundle | build
+# sha256 / size: of the downloaded file. For conda envs, `sha256` is the SHA-256 of the lock file; each package of
+# the lock carries its own URL + SHA-256 (checked against conda-meta after the install), `size` = sum of the
+# package files (bytes downloaded), `installed_size` = measured size on disk (2026-11-21, this machine).
+schema = 1
+
+[components.micromamba]
+title = "micromamba (environment manager, static)"
+version = "2.10.0-0"
+kind = "binary"
+need = "required"
+license = "BSD-3-Clause"
+upstream = "github-release:mamba-org/micromamba-releases"
+file = "micromamba"
+url = "https://github.com/mamba-org/micromamba-releases/releases/download/2.10.0-0/micromamba-linux-64"
+sha256 = "701f39c06f8e6a670a0e186c8479b9e5c0502a2f0cda6cef65d83bdd2875e8bd"
+size = 19028608
+
+[components.env]
+title = "Main environment (Python 3.13, aiohttp, JupyterLab, ipykernel, poppler, tesseract, tectonic, git, fonts)"
+version = "2026.11.21"
+kind = "conda-env"
+need = "required"
+license = "various (see dist/sbom/madalean-prefix.cdx.json)"
+upstream = "conda-forge"
+lock = "locks/main.conda-lock.yml"
+spec = "locks/main.environment.yml"
+sha256 = "ac10a945df859cd400f92dd24b2cc1e910281421983b3da963715973b281b085"
+size = 0
+installed_size = 0
+watch = ["python", "aiohttp", "jupyterlab", "ipykernel", "poppler", "tectonic", "git", "tesseract", "cryptography"]
+
+[components.sage]
+title = "SageMath 10.10 environment (installed on first use)"
+version = "10.10"
+kind = "conda-env"
+need = "on-demand"
+license = "GPL-3.0-or-later (SageMath) + various"
+upstream = "conda-forge"
+lock = "locks/sage.conda-lock.yml"
+spec = "locks/sage.environment.yml"
+sha256 = "e7ff97d144dedc029c2f80dbfc28f041734d8a2649f6bc263f395228b161c6c9"
+size = 0
+installed_size = 0
+watch = ["sage"]
+
+[components.tex-bundle]
+title = "TeX bundle for tectonic (pinned, cached in the prefix; offline after install)"
+version = "v33"
+kind = "tectonic-bundle"
+need = "required"
+license = "LPPL / various (TeX Live)"
+upstream = "tectonic-bundle"
+url = "https://relay.fullyjustified.net/default_bundle_v33.tar"
+sha256 = ""
+size = 0
+installed_size = 0
+extract = ["lmroman10-regular.otf", "latinmodern-math.otf", "amsalpha.bst"]
+
+[components.fonts]
+title = "Fonts of the PDF export: DejaVu Sans Mono (Lean code), Noto Sans Math (Unicode mathematics)"
+version = "2026.11.21"
+kind = "archive"
+need = "required"
+license = "Bitstream-Vera + public domain (DejaVu); OFL-1.1 (Noto)"
+upstream = "github-release:dejavu-fonts/dejavu-fonts, github-release:notofonts/math"
+# conda-forge's font-ttf-dejavu-sans-mono 2.37 actually ships DejaVuSans.ttf only (checked 2026-11-21).
+
+[[components.fonts.assets]]
+name = "dejavu"
+version = "2.37"
+url = "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2"
+sha256 = "fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7"
+size = 5429777
+keep = ["dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono.ttf", "dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono-Bold.ttf",
+        "dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono-Oblique.ttf", "dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono-BoldOblique.ttf",
+        "dejavu-fonts-ttf-2.37/LICENSE"]
+
+[[components.fonts.assets]]
+name = "noto-math"
+version = "3.000"
+url = "https://github.com/notofonts/math/releases/download/NotoSansMath-v3.000/NotoSansMath-v3.000.zip"
+sha256 = "ac351837b41f8a897f020b97fb0f075ad574c1e9669fb5839ada1f92fd748356"
+size = 2498094
+keep = ["NotoSansMath/googlefonts/ttf/NotoSansMath-Regular.ttf"]
+
+[components.elan]
+title = "elan (Lean toolchain manager; ELAN_HOME inside the prefix)"
+version = "4.2.4"
+kind = "archive"
+need = "required"
+license = "Apache-2.0 OR MIT"
+upstream = "github-release:leanprover/elan"
+url = "https://github.com/leanprover/elan/releases/download/v4.2.4/elan-x86_64-unknown-linux-gnu.tar.gz"
+sha256 = "42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63"
+size = 4996571
+
+[components."llama.cpp"]
+title = "llama.cpp server (b11375 = commit 436f6f8, the build benchmarked in BENCH.md)"
+version = "b11375"
+kind = "archive"
+need = "required"
+license = "MIT"
+upstream = "github-release:ggml-org/llama.cpp"
+commit = "436f6f89e1e581249900b37a5b8a12a36a6d0912"
+default_variant = "cpu"
+
+[components."llama.cpp".variants.cpu]
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-x64.tar.gz"
+sha256 = "e74863674a364f111223a1832e3bec458326e0c24a6779d26a217decaaa71c56"
+size = 17658109
+
+# CUDA 13.x (driver >= 580): llama.cpp + the CUDA runtime libraries (cudart, cuBLAS) — no CUDA toolkit needed.
+[components."llama.cpp".variants.cuda13]
+min_cuda = "13.4"
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-cuda-13.4-x64.tar.gz"
+sha256 = "f95ad3d6af11381bbed08d8149bf37ad869ecb53425e9920f1c814129dcab201"
+size = 152371607
+extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/cudart-llama-b11375-bin-ubuntu-cuda-13.4-x64.tar.gz"
+extra_sha256 = "db8591e9e1d1b4fca1686226f6fb9fc1083ebd29b47d6cd0c60ad31774801033"
+extra_size = 440236642
+
+# CUDA 12.8 (driver >= 570)
+[components."llama.cpp".variants.cuda12]
+min_cuda = "12.8"
+url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/llama-b11375-bin-ubuntu-cuda-12.8-x64.tar.gz"
+sha256 = "1d39382d831965c6bc03aec74eef94680e34127c6efd965d4f5b6472d5afe24e"
+size = 171515667
+extra_url = "https://github.com/ggml-org/llama.cpp/releases/download/b11375/cudart-llama-b11375-bin-ubuntu-cuda-12.8-x64.tar.gz"
+extra_sha256 = "470c492057734bc52b87e6065a926f71984efefb8e45c772ab975eea756915b3"
+extra_size = 594377832
+
+[components.madalean-net]
+title = "madalean-net (embedded Tailscale node, tsnet; built by us, static)"
+version = "0.1.0"
+kind = "binary"
+need = "required"
+license = "MIT (Madalean) + BSD-3-Clause (tailscale.com)"
+upstream = "go-module:tailscale.com"
+tailscale = "1.104.7"
+go = "1.27.4"
+file = "madalean-net"
+# Release asset of raantss18/madalean (signed SHA256SUMS); install.sh falls back to building net/ reproducibly
+# (net/build.sh) and checks that the result has exactly this SHA-256.
+url = "https://github.com/raantss18/madalean/releases/download/v2.0.0/madalean-net-linux-amd64"
+sha256 = "446ba51123949f7c6d64b9ba7e0e1d7577384aaf0c073d7cb3e29e081c6d3d97"
+size = 22343804

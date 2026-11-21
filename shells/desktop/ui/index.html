@@ -56,6 +56,17 @@
       </form>
     </section>
 
+    <section aria-labelledby="upd-h" class="upd">
+      <h2 id="upd-h" data-t="updTitle">Mises à jour</h2>
+      <label class="check"><input type="checkbox" id="auto-upd"> <span data-t="updAuto">Mises à jour automatiques</span></label>
+      <p class="help" data-t="updHelp">Vérifie deux fois par jour, télécharge et contrôle la signature, puis installe au prochain démarrage.</p>
+      <div class="row upd-row">
+        <span id="upd-status" class="help grow" role="status" aria-live="polite"></span>
+        <button type="button" id="upd-check" class="btn small" data-t="updCheck">Vérifier maintenant</button>
+        <button type="button" id="upd-restart" class="btn small primary-s" hidden data-t="updRestart">Redémarrer</button>
+      </div>
+    </section>
+
     <footer class="foot">
       <span id="local-hint" data-t="localHint">Sur l’ordinateur hôte, l’interface s’ouvre directement, sans code.</span>
       <span id="version"></span>

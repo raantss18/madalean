@@ -435,6 +435,7 @@ async def updates_check(request: web.Request) -> web.Response:
 
 
 @routes.post("/api/updates/install")
+@host_only
 async def updates_install(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     data = await body(request)
@@ -447,5 +448,6 @@ async def updates_install(request: web.Request) -> web.Response:
 
 
 @routes.post("/api/updates/cancel")
+@host_only
 async def updates_cancel(request: web.Request) -> web.Response:
     return ok({"cancelled": await ctx_of(request).updates.cancel()})
