@@ -5,7 +5,7 @@
 ## ⭐ Priorités avant la release 2.0.0 (mis à jour le 21/11/2026)
 
 ### P0 — bloquant
-1. ✅ Revue de sécurité : publiable sous conditions — ✅ clés chiffrées (copies : dépôt `release-keys/` ignoré par git, `~/Documents/madalean-cles`, NAS `Cles-Signature-Releases/madalean`) ; 🔄 llama.cpp à mettre à jour (failles connues)
+1. ✅ Revue de sécurité : publiable sous conditions — ✅ clés chiffrées (copies : dépôt `release-keys/` ignoré par git, `~/Documents/madalean-cles`, NAS `Cles-Signature-Releases/madalean`) ; ✅ llama.cpp b12608 (failles corrigées, testé sur la carte graphique) — à installer sur ton PC
 2. 🔄 Vérification de l'énoncé avant la preuve (énoncé faux ou incomplet → correction proposée)
 3. 🔄 Recherche Mathlib d'abord (Cayley-Hamilton, Riesz, valeurs extrêmes, 1er théorème d'isomorphisme…)
 4. 🔄 Faux « l'IA tourne en rond » pendant la traduction (bloquait Cayley-Hamilton)
