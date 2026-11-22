@@ -380,8 +380,11 @@ def test_recipes_file_of_s_ab_is_migrated(tmp_path):
 
 
 def test_real_recipes_file_migrates(tmp_path):
-    real = Path.home() / ".config" / "madalean" / "research" / "recipes.json"
+    folder = Path.home() / ".config" / "madalean" / "research"
+    real = folder / "recipes.v1.json"                 # once the server has migrated the file, its v1 backup
     if not real.is_file():
+        real = folder / "recipes.json"
+    if not real.is_file() or json.loads(real.read_text()).get("schema") == 2:
         pytest.skip("no recipes file on this host")
     p = tmp_path / "recipes.json"
     shutil.copy(real, p)                                             # a copy: the user's file is never touched
