@@ -144,7 +144,7 @@ export type SlotName = 'gpu' | 'online' | 'lean';
 export type Slots = Record<SlotName, { capacity: number; used: number; holders: string[]; waiting: number }>;
 export interface WorkspaceInfo { key: string; label: string; path: string; toolchain: string; readonly: boolean;
   description: string; problems: string[]; ready: boolean }
-export interface HealthCheck { id: string; ok: boolean; level: 'ok' | 'warn'; repair: string; message: Message }
+export interface HealthCheck { id: string; ok: boolean; level: 'ok' | 'warn'; repair: string; message: Message; rerun?: boolean }
 
 export interface UpdateCandidate { kind: string; key: string; title: string; current: string; latest: string;
   installable: boolean; note: string; size: number; spec: object; description: string }

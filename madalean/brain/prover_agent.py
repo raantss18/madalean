@@ -319,6 +319,14 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
             ws_note = f"Toolchain {w.toolchain}." if w else ""
         except Exception:  # noqa: BLE001
             ws_note = ""
+    try:                         # S-AB: the syntax card verified on this toolchain + Mathlib (syntaxcards.py)
+        from .rag import default_resolve
+        from .. import syntaxcards
+        card = syntaxcards.lean_card(default_resolve(workspace_key))
+    except Exception:  # noqa: BLE001 (no card: the prompt as before)
+        card = ""
+    if card:
+        ws_note = (ws_note + "\n\n" + card).strip()
     system = SYSTEM_PROMPT.format(workspace=workspace_key, version_note=ws_note, header=leancheck.GOEDEL_HEADER,
                                   online_tool=ONLINE_TOOL if online_ok else "")
     premises_txt = ""

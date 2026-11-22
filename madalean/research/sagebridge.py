@@ -7,12 +7,15 @@ Boundary (enforced here and in the plugin, documented in docs/RESEARCH_WORKSHOP.
   the origin of the request (remote devices only when the host enabled `experiments_remote`);
 - kernels are started by the server's own JupyterLab child (JupyterManager) with Madalean's kernelspecs
   `madalean-sage` / `madalean-python`, whose argv is this file's launcher (`python3 -I sagebridge.py --launch`):
-  environment rebuilt from an allow-list (no API key, token, cookie… can reach the kernel), HOME and the working
-  directory set to the confined experiments directory, address-space and file-size limits (setrlimit), and — when
-  bubblewrap is installed — a sandbox: the whole file system read-only, only the experiments directory writable,
-  Madalean's config directory (keys.json, devices.json), ~/.ssh, ~/.gnupg, the keyrings… hidden behind empty tmpfs;
+  environment rebuilt from an allow-list (no API key, token, cookie… can reach the kernel), the working directory
+  set to the confined experiments directory, a private writable home (S-AC: `/tmp/h`, bound to
+  `<experiments>/.home/<project>`, with every XDG / Sage / Maxima / IPython / matplotlib directory inside it),
+  address-space and file-size limits (setrlimit), and — when bubblewrap is installed — a sandbox: the whole file
+  system read-only, only the experiments directory writable, Madalean's config directory (keys.json, devices.json),
+  ~/.ssh, ~/.gnupg, the keyrings… hidden behind empty tmpfs, and no network (own network namespace; JupyterLab's
+  TCP ports are relayed to the kernel's unix sockets);
 - every execution has a wall-clock timeout (interrupt, then the kernel is killed) and an output cap.
-Network access from the kernel is NOT blocked (the kernel talks to JupyterLab over TCP on 127.0.0.1).
+Without bubblewrap (accepted risk R-3) only the environment, the home and the rlimits apply.
 
 The launcher part of this file uses the standard library only (it runs under the system Python of the kernel)."""
 from __future__ import annotations
@@ -40,18 +43,195 @@ MAX_RICH_BYTES = 3_000_000
 
 
 # ---------------------------------------------------------------- launcher (runs before the kernel, stdlib only)
+# The kernel's home (S-AC, DECISIONS D36). Mathematical software writes caches and settings under HOME without
+# asking (Maxima's compiled files, matplotlib's font cache, IPython's history, GAP's ~/.gap, cython builds, pip
+# --user…). A missing / read-only HOME therefore breaks the sandboxed kernel one library at a time (Maxima first:
+# « Read-only file system: '/nonexistent' »). The kernel gets a REAL home instead: writable, private (never the
+# user's home, empty of the user's files), persistent per project (`<experiments>/.home/<key>`, caches survive
+# restarts) and SHORT: inside bubblewrap it is mounted at /tmp/h. Short matters: Sage's GAP probe parses
+# `gap --systemfile kernel-info.g`, and GAP breaks any token longer than ~78 characters with a backslash, so
+# "<HOME>/.gap/" must stay well below that (tested: GAP_HOME_MAX).
+SANDBOX_HOME = "/tmp/h"
+GAP_HOME_MAX = 64
+HOME_SUBDIRS = (".tmp", ".cache", ".config", ".local/share", ".local/state", ".run", ".sage", ".sage/maxima",
+                ".ipython/profile_default/startup", ".config/matplotlib")
+
+
+def home_key(environ: dict[str, str]) -> str:
+    """Which persistent home a kernel gets: one per Calcul project (Jupyter passes the notebook path in
+    JPY_SESSION_NAME, `…/calcul/<project>/<doc>.ipynb`), `shared` for conjecture experiments and other kernels."""
+    m = re.search(r"(?:^|/)calcul/([A-Za-z0-9_-]{1,48})/[^/]+$", environ.get("JPY_SESSION_NAME", ""))
+    return f"p-{m.group(1)}" if m else "shared"
+
+
+def home_dir(cfg: dict, environ: dict[str, str]) -> str:
+    """The real, persistent directory behind the kernel's home (inside the experiments directory)."""
+    return os.path.join(cfg["workdir"], ".home", home_key(environ))
+
+
+def short_alias(real: str) -> str:
+    """Without bubblewrap there is no private /tmp/h: a long real home is reached through a short symlink in a
+    private (0700, owned, not a symlink) directory `/tmp/madalean-<uid>/`, so that GAP's probe still works."""
+    import hashlib
+    import stat
+    import tempfile
+    if len(real) <= GAP_HOME_MAX:
+        return real
+    base = f"/tmp/madalean-{os.getuid()}"
+    try:
+        os.mkdir(base, 0o700)
+    except FileExistsError:
+        pass
+    except OSError:
+        base = ""
+    try:
+        st = os.lstat(base) if base else None
+    except OSError:
+        st = None
+    if st is None or not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
+        base = tempfile.mkdtemp(prefix="mdl-")          # someone else owns the name: a fresh private directory
+    link = os.path.join(base, hashlib.sha256(real.encode()).hexdigest()[:10])
+    try:
+        if os.readlink(link) == real:
+            return link
+    except OSError:
+        pass
+    tmp = f"{link}.{os.getpid()}"
+    try:
+        os.symlink(real, tmp)
+        os.replace(tmp, link)
+    except OSError:
+        link = os.path.join(tempfile.mkdtemp(prefix="mdl-"), "h")
+        os.symlink(real, link)
+    return link
+
+
+def kernel_home(cfg: dict, real: str) -> str:
+    """HOME as the kernel sees it: /tmp/h inside bubblewrap (the real directory is bound there), else the real
+    directory itself or a short alias of it."""
+    return SANDBOX_HOME if cfg.get("bwrap") else short_alias(real)
+
+
+# IPython startup file written into the kernel's home at every start: errors that come from the sandbox itself
+# (no network, read-only file system, rlimits) get one clear French sentence after the traceback instead of a raw
+# cascade. Pure Python, no Sage import; failures of the hint itself never hide the original error.
+STARTUP_PY = r'''# Madalean — written by the launcher at every kernel start (sagebridge.STARTUP_PY); do not edit
+def _madalean_install_hints():
+    import errno, os, socket
+    ip = get_ipython()  # noqa: F821
+    if ip is None or getattr(ip, "_madalean_hints", False):
+        return
+    sandbox = os.environ.get("MADALEAN_SANDBOX", "")
+    wd = os.environ.get("MADALEAN_WORKDIR", "")
+    mem, fsize = os.environ.get("MADALEAN_MEM_MB", "?"), os.environ.get("MADALEAN_FSIZE_MB", "?")
+    NET = {errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ECONNREFUSED, errno.ENETDOWN, errno.EADDRNOTAVAIL}
+
+    def explain(e):
+        seen = 0
+        while e is not None and seen < 8:
+            seen += 1
+            name = type(e).__name__
+            if isinstance(e, ModuleNotFoundError) and e.name:
+                mod = e.name.split(".")[0]
+                what = " (cython() de Sage en a besoin)" if mod == "pkgconfig" else ""
+                off = "Le noyau n'a pas accès au réseau : installez-le" if sandbox == "bwrap" else "Installez-le"
+                return (f"le module Python « {mod} » n'est pas installé pour ce noyau{what}. {off} "
+                        f"sur l'ordinateur (paquet de votre distribution, par exemple python-{mod.lower()}), puis "
+                        "redémarrez le noyau.")
+            if isinstance(e, MemoryError):
+                return (f"mémoire insuffisante : un noyau de Calcul est limité à {mem} Mo (réglage de Madalean). "
+                        "Réduisez la taille du calcul ou découpez-le.")
+            if isinstance(e, socket.gaierror) or name in ("URLError", "ConnectionError", "NewConnectionError",
+                                                          "MaxRetryError") or (
+                    isinstance(e, OSError) and e.errno in NET):
+                if sandbox == "bwrap":
+                    return ("pas d'accès au réseau : le code de Calcul s'exécute hors ligne, dans un bac à sable "
+                            "sans réseau (sécurité). Téléchargez les données ailleurs, placez-les dans le dossier "
+                            "de travail, puis lisez-les avec un chemin relatif.")
+            if isinstance(e, OSError) and e.errno == errno.EFBIG:
+                return f"fichier trop gros : un fichier écrit par un noyau de Calcul est limité à {fsize} Mo."
+            if isinstance(e, OSError) and (e.errno == errno.EROFS or (
+                    sandbox == "bwrap" and e.errno in (errno.EACCES, errno.EPERM)
+                    and str(getattr(e, "filename", "") or "").startswith("/")
+                    and not str(e.filename).startswith((wd or "\0", os.environ.get("HOME", "\0"))))):
+                return ("écriture impossible à cet endroit : dans le bac à sable de Calcul, seuls le dossier de "
+                        "travail (le dossier courant) et le dossier personnel privé du noyau sont modifiables. "
+                        "Utilisez un chemin relatif, par exemple save('figure.png') ou open('data.txt', 'w').")
+            e = e.__cause__ or e.__context__
+        return ""
+
+    orig = ip._showtraceback
+
+    def _showtraceback(etype, evalue, stb):
+        try:
+            hint = explain(evalue)
+        except Exception:  # noqa: BLE001
+            hint = ""
+        if hint:
+            stb = list(stb) + ["Madalean : " + hint]
+        return orig(etype, evalue, stb)
+    ip._showtraceback = _showtraceback
+    ip._madalean_hints = True
+
+
+_madalean_install_hints()
+del _madalean_install_hints
+'''
+
+
+def prepare_home(real: str, now: float | None = None) -> None:
+    """Create the kernel's home and its subdirectories (0700), (re)write the IPython startup file, and drop
+    temporary files older than a day (several kernels may share a home: never empty it wholesale)."""
+    import time
+    os.makedirs(real, mode=0o700, exist_ok=True)
+    os.chmod(real, 0o700)
+    for d in HOME_SUBDIRS:
+        os.makedirs(os.path.join(real, d), mode=0o700, exist_ok=True)
+    os.chmod(os.path.join(real, ".run"), 0o700)
+    f = os.path.join(real, ".ipython", "profile_default", "startup", "00-madalean.py")
+    with open(f + ".new", "w", encoding="utf-8") as fh:
+        fh.write(STARTUP_PY)
+    os.replace(f + ".new", f)
+    cutoff = (now or time.time()) - 86400
+    tmp = os.path.join(real, ".tmp")
+    for name in os.listdir(tmp):
+        p = os.path.join(tmp, name)
+        try:
+            if os.lstat(p).st_mtime < cutoff:
+                shutil.rmtree(p) if os.path.isdir(p) and not os.path.islink(p) else os.unlink(p)
+        except OSError:
+            pass
+
+
+def home_env(home: str) -> dict[str, str]:
+    """Every per-user directory the scientific stack knows, inside the kernel's home. PYTHONPYCACHEPREFIX is NOT
+    set on purpose: Python would then ignore the system's __pycache__ and recompile Sage at each start (measured
+    2026-11-22: `import sage.all` 0.9 s → 3.0 s); the user's own modules live in the writable working directory."""
+    j = os.path.join
+    return {"HOME": home, "TMPDIR": j(home, ".tmp"),
+            "XDG_CACHE_HOME": j(home, ".cache"), "XDG_CONFIG_HOME": j(home, ".config"),
+            "XDG_DATA_HOME": j(home, ".local", "share"), "XDG_STATE_HOME": j(home, ".local", "state"),
+            "XDG_RUNTIME_DIR": j(home, ".run"),
+            "DOT_SAGE": j(home, ".sage"), "MAXIMA_USERDIR": j(home, ".sage", "maxima"),
+            "MAXIMA_TEMPDIR": j(home, ".tmp"), "IPYTHONDIR": j(home, ".ipython"),
+            "MPLCONFIGDIR": j(home, ".config", "matplotlib"), "NUMBA_CACHE_DIR": j(home, ".cache", "numba"),
+            "CYTHON_CACHE_DIR": j(home, ".cache", "cython"), "PYTHONUSERBASE": j(home, ".local"),
+            "TEXMFVAR": j(home, ".cache", "texmf-var"), "TEXMFCONFIG": j(home, ".config", "texmf"),
+            "PIP_CACHE_DIR": j(home, ".cache", "pip"), "LESSHISTFILE": "-", "PYTHON_HISTORY": j(home, ".cache",
+                                                                                                "python_history")}
+
+
 def launcher_env(cfg: dict, environ: dict[str, str]) -> dict[str, str]:
+    """The kernel's environment: an allow-list of the server's (no key, token, cookie… can reach the kernel) plus
+    the kernel's own home (`cfg["home"]`: what the kernel sees, see kernel_home)."""
     wd = cfg["workdir"]
     env = {k: v for k, v in environ.items() if k in ENV_ALLOW or k.startswith("LC_")}
-    # HOME is short and empty on purpose: Sage's GAP probe parses GAP's output, and GAP wraps lines at 80
-    # characters, so a long HOME (in ~HOME/.gap/ of the root paths) makes the Sage kernel crash at start. Every
-    # directory a kernel writes to is set explicitly below, inside the experiments directory.
-    env.update({"HOME": "/nonexistent", "TMPDIR": os.path.join(wd, ".tmp"), "IPYTHONDIR": os.path.join(wd, ".ipython"),
-                "DOT_SAGE": os.path.join(wd, ".sage"),
-                # Maxima (integrals, limits, sums) otherwise writes its compiled cache under HOME → read-only error
-                "MAXIMA_USERDIR": os.path.join(wd, ".sage", "maxima"), "MPLCONFIGDIR": os.path.join(wd, ".mpl"),
-                "XDG_CACHE_HOME": os.path.join(wd, ".cache"), "XDG_CONFIG_HOME": os.path.join(wd, ".config"),
-                "MADALEAN_EXPERIMENT": "1"})
+    home = cfg.get("home") or (SANDBOX_HOME if cfg.get("bwrap") else home_dir(cfg, environ))
+    env.update(home_env(home))
+    env.update({"MADALEAN_EXPERIMENT": "1", "MADALEAN_WORKDIR": wd,
+                "MADALEAN_SANDBOX": "bwrap" if cfg.get("bwrap") else "rlimits",
+                "MADALEAN_MEM_MB": str(int(cfg.get("mem_bytes") or 0) >> 20),
+                "MADALEAN_FSIZE_MB": str(int(cfg.get("fsize_bytes") or 0) >> 20)})
     return env
 
 
@@ -68,7 +248,10 @@ def bwrap_argv(cfg: dict, argv: list[str], isolate_net: bool = False) -> list[st
             out += ["--tmpfs", p]
         elif os.path.exists(p):
             out += ["--ro-bind", "/dev/null", p]
-    out += ["--bind", wd, wd, "--chdir", wd, "--"]
+    out += ["--bind", wd, wd]
+    if cfg.get("home_dir"):               # S-AC: the kernel's private persistent home, at a short path
+        out += ["--dir", SANDBOX_HOME, "--bind", cfg["home_dir"], SANDBOX_HOME]
+    out += ["--chdir", wd, "--"]
     return out + argv
 
 
@@ -148,12 +331,16 @@ def _isolated_run(cfg: dict, argv: list[str], env: dict) -> int:   # pragma: no 
     conn = json.load(open(argv[i], encoding="utf-8"))
     ipc_dir = tempfile.mkdtemp(prefix=".ipc-", dir=cfg["workdir"])
     new_conn = os.path.join(ipc_dir, "connection.json")
+    # S-AC: unix socket paths are limited to 107 bytes; a long experiments directory made the kernel die at start
+    # (« ipc path … is longer than 107 characters »). Both ends use the path RELATIVE to the working directory:
+    # the kernel starts in it (bwrap --chdir) and this process chdir'ed to it in launcher_main.
+    rel = os.path.relpath(ipc_dir, cfg["workdir"])
     with open(new_conn, "w", encoding="utf-8") as f:
-        json.dump(ipc_connection(conn, ipc_dir), f)
+        json.dump(ipc_connection(conn, rel), f)
     argv = list(argv)
     argv[i] = new_conn
     stop = threading.Event()
-    listeners = relay_tcp_to_ipc(conn, ipc_dir, stop)
+    listeners = relay_tcp_to_ipc(conn, rel, stop)
     pid = os.fork()
     if pid == 0:
         for ls in listeners:
@@ -169,6 +356,49 @@ def _isolated_run(cfg: dict, argv: list[str], env: dict) -> int:   # pragma: no 
         except InterruptedError:
             continue
     stop.set()
+    shutil.rmtree(ipc_dir, ignore_errors=True)
+    return os.waitstatus_to_exitcode(status)
+
+
+def group_leftovers(pgid: int, me: int, proc: str = "/proc") -> list[int]:
+    """Processes of process group `pgid` other than `me` (from /proc/<pid>/stat: field 5 after the comm)."""
+    out = []
+    for name in os.listdir(proc):
+        if not name.isdigit() or int(name) == me:
+            continue
+        try:
+            with open(os.path.join(proc, name, "stat"), encoding="utf-8", errors="replace") as f:
+                rest = f.read().rsplit(")", 1)[1].split()
+            if int(rest[2]) == pgid:
+                out.append(int(name))
+        except (OSError, IndexError, ValueError):
+            continue
+    return out
+
+
+def _reaping_run(argv: list[str], env: dict) -> int:   # pragma: no cover (kernel process tree)
+    """rlimits-only mode (no bubblewrap, so no pid namespace to clean up): the kernel runs as a child; when it
+    exits, what it left in our process group is killed. Seen with Sage: its pexpect interfaces (Singular, GAP…)
+    fork a « terminate_async » helper from a multithreaded kernel, which can deadlock and outlive the kernel."""
+    import signal
+    pid = os.fork()
+    if pid == 0:
+        os.execvpe(argv[0], argv, env)
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT, signal.SIGUSR1, signal.SIGUSR2):
+        signal.signal(sig, lambda s, _f: os.kill(pid, s))
+    while True:
+        try:
+            _p, status = os.waitpid(pid, 0)
+            break
+        except InterruptedError:
+            continue
+    me = os.getpid()
+    if os.getpgrp() == me:                  # only our own group (Jupyter starts each kernel in a new session)
+        for p in group_leftovers(me, me):
+            try:
+                os.kill(p, signal.SIGKILL)
+            except OSError:
+                pass
     return os.waitstatus_to_exitcode(status)
 
 
@@ -178,8 +408,10 @@ def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside 
     cfg = json.load(open(args[1], encoding="utf-8"))
     argv = args[args.index("--") + 1:]
     wd = cfg["workdir"]
-    for d in ("", ".tmp", ".ipython", ".sage", ".mpl", ".cache", ".config"):
-        os.makedirs(os.path.join(wd, d), exist_ok=True)
+    os.makedirs(wd, exist_ok=True)
+    real = home_dir(cfg, dict(os.environ))
+    prepare_home(real)
+    cfg = {**cfg, "home_dir": real, "home": kernel_home(cfg, real)}
     env = launcher_env(cfg, dict(os.environ))
     mem = int(cfg.get("mem_bytes") or 0)
     if mem:
@@ -194,7 +426,9 @@ def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside 
         sys.exit(rc if rc >= 0 else 128 - rc)
     if cfg.get("bwrap"):
         argv = bwrap_argv(cfg, argv)
-    os.execvpe(argv[0], argv, env)
+        os.execvpe(argv[0], argv, env)
+    rc = _reaping_run(argv, env)
+    sys.exit(rc if rc >= 0 else 128 - rc)
 
 
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--launch":   # pragma: no cover

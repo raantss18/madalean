@@ -5,6 +5,7 @@
   import { route, routes, navigate, type RouteDef } from './lib/router.svelte';
   import { t } from './lib/i18n/index.svelte';
   import { prefs, setMode } from './lib/prefs.svelte';
+  import { railShown, setRail, isShortcut } from './lib/ui/layout.svelte';
   import Icon from './components/Icon.svelte';
   import Toasts from './components/Toasts.svelte';
   import DossierList from './components/DossierList.svelte';
@@ -33,6 +34,16 @@
   let drawer = $state(false);
   let activityOpen = $state(false);
   let palette = $state(false);
+  // From 1024 px the rail is permanent but can be hidden (☰, Ctrl+Shift+1); below, the same button opens it as a drawer.
+  let wide = $state(typeof window !== 'undefined' && matchMedia('(min-width: 1024px)').matches);
+  $effect(() => {
+    const mq = matchMedia('(min-width: 1024px)');
+    const f = () => { wide = mq.matches; };
+    mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  });
+  const railOpen = $derived(wide ? railShown() : drawer);
+  function toggleRail() { if (wide) setRail(!railShown()); else drawer = !drawer; }
 
   onMount(async () => {
     if (route.name === 'pair') { gate = 'unpaired'; return; }
@@ -51,6 +62,7 @@
 
   function onKey(e: KeyboardEvent) {
     const mod = e.ctrlKey || e.metaKey;
+    if (isShortcut(e, 'Digit1')) { e.preventDefault(); toggleRail(); return; }
     if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); palette = !palette; return; }
     const tgt = e.target as HTMLElement;
     const typing = tgt?.closest?.('input, textarea, select, [contenteditable="true"], .cm-editor');
@@ -70,9 +82,10 @@
   {/if}
 {:else}
   <a class="skip-link" href="#main">{t('a11y.skip')}</a>
-  <div class="shell" class:drawer-open={drawer}>
+  <div class="shell" class:drawer-open={drawer} class:rail-hidden={!railShown()}>
     <header class="topbar">
-      <button class="btn quiet icon menu-btn" aria-label={t('nav.dossiers')} aria-expanded={drawer} aria-controls="rail" onclick={() => (drawer = !drawer)}><Icon name="menu" /></button>
+      <button class="btn quiet icon menu-btn" aria-label={t('nav.dossiers')} aria-expanded={railOpen} aria-controls="rail" aria-keyshortcuts="Control+Shift+1"
+        title={`${railOpen ? t('layout.rail.hide') : t('layout.rail.show')} (${t('layout.key', { k: '1' })})`} onclick={toggleRail}><Icon name="menu" /></button>
       <a class="brand" href="/" aria-label={t('nav.homeLabel')}>
         <img src="/brand/icon.svg" alt="" width="28" height="28" />
         <span class="word">Madalean</span>
@@ -187,7 +200,10 @@
   .secondary a[aria-current='page'] { color: var(--accent); }
   main { min-width: 0; padding: var(--s-5) max(var(--s-6), env(safe-area-inset-right)) var(--s-7) var(--s-6); }
   main:focus { outline: none; }
-  .menu-btn { display: none; }
+  @media (min-width: 1024px) {
+    .rail-hidden .body { grid-template-columns: minmax(0, 1fr); }
+    .rail-hidden .rail { display: none; }
+  }
   .rail-mode { display: none; margin: var(--s-3) var(--s-3) 0; }
   .rail-mode label { flex: 1; justify-content: center; gap: 6px; }
   .bottomnav { display: none; }

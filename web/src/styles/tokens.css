@@ -145,3 +145,20 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
+
+/* S-AD: kinds of project items (article side panel). Okabe–Ito-derived hues, each ≥ 4.5:1 on --surface in both
+   themes; always paired with an icon of its own shape and a text label, so colour is never the only cue. */
+:root {
+  --k-proof: #0b62a3; --k-calc: #b04a00; --k-cell: #b04a00; --k-note: #6b5d00; --k-conj: #a2357a;
+  --k-source: #00735a; --k-figure: #7b4fc0; --k-version: #5b6376; --k-file: #464e62;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --k-proof: #7cc4ff; --k-calc: #ffa266; --k-cell: #ffa266; --k-note: #e0c95a; --k-conj: #f29ad0;
+    --k-source: #5fd4b4; --k-figure: #c4a6ff; --k-version: #a0a7b6; --k-file: #b9bfcc;
+  }
+}
+:root[data-theme='dark'] {
+  --k-proof: #7cc4ff; --k-calc: #ffa266; --k-cell: #ffa266; --k-note: #e0c95a; --k-conj: #f29ad0;
+  --k-source: #5fd4b4; --k-figure: #c4a6ff; --k-version: #a0a7b6; --k-file: #b9bfcc;
+}

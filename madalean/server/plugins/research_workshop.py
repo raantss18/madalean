@@ -1315,6 +1315,8 @@ def register(app: web.Application, ctx) -> None:
                 await asyncio.sleep(0.5)               # let refresh_workspaces run first
                 await ctx.refresh_workspaces()
                 await rs.rechecker.run(ws, reason)
+                from ... import syntaxcards               # S-AB: the Lean syntax card of the new Mathlib
+                await syntaxcards.ensure_lean(ctx, ctx.workspace(ws))
             ctx.spawn(later())
     ctx.updates.on_applied = on_applied
 

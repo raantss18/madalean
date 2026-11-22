@@ -611,6 +611,10 @@ async def health(ctx) -> list[dict]:
     add("sandbox", bool(sbx), "Bac à sable actif (bubblewrap) : Lean, LaTeX et les expériences tournent sans réseau "
         "ni accès à vos fichiers." if sbx else "Bac à sable indisponible (bubblewrap absent ou espaces de noms "
         "utilisateur désactivés) : Lean, LaTeX et les expériences tournent sans isolation.")
+    st = getattr(ctx, "selftest", None)          # S-AC: smoke tests of the sandboxed tools, after each update
+    if st is not None:
+        for c in st.health():
+            checks.append({**c, "repair": "selftest" if not c["ok"] else "selftest_run", "rerun": True})
     # components of the prefix (§18): one line each, with its repair action
     for c in await asyncio.to_thread(deps_health.components):
         if c["state"] in ("dev",):
@@ -647,7 +651,7 @@ async def system(request: web.Request) -> web.Response:
                "lean_running": list((getattr(ctx.lean, "running", {}) or {}).values())})
 
 
-REPAIRS = ("workspaces", "models", "local_model", "names_index")
+REPAIRS = ("workspaces", "models", "local_model", "names_index", "selftest", "selftest_run")
 
 
 @routes.post("/api/system/repair/{id}")
@@ -681,6 +685,15 @@ async def system_repair(request: web.Request) -> web.Response:
             return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
         if hasattr(ctx.local, "stop"):
             await ctx.local.stop()
+    elif rid in ("selftest", "selftest_run"):         # S-AC: « Réparer » resets the tools' homes, then tests
+        st = getattr(ctx, "selftest", None)
+        if st is None:
+            return error(404, "unknown_repair")
+        if st.is_running():
+            return error(409, "busy", "L'auto-test est déjà en cours : patientez une minute.")
+        rep = await (st.repair() if rid == "selftest" else st.run("manual"))
+        bad = [p for p, r in rep["parts"].items() if r.get("state") == "failed"]
+        return ok({"repair": rid, "ok": not bad, "failed": bad, "checks": await health(ctx)})
     elif rid == "names_index":
         ws = ctx.workspace()
         if ws is None:

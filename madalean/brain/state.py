@@ -24,6 +24,8 @@ class ModelState:
     failures: int = 0         # consecutive failures
     ok: float = 0.0           # exponentially decayed successes
     total: float = 0.0        # exponentially decayed attempts
+    lat: float = 0.0          # S-AB: seconds to the first visible text of a successful call (moving average; 0 = unknown)
+    lat_n: int = 0            # number of latency samples
 
 
 def context_too_long(status: int, message: str) -> bool:
@@ -159,6 +161,23 @@ class States:
                     st.until, st.reason = t + min(15.0 * 2 ** (min(st.failures, 6) - 1), 600.0), "overloaded"
                 else:
                     st.until, st.reason = t + min(30.0 * 2 ** (min(st.failures, 6) - 1), 1800.0), "paused"
+            self._save()
+
+    def latency(self, key: str) -> float | None:
+        """Measured seconds to the first visible text (moving average over successful calls), None when unknown."""
+        s = self.models.get(key)
+        return s.lat if s and s.lat_n else None
+
+    def record_latency(self, key: str, seconds: float) -> None:
+        """One successful call's time to first visible text: the first samples count fully, then a moving average
+        (weight 0.3) so a model that became slow (or fast) is re-ranked within a few calls."""
+        if not (0.0 <= seconds < 3600.0):
+            return
+        with self._lock:
+            st = self.models.setdefault(key, ModelState())
+            w = 1.0 / (st.lat_n + 1) if st.lat_n < 3 else 0.3
+            st.lat = round(st.lat * (1.0 - w) + seconds * w, 3)
+            st.lat_n += 1
             self._save()
 
     def clear(self) -> None:

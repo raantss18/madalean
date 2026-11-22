@@ -26,9 +26,20 @@ or personal files, limited time and output.
 
 ## Asking the model
 
-Add an “Ask” cell, describe the computation you want, then “Write the code”: the model writes the cell's code, to
-review before running it. After an error, the error is sent back to the model, which proposes a fix (to review as
-well). In a cell's “More actions”, “Explain” comments on the code and its output. A computation proves nothing in
+The **+** button under the last cell adds a cell (an empty one also appears after the last cell runs). Type Sage
+code, or describe the computation in words (“the roots of x^5+x^3+x+1 in F_16”): the cell recognises what you typed
+and shows it as “Code / Request” — one click fixes a wrong guess. Shift+Enter runs the code or sends the request.
+The cell type (Code, Request, Text, Figure) is the small menu at the top of the cell.
+
+For a request, the model writes the code in a few seconds; it appears while being written, checked against the
+installed Sage version before it is shown. “Rewrite”, right under the request, starts again at any time; “Approve
+and run” is right under the code. When the code uses names defined above, the cell says so. If the run fails, the
+model corrects it automatically (at most three times): each correction is a version of the cell (“Go back to the
+previous version”) and still needs your approval, unless the host chose to run model code without approval.
+
+On an error, “Explain the error” says in plain words what is wrong and proposes a fix you apply in one click (to
+approve). In “⋯”, “Explain line by line” comments each line. Requests that worked become **learned recipes**: a
+similar request is written at once (notebook “⋯” › “Learned recipes” to see or delete them). A computation proves nothing in
 general: it checks cases.
 
 ## Outputs

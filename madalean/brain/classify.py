@@ -52,7 +52,11 @@ ROLE_CATEGORIES: dict[str, tuple[str, str, bool]] = {
 TASKS: dict[str, tuple[str, str, bool]] = {
     "code": ("code", "math", False), "sage": ("code", "math", False), "python": ("code", "math", False),
     "latex": ("writing", "math", False), "writing": ("writing", "chat", False), "search": ("search", "chat", True),
+    # S-AB: short interactive transcription (Calcul « Demander »: a request → one Sage cell). Code models, ranked with
+    # their MEASURED latency, thinking capped, staggered parallel start (engine.MadaleanBrain._race), short timeouts
+    "transcribe": ("code", "math", True),
 }
+FAST_TASKS = ("transcribe",)
 TASK_HINT: contextvars.ContextVar[str | None] = contextvars.ContextVar("madalean_brain_task", default=None)
 
 
@@ -79,3 +83,8 @@ def role_categories(role: str, messages: list[dict] | None = None) -> tuple[str,
             break
     cat = classify(last)
     return (cat, "chat", False)
+
+
+def fast_task() -> bool:
+    """The current call is a short interactive one (Calcul transcription): latency first (DECISIONS D35)."""
+    return TASK_HINT.get() in FAST_TASKS

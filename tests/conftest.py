@@ -16,6 +16,8 @@ os.environ.setdefault("MADALEAN_CACHE_DIR", str(_TMP / "cache"))
 # for madalean.deps (tools from PATH, workspaces of the checkout). Tests that need a prefix build their own.
 os.environ["MADALEAN_HOME"] = str(_TMP / "madalean-home")
 os.environ["MADALEAN_NO_UPDATE_CHECK"] = "1"
+os.environ["MADALEAN_NO_SELFTEST"] = "1"          # S-AC: the health self-test never starts by itself
+os.environ["MADALEAN_NO_SYNTAX_BUILD"] = "1"      # S-AB: no background syntax-card build in test servers
 os.environ["MADALEAN_NO_KEYRING"] = "1"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))

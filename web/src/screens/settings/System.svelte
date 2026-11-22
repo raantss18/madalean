@@ -17,7 +17,12 @@
   const monitor = $derived(app.m.system?.monitor ?? sys?.monitor);
   async function repair(c: HealthCheck) {
     busy = c.id;
-    try { const r = await api.repair(c.repair); toast('ok', t('system.repaired', { what: tk(`check.${c.id}`, c.id) }) + (r['names'] ? ` (${r['names']})` : '')); await load(); }
+    try {
+      const r = await api.repair(c.repair);
+      if (r['ok'] === false) toast('error', t('system.stillFailing', { what: tk(`check.${c.id}`, c.id) }));
+      else toast('ok', t('system.repaired', { what: tk(`check.${c.id}`, c.id) }) + (r['names'] ? ` (${r['names']})` : ''));
+      await load();
+    }
     catch (e) { if (isHostOnly(e)) locked = true; toast('error', errorText(e)); } finally { busy = ''; }
   }
 </script>
@@ -42,7 +47,8 @@
         <li class:ok={c.ok} class:warn={!c.ok}>
           <Icon name={c.ok ? 'check' : 'warn'} size={16} label={c.ok ? t('system.ok') : t('system.problem')} />
           <span class="txt"><strong>{tk(`check.${c.id}`, c.id)}</strong><span class="small">{c.message?.text}</span></span>
-          {#if !c.ok && c.repair}<button class="btn small primary" disabled={busy === c.id || locked} onclick={() => repair(c)}>{busy === c.id ? t('system.repairing') : t('system.repair')}</button>{/if}
+          {#if !c.ok && c.repair}<button class="btn small primary" disabled={busy !== '' || locked} onclick={() => repair(c)}>{busy === c.id ? t('system.repairing') : t('system.repair')}</button>
+          {:else if c.rerun && c.repair}<button class="btn small" disabled={busy !== '' || locked} onclick={() => repair(c)}>{busy === c.id ? t('system.repairing') : t('system.rerun')}</button>{/if}
         </li>
       {/each}
     </ul>

@@ -28,9 +28,23 @@ sortie limités.
 
 ## Demander au modèle
 
-Ajoutez une cellule « Demander », décrivez le calcul voulu, puis « Écrire le code » : le modèle écrit le code de la
-cellule, à relire avant de l'exécuter. Après une erreur, l'erreur est renvoyée au modèle, qui propose une correction
-(à relire elle aussi). Dans « Plus d'actions » d'une cellule, « Expliquer » commente le code et sa sortie. Un calcul
+Le bouton **+** sous la dernière cellule ajoute une cellule (une cellule vide apparaît aussi après l'exécution de
+la dernière). Tapez du code Sage, ou décrivez le calcul en mots (« les racines de x^5+x^3+x+1 dans F_16 ») : la
+cellule reconnaît ce que vous avez tapé et l'indique par « Code / Demande » — un clic corrige si elle se trompe.
+Maj+Entrée exécute le code ou envoie la demande. Le type de la cellule (Code, Demande, Texte, Figure) se choisit dans
+le petit menu en tête de cellule.
+
+Pour une demande, le modèle écrit le code en quelques secondes ; il s'affiche pendant qu'il s'écrit, vérifié avant
+d'être montré pour la version de Sage installée. « Réécrire », juste sous la demande, relance l'écriture à tout
+moment ; « Approuver et exécuter » est juste sous le code. Quand le code utilise des noms définis plus haut, la
+cellule le dit (« Utilise F, f des cellules précédentes »). Si l'exécution échoue, le modèle corrige automatiquement
+(trois fois au plus) : chaque correction est une version de la cellule (« Revenir à la version précédente ») et reste
+à approuver, sauf si l'hôte a choisi d'exécuter le code du modèle sans accord.
+
+Sur une erreur, « Expliquer l'erreur » dit en mots simples ce qui ne va pas et propose une correction, que vous
+appliquez d'un clic (elle reste à approuver). Dans « ⋯ », « Expliquer ligne par ligne » commente chaque ligne.
+Les demandes qui ont fonctionné deviennent des **recettes apprises** : une demande semblable est écrite aussitôt
+(« ⋯ » du carnet › « Recettes apprises » pour les voir ou les supprimer). Un calcul
 ne prouve rien en général : il vérifie des cas.
 
 ## Sorties

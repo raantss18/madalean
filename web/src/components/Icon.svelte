@@ -55,6 +55,22 @@
     notebook: 'M6 3h12v18H6zM9 3v18M12 8h4M12 12h4',
     heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
     copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+    // S-AD: kinds of project items beside the article (always shown with a text label, never colour alone)
+    proof: 'M3 4l5.5 13L14 4M5.2 9.5h6.6M14 17.5l2.5 2.5 4.5-5',                         // ∀ + check: a dossier / proof
+    plot: 'M4 3v17h17M6.5 16c2-7.5 4.5-8.5 6.5-4.5s4 3.5 6-4.5',                         // function plot: a Calcul notebook
+    cell: 'M3 5h18v14H3zM8.5 10l-2 2 2 2M15.5 10l2 2-2 2M13 9l-2 6',                     // code cell: a Calcul cell
+    note: 'M5 3h10l4 4v14H5zM15 3v4h4M8.5 11h7M8.5 14.5h7M8.5 18h4',                       // page with lines: a note
+    conjecture: 'M4 4h16v12h-9l-5 4v-4H4zM9.8 8.2a2.3 2.3 0 1 1 3.2 2.1c-.6.3-1 .8-1 1.4M12 13.8h.01', // speech bubble + ?
+    source: 'M2.5 5.5c3.2-1.2 6.6-1 9.5 1v13c-2.9-2-6.3-2.2-9.5-1zM21.5 5.5c-3.2-1.2-6.6-1-9.5 1v13c2.9-2 6.3-2.2 9.5-1z', // open book
+    image: 'M3 4h18v16H3zM3 16l5-5 5 5M13 14l3-3 5 5M16 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',  // framed picture: a figure
+    clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3.5 2',                           // a version of the article
+    texfile: 'M14 3H6v18h12V7zM14 3v4h4M10 11.5l-2 2.5 2 2.5M14 11.5l2 2.5-2 2.5',          // a .tex file
+    bookmark: 'M6 3h12v18l-6-4.5L6 21z',                                                   // bibliography (refs.bib)
+    sliders: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4',          // settings file
+    folderOpen: 'M3 19V5h6l2 2h8v3M3 19l3-8h15l-3 8z',
+    panelLeft: 'M3 4h18v16H3zM9 4v16',
+    panelRight: 'M3 4h18v16H3zM15 4v16',
+    focus: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
   };
 </script>
 

@@ -6,7 +6,10 @@
   import { tick, untrack } from 'svelte';
   import type { Component } from 'svelte';
   import { ApiError } from '../../lib/api/client';
-  import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget } from '../../lib/api/workbench';
+  import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget, type NbExplainError, type NbExplainLine } from '../../lib/api/workbench';
+  import { request } from '../../lib/api/client';
+  import { guessKind, type Guess } from '../../lib/calcul/detect';
+  import { breakable } from '../../lib/calcul/texwrap';
   import { app } from '../../lib/store/app.svelte';
   import { navigate } from '../../lib/router.svelte';
   import { fmtTime } from '../../lib/i18n/index.svelte';
@@ -53,6 +56,17 @@
   let lastDeleted: string | null = null;
   let dTimer = 0;
   let dragId = $state<string | null>(null);
+  // S-AB: a new cell guesses code / request (chip the user can switch), live code while the model writes,
+  // explanations on demand, learned recipes
+  let guess = $state<Record<string, Guess>>({});
+  let forced = $state<Record<string, boolean>>({});
+  let drafting = $state<Record<string, string>>({});
+  let expErr = $state<Record<string, NbExplainError | 'loading'>>({});
+  let expLines = $state<Record<string, NbExplainLine[] | 'loading'>>({});
+  let recipesOpen = $state(false);
+  let recipes = $state<{ id: string; request: string; code: string; version: string; hits?: number }[]>([]);
+  const asking: Record<string, number> = {};
+  let detectT: Record<string, number> = {};
   let FigureView = $state<Component<{ spec: FigureSpec; editable?: boolean; onchange?: (s: FigureSpec) => void; onsage?: (c: string) => void; label: string }> | null>(null);
   const pidNow = $derived(currentProjectId());
   const cells = $derived(v?.cells ?? []);
@@ -95,6 +109,12 @@
     if (e.doc && e.doc !== docId) return;
     live[e.cell_id] = ((live[e.cell_id] ?? '') + e.text).slice(-20000);
   }));
+  $effect(() => app.on('calcul.draft', (ev) => {
+    const e = ev as unknown as { doc?: string; cell_id: string; code: string; state: string };
+    if (e.doc && e.doc !== docId) return;
+    if (e.state === 'writing') drafting[e.cell_id] = e.code;
+    else if (e.state === 'done' || e.state === 'error') delete drafting[e.cell_id];
+  }));
   $effect(() => app.on('calcul.running', (ev) => {
     const e = ev as unknown as { doc?: string; cell_id: string };
     if (!e.doc || e.doc === docId) { running = e.cell_id; live[e.cell_id] = ''; }
@@ -112,6 +132,20 @@
   const dirty = (c: NbCell) => (drafts[c.id] ?? c.source) !== c.source;
   const needsApproval = (c: NbCell) => c.origin === 'assistant' && !status?.auto && c.approved?.hash !== c.code_hash;
   const isCode = (c: NbCell) => c.type === 'code' || c.type === 'ask';
+  // a code cell the user has not run yet: what is typed may be code or a request (chip « Code / Demande »)
+  const isFresh = (c: NbCell) => c.type === 'code' && c.origin !== 'assistant' && !(c.runs?.length) && !(c.outputs?.length);
+  const kindOf = (c: NbCell): Guess => guess[c.id] ?? guessKind(drafts[c.id] ?? c.source);
+  function onType(c: NbCell) {
+    if (!isFresh(c) || forced[c.id]) return;
+    const text = drafts[c.id] ?? '';
+    guess[c.id] = guessKind(text);
+    clearTimeout(detectT[c.id]);
+    if (text.trim().length < 3) return;
+    detectT[c.id] = window.setTimeout(async () => {          // the server checks with the installed Sage's preparser
+      try { const r = await nb.detect(loadedFor, docId, text); if (!forced[c.id] && (drafts[c.id] ?? '') === text) guess[c.id] = r.kind; } catch { /* keep the local guess */ }
+    }, 450);
+  }
+  function force(c: NbCell, k: Guess) { guess[c.id] = k; forced[c.id] = true; }
 
   async function save(c: NbCell): Promise<NbCell | null> {
     if (!dirty(c)) return c;
@@ -144,11 +178,70 @@
     if (c.type === 'markdown') { if (editingMd === c.id) { await save(c); editingMd = null; } if (advance) next(c, true); return; }
     if (!isCode(c)) { if (advance) next(c, true); return; }
     if (c.type === 'ask' && !(drafts[c.id] ?? '').trim()) { await write(c); return; }
+    if (isFresh(c) && (drafts[c.id] ?? '').trim() && kindOf(c) === 'ask') { await toRequest(c); return; }
     const saved = await save(c);
     if (!saved) return;
     if (needsApproval(saved)) { toast('warn', ct('reviewHint')); document.getElementById(`approve-${c.id}`)?.focus(); return; }
-    if (advance) next(c, true);
+    const last = idx(c.id) === cells.length - 1;
+    if (advance && !last) next(c, false);
     await runIds({ cells: [c.id] });
+    if (last && (drafts[c.id] ?? '').trim()) await addCell('code', c.id, true);   // the next empty cell, ready to type
+  }
+  // what was typed in a new cell is a request: the cell becomes a request cell and the model writes the code
+  async function toRequest(c: NbCell) {
+    const text = (drafts[c.id] ?? '').trim();
+    try {
+      const r = await nb.edit(loadedFor, docId, c.id, { type: 'ask', prompt: text });
+      prompts[c.id] = text; drafts[c.id] = ''; patchCell(r.cell);
+      await write(r.cell);
+    } catch (e) { toast('error', errorText(e)); }
+  }
+  async function setKind(c: NbCell, kind: string) {
+    if (kind === c.type) return;
+    if (kind === 'figure') {
+      if ((drafts[c.id] ?? c.source).trim() || (c.prompt ?? '').trim()) { toast('warn', ct('figureEmptyOnly')); await open(loadedFor, docId); return; }
+      const at = idx(c.id);
+      try { await nb.add(loadedFor, docId, { type: 'figure', at }); await nb.remove(loadedFor, docId, c.id); await open(loadedFor, docId); } catch (e) { toast('error', errorText(e)); }
+      return;
+    }
+    try {
+      const body: Record<string, unknown> = { type: kind };
+      if (kind === 'ask' && dirty(c)) body['prompt'] = drafts[c.id];
+      const r = await nb.edit(loadedFor, docId, c.id, body);
+      if (kind === 'ask') { prompts[c.id] = r.cell.prompt ?? ''; drafts[c.id] = r.cell.source; }
+      patchCell(r.cell);
+      if (kind === 'markdown') editingMd = c.id;
+      select(c.id, true);
+    } catch (e) { toast('error', errorText(e)); }
+  }
+  async function explainError(c: NbCell) {
+    expErr[c.id] = 'loading';
+    try { expErr[c.id] = await nb.explainError(loadedFor, docId, c.id); }
+    catch (e) { delete expErr[c.id]; if (!(e instanceof ApiError && e.kind === 'replaced')) toast('error', errorText(e)); }
+  }
+  async function explainLines(c: NbCell) {
+    expLines[c.id] = 'loading';
+    try { expLines[c.id] = (await nb.explainLines(loadedFor, docId, c.id)).lines; }
+    catch (e) { delete expLines[c.id]; if (!(e instanceof ApiError && e.kind === 'replaced')) toast('error', errorText(e)); }
+  }
+  async function applyFix(c: NbCell, x: NbExplainError) {
+    try {
+      const r = await nb.suggestion(loadedFor, docId, c.id, x.fix, x.model);
+      drafts[c.id] = r.cell.source; patchCell(r.cell); delete expErr[c.id];
+      await tick(); document.getElementById(r.approval_required ? `approve-${c.id}` : `run-${c.id}`)?.focus();
+    } catch (e) { toast('error', errorText(e)); }
+  }
+  async function backVersion(c: NbCell) {
+    const vs = c.versions ?? [];
+    const prev = [...vs].reverse().find((v) => v.code !== c.source);
+    if (!prev) return;
+    drafts[c.id] = prev.code; await save(c);
+  }
+  async function loadRecipes() {
+    try { recipes = (await request<{ recipes: typeof recipes }>('GET', '/calcul/recipes')).recipes; } catch (e) { toast('error', errorText(e)); }
+  }
+  async function deleteRecipe(id: string) {
+    try { await request('DELETE', `/calcul/recipes/${encodeURIComponent(id)}`); recipes = recipes.filter((r) => r.id !== id); } catch (e) { toast('error', errorText(e)); }
   }
   async function next(c: NbCell, create: boolean) {
     const i = idx(c.id);
@@ -161,13 +254,21 @@
     try { const r = await nb.approve(loadedFor, docId, c.id, saved.code_hash!); patchCell(r.cell); await runIds({ cells: [c.id] }); }
     catch (e) { toast('error', errorText(e)); }
   }
+  // « Réécrire » is always possible: a new request replaces the one still running for this cell (server side too)
   async function write(c: NbCell) {
     const p = (prompts[c.id] ?? '').trim();
     if (!p) { document.getElementById(`prompt-${c.id}`)?.focus(); return; }
+    const n = (asking[c.id] = (asking[c.id] ?? 0) + 1);
     writing = c.id;
-    try { const r = await nb.ask(loadedFor, docId, c.id, p); drafts[r.cell.id] = r.cell.source; patchCell(r.cell);
-      await tick(); document.getElementById(r.approval_required ? `approve-${c.id}` : `run-${c.id}`)?.focus(); }
-    catch (e) { toast('error', errorText(e)); } finally { writing = null; }
+    try {
+      const r = await nb.ask(loadedFor, docId, c.id, p);
+      if (asking[c.id] !== n) return;
+      drafts[r.cell.id] = r.cell.source; patchCell(r.cell);
+      if ((r as { recipe?: string }).recipe) toast('info', ct('recipeUsed'));
+      await tick(); document.getElementById(r.approval_required ? `approve-${c.id}` : `run-${c.id}`)?.focus();
+    } catch (e) {
+      if (!(e instanceof ApiError && e.kind === 'replaced') && asking[c.id] === n) toast('error', errorText(e));
+    } finally { if (asking[c.id] === n) { writing = null; delete drafting[c.id]; } }
   }
   async function addCell(type: NbCell['type'], after: string | null, edit = true, extra: Record<string, unknown> = {}, above = false) {
     try {
@@ -269,6 +370,7 @@
     const items: MenuItem[] = [
       { label: ct('restart'), icon: 'refresh', run: () => void kernel('restart'), disabled: !canExec || queue },
       { label: ct('clear'), icon: 'x', run: () => void kernel('clear'), disabled: queue },
+      { label: ct('recipes'), run: () => { recipesOpen = true; void loadRecipes(); } },
     ];
     if (v) {
       const lab = nb.labUrl(v.doc.path), file = nb.ipynbUrl(pid, docId);
@@ -288,9 +390,9 @@
     if (isCode(c)) {
       items.push({ label: ct('runUntil'), run: () => runIds({ until: c.id }) });
       items.push({ label: ct('runFrom'), run: () => runIds({ from: c.id }) });
-      items.push({ label: ct('explain'), run: async () => { try { explain[c.id] = (await nb.explain(loadedFor, docId, c.id)).text; } catch (e) { toast('error', errorText(e)); } } });
       if ((c.versions?.length ?? 0) > 1) items.push({ label: ct('history'), run: () => (history = history === c.id ? null : c.id) });
     }
+    if (isCode(c) && (drafts[c.id] ?? c.source).trim()) items.push({ label: ct('explainLines'), run: () => explainLines(c) });
     items.push({ label: ct('moveUp'), run: () => move(c, idx(c.id) - 1), disabled: idx(c.id) === 0 });
     items.push({ label: ct('moveDown'), run: () => move(c, idx(c.id) + 1), disabled: idx(c.id) === cells.length - 1 });
     items.push({ label: ct('del', { n: idx(c.id) + 1 }), run: () => remove(c), danger: true });
@@ -335,7 +437,8 @@
   // ---- rendering helpers
   function tex(src: string): string {
     const s = src.trim().replace(/^\$\$([\s\S]*)\$\$$/, '$1').replace(/^\\\[([\s\S]*)\\\]$/, '$1').replace(/^\$([\s\S]*)\$$/, '$1').replace(/^\\displaystyle\s*/, '');
-    return renderMath(s, true);
+    const wrap = breakable(s);                     // long results wrap on narrow screens (S-AB)
+    return wrap ? renderMath(`\\displaystyle ${wrap}`, false) : renderMath(s, true);
   }
   function rows(code: string): number { return Math.min(30, Math.max(2, code.split('\n').length)); }
   const outline = $derived(cells.flatMap((c, i) => c.type === 'markdown' ? c.source.split('\n').filter((l) => /^#{1,3}\s/.test(l)).map((l) => ({ id: c.id, i, depth: l.match(/^#+/)![0].length, text: l.replace(/^#+\s*/, '') })) : []));
@@ -410,9 +513,7 @@
         <button class="btn small primary" onclick={() => runIds({ all: true })} disabled={!canExec || queue}><Icon name="play" size={14} />{ct('runAll')}</button>
         {#if sel && cells.find((c) => c.id === sel && isCode(c))}<button class="btn small" onclick={() => runIds({ until: sel! })} disabled={!canExec || queue}>{ct('runUntil')}</button>{/if}
         <button class="btn small" onclick={() => kernel('interrupt')} disabled={!queue && kstate !== 'busy'}><Icon name="stop" size={14} />{ct('interrupt')}</button>
-        <button class="btn small quiet wide-only" onclick={() => kernel('restart')} disabled={!canExec || queue}>{ct('restart')}</button>
-        <button class="btn small quiet wide-only" onclick={() => kernel('clear')} disabled={queue}>{ct('clear')}</button>
-        <span class="narrow-only"><Menu label={ct('more')} align="left" items={phoneMore(pid)} /></span>
+        <Menu label={ct('moreDoc')} align="left" items={phoneMore(pid)} />
         <span class="spacer"></span>
         <span class="chip kstate {kstate}" role="status" aria-live="polite" title={ct('idleHint', { n: status?.idle_minutes ?? 30 })}>
           <span class="dot" aria-hidden="true"></span>{queue ? ct('k.busy') : ct(`k.${['none', 'idle', 'busy', 'starting'].includes(kstate) ? kstate : 'unknown'}`)}{status?.kernel?.shared ? ` · ${ct('shared')}` : ''}
@@ -439,33 +540,63 @@
                 <div class="body">
                   <div class="cell-head row">
                     <h2 class="sr-only" id="cell-h-{c.id}">{ct('cellN', { n: i + 1 })} · {ct(`type.${c.type}`)}</h2>
-                    <span class="kind">{ct(`type.${c.type}`)}</span>
-                    {#if isCode(c) && c.origin === 'assistant'}<span class="who">{ct('byAssistant')}{c.model ? ` · ${c.model}` : ''}</span>
+                    <label class="sr-only" for="kind-{c.id}">{ct('kindOf', { n: i + 1 })}</label>
+                    <select id="kind-{c.id}" class="kind-pick" value={c.type} onchange={(e) => setKind(c, (e.target as HTMLSelectElement).value)}>
+                      {#each ['code', 'ask', 'markdown', 'figure'] as k (k)}<option value={k} disabled={k === 'figure' && c.type !== 'figure' && !!((drafts[c.id] ?? c.source).trim() || (c.prompt ?? '').trim())}>{ct(`type.${k}`)}</option>{/each}
+                    </select>
+                    {#if isCode(c) && c.origin === 'assistant'}<span class="who">{ct('byAssistant')}{c.model ? ` · ${c.model === 'recipe' ? ct('recipe') : c.model}` : ''}</span>
                       {#if ap}<span class="badge pending">{ct('toReview')}</span>{:else if c.approved}<span class="badge ok">{ct('approved')}</span>{/if}{/if}
                     {#if st}<span class="badge stale" title={st}>{c.stale ? ct('stale') : '↺'}<span class="sr-only"> : {st}</span></span>{/if}
                     <span class="spacer"></span>
                     {#if c.type === 'markdown' && editingMd !== c.id && c.source.trim()}<button class="btn small quiet" onclick={() => { editingMd = c.id; select(c.id, true); }}>{ct('editText')}</button>{/if}
-                    {#if isCode(c)}
-                      {#if ap}<button id="approve-{c.id}" class="btn small primary" onclick={() => approve(c)} disabled={!canExec}><Icon name="check" size={14} />{ct('approve')}</button>
-                      {:else}<button id="run-{c.id}" class="btn small primary run" onclick={() => runCell(c)} disabled={!canExec || queue} aria-busy={running === c.id} aria-label="{ct('run')} ({ct('cellN', { n: i + 1 })})"><Icon name="play" size={14} /><span class="run-label">{running === c.id ? ct('running') : ct('run')}</span></button>{/if}
-                    {/if}
                     <Menu label="{ct('more')} ({ct('cellN', { n: i + 1 })})" items={moreItems(c)} />
                   </div>
 
                   {#if c.type === 'ask'}
-                    <div class="ask-row">
-                      <label class="sr-only" for="prompt-{c.id}">{ct('promptOf', { n: i + 1 })}</label>
-                      <textarea id="prompt-{c.id}" class="input prompt" rows="2" bind:value={prompts[c.id]} placeholder={ct('askPh')}
-                        onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); void write(c); } }}></textarea>
-                      <button class="btn small" onclick={() => write(c)} disabled={writing === c.id || !(prompts[c.id] ?? '').trim()} aria-busy={writing === c.id}>
-                        <Icon name="sparkle" size={14} />{writing === c.id ? ct('writing') : (c.source.trim() ? ct('rewrite') : ct('write'))}</button>
+                    <label class="sr-only" for="prompt-{c.id}">{ct('promptOf', { n: i + 1 })}</label>
+                    <textarea id="prompt-{c.id}" class="input prompt" rows="2" bind:value={prompts[c.id]} placeholder={ct('askPh')}
+                      onkeydown={(e) => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); void write(c); } }}></textarea>
+                    <div class="actions">
+                      <button class="btn small" onclick={() => write(c)} disabled={!(prompts[c.id] ?? '').trim()} aria-busy={writing === c.id}>
+                        <Icon name="sparkle" size={14} />{c.source.trim() || writing === c.id ? ct('rewrite') : ct('write')}</button>
+                      <span class="xs muted" role="status" aria-live="polite">{writing === c.id ? ct('writing') : ''}</span>
                     </div>
-                    <p class="xs muted">{ap ? ct('reviewHint') : ct('askHint')}</p>
+                    {#if (c.uses?.length ?? 0) > 0}<p class="xs muted uses">{ct('uses', { names: c.uses!.join(', ') })}</p>{/if}
                   {/if}
-                  {#if isCode(c) && (c.type === 'code' || (drafts[c.id] ?? '').trim())}
+                  {#if isCode(c) && (c.type === 'code' || (drafts[c.id] ?? '').trim() || drafting[c.id] !== undefined)}
                     <label class="sr-only" for="src-{c.id}">{ct('codeOf', { n: i + 1 })}</label>
-                    <textarea id="src-{c.id}" class="code-in" spellcheck="false" autocapitalize="off" autocomplete="off" rows={rows(drafts[c.id] ?? c.source)}
-                      bind:value={drafts[c.id]} onfocus={() => { mode = 'edit'; }} onblur={() => save(c)}></textarea>
+                    {#if drafting[c.id] !== undefined && writing === c.id}
+                      <textarea id="src-{c.id}" class="code-in live-code" readonly spellcheck="false" rows={rows(drafting[c.id] ?? '')} value={drafting[c.id]}></textarea>
+                    {:else}
+                      <textarea id="src-{c.id}" class="code-in" spellcheck="false" autocapitalize="off" autocomplete="off" rows={rows(drafts[c.id] ?? c.source)}
+                        placeholder={isFresh(c) ? ct('autoPh') : ''} bind:value={drafts[c.id]} oninput={() => onType(c)} onfocus={() => { mode = 'edit'; }} onblur={() => save(c)}></textarea>
+                    {/if}
+                    {@const fresh = isFresh(c) && !!(drafts[c.id] ?? '').trim()}
+                    <div class="actions">
+                      {#if ap}<button id="approve-{c.id}" class="btn small primary run" onclick={() => approve(c)} disabled={!canExec || writing === c.id}><Icon name="check" size={14} />{ct('approve')}</button>
+                      {:else if fresh && kindOf(c) === 'ask'}<button id="run-{c.id}" class="btn small primary run" onclick={() => toRequest(c)}><Icon name="sparkle" size={14} />{ct('write')}</button>
+                      {:else}<button id="run-{c.id}" class="btn small primary run" onclick={() => runCell(c)} disabled={!canExec || queue} aria-busy={running === c.id} aria-label="{ct('run')} ({ct('cellN', { n: i + 1 })})"><Icon name="play" size={14} /><span class="run-label">{running === c.id ? ct('running') : ct('run')}</span></button>{/if}
+                      {#if fresh}
+                        <div class="seg detect" role="group" aria-label={ct('detectLabel')}>
+                          <button class="btn xsmall" aria-pressed={kindOf(c) === 'code'} onclick={() => force(c, 'code')}>{ct('type.code')}</button>
+                          <button class="btn xsmall" aria-pressed={kindOf(c) === 'ask'} onclick={() => force(c, 'ask')}>{ct('type.ask')}</button>
+                        </div>
+                        <span class="xs muted">{forced[c.id] ? '' : ct('detectHint')}</span>
+                      {/if}
+                    </div>
+                    {#if c.autofix}
+                      <p class="xs note-fix" role="status">{ct((c.autofix as { reran?: boolean }).reran ? 'autofixedRan' : 'autofixed', { n: c.autofix.n ?? 1, max: c.autofix.max ?? 3 })}
+                        {#if (c.versions?.length ?? 0) > 1}<button class="btn xsmall quiet" onclick={() => backVersion(c)}>{ct('backVersion')}</button>{/if}</p>
+                    {/if}
+                    {#if expLines[c.id]}
+                      <div class="explain lines" role="region" aria-label={ct('linesTitle')}>
+                        <div class="row"><strong class="xs">{ct('linesTitle')}</strong><span class="spacer"></span><button class="btn xsmall quiet" onclick={() => delete expLines[c.id]}>{ct('closeExplain')}</button></div>
+                        {#if expLines[c.id] === 'loading'}<p class="xs muted" role="status">{ct('explaining')}</p>
+                        {:else}
+                          <ol class="line-list">{#each expLines[c.id] as NbExplainLine[] as l (l.line)}{#if l.code.trim()}<li><code class="lc">{l.code}</code><span class="lt">{l.text}</span></li>{/if}{/each}</ol>
+                        {/if}
+                      </div>
+                    {/if}
                   {:else if c.type === 'markdown'}
                     {#if editingMd === c.id || !c.source.trim()}
                       <label class="sr-only" for="src-{c.id}">{ct('textOf', { n: i + 1 })}</label>
@@ -484,7 +615,6 @@
                     </div>
                   {/if}
 
-                  {#if c.autofix && ap}<p class="xs note-fix" role="status">{ct('autofix')}</p>{/if}
                   {#if running === c.id && live[c.id]}<pre class="out live" aria-live="polite">{live[c.id]}</pre>{/if}
                   {#if isCode(c) && (c.outputs?.length ?? 0) > 0}
                     <div class="output" class:stale={c.stale} role="group" aria-label="{ct('cellN', { n: i + 1 })} : sortie">
@@ -499,6 +629,21 @@
                     </div>
                   {/if}
                   {#if explain[c.id]}<div class="explain"><Md src={explain[c.id]} /></div>{/if}
+                  {#if expErr[c.id]}
+                    {@const x = expErr[c.id]!}
+                    <div class="explain" role="region" aria-label={ct('explainError')}>
+                      <div class="row"><strong class="xs">{ct('explainError')}</strong><span class="spacer"></span><button class="btn xsmall quiet" onclick={() => delete expErr[c.id]}>{ct('closeExplain')}</button></div>
+                      {#if x === 'loading'}<p class="xs muted" role="status">{ct('explaining')}</p>
+                      {:else}
+                        <Md src={x.explanation} />
+                        {#if x.fix}
+                          <p class="xs muted">{ct('fixHint')}</p>
+                          <pre class="out small-code">{x.fix}</pre>
+                          <button class="btn small" onclick={() => applyFix(c, x)}><Icon name="check" size={14} />{ct('applyFix')}</button>
+                        {:else}<p class="xs muted">{ct('noFix')}</p>{/if}
+                      {/if}
+                    </div>
+                  {/if}
                   {#if history === c.id && c.versions}
                     <div class="history"><h3 class="xs">{ct('versions')}</h3>
                       <ol class="vers">{#each [...c.versions].reverse() as ver, k (k)}<li><span class="xs muted">{fmtTime(ver.t)} · {ver.origin === 'assistant' ? ct('byAssistant') : ct('byYou')}</span>
@@ -509,10 +654,8 @@
             {/each}
           </ol>
 
-          <div class="adder" role="group" aria-label={ct('addLabel')}>
-            {#each ['code', 'ask', 'markdown', 'figure'] as tp (tp)}
-              <button class="btn add" onclick={() => addCell(tp as NbCell['type'], cells.length ? cells[cells.length - 1]!.id : null)}><Icon name="plus" size={14} />{ct(`add.${tp}`)}</button>
-            {/each}
+          <div class="adder">
+            <button class="btn add" aria-label={ct('addLabel')} title={ct('addHint')} onclick={() => addCell('code', cells.length ? cells[cells.length - 1]!.id : null)}><Icon name="plus" size={16} /></button>
           </div>
           <details class="keys"><summary>{ct('keys')}</summary><p class="xs">{ct('keysText')}</p></details>
         </section>
@@ -550,6 +693,18 @@
         </form>
       {/if}
     </Dialog>
+    <Dialog bind:open={recipesOpen} title={ct('recipes')}>
+      <p class="small">{ct('recipesLead')}</p>
+      {#if recipes.length}
+        <ul class="recipes">
+          {#each recipes as r (r.id)}
+            <li><div class="row"><span class="small">{r.request}</span><span class="spacer"></span><span class="xs muted">Sage {r.version}{r.hits ? ` · ${r.hits}×` : ''}</span>
+              <button class="btn xsmall quiet" aria-label="{ct('deleteRecipe')} : {r.request}" onclick={() => deleteRecipe(r.id)}><Icon name="x" size={14} /></button></div>
+              <pre class="out small-code">{r.code}</pre></li>
+          {/each}
+        </ul>
+      {:else}<p class="xs muted">{ct('noRecipes')}</p>{/if}
+    </Dialog>
     <Dialog bind:open={newOpen} title={ct('newDoc')}>
       <form onsubmit={createDoc}>
         <div class="field"><label for="nd-title">{ct('newDocTitle')}</label><input id="nd-title" class="input" bind:value={newTitle} maxlength="200" /></div>
@@ -575,6 +730,7 @@
       <details><summary class="xs">{ct('details')}</summary><pre class="out">{o.ename}: {o.evalue}{o.traceback ? '\n' + o.traceback : ''}</pre></details>
     </div>
   {:else if o.type === 'error'}<pre class="out err" role="alert">{o.ename}: {o.evalue}{o.traceback ? '\n' + o.traceback.split('\n').slice(-8).join('\n') : ''}</pre>
+    {#if !expErr[c.id]}<button class="btn small explain-btn" onclick={() => explainError(c)}><Icon name="sparkle" size={14} />{ct('explainError')}</button>{/if}
   {:else}
     {@const d = o.data ?? {}}
     {@const key = `${c.id}:${k}`}
@@ -585,7 +741,8 @@
       {@const a = (d['image/svg+xml'] ?? d['image/png']) as { asset: string }}
       <img class="plot" src={wb.assetUrl(a.asset)} alt={String(d['text/plain'] ?? '') || ct('plot', { n: i + 1, k: k + 1 })} loading="lazy" />
     {:else if approxOn[key] && o.approx}<pre class="out">≈ {o.approx}</pre>
-    {:else if typeof d['text/latex'] === 'string'}<div class="tex">{@html tex(d['text/latex'] as string)}</div>
+    {:else if typeof d['text/latex'] === 'string'}<!-- svelte-ignore a11y_no_noninteractive_tabindex (a long formula scrolls: keyboard users must reach it) -->
+      <div class="tex" tabindex="0" role="group" aria-label={ct('formulaOf', { n: i + 1 })}>{@html tex(d['text/latex'] as string)}</div>
     {:else if typeof d['text/plain'] === 'string'}<pre class="out">{d['text/plain']}</pre>{/if}
     {#if o.approx}
       <div class="seg" role="group" aria-label="{ct('exact')} / {ct('approx')}">
@@ -638,7 +795,6 @@
   .code-in:focus-visible, .prompt:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   .md-view { padding: var(--s-1) var(--s-2); border-radius: var(--r-1); cursor: text; }
   .md-view:focus-visible { outline: 2px solid var(--focus); }
-  .ask-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-2); align-items: start; }
   .prompt { width: 100%; box-sizing: border-box; }
   .note-fix { color: var(--running); }
   .output { margin-top: var(--s-2); padding-top: var(--s-1); border-top: 1px dashed var(--line); position: relative; }
@@ -649,15 +805,33 @@
   .out.err { color: var(--failed); background: var(--failed-soft); padding: var(--s-2); border-radius: var(--r-1); }
   .out.live { color: var(--text-2); }
   .small-code { font-size: var(--fs-xs); background: var(--surface-2); padding: var(--s-1) var(--s-2); }
-  .tex { overflow-x: auto; padding: var(--s-1) 0; }
+  /* long results scroll inside the output box, never clipped (phones: S-AB) */
+  .tex { overflow-x: auto; overflow-y: hidden; max-width: 100%; padding: var(--s-1) 0; -webkit-overflow-scrolling: touch; }
+  .tex :global(.katex-display) { margin: 0; overflow: visible; }
+  .tex:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .output { min-width: 0; max-width: 100%; }
   .plot { max-width: 100%; height: auto; background: #fff; border-radius: var(--r-1); border: 1px solid var(--line); display: block; margin-bottom: var(--s-2); }
   .seg { display: inline-flex; gap: 2px; margin-bottom: var(--s-2); }
   .seg [aria-pressed='true'] { background: var(--accent-soft); color: var(--text); border-color: var(--accent); font-weight: 700; }
   .figure-host { margin: var(--s-1) 0; }
   .explain { margin-top: var(--s-2); padding: var(--s-2); background: var(--surface-2); border-radius: var(--r-1); }
   .vers { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-1); }
-  .adder { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
-  .add { min-height: 44px; }
+  .adder { display: flex; justify-content: center; margin-top: var(--s-3); }
+  .add { min-height: 44px; min-width: 44px; border-radius: 999px; border-style: dashed; }
+  .kind-pick { font-size: var(--fs-xs); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em;
+    background: transparent; border: 1px solid transparent; border-radius: var(--r-1); padding: 2px 4px; min-height: 32px; cursor: pointer; }
+  .kind-pick:hover, .kind-pick:focus-visible { border-color: var(--line); background: var(--surface-2); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; margin: var(--s-1) 0 var(--s-2); }
+  .prompt + .actions { margin-top: var(--s-1); }
+  .detect { margin: 0; }
+  .live-code { color: var(--text-2); }
+  .uses { margin: 0 0 var(--s-1); }
+  .explain-btn { margin-bottom: var(--s-2); }
+  .line-list { list-style: none; padding: 0; margin: var(--s-1) 0 0; display: grid; gap: 4px; }
+  .line-list li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--s-2); align-items: baseline; }
+  .lc { font: 0.8125rem/1.4 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); }
+  .lt { font-size: var(--fs-sm, 0.875rem); }
+  .recipes { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-2); max-height: 60vh; overflow: auto; }
   .keys { margin-top: var(--s-3); color: var(--text-2); }
   .side { position: sticky; top: 3.5rem; max-height: calc(100vh - 5rem); overflow: auto; }
   .side-h { font-size: var(--fs-md, 1rem); margin: 0 0 var(--s-2); }
@@ -667,7 +841,6 @@
   .vars { width: 100%; border-collapse: collapse; }
   .vars th, .vars td { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
   .empty { padding: var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--r-2); color: var(--text-2); }
-  .narrow-only { display: none; }
   @media (max-width: 1023px) {
     .layout.with-side { grid-template-columns: minmax(0, 1fr); }
     .side { position: static; max-height: none; order: -1; }
@@ -677,12 +850,12 @@
     .gutter { flex-direction: row; padding: var(--s-1) var(--s-2) 0; }
     .body { padding: var(--s-1) var(--s-2) var(--s-2); }
     .run { min-height: 44px; min-width: 44px; }
-    .ask-row { grid-template-columns: minmax(0, 1fr); }
-    .toolbar .btn { min-height: 44px; }
+    .line-list li { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .actions .btn { min-height: 44px; }
+    .kind-pick { min-height: 44px; }
+    .toolbar .btn, .toolbar :global(.btn) { min-height: 44px; }
     .toolbar { position: static; }
     .wide-only { display: none; }
-    .toolbar .narrow-only { display: inline-flex; }
-    .toolbar .narrow-only :global(.btn) { min-height: 44px; min-width: 44px; }
   }
   @media (pointer: coarse) { .doc-pick { min-height: var(--touch); } .link { min-height: var(--touch); } }
 </style>

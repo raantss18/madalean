@@ -152,7 +152,7 @@ with classify.task("sage"):        # or "code" / "python" → code models (Codes
 with classify.task("latex"):       # → strong writing models (Gemini, Mistral Large, Claude when chosen)
     c = await brain.complete("explain", msgs)
 ```
-`prove` / `formalize` are never overridden. The `assistant` role's classifier now also sends Sage / SageMath / PARI /
+`prove` / `formalize` are never overridden. S-AB: the Calcul notebook uses `classify.task("transcribe")` (code models ranked by measured latency, staggered race, minimal thinking — docs/BRAIN.md §15); the article editor's Sage cell may use it too. The `assistant` role's classifier now also sends Sage / SageMath / PARI /
 NumPy / SymPy requests to code models. To wire (owners of the files): the article editor's Sage cell generation
 (`server/plugins/article_editor.py`, `complete_once(ctx, "explain", …)` near « wb.calc.add ») and the Calcul
 notebook's code generation (S-P) should wrap their call in `classify.task("sage")`; the article rewriting in

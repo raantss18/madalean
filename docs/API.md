@@ -625,6 +625,12 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 `ipynb`, `…/cells/{cid}/to`): full list in the docstring of `madalean/server/plugins/workbench.py` and
 [CALCUL.md](CALCUL.md). The S-M routes below act on the default document `calcul` (cells now also carry `type`,
 `outputs`, `exec_count`, `stale`; a run also returns nbformat-shaped `outputs`).
+**S-AB**: `…/docs/{doc}/detect {text}` → `{kind: code|ask}`; `…/cells/{cid}/explain {mode: error|lines}`;
+`…/cells/{cid}/suggestion {code}`; generic `POST /api/code/explain {language: sage|python|lean, code, error?, mode}`
+→ `{explanation, fix, fix_valid, model}` | `{lines: [{line, code, text}], model}`; `GET /api/calcul/recipes`,
+`DELETE /api/calcul/recipes/{id}`. `ask` answers `{cell, model, approval_required, timing, checked, recipe, uses}`,
+409 `replaced` when a newer request for the same cell replaced it; runs answer 409 `calcul_busy` while cells run.
+Event `calcul.draft {project_id, doc, cell_id, code, state: start|writing|done|error}`.
 
 | Method | Path | Body → answer |
 |---|---|---|

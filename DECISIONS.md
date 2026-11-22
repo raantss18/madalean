@@ -373,3 +373,52 @@
 - Components: pins brought by a signed release (`deps`: Sage env, main env incl. tectonic, TeX bundle, elan…) now
   install automatically at a quiet moment like Mathlib, with rollback; the tectonic bundle relay is probed for newer
   bundles (notify only). D29 unchanged. Details: docs/BRAIN.md §14, docs/ARCHITECTURE.md §12.
+
+
+## D36 — Sandboxed tools get a real private home; smoke suite + health self-test (user request, 2026-11-22, S-AC)
+- Request: fix « Read-only file system: '/nonexistent' » (Maxima in a Calcul cell) **at the root, for every case**.
+- The sandboxed kernel's `HOME` was a missing, read-only path; each library that caches under `HOME` broke in turn.
+  Decision: every sandboxed tool has a real, writable, private, short home — kernels: `/tmp/h` bound to
+  `<experiments>/.home/<project|shared>` (persistent caches); Lean and TeX: `/tmp/home` on the sandbox's tmpfs
+  (ephemeral). All XDG / Sage / Maxima / IPython / matplotlib / numba / cython / pip / TeX directories inside it.
+  The writable surface of each sandbox is unchanged (the home is inside the already writable directory, or on the
+  sandbox's private tmpfs); no network, no secret, hidden config directories as before (tests).
+- Rejected: patching variables one library at a time (the integrator's `MAXIMA_USERDIR`: the next library breaks);
+  `HOME` = the experiments directory itself (too long for GAP's probe; mixes caches with the user's files);
+  `PYTHONPYCACHEPREFIX` (recompiles Sage at each start, 0.9 → 3.0 s); a throwaway home per kernel start (Maxima
+  rebuilds its cache at every start: first Fourier cell 8.1 s, 0.9 s with the persistent home, measured).
+- Regressions are caught before the user meets them: a smoke suite in the real sandboxed kernel (tests, marker
+  `sage`) and its fast subset as a health self-test after each Sage / Madalean / Lean / TeX change, with « Réparer »
+  (reset the kernels' homes, test again). Details: docs/CALCUL.md §10, docs/SECURITY.md (F6).
+
+
+## D35 — Calcul: latency first for code transcription, automatic corrections, version-checked syntax, recipes (user requests, 2026-11-22, S-AB)
+- Request: the « Demander » transcription was very slow; « Réécrire » was refused (« le dossier travaille »); the
+  model must write code valid for the installed Sage / Lean / Mathlib; fewer buttons; explanations on demand;
+  automatic correction of failing model code; learned recipes; long formulas cut on a phone.
+- Transcription = a dedicated fast path of the brain (`classify.task("transcribe")`, docs/BRAIN.md §15): measured
+  latency in the ranking, staggered race of ≤ 3 models, minimal thinking, short timeouts, own request pool, no job
+  slot. Rejected: a new `Role` (the roles are a fixed interface used everywhere); always racing 3 models from the
+  start (triples requests for nothing when the first model is fast); a fixed model (free quotas run out: 429/503 were
+  seen during the measurements, the race absorbs them).
+- One generation per cell: a new request replaces the running one; the automatic correction runs after the kernel
+  lock is released. The notebook's « busy » is its own error (`calcul_busy`), never the dossier text.
+- **Automatic correction policy** (safe and smooth): before display, code that does not compile goes back to the
+  model up to 2 times (nothing runs). After a failed run, up to 3 corrections per request, each a visible version
+  (« Corrigé automatiquement », « Revenir à la version précédente »). The corrected code **re-runs by itself only
+  when the host's policy already lets model code run without approval (`experiments_auto`)**; otherwise it is shown
+  for one click « Approuver et exécuter ». Rejected: « approval covers the request » (an approval of code X would let
+  an unseen code Y run: the approval-by-hash rule of D28 / S-M stays exact); asking a confirmation for each
+  intermediate attempt (too many clicks for code that does not even compile).
+- **Syntax catalogue**: small cards per tool and installed version whose entries are executed (Sage) / compiled
+  (Lean, plus the existing name index) during a build; failing or deprecated entries dropped; rebuilt on version
+  change (start, update checkers' pass, Mathlib update). Fixed system prompt per version so provider prompt caching
+  applies. Signatures and docstrings come from the installed Sage by introspection. Rejected: a hand-written card
+  per version (drifts), the whole Sage reference manual in the prompt (slow, costly).
+- **Recipes**: local only (`<config>/research/recipes.json`), tied to the Sage version and re-checked at each
+  update; an exact-template match with safe parameter substitution answers without a model call (still model code:
+  approval), otherwise a close recipe is an example for the model. Rejected: embeddings (an Ollama model may hold the
+  GPU; word overlap + templates are enough for the notebook's short requests); sharing recipes between hosts.
+- Cells: one « + », a new cell recognises code vs request (installed Sage's preparser + language markers) with a
+  one-click « Code / Demande » chip; type menu in the cell head; actions right below what they act on.
+- « Expliquer » is generic over sage | python | lean (`POST /api/code/explain`) for the Lean screens later.

@@ -13,7 +13,14 @@ Calcul (S-P: notebooks — a document is a standard .ipynb sharing one kernel wi
 - `POST   …/docs/{doc}/run {cells: [ids] | until: cid | all: true, timeout?}`   sequential, one kernel; stops at
                                                           the first error or unapproved cell (`stopped`)
 - `POST   …/cells/{cid}/run {timeout?}`                  one cell
-- `POST   …/cells/{cid}/ask {prompt}`                    natural language → code (assistant, needs approval)
+- `POST   …/cells/{cid}/ask {prompt}`                    natural language → code (assistant, needs approval); S-AB:
+                                                          fast role, streamed as `calcul.draft`, a new request
+                                                          replaces the running one (409 `replaced` for the old)
+- `POST   …/docs/{doc}/detect {text}`                     {kind: code|ask, why} — what a new cell's text is
+- `POST   …/cells/{cid}/explain {mode: error|lines}`      « Expliquer l'erreur » (explanation + proposed fix) / lines
+- `POST   …/cells/{cid}/suggestion {code, model?}`        apply a proposed fix (model code: approval needed)
+- `POST   /api/code/explain {language: sage|python|lean, code, error?, mode}`   the same, generic (Lean screens)
+- `GET    /api/calcul/recipes` · `DELETE /api/calcul/recipes/{id}`   learned recipes (docs/CALCUL.md §3.5)
 - `POST   …/docs/{doc}/interrupt | restart | shutdown | clear`
 - `GET    …/docs/{doc}/variables`                         names defined in the kernel (or read from the code)
 - `POST   …/docs/{doc}/assist {action: explain|fix, cell_id, prompt?}`
@@ -40,12 +47,14 @@ from aiohttp import web
 
 from ... import config
 from ...i18n import language, msg
+from ...i18n import language as language_ui
 from ...logs import get
 from ...research.calcul import CALC_PREAMBLE, CalcError, CalcStore, assist_messages, extract_code
-from ...research.notebook import (DEFAULT_DOC, FIGURE_MIME, KINDS, NotebookStore, ask_messages, outputs_text,
+from ...research.notebook import (DEFAULT_DOC, FIGURE_MIME, KINDS, NotebookStore, outputs_text,
                                   static_names)
 from ..common import body, ctx_of, error, ok, valid_id
 from ..helpers import complete_once
+from ...research import codegen
 from ...brain.leaderboard import DOMAINS          # one list of domains: model rankings and the results library
 
 log = get("workbench")
@@ -62,6 +71,9 @@ class Workbench:
         self.meta_path = ctx.paths.config / "library-meta.json"
         self.locks: dict[str, asyncio.Lock] = {}
         self.cancel: set[str] = set()
+        self.gens = codegen.Generations()      # S-AB: one model generation per cell; a new one replaces the old
+        from ...research.recipes import RecipeStore
+        self.recipes = RecipeStore(ctx.paths.config / "research" / "recipes.json")
         self._bridge = None
         self._kernels = None
 
@@ -112,6 +124,11 @@ def W(request) -> Workbench:
 def device_of(request) -> str:
     dev = request["device"]
     return dev.id if dev is not None else "host"
+
+
+def _busy() -> web.Response:
+    """Cells are running in this notebook's kernel (not a dossier: the generic « busy » text says « dossier »)."""
+    return error(409, "calcul_busy", "Des cellules sont en cours d'exécution : attendez la fin ou interrompez-les.")
 
 
 def _calc_fail(e: CalcError) -> web.Response:
@@ -369,12 +386,15 @@ def _approx(res) -> str:
 
 
 async def _run_cells(wb: Workbench, ctx, device: str, live: bool, pid: str, doc: str, ids: list[str],
-                     timeout: float | None) -> dict:
-    """Run cells in order in the document's one kernel (caller checked the device may execute)."""
+                     timeout: float | None, autofix: bool = True) -> dict:
+    """Run cells in order in the document's one kernel (caller checked the device may execute). The automatic fix of a
+    failed « ask » cell runs AFTER the kernel lock is released (S-AB: a model call never blocks the notebook) and
+    is cancelled by a new request on that cell."""
     store, km = wb.calc, wb.kernels()
     path = store.rel_path(pid, doc)
     key = f"{pid}/{doc}"
-    runs, stopped, autofix = {}, None, None
+    runs, stopped, fixed = {}, None, None
+    pending = None
     wb.cancel.discard(key)
     async with wb.lock(key):
         for cid in ids:
@@ -405,32 +425,72 @@ async def _run_cells(wb: Workbench, ctx, device: str, live: bool, pid: str, doc:
                                           doc=doc, kernel=res.kernel, upstream=up, approx=_approx(res))
             runs[cid] = run
             _ev(ctx, pid, doc, cell_id=cid, run=run)
+            if res.status == "ok" and c["type"] == "ask" and c.get("origin") == "assistant" and c.get("prompt"):
+                await _learn(wb, pid, doc, c)                # S-AB: a request whose code ran → a recipe
             if res.status != "ok":
                 stopped = {"cell_id": cid, "reason": res.status}
-                if c["type"] == "ask" and not c.get("autofix"):
-                    autofix = await _autofix(wb, ctx, live, pid, doc, c, run)
+                if (c["type"] == "ask" and autofix and res.status == "error"
+                        and (c.get("autofix") or {}).get("n", 0) < AUTOFIX_MAX):
+                    pending = (c, run)
                 break
     wb.cancel.discard(key)
-    return {"runs": runs, "stopped": stopped, "autofix": autofix}
+    if pending is not None:
+        try:
+            fixed = await wb.gens.run(f"{pid}/{doc}/{pending[0]['id']}",
+                                      _autofix(wb, ctx, live, pid, doc, pending[0], pending[1]))
+        except codegen.Replaced:
+            fixed = None
+        # S-AB (DECISIONS D35): the corrected code runs again by itself ONLY where model code needs no approval
+        # (`experiments_auto`, host or allowed device); otherwise it waits for « Approuver et exécuter ». Bounded by
+        # AUTOFIX_MAX corrections per request.
+        if fixed is not None and wb.calc.may_run(fixed, bool(ctx.settings.experiments_auto)):
+            again = await _run_cells(wb, ctx, device, live, pid, doc, [fixed["id"]], timeout)
+            runs.update(again["runs"])
+            stopped = again["stopped"]
+            fixed = again["autofix"] or {**fixed, "reran": True}
+    return {"runs": runs, "stopped": stopped, "autofix": fixed}
+
+
+AUTOFIX_MAX = 3
+
+
+async def _learn(wb: Workbench, pid: str, doc: str, c: dict) -> None:
+    try:
+        from ... import syntaxcards
+        v = await asyncio.to_thread(syntaxcards.sage_version) if c["language"] == "sage" else ""
+        await asyncio.to_thread(wb.recipes.add, c["prompt"], c["code"], c["language"], v, c.get("uses") or [])
+    except Exception:  # noqa: BLE001 (learning never breaks a run)
+        log.exception("recipe not recorded")
 
 
 async def _autofix(wb: Workbench, ctx, live: bool, pid: str, doc: str, c: dict, run: dict) -> dict | None:
-    """An « ask » cell failed: the error goes back to the model once, for a corrected proposal (to approve)."""
+    """An « ask » cell failed: the error goes back to the model for a corrected proposal (AUTOFIX_MAX per request;
+    each correction is a version of the cell, « corrigé automatiquement », the user can go back)."""
     names = await _names(wb, live, pid, doc, c["id"], c["language"])
-    msgs = ask_messages(language(), c["language"], c.get("prompt", ""), names, "", fix=True, code=c["code"],
-                        error=(run.get("error") or run.get("stderr") or "")[-3000:])
     try:
-        r = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
-                                temperature=0.2)
+        r = await codegen.transcribe(ctx, language=c["language"], prompt=c.get("prompt", ""), names=names,
+                                     context="", owner=f"calcul-{pid}", lang=language(), fix_code=c["code"],
+                                     fix_error=(run.get("error") or run.get("stderr") or "")[-3000:])
     except Exception:  # noqa: BLE001
         return None
-    code = extract_code(r.text)
+    code, model = r["code"], r["model"]
     if not code or code == c["code"]:
         return None
-    model = getattr(r.model, "key", "") or ""
+    try:
+        cur = await asyncio.to_thread(wb.calc.cell_view, pid, doc, c["id"])
+    except CalcError:
+        return None
+    if cur.get("code_hash") != c.get("code_hash"):
+        return None                     # the cell changed meanwhile (rewritten, edited): never overwrite it
+    for att in r.get("attempts") or []:           # versions that did not even compile: kept in the history
+        await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=att["code"], by="assistant", model=model)
     new = await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=code, by="assistant", model=model)
-    await asyncio.to_thread(wb.calc.set_autofix, pid, doc, c["id"], {"t": time.time(), "model": model})
-    new["autofix"] = {"t": time.time(), "model": model}
+    n = (c.get("autofix") or {}).get("n", 0) + 1
+    fix = {"t": time.time(), "model": model, "n": n, "max": AUTOFIX_MAX,
+           "error": (run.get("error") or "").strip().splitlines()[-1:][0][:200] if run.get("error") else ""}
+    await asyncio.to_thread(wb.calc.set_autofix, pid, doc, c["id"], fix)
+    await asyncio.to_thread(wb.calc.set_side, pid, doc, c["id"], uses=r.get("uses") or [])
+    new["autofix"] = fix
     _ev(ctx, pid, doc, cell=new)
     return new
 
@@ -461,7 +521,7 @@ async def doc_run(request):
     else:
         ids = order
     if wb.lock(f"{pid}/{doc}").locked():
-        return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
+        return _busy()
     timeout = max(1.0, min(float(data["timeout"]), 600.0)) if data.get("timeout") else None
     return ok(await _run_cells(W(request), ctx_of(request), device_of(request), True, pid, doc, ids, timeout))
 
@@ -482,7 +542,7 @@ async def cell_run(request):
     if not wb.calc.may_run(c, bool(ctx.settings.experiments_auto)):
         return error(403, "not_approved", "Ce code a été écrit par l'assistant : relisez-le et approuvez-le d'abord.")
     if wb.lock(f"{pid}/{doc}").locked():
-        return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
+        return _busy()
     timeout = max(1.0, min(float(data["timeout"]), 600.0)) if data.get("timeout") else None
     r = await _run_cells(wb, ctx, device_of(request), True, pid, doc, [cid], timeout)
     run = r["runs"].get(cid)
@@ -505,7 +565,7 @@ async def doc_restart(request):
     wb, ctx = W(request), ctx_of(request)
     pid, doc = _project(request), _doc(request)
     if wb.lock(f"{pid}/{doc}").locked():
-        return error(409, "busy", "Une opération est en cours : arrêtez-la d'abord (Échap).")
+        return _busy()
     try:
         v = await asyncio.to_thread(wb.calc.view, pid, doc)
         kid = await wb.kernels().restart(wb.calc.rel_path(pid, doc), v["doc"]["language"])
@@ -536,14 +596,18 @@ async def doc_clear(request):
     return ok({"cleared": True})
 
 
+NAMES_WAIT = 3.0
+
+
 async def _names(wb: Workbench, live: bool, pid: str, doc: str, cid: str, lang_: str) -> list:
     """Defined names: asked to the running kernel (Madalean's helper, `live` = the device may execute), else read
     from the code above."""
     names = None
-    if live:
+    # S-AB: never wait for a busy kernel (the query would queue behind the running cell): static names instead
+    if live and not wb.lock(f"{pid}/{doc}").locked():
         try:
-            names = await wb.kernels().variables(wb.calc.rel_path(pid, doc), lang_)
-        except Exception:  # noqa: BLE001
+            names = await asyncio.wait_for(wb.kernels().variables(wb.calc.rel_path(pid, doc), lang_), NAMES_WAIT)
+        except Exception:  # noqa: BLE001 (timeout included)
             names = None
     if names is None:
         v = await asyncio.to_thread(wb.calc.view, pid, doc)
@@ -576,7 +640,9 @@ async def cell_ask(request):
 
 async def _do_ask(request, pid: str, doc: str, cid: str, prompt: str):
     """Natural language → Sage: the model writes the code of an « ask » cell from the request and the notebook's
-    current names (a compact summary, never full outputs); the code runs only once approved (or auto, host)."""
+    current names (a compact summary, never full outputs); the code runs only once approved (or auto, host).
+    S-AB: fast transcription (research/codegen.py), the code streams into the cell (`calcul.draft` events), and a
+    new request for the same cell replaces the one still running (« Réécrire » is always possible)."""
     wb, ctx = W(request), ctx_of(request)
     try:
         c = await asyncio.to_thread(wb.calc.cell_view, pid, doc, cid)
@@ -587,25 +653,51 @@ async def _do_ask(request, pid: str, doc: str, cid: str, prompt: str):
     prompt = (prompt or c.get("prompt", "")).strip()[:4000]
     if not prompt:
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields="prompt")
+    try:
+        return await wb.gens.run(f"{pid}/{doc}/{cid}", _ask_job(request, wb, ctx, pid, doc, c, prompt))
+    except codegen.Replaced:
+        return error(409, "replaced", "Une demande plus récente a remplacé celle-ci.")
+
+
+async def _ask_job(request, wb: Workbench, ctx, pid: str, doc: str, c: dict, prompt: str):
+    cid = c["id"]
     names = await _names(wb, _exec_allowed(request) is None, pid, doc, cid, c["language"])
     context = await asyncio.to_thread(wb.calc.context, pid, doc, cid)
-    msgs = ask_messages(language(), c["language"], prompt, names, context)
+    ctx.publish("calcul.draft", {"project_id": pid, "doc": doc, "cell_id": cid, "code": "", "state": "start"})
+
+    def on_code(part: str) -> None:
+        ctx.publish("calcul.draft", {"project_id": pid, "doc": doc, "cell_id": cid, "code": part[:20000],
+                                     "state": "writing"})
     try:
-        r = await complete_once(ctx, "assistant", msgs, ctx.settings.mode, owner=f"calcul-{pid}", max_tokens=3000,
-                                temperature=0.2)
+        r = await codegen.transcribe(ctx, language=c["language"], prompt=prompt, names=names, context=context,
+                                     owner=f"calcul-{pid}", lang=language(), on_code=on_code,
+                                     use_cache=not c["code"].strip(), recipes=wb.recipes)
+    except asyncio.CancelledError:
+        raise
     except Exception as e:  # noqa: BLE001
+        ctx.publish("calcul.draft", {"project_id": pid, "doc": doc, "cell_id": cid, "code": "", "state": "error"})
         return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
-    code = extract_code(r.text)
+    ctx.publish("calcul.draft", {"project_id": pid, "doc": doc, "cell_id": cid, "code": "", "state": "done"})
+    code, model = r["code"], r["model"]
     if not code:
         return error(502, "no_code", "Le modèle n'a pas proposé de code ; reformulez la demande.")
-    model = getattr(r.model, "key", "") or ""
     try:
+        for att in r.get("attempts") or []:        # versions corrected before showing: kept in the history
+            await asyncio.to_thread(wb.calc.edit, pid, cid, doc=doc, code=att["code"], by="assistant", model=model,
+                                    prompt=prompt)
         new = await asyncio.to_thread(wb.calc.edit, pid, cid, doc=doc, code=code, by="assistant", model=model,
                                       prompt=prompt)
+        await asyncio.to_thread(wb.calc.set_side, pid, doc, cid, uses=r.get("uses") or [])
+        new["uses"] = r.get("uses") or []
     except CalcError as e:
         return _calc_fail(e)
     _ev(ctx, pid, doc, cell=new)
-    return ok({"cell": new, "model": model, "approval_required": not ctx.settings.experiments_auto}, status=201)
+    log.info("calcul ask: %s in %.1f s (first code %.1f s%s%s)", model, r["seconds"], r["first_s"],
+             ", cached" if r["cached"] else "", ", repaired before showing" if r["fixed"] else "")
+    return ok({"cell": new, "model": model, "approval_required": not ctx.settings.experiments_auto,
+               "timing": {"seconds": r["seconds"], "first_s": r["first_s"], "cached": r["cached"]},
+               "checked": {"valid": r["valid"], "fixed": r["fixed"], "error": r["error"]},
+               "recipe": r.get("recipe") or "", "uses": r.get("uses") or []}, status=201)
 
 
 async def doc_assist(request):
@@ -867,7 +959,110 @@ async def calc_assist(request):
     return await doc_assist(request)
 
 
+# ================================================================ S-AB: code or request, explanations on demand
+async def doc_detect(request):
+    """{text} → {kind: code|ask, why}: what was typed in a new cell is code (run it) or a request (the model writes
+    the code). The UI shows the guess as a chip the user can switch in one click."""
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    text = str(data.get("text", ""))[:4000]
+    try:
+        v = await asyncio.to_thread(wb.calc.view, pid, doc)
+    except CalcError as e:
+        return _calc_fail(e)
+    known = {n for n, _t, _r in static_names([c["code"] for c in v["cells"] if c["type"] in ("code", "ask")])}
+    r = await asyncio.to_thread(codegen.detect, text, v["doc"]["language"], known)
+    return ok({"kind": r["kind"], "why": r["why"]})
+
+
+async def _explain(request, language: str, code: str, err: str, mode: str, owner: str):
+    from ...research import explain as ex
+    ctx = ctx_of(request)
+    try:
+        r = await ex.explain(ctx, language=language, code=code, error=err, mode=mode, lang=language_ui(),
+                             owner=owner)
+    except ex.ExplainError as e:
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields=str(e))
+    except Exception as e:  # noqa: BLE001
+        return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
+    return ok(r)
+
+
+async def code_explain(request):
+    """Generic (Calcul now, Lean proofs later): {language: sage|python|lean, code, error?, mode: error|lines}."""
+    data = await body(request)
+    return await _explain(request, str(data.get("language", "")), str(data.get("code", "")),
+                          str(data.get("error", "")), str(data.get("mode", "error")), "explain")
+
+
+def _cell_error(cell: dict) -> str:
+    return next((f"{o.get('ename', '')}: {o.get('evalue', '')}\n{(o.get('traceback') or '')[-2500:]}"
+                 for o in cell.get("outputs") or [] if o["type"] == "error"), "")
+
+
+async def cell_explain(request):
+    """{mode: error|lines} on a cell: « Expliquer l'erreur » (explanation + a proposed fix, never applied by
+    itself) or « Expliquer ligne par ligne »."""
+    wb = W(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    try:
+        c = await asyncio.to_thread(wb.calc.cell_view, pid, doc, request.match_info["cid"])
+    except CalcError as e:
+        return _calc_fail(e)
+    if c["type"] not in ("code", "ask"):
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="type")
+    mode = str(data.get("mode", "error"))
+    key = f"{pid}/{doc}/{c['id']}:explain:{mode}"
+    try:
+        return await wb.gens.run(key, _explain(request, c["language"], c["code"], _cell_error(c), mode,
+                                               f"calcul-{pid}"))
+    except codegen.Replaced:
+        return error(409, "replaced", "Une demande plus récente a remplacé celle-ci.")
+
+
+async def cell_suggestion(request):
+    """{code, model?}: the user applies a proposed fix. It is model code: it runs only once approved (unchanged
+    rule), like every code a model wrote."""
+    wb, ctx = W(request), ctx_of(request)
+    pid, doc = _project(request), _doc(request)
+    data = await body(request)
+    code = str(data.get("code", ""))
+    if not code.strip():
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="code")
+    try:
+        new = await asyncio.to_thread(wb.calc.edit, pid, request.match_info["cid"], doc=doc, code=code,
+                                      by="assistant", model=str(data.get("model", ""))[:200])
+    except CalcError as e:
+        return _calc_fail(e)
+    _ev(ctx, pid, doc, cell=new)
+    return ok({"cell": new, "approval_required": not ctx.settings.experiments_auto})
+
+
+async def recipes_list(request):
+    """S-AB: the learned recipes of this host (request, code, version), newest first."""
+    return ok({"recipes": [{k: r.get(k) for k in ("id", "request", "code", "language", "version", "uses", "t",
+                                                   "hits")} for r in await asyncio.to_thread(W(request).recipes.list)]})
+
+
+async def recipes_delete(request):
+    if not await asyncio.to_thread(W(request).recipes.delete, request.match_info["rid"]):
+        return error(404, "not_found")
+    return ok({"removed": request.match_info["rid"]})
+
+
+def _revalidate_recipes(wb: Workbench, version: str) -> None:
+    from ... import syntaxcards
+    res = wb.recipes.revalidate("sage", version, lambda r: syntaxcards.validate_sage(
+        r["code"], set(r.get("uses") or []), version)["ok"])
+    log.info("recipes re-checked for Sage %s: %s", version, res)
+
+
 def _register_calcul(a) -> None:
+    a.add_post("/api/code/explain", code_explain)
+    a.add_get("/api/calcul/recipes", recipes_list)
+    a.add_delete("/api/calcul/recipes/{rid}", recipes_delete)
     a.add_get("/api/calcul/assets/{aid}", calc_asset)
     a.add_get("/api/calcul/{pid}/docs", docs_list)
     a.add_post("/api/calcul/{pid}/docs", docs_create)
@@ -883,6 +1078,9 @@ def _register_calcul(a) -> None:
     a.add_post(d + "/shutdown", doc_shutdown)
     a.add_post(d + "/clear", doc_clear)
     a.add_post(d + "/assist", doc_assist)
+    a.add_post(d + "/detect", doc_detect)
+    a.add_post(d + "/cells/{cid}/explain", cell_explain)
+    a.add_post(d + "/cells/{cid}/suggestion", cell_suggestion)
     for base in (d, "/api/calcul/{pid}"):
         a.add_post(base + "/cells", cell_add)
         a.add_patch(base + "/cells/{cid}", cell_edit)
@@ -1073,13 +1271,31 @@ def demo_answer(first: str) -> str | None:
         return "```sage\n# twin primes below 200\n[p for p in primes(200) if is_prime(p + 2)]\n```"
     if "Write one code cell" in first:
         return "```sage\n# twin primes below 200\n[p for p in primes(200) if is_prime(p + 2)]\n```"
-    if "This cell failed" in first:
-        return "```sage\nprint(factor(2^32 + 1))\n```"
+    if "This cell failed" in first or "Cette cellule a échoué" in first:
+        return ("Le nom utilisé n'existe pas dans Sage : la fonction s'appelle « factor ».\n\n"
+                "```sage\nprint(factor(2^32 + 1))\n```")
+    if "ligne par ligne" in first or "line by line" in first:
+        nums = re.findall(r"^(\d+): (.*)$", first, re.M)
+        return "\n".join(f"{n}: Cette ligne calcule « {code.strip()[:40]} »." for n, code in nums if code.strip())
     if "Explain what this cell computes" in first:
         return ("The cell factors $2^{32}+1$, the fifth Fermat number $F_5$: $F_5 = 641 \\times 6700417$, so $F_5$ "
                 "is not prime (Euler, 1732). This computation proves that this one number is composite; it says "
                 "nothing about other Fermat numbers.")
     return None
+
+
+SYNTAX_START_DELAY = 90.0
+
+
+async def _syntax_cards_later(ctx) -> None:
+    """S-AB: a while after the start (never during it), build the syntax cards of the installed Sage / Lean+Mathlib
+    versions when they are missing or outdated (docs/CALCUL.md §3)."""
+    import os
+    if os.environ.get("MADALEAN_NO_SYNTAX_BUILD") == "1":      # the tests build their own cards
+        return
+    await asyncio.sleep(SYNTAX_START_DELAY)
+    from ... import syntaxcards
+    await syntaxcards.ensure_all(ctx)
 
 
 async def seed_demo(ctx, wbench: Workbench) -> None:
@@ -1120,6 +1336,18 @@ async def seed_demo(ctx, wbench: Workbench) -> None:
             {"output_type": "display_data", "metadata": {},
              "data": {"image/svg+xml": DEMO_SVG, "text/plain": "Graphics object consisting of 2 graphics primitives"}})),
         "host", c3["code_hash"], upstream=up)
+    roots = ("[(1, 1), (a^3 + 1, 1), (a^3 + a + 1, 1), (a^3 + a^2 + 1, 1), (a^3 + a^2 + a + 1, 1), "
+             "(a^2 + a, 1), (a^2 + a + 1, 1)]")
+    c4 = await asyncio.to_thread(st.add, pid, "F.<a> = GF(16)\nR.<x> = F[]\n(x^5 + x^3 + x + 1).roots()")
+    up = await asyncio.to_thread(st.upstream_of, pid, DEFAULT_DOC, c4["id"])
+    await asyncio.to_thread(st.record_run, pid, c4["id"], ExecResult(          # a long formula (phones: scrolls)
+        "ok", seconds=0.2, language="sage", sandbox="bwrap", execution_count=4, outputs=out(
+            {"output_type": "execute_result", "execution_count": 4, "metadata": {},
+             "data": {"text/plain": roots, "text/latex": "\\left[\\left(1, 1\\right), \\left(a^{3} + 1, 1\\right), "
+                      "\\left(a^{3} + a + 1, 1\\right), \\left(a^{3} + a^{2} + 1, 1\\right), "
+                      "\\left(a^{3} + a^{2} + a + 1, 1\\right), \\left(a^{2} + a, 1\\right), "
+                      "\\left(a^{2} + a + 1, 1\\right)\\right]"}})),
+        "host", c4["code_hash"], upstream=up)
     await asyncio.to_thread(st.add, pid, "[p for p in primes(200) if is_prime(p + 2)]", "", "assistant", kind="ask",
                             prompt="les nombres premiers jumeaux inférieurs à 200", model="fake:fake-assistant")
     await asyncio.to_thread(st.add, pid, "", kind="figure", figure={
@@ -1159,7 +1387,12 @@ def register(app: web.Application, ctx) -> None:
 
     async def reaper_start(_app):
         ctx.spawn(_reaper(ctx, app[WB]))
+        if not ctx.demo:
+            ctx.spawn(_syntax_cards_later(ctx))
     app.on_startup.append(reaper_start)
+    from ... import syntaxcards
+    syntaxcards.configure(ctx.paths.cache)
+    syntaxcards.ON_SAGE_BUILT.append(lambda v: _revalidate_recipes(app[WB], v))
     a.add_get("/api/library/catalog", library_catalog)
     a.add_get("/api/library/catalog/export", library_catalog_export)
     a.add_patch("/api/library/meta/{name}", library_meta_patch)

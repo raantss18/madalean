@@ -3,6 +3,20 @@
 import { i18n } from '../i18n/index.svelte';
 
 const FR: Record<string, string> = {
+  // S-AB: simpler cells, code or request, explanations, automatic corrections, learned recipes
+  kindOf: 'Type de la cellule {n}', formulaOf: 'Résultat de la cellule {n}', addHint: 'Nouvelle cellule (code ou demande en mots)', moreDoc: 'Plus d’actions sur le carnet',
+  autoPh: 'Du code Sage, ou une demande en mots (ex. : les racines de x^5+x^3+x+1 dans F_16)',
+  detectLabel: 'Ce que vous avez tapé', detectHint: 'Reconnu automatiquement : cliquez pour changer.',
+  explainError: 'Expliquer l’erreur', explainLines: 'Expliquer ligne par ligne', linesTitle: 'Explication ligne par ligne',
+  explaining: 'Explication en cours…', closeExplain: 'Fermer', applyFix: 'Appliquer la correction', noFix: 'Pas de correction proposée.',
+  fixHint: 'Correction proposée : relisez-la. Une fois appliquée, c’est du code du modèle, à approuver avant de l’exécuter.',
+  autofixed: 'Corrigé automatiquement après une erreur ({n}/{max}) : relisez la nouvelle version.',
+  autofixedRan: 'Corrigé automatiquement après une erreur et exécuté de nouveau ({n}/{max}).',
+  backVersion: 'Revenir à la version précédente', uses: 'Utilise {names} des cellules précédentes.',
+  recipes: 'Recettes apprises', recipe: 'recette apprise', recipeUsed: 'Code repris d’une recette apprise (sans appel au modèle).',
+  recipesLead: 'Les demandes dont le code a fonctionné sur cet ordinateur : une demande semblable est écrite aussitôt. Elles restent ici et sont revérifiées à chaque mise à jour de Sage.',
+  noRecipes: 'Aucune recette pour l’instant.', deleteRecipe: 'Supprimer la recette', figureEmptyOnly: 'Une figure ne peut remplacer qu’une cellule vide.',
+
   title: 'Calcul', lead: 'Un carnet Sage : des cellules qui s’enchaînent dans un même noyau. Le même fichier s’ouvre dans JupyterLab.',
   docs: 'Carnets', newDoc: 'Nouveau carnet', newDocTitle: 'Titre du carnet', create: 'Créer', rename: 'Renommer', language: 'Langage',
   openLab: 'Ouvrir dans JupyterLab', download: 'Télécharger (.ipynb)',
@@ -47,6 +61,19 @@ const FR: Record<string, string> = {
   sageFigure: 'Figure produite par Sage (cellule {n})', status: 'État',
 };
 const EN: Record<string, string> = {
+  kindOf: 'Type of cell {n}', formulaOf: 'Result of cell {n}', addHint: 'New cell (code or a request in words)', moreDoc: 'More notebook actions',
+  autoPh: 'Sage code, or a request in words (e.g. the roots of x^5+x^3+x+1 in F_16)',
+  detectLabel: 'What you typed', detectHint: 'Recognised automatically: click to change.',
+  explainError: 'Explain the error', explainLines: 'Explain line by line', linesTitle: 'Line-by-line explanation',
+  explaining: 'Explaining…', closeExplain: 'Close', applyFix: 'Apply the fix', noFix: 'No fix proposed.',
+  fixHint: 'Proposed fix: review it. Once applied it is model code, to approve before it runs.',
+  autofixed: 'Corrected automatically after an error ({n}/{max}): review the new version.',
+  autofixedRan: 'Corrected automatically after an error and run again ({n}/{max}).',
+  backVersion: 'Go back to the previous version', uses: 'Uses {names} from earlier cells.',
+  recipes: 'Learned recipes', recipe: 'learned recipe', recipeUsed: 'Code taken from a learned recipe (no model call).',
+  recipesLead: 'Requests whose code worked on this computer: a similar request is written at once. They stay here and are re-checked at every Sage update.',
+  noRecipes: 'No recipe yet.', deleteRecipe: 'Delete the recipe', figureEmptyOnly: 'A figure can only replace an empty cell.',
+
   title: 'Calcul', lead: 'A Sage notebook: cells that follow each other in one kernel. The same file opens in JupyterLab.',
   docs: 'Notebooks', newDoc: 'New notebook', newDocTitle: 'Notebook title', create: 'Create', rename: 'Rename', language: 'Language',
   openLab: 'Open in JupyterLab', download: 'Download (.ipynb)',

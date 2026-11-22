@@ -8,18 +8,25 @@ user-extensible syntax cannot be complete, so the gate is defence in depth and T
   no exfiltration and no request to Madalean's trusted local listener 127.0.0.1:11500), an empty root with only
   the system directories, the toolchain, the workspace (oleans) and the checked file mounted **read-only**, an
   empty `/tmp`, no home directory (config, keys, devices, sources, SSH keys… do not exist inside), `--die-with-parent`;
+- a private writable HOME (S-AC): `/tmp/home` on the sandbox's own tmpfs, with every XDG directory inside it, so a
+  tool that wants a cache or a config file never meets a read-only or missing home; without bubblewrap a private
+  0700 temporary directory of the server process (never the user's home);
 - environment rebuilt from an allow-list (no API key / token reaches Lean even without bubblewrap);
 - without bubblewrap the check still runs (Lean is the product), unsandboxed: `status()` says so and the health
   page shows it (docs/SECURITY.md, accepted risk R-3)."""
 from __future__ import annotations
 
+import atexit
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 ENV_ALLOW = ("PATH", "LANG", "LANGUAGE", "TZ", "LEAN_NUM_THREADS")
 SYSTEM_DIRS = ("/usr", "/bin", "/sbin", "/lib", "/lib64", "/lib32", "/etc", "/opt", "/nix/store")
 _BWRAP = {"path": None, "probed": False}
+SANDBOX_HOME = "/tmp/home"                  # inside bubblewrap: created by --dir on the sandbox's empty /tmp
+_PRIVATE: dict[str, str] = {}
 
 
 def bwrap() -> str | None:
@@ -54,11 +61,32 @@ def _links() -> list[str]:
     return out
 
 
+def private_home(kind: str) -> str:
+    """HOME of a sandboxed tool (`lean`, `tex`): /tmp/home inside bubblewrap (fresh and empty at every run), else
+    a private 0700 temporary directory of this server process, removed at exit."""
+    if bwrap():
+        return SANDBOX_HOME
+    d = _PRIVATE.get(kind, "")
+    if not d or not os.path.isdir(d):
+        d = tempfile.mkdtemp(prefix=f"madalean-{kind}-home-")
+        for sub in ("tmp", ".cache", ".config", ".local/share", ".local/state"):
+            os.makedirs(os.path.join(d, sub), mode=0o700, exist_ok=True)
+        _PRIVATE[kind] = d
+        atexit.register(shutil.rmtree, d, True)
+    return d
+
+
+def home_env(home: str) -> dict[str, str]:
+    j = os.path.join
+    return {"HOME": home, "TMPDIR": "/tmp" if home == SANDBOX_HOME else j(home, "tmp"),
+            "XDG_CACHE_HOME": j(home, ".cache"), "XDG_CONFIG_HOME": j(home, ".config"),
+            "XDG_DATA_HOME": j(home, ".local", "share"), "XDG_STATE_HOME": j(home, ".local", "state")}
+
+
 def lean_env(ws) -> dict[str, str]:
     e = {k: v for k, v in os.environ.items() if k in ENV_ALLOW or k.startswith("LC_")}
     e.update({k: v for k, v in ws.env().items() if k.startswith("LEAN") or k == "LD_LIBRARY_PATH"})
-    e["HOME"] = "/nonexistent"
-    e["TMPDIR"] = "/tmp"
+    e.update(home_env(private_home("lean")))
     return e
 
 
@@ -76,7 +104,7 @@ def confine(argv: list[str], ro: list[Path], rw: list[Path], chdir: Path) -> lis
     if not b:
         return argv
     out = [b, "--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL",
-           "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
+           "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", SANDBOX_HOME]
     out += _links()
     seen: set[str] = set()
     for d in SYSTEM_DIRS:
@@ -98,7 +126,7 @@ def wrap(ws, argv: list[str], files: list[Path]) -> list[str]:
     if not b:
         return argv
     out = [b, "--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL",
-           "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp"]
+           "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", SANDBOX_HOME]
     out += _links()
     seen: set[str] = set()
     for d in SYSTEM_DIRS:

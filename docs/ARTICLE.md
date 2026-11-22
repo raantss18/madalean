@@ -174,3 +174,28 @@ and suggestions survive the round trip.
 - S-P's Calcul « → article » (`workbench._to_article`) already uses `tp.ensure` / `tp.add_figure` and the view.
 - Templates are compiled by `install tex-bundle` (`texproject.warmup_documents`, called from
   `deps/installer.warmup_documents`), so a fresh install compiles every template offline.
+
+## 9. Around the editor: project panel, items, file tree (session S-AD)
+
+Web only, no new route: everything comes from `GET …/texproject` (files, order, figures, labels) and the existing
+project APIs (dossiers in the store, `/notes`, `/conjectures`, the project shelf's sources, Calcul notebooks
+`/calcul/{pid}/docs[/{doc}]`, `…/texproject/versions`). Code: `screens/research/article/ArticleSide.svelte`
+(tabs « Plan » / « Éléments »), `ArticleItems.svelte`, `ArticleFiles.svelte`, pure helpers `lib/article/items.ts`
+(unit-tested in `tests/unit/article-items.test.ts`).
+
+- **Éléments**: one group per kind — Preuves (dossiers), Calculs (notebooks; their cells on demand), Notes,
+  Conjectures, Sources, Figures, Historique (versions) — each with its own icon (`proof` ∀✓, `plot`, `cell`, `note`,
+  `conjecture`, `source`, `image`, `clock` in `Icon.svelte`), a text kind label and a colour token `--k-*`
+  (`styles/tokens.css`, light + dark). Filter box; groups folded/unfolded per device.
+- **Insertion** (« Insérer » at the cursor, or drag onto the text for items whose LaTeX is known in advance):
+  dossier → `\begin{theorem|lemma}[title]\label{ml:<id sans tirets>}` + `% mdl:lean <id>` + statement (the §1 truth
+  rule then typesets it « non vérifié » unless Lean verified it), or `\cref{ml:…}` when the article already has that
+  label; conjecture → `conjecture` environment; source → `\cite{key}`; figure → `figure` environment; Calcul cell
+  with a PNG output → `POST …/figures {calcul_asset}` then a `figure`; with a `text/latex` result → display maths.
+  Notes and versions only open (note screen / versions dialog). Insertions are the user's own edits (not
+  suggestions).
+- **Fichiers du projet LaTeX** (under the outline, shown or hidden, remembered): `article/` with `main.tex`,
+  `sections/` (document order, then files not included by `main.tex`, marked « non incluse »), `figures/`,
+  `refs.bib` (generated at build time → opens Sources), `madalean.toml` (→ Options avancées), `madalean.lock`
+  (→ Options › Paquets). A `.tex` opens in the editor, an image opens in a tab or is inserted. Read-only: the only
+  structural action is « Ajouter une section » (existing route); no rename/delete from the tree.

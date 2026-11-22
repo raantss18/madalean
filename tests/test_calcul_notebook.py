@@ -10,6 +10,7 @@ import base64
 import contextlib
 import io
 import json
+import re
 import shutil
 
 import pytest
@@ -149,7 +150,12 @@ def test_static_names_and_ask_messages():
     assert {"R", "p", "f", "G"} <= set(names) and names["f"] == "function"
     msgs = nbm.ask_messages("fr", "sage", "factorise p sur Z[i]", [["p", "Polynomial", "x^4 + 4"]], "In [1]: p = x^4+4")
     assert "français" not in msgs[1]["content"] and "- p : Polynomial = x^4 + 4" in msgs[1]["content"]
-    assert "factorise p sur Z[i]" in msgs[1]["content"] and "fig(" in msgs[1]["content"]
+    assert "factorise p sur Z[i]" in msgs[1]["content"] and "fig(" in msgs[0]["content"]
+    # S-AB: the system prompt is fixed for a tool version (cacheable): the card goes there, the signatures to the user
+    m2 = nbm.ask_messages("en", "sage", "x", [], "", card="SageMath 10.10 — CARD", sigs="- integral(x, *args)")
+    assert m2[0]["content"].endswith("SageMath 10.10 — CARD") and "integral(x, *args)" in m2[1]["content"]
+    assert nbm.ask_messages("fr", "sage", "a", [], "")[0] == nbm.ask_messages("en", "sage", "b", [], "c")[0]
+    assert len(nbm.ask_messages("fr", "sage", "a", [], "z" * 9000)[1]["content"]) < 3000
     assert len(nbm.outputs_text([{"output_type": "stream", "name": "stdout", "text": "y" * 5000}], 100)) < 200
 
 
@@ -434,3 +440,178 @@ async def test_real_kernel_shared_with_jupyterlab_session(tmp_path, language, mo
             assert r.status == 201, await r.text()
         run = (await (await s.post(D + f"/cells/{c2['id']}/run")).json())["run"]
         assert run["status"] == "unavailable" and "kernel_not_sandboxed" in run["error"]
+
+
+# ---------------------------------------------------------------- S-AB: fast transcription, « Réécrire », no busy
+def fast_responder(role, messages, brain):
+    first = next((m["content"] for m in messages if m.get("role") == "user"), "")
+    req = first.split("Request: ", 1)[-1].split("\n", 1)[0]
+    if "The cell you wrote failed" in first:
+        if "found before running" in first:                       # the validation loop (code did not compile)
+            assert "SyntaxError" in first
+            return "```python\nprint('repaired')\n```"
+        return {"text": "```python\nprint('auto')\n```", "delay": 1.5}
+    if req.startswith("slow"):
+        return {"text": "```python\n'slow'\n```", "delay": 3.0}
+    if req.startswith("broken"):
+        return "```python\nprint(\n```"
+    if req.startswith("fail"):
+        return "```python\nundefined_name\n```"
+    return "```python\n'" + req.replace("'", "") + "'\n```"
+
+
+async def test_rewrite_replaces_generation_autofix_never_blocks_and_fast_loop(tmp_path, monkeypatch):
+    fake = FakeKernels()
+    monkeypatch.setattr(wbm.Workbench, "kernels", lambda self: fake)
+    brain = FakeBrain(fast_responder)
+    ctx = make_ctx(tmp_path, brain=brain)
+    async with running(ctx) as (srv, L, _R), session() as s:
+        events = []
+        orig = ctx.bus.publish
+        ctx.bus.publish = lambda t, p=None: (events.append((t, p)), orig(t, p))[1]
+        pid = (await (await s.post(L + "/api/projects", json={"title": "P"})).json())["project"]["id"]
+        doc = (await (await s.post(L + f"/api/calcul/{pid}/docs", json={"title": "N", "language": "python"}))
+               .json())["doc"]["id"]
+        D = L + f"/api/calcul/{pid}/docs/{doc}"
+        add = lambda body: s.post(D + "/cells", json=body)                                         # noqa: E731
+        q = (await (await add({"type": "ask", "prompt": "slow"})).json())["cell"]
+        # « Réécrire » while the first generation is still running: the new one replaces it, never « busy »
+        first = asyncio.ensure_future(s.post(D + f"/cells/{q['id']}/ask", json={"prompt": "slow request"}))
+        await asyncio.sleep(0.4)
+        r = await s.post(D + f"/cells/{q['id']}/ask", json={"prompt": "quick one"})
+        j = await r.json()
+        assert r.status == 201 and j["cell"]["code"] == "'quick one'", j
+        r1 = await first
+        assert r1.status == 409 and (await r1.json())["error"] == "replaced"
+        await asyncio.sleep(3.2)                                  # the replaced generation never writes afterwards
+        cell = {c["id"]: c for c in (await (await s.get(D)).json())["cells"]}[q["id"]]
+        assert cell["code"] == "'quick one'" and cell["prompt"] == "quick one"
+        drafts = [p for t, p in events if t == "calcul.draft" and p["cell_id"] == q["id"]]
+        assert any(p["state"] == "writing" and p["code"] for p in drafts) and drafts[-1]["state"] == "done"
+        # the model's code is checked before it is shown: a syntax error goes back to the model once
+        q2 = (await (await add({"type": "ask", "prompt": "broken"})).json())["cell"]
+        j = await (await s.post(D + f"/cells/{q2['id']}/ask", json={})).json()
+        assert j["cell"]["code"] == "print('repaired')" and j["checked"] == {"valid": True, "fixed": True, "error": ""}
+        # identical first request on a new cell: answered from memory; « Réécrire » never is
+        n = len(brain.requests)
+        q3 = (await (await add({"type": "ask", "prompt": "quick one", "at": 0})).json())["cell"]   # same place
+        j = await (await s.post(D + f"/cells/{q3['id']}/ask", json={})).json()
+        assert j["timing"]["cached"] is True and len(brain.requests) == n and j["cell"]["code"] == "'quick one'"
+        j = await (await s.post(D + f"/cells/{q3['id']}/ask", json={})).json()
+        assert j["timing"]["cached"] is False and len(brain.requests) == n + 1
+        # a failed ask cell: the automatic fix runs AFTER the kernel lock is released — other cells may run
+        c1 = (await (await add({"source": "40 + 2"})).json())["cell"]
+        q4 = (await (await add({"type": "ask", "prompt": "fail"})).json())["cell"]
+        q4 = (await (await s.post(D + f"/cells/{q4['id']}/ask", json={})).json())["cell"]
+        await s.post(D + f"/cells/{q4['id']}/approve", json={"code_hash": q4["code_hash"]})
+        run4 = asyncio.ensure_future(s.post(D + f"/cells/{q4['id']}/run"))
+        await asyncio.sleep(0.5)                                  # the run failed; the fix is being written
+        r = await s.post(D + f"/cells/{c1['id']}/run")
+        assert r.status == 200 and "42" in (await r.json())["run"]["result"]
+        # « Réécrire » during the automatic fix: the fix is cancelled, the user's request wins
+        r = await s.post(D + f"/cells/{q4['id']}/ask", json={"prompt": "quick two"})
+        assert r.status == 201
+        j = await (await run4).json()
+        assert j["run"]["status"] == "error" and j["autofix"] is None
+        cell = {c["id"]: c for c in (await (await s.get(D)).json())["cells"]}[q4["id"]]
+        assert cell["code"] == "'quick two'"
+        # cells running: the notebook's own message, not the dossier one
+        wb = srv.app[wbm.WB]
+        async with wb.lock(f"{pid}/{doc}"):
+            r = await s.post(D + f"/cells/{c1['id']}/run")
+            assert r.status == 409 and (await r.json())["error"] == "calcul_busy"
+            # …but a request can still be written (names read from the code, not from the busy kernel)
+            r = await s.post(D + f"/cells/{q['id']}/ask", json={"prompt": "while busy"})
+            assert r.status == 201
+
+
+def fix_loop_responder(role, messages, brain):
+    first = next((m["content"] for m in messages if m.get("role") == "user"), "")
+    if "Cette cellule a échoué" in first:
+        return "Le nom « totl » n'existe pas : c'est « total ».\n\n```python\nprint(total)\n```"
+    if "ligne par ligne" in first:
+        return "1: On additionne.\n2: On affiche le total."
+    if "The cell you wrote failed" in first:
+        return "```python\nundefined_again\n```" if "undefined_once" in first else "```python\n6 * 7\n```"
+    req = first.split("Request: ", 1)[-1].split("\n", 1)[0]
+    if req.startswith("fail"):
+        return "```python\nundefined_once\n```"
+    return "```python\nsum([" + ", ".join(str(int(t)) for t in re.findall(r"\d+", req)) + "])\n```"
+
+
+async def test_auto_fix_policy_recipes_detect_explain_and_kinds(tmp_path, monkeypatch):
+    fake = FakeKernels()
+    monkeypatch.setattr(wbm.Workbench, "kernels", lambda self: fake)
+    brain = FakeBrain(fix_loop_responder)
+    ctx = make_ctx(tmp_path, brain=brain)
+    async with running(ctx) as (srv, L, _R), session() as s:
+        pid = (await (await s.post(L + "/api/projects", json={"title": "P"})).json())["project"]["id"]
+        doc = (await (await s.post(L + f"/api/calcul/{pid}/docs", json={"title": "N", "language": "python"}))
+               .json())["doc"]["id"]
+        D = L + f"/api/calcul/{pid}/docs/{doc}"
+        add = lambda body: s.post(D + "/cells", json=body)                                         # noqa: E731
+        # 1. approval required (default): a failed run → ONE corrected proposal, not run, to approve
+        q = (await (await add({"type": "ask", "prompt": "fail"})).json())["cell"]
+        q = (await (await s.post(D + f"/cells/{q['id']}/ask", json={})).json())["cell"]
+        await s.post(D + f"/cells/{q['id']}/approve", json={"code_hash": q["code_hash"]})
+        j = await (await s.post(D + f"/cells/{q['id']}/run")).json()
+        assert j["autofix"]["code"] == "undefined_again" and j["autofix"]["autofix"]["n"] == 1
+        assert "reran" not in j["autofix"] and j["autofix"]["approved"] is None
+        n_calls = len(fake.calls)
+        # 2. « experiments_auto » (model code runs without approval): fix → run again by itself, bounded
+        ctx.settings.experiments_auto = True
+        j = await (await s.post(D + f"/cells/{q['id']}/run")).json()
+        assert j["run"]["status"] == "ok" and "42" in j["run"]["result"]  # undefined_again failed, then fixed
+        cell = {c["id"]: c for c in (await (await s.get(D)).json())["cells"]}[q["id"]]
+        assert cell["code"] == "6 * 7" and cell["autofix"]["n"] == 2   # …corrected (2/3) and run again: 42
+        assert any(c == "6 * 7" for c in fake.calls[n_calls:])
+        assert [v["code"] for v in cell["versions"]][-3:] == ["undefined_once", "undefined_again", "6 * 7"]
+        ctx.settings.experiments_auto = False
+        # 3. a request whose code ran is learned; the same request with other numbers → instant code, no model
+        r1 = (await (await add({"type": "ask", "prompt": "somme de 3 et 4"})).json())["cell"]
+        r1 = (await (await s.post(D + f"/cells/{r1['id']}/ask", json={})).json())["cell"]
+        await s.post(D + f"/cells/{r1['id']}/approve", json={"code_hash": r1["code_hash"]})
+        assert (await (await s.post(D + f"/cells/{r1['id']}/run")).json())["run"]["status"] == "ok"
+        rec = (await (await s.get(L + "/api/calcul/recipes")).json())["recipes"]
+        assert len(rec) == 2 and {x["request"] for x in rec} == {"fail", "somme de 3 et 4"}
+        before = len(brain.requests)
+        r2 = (await (await add({"type": "ask", "prompt": "somme de 5 et 8"})).json())["cell"]
+        j = await (await s.post(D + f"/cells/{r2['id']}/ask", json={})).json()
+        assert j["recipe"] and j["model"] == "recipe" and j["cell"]["code"] == "sum([5, 8])"
+        assert len(brain.requests) == before and j["approval_required"]   # still model code: approval rule
+        rid = next(x["id"] for x in rec if x["request"] == "somme de 3 et 4")
+        assert (await s.delete(L + f"/api/calcul/recipes/{rid}")).status == 200
+        assert len((await (await s.get(L + "/api/calcul/recipes")).json())["recipes"]) == 1
+        # 4. code or request?
+        j = await (await s.post(D + "/detect", json={"text": "la somme des carrés de 1 à 10"})).json()
+        assert j["kind"] == "ask"
+        j = await (await s.post(D + "/detect", json={"text": "sum(k**2 for k in range(11))"})).json()
+        assert j["kind"] == "code"
+        # a typed request becomes a request cell (and back)
+        c = (await (await add({"source": "la somme de 1 et 2"})).json())["cell"]
+        c = (await (await s.patch(D + f"/cells/{c['id']}", json={"type": "ask"})).json())["cell"]
+        assert c["type"] == "ask" and c["prompt"] == "la somme de 1 et 2" and c["source"] == ""
+        c = (await (await s.patch(D + f"/cells/{c['id']}", json={"type": "code"})).json())["cell"]
+        assert c["type"] == "code"
+        # 5. « Expliquer l'erreur »: explanation + a proposed fix that is NOT applied; applying it = model code
+        e = (await (await add({"source": "total = 1\nprint(totl)"})).json())["cell"]
+        await s.post(D + f"/cells/{e['id']}/run")
+        j = await (await s.post(D + f"/cells/{e['id']}/explain", json={"mode": "error"})).json()
+        assert "totl" in j["explanation"] and j["fix"] == "print(total)" and j["fix_valid"]
+        cell = {c["id"]: c for c in (await (await s.get(D)).json())["cells"]}[e["id"]]
+        assert cell["code"] == "total = 1\nprint(totl)"                   # never applied by itself
+        j = await (await s.post(D + f"/cells/{e['id']}/suggestion", json={"code": j["fix"], "model": j["model"]})).json()
+        assert j["cell"]["origin"] == "assistant" and j["approval_required"]
+        r = await s.post(D + f"/cells/{e['id']}/run")
+        assert r.status == 403                                            # model code: approval first
+        # « Expliquer ligne par ligne » and the generic endpoint (Lean too, for the proofs screen)
+        j = await (await s.post(L + "/api/code/explain", json={
+            "language": "python", "code": "a = 1 + 2\n\nprint(a)", "mode": "lines"})).json()
+        assert [x["text"] for x in j["lines"]] == ["On additionne.", "", ""]   # blank line: nothing
+        j = await (await s.post(D + f"/cells/{e['id']}/explain", json={"mode": "lines"})).json()
+        assert [x["line"] for x in j["lines"]] == [1] and j["lines"][0]["text"] == "On additionne."
+        r = await s.post(L + "/api/code/explain", json={"language": "cobol", "code": "x", "mode": "lines"})
+        assert r.status == 400
+        r = await s.post(L + "/api/code/explain", json={"language": "lean", "code": "theorem t : 1 = 1 := rfl",
+                                                         "mode": "error"})
+        assert r.status == 400                                            # mode error needs an error

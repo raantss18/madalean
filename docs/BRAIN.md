@@ -473,3 +473,27 @@ with its evidence:
   /api/models/rankings/refresh`. Event `models.rankings` after a manual refresh.
 - Tests: tests/test_rankings.py (fake datasets-server; slugs, folding, news, router bonus, cadence, local mode, failure
   keeps data, API).
+
+## 15. Interactive transcription: latency first (session S-AB, DECISIONS D35)
+
+`with classify.task("transcribe"): brain.complete("assistant", msgs, …)` — used by the Calcul screen (request → one
+Sage cell, automatic corrections, « Expliquer »). Categories `code` + `math`, fast. Differences from a normal call:
+
+- **Ranking**: `router.latency_bonus` — the measured time to the first visible text of each model
+  (`States.latency`, `lat`/`lat_n` in `brain-state.json`, recorded for EVERY successful online call, moving average,
+  weight 0.3 after 3 samples): ≤ 1.5 s +0.20, ≥ 12 s −0.30, linear between. Not measured yet: thinking / Pro-class
+  names −0.10, flash / lite / mini / codestral +0.05, other reasoning models −0.05. Other roles keep their order.
+- **Chain**: 10 online models (`FAST_CHAIN`), local models last as before.
+- **Race** (`MadaleanBrain._race`): the first model starts; while no model has written visible text, the next one is
+  started every 2.5 s (`HEDGE_AFTER`, ≤ 3 at once, online only); a failure starts the next one immediately; the first
+  complete non-empty answer wins, the others are cancelled (a cancelled racer is not a failure). Only the first model
+  that writes is streamed; if it fails and another wins: `info restart`, then the winner's text.
+- **Thinking / timeouts**: Gemini `reasoning_effort: minimal` (a bare « invalid argument » 400 → `low`, then the
+  model's default), Claude effort `low` and no thinking; 20 s first byte and stall.
+- **Pool**: its own semaphore of 4 (`FAST_PARALLEL`), never the shared `max_parallel` pool held by long proof calls;
+  the caller (research/codegen.py) takes no job-scheduler slot.
+- Preferred model: `settings.prefer["calcul"]` (no UI), else the router.
+
+Measured 2026-11-22 (real keys, free models): before (role `assistant`) 5.5–6.1 s at best, 128 s when the first
+models failed (503, 404, a 120 s stall, 402); after 0.6–1.7 s to the first code, 3.9 s with a hedge, 6.7 s with
+two providers out (503 + 429).

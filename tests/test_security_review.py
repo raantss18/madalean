@@ -103,7 +103,10 @@ def test_lean_env_carries_no_secret(monkeypatch, tmp_path):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-xxx")
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_xxx")
     e = leansandbox.lean_env(_FakeWs(tmp_path))
-    assert "ANTHROPIC_API_KEY" not in e and "GITHUB_TOKEN" not in e and e["HOME"] == "/nonexistent"
+    assert "ANTHROPIC_API_KEY" not in e and "GITHUB_TOKEN" not in e
+    # S-AC: a private writable home (/tmp/home on the sandbox's tmpfs, or a 0700 temp dir), never the user's
+    home = Path.home()
+    assert e["HOME"] != str(home) and not e["HOME"].startswith(str(home) + "/")
 
 
 async def test_checker_refuses_the_poc_before_compiling(tmp_path):
@@ -348,3 +351,40 @@ async def test_experiment_kernel_cannot_reach_the_trusted_listener_or_the_networ
             assert "IFACES ['lo']" in r.stdout and "JUP False" in r.stdout and "RUN []" in r.stdout, r.stdout
         finally:
             await b.close()
+
+
+@pytest.mark.skipif(not (shutil.which("jupyter-lab") and shutil.which("bwrap")), reason="jupyter-lab / bwrap missing")
+async def test_experiment_kernel_home_is_private_writable_and_confined(tmp_path, monkeypatch):
+    """S-AC: the kernel's writable home (/tmp/h) is the experiments directory's `.home/shared`, nothing else of the
+    file system became writable, no secret reached the kernel, the hidden paths stay hidden."""
+    from madalean.research.sagebridge import SageBridge
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-must-not-leak")
+    monkeypatch.setenv("MADALEAN_FAKE_SECRET", "must-not-leak")
+    ctx = make_ctx(tmp_path)
+    secret_dir = ctx.paths.config
+    secret_dir.mkdir(parents=True, exist_ok=True)
+    (secret_dir / "keys.json").write_text("SECRET")
+    async with running(ctx):
+        b = SageBridge(ctx)
+        if not b.available().get("python"):
+            pytest.skip("no python3 kernelspec")
+        home = Path.home()
+        code = ("import os, pathlib\n"
+                "h = os.environ['HOME']\npathlib.Path(h, 'proof.txt').write_text('in-home')\n"
+                "def w(p):\n    try:\n        open(p, 'w').write('x'); return 'WROTE'\n"
+                "    except OSError as e:\n        return type(e).__name__\n"
+                f"print('HOME', h)\nprint('REALHOME', w({str(home / 'madalean-sac-probe.txt')!r}))\n"
+                f"print('CONFIG', os.path.exists({str(secret_dir / 'keys.json')!r}))\n"
+                "print('ETC', w('/etc/madalean-sac-probe'))\nprint('USR', w('/usr/madalean-sac-probe'))\n"
+                "print('LEAK', [k for k, v in os.environ.items() if 'leak' in v.lower()])\n"
+                "report('holds', cases=0)\n")
+        try:
+            r = await b.run("c", "python", code, timeout=60)
+        finally:
+            await b.close()
+        assert r.status == "ok", (r.status, r.error, r.stdout)
+        out = r.stdout
+        assert "HOME /tmp/h" in out and "REALHOME OSError" in out and "CONFIG False" in out, out
+        assert "ETC OSError" in out and "USR OSError" in out and "LEAK []" in out, out
+        assert (b.workroot / ".home" / "shared" / "proof.txt").read_text() == "in-home"
+        assert not (home / "madalean-sac-probe.txt").exists()

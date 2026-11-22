@@ -38,6 +38,14 @@ async def stream_chat(http: Http, *, base_url: str, model: str, messages: list[d
             if e.status in (400, 422) and "reasoning_effort" in body and ("reasoning" in low or "thinking" in low):
                 body.pop("reasoning_effort")           # this model refuses the effort (or this value): its default
                 continue
+            if e.status in (400, 422) and "reasoning_effort" in body and "invalid argument" in low:
+                # Gemini answers a bare « invalid argument » to a value one model does not take (« none » /
+                # « minimal » on some 3.x / 4 models, S-AB): one step up, then the model's default
+                if body["reasoning_effort"] in ("none", "minimal"):
+                    body["reasoning_effort"] = "low"
+                else:
+                    body.pop("reasoning_effort")
+                continue
             if e.status == 400 and "temperature" in low and "temperature" in body:
                 body.pop("temperature")
                 continue

@@ -575,6 +575,11 @@ def tex_confine(cmd: list[str], cwd: Path, env: dict) -> list[str]:
     paths. Every TeX run is therefore confined: the build directory writable, the prefix (tectonic bundle, fonts)
     and the TeX/font system trees read-only, the rest of the home directory absent, no network."""
     from . import leansandbox
+    # S-AC: a private writable home in both modes (font caches, TEXMFVAR, luaotfload's names…), never the user's
+    env.update(leansandbox.home_env(leansandbox.private_home("tex")))
+    j = os.path.join
+    env.update({"TEXMFVAR": j(env["HOME"], ".texlive", "texmf-var"),
+                "TEXMFCONFIG": j(env["HOME"], ".texlive", "texmf-config")})
     if not leansandbox.bwrap():
         return cmd
     home = Path.home()
@@ -586,7 +591,6 @@ def tex_confine(cmd: list[str], cwd: Path, env: dict) -> list[str]:
     rw = [cwd]
     if env.get("TECTONIC_CACHE_DIR"):
         rw.append(Path(env["TECTONIC_CACHE_DIR"]))     # formats may be (re)generated; TeX-only content
-    env["HOME"] = "/tmp"                               # empty tmpfs inside the sandbox (font caches, TEXMFVAR)
     return leansandbox.confine(cmd, ro, rw, cwd)
 
 

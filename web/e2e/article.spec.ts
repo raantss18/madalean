@@ -157,3 +157,158 @@ test('phone: visual mode only, one column, no horizontal scroll; dark theme', as
   await axe(page, 'article dark');
   await page.screenshot({ path: `${OUT}article-visual-dark.png` });
 });
+
+// ---------------------------------------------------------------- S-AD: panels, project items, file tree
+/** Like openArticle, but the preferences are written once per tab, so a reload shows what the page remembered. */
+async function openOnce(page: Page, pid: string, prefs: Record<string, unknown> = {}) {
+  await page.addInitScript(([p, pr]) => {
+    try {
+      if (sessionStorage.getItem('ae-init')) return;
+      sessionStorage.setItem('ae-init', '1');
+      localStorage.setItem('madalean.project', p as string); localStorage.setItem('madalean.article.prefs', JSON.stringify(pr));
+    } catch { /* */ }
+  }, [pid, prefs] as const);
+  await open(page, '/article', { mode: 'research' });
+  await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+}
+test('panels: project panel, preview, app navigation and focus mode collapse, with shortcuts, remembered per device', async ({ page }) => {
+  const pid = await project(/Recherche/);
+  await openOnce(page, pid, { preview: 'right', autoCompile: false });
+  const side = page.getByRole('button', { name: 'Panneau du projet', exact: true });
+  const prev = page.getByRole('button', { name: 'Aperçu PDF' });
+  const rail = page.getByRole('button', { name: 'Dossiers', exact: true });
+  // default at 1440: panel · text · preview; the app's navigation is hidden on the article (one click away)
+  await expect(side).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#ae-side')).toBeVisible();
+  await expect(prev).toHaveAttribute('aria-expanded', 'true');
+  await expect(rail).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#rail')).toBeHidden();
+  const w0 = await page.locator('.writing').evaluate((e) => e.getBoundingClientRect().width);
+  expect(w0).toBeGreaterThan(560);
+  // one click hides the panel; remembered after a reload
+  await side.click();
+  await expect(side).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#ae-side')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+  await expect(page.locator('#ae-side')).toHaveCount(0);
+  // keyboard: Ctrl+Shift+2 panel, Ctrl+Shift+3 preview, Ctrl+Shift+1 navigation
+  await page.keyboard.press('Control+Shift+Digit2');
+  await expect(page.locator('#ae-side')).toBeVisible();
+  await page.keyboard.press('Control+Shift+Digit3');
+  await expect(prev).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#ae-preview')).toHaveCount(0);
+  await page.keyboard.press('Control+Shift+Digit1');
+  await expect(page.locator('#rail')).toBeVisible();
+  await expect(rail).toHaveAttribute('aria-expanded', 'true');
+  await axe(page, 'article panels');
+  // focus mode: every panel hidden, the text column widens; leaving it restores them
+  await page.getByRole('button', { name: 'Concentration' }).click();
+  await expect(page.getByRole('button', { name: 'Concentration' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#ae-side')).toHaveCount(0);
+  await expect(page.locator('#rail')).toBeHidden();
+  const w1 = await page.locator('.cm-content').evaluate((e) => e.getBoundingClientRect().width);
+  expect(w1).toBeGreaterThan(700);
+  await page.keyboard.press('Control+Shift+KeyF');
+  await expect(page.locator('#ae-side')).toBeVisible();
+  await expect(page.locator('#rail')).toBeVisible();
+  // restore the defaults for the other tests (navigation hidden, preview on)
+  await rail.click();
+  await prev.click();
+  await expect(prev).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('panels on tablet and small laptop: drawers over the text, Escape closes and returns the focus', async ({ page }) => {
+  const pid = await project(/Recherche/);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await openOnce(page, pid, { preview: 'right', autoCompile: false });
+  // 1024 px with the preview: the panel is a drawer, closed until asked
+  const side = page.getByRole('button', { name: 'Panneau du projet', exact: true });
+  await expect(page.locator('#ae-side')).toHaveCount(0);
+  await expect(page.locator('#ae-preview')).toBeVisible();
+  await side.click();
+  await expect(page.locator('#ae-side.overlay')).toBeVisible();
+  await expect(page.getByRole('tab', { selected: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#ae-side')).toHaveCount(0);
+  await expect(side).toBeFocused();
+  // tablet: the PDF preview is a drawer too
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expect(page.locator('#ae-preview')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Aperçu PDF' }).click();
+  await expect(page.locator('#ae-preview.overlay')).toBeVisible();
+  await page.getByRole('button', { name: 'Fermer l’aperçu PDF' }).click();
+  await expect(page.locator('#ae-preview')).toHaveCount(0);
+  await side.click();
+  await expect(page.locator('#ae-side.overlay')).toBeVisible();
+  const [sw, w] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
+  expect(sw).toBeLessThanOrEqual(w!);
+  await axe(page, 'article tablet drawer');
+  // phone: a bottom sheet above the bottom bar
+  await page.setViewportSize({ width: 360, height: 780 });
+  await side.click();
+  await expect(page.locator('#ae-side.sheet')).toBeVisible();
+  const box = await page.locator('#ae-side').boundingBox();
+  const bar = await page.locator('.bottomnav').boundingBox();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y + 1);
+  await axe(page, 'article phone sheet');
+});
+
+test('project items beside the article: each kind with its icon and label, Calcul included, insertion at the cursor', async ({ page }) => {
+  const pid = await project(/Recherche/);
+  await api('POST', '/notes', { project_id: pid, title: 'Idée pour la section 2', body: 'Utiliser $n(n+1)$.', tags: [] });
+  await openOnce(page, pid, { preview: 'off' });
+  await page.getByRole('tab', { name: 'Éléments' }).click();
+  const panel = page.getByRole('tabpanel');
+  for (const g of ['Preuves (dossiers)', 'Calculs', 'Notes', 'Conjectures', 'Sources', 'Figures', 'Historique (versions)'])
+    await expect(panel.getByRole('button', { name: new RegExp(`^${g.replace(/[()]/g, '\\$&')}`) })).toBeVisible();
+  // icon + text label for every kind (never colour alone)
+  for (const [kind, label] of [['proof', 'Preuve'], ['calc', 'Calcul'], ['note', 'Note'], ['conj', 'Conjecture'], ['source', 'Source']] as const) {
+    const row = panel.locator(`.item[data-kind="${kind}"]`).first();
+    await expect(row).toBeVisible();
+    await expect(row.locator('.kicon svg')).toBeVisible();
+    await expect(row.locator('.kl')).toHaveText(label);
+  }
+  // a Calcul notebook lists its cells; a cell with a formula can be inserted
+  await panel.getByRole('button', { name: /^Cellules de / }).first().click();
+  await expect(panel.locator('.item[data-kind="cell"]').first()).toBeVisible();
+  await expect(panel.locator('.item[data-kind="cell"] .kl').first()).toHaveText('Cellule');
+  await axe(page, 'article items');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await axe(page, 'article items dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  // insert a source at the cursor → \cite{key} saved in the section
+  await page.locator('.cm-line', { hasText: 'La parité est' }).first().click();
+  await page.keyboard.press('End');
+  await panel.getByRole('button', { name: /^Insérer Source : A note on parity/ }).click();
+  await expect.poll(async () => file(pid, 'sections/01-introduction.tex'), { timeout: 15_000 }).toContain('\\cite{example2026parity}');
+  // the group choice is remembered
+  await panel.getByRole('button', { name: /^Notes/ }).click();
+  await expect(panel.getByRole('button', { name: /^Notes/ })).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Éléments' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel').getByRole('button', { name: /^Notes/ })).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('tab', { name: 'Plan' }).click();
+});
+
+test('file tree of the LaTeX project: shown or hidden (remembered), a file opens in the editor', async ({ page }) => {
+  const pid = await project(/Recherche/);
+  await openOnce(page, pid, { preview: 'off' });
+  const toggle = page.getByRole('button', { name: 'Fichiers du projet LaTeX' });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const tree = page.getByRole('list', { name: 'Arborescence des fichiers de l’article' });
+  for (const f of ['main.tex', 'refs.bib', 'madalean.toml']) await expect(tree.getByText(f, { exact: true })).toBeVisible();
+  await tree.getByRole('button', { name: /^main\.tex/ }).click();
+  await expect(tree.getByRole('button', { name: /^main\.tex/ })).toHaveAttribute('aria-current', 'true');
+  await tree.getByRole('button', { name: /^01-introduction\.tex/ }).click();
+  await expect(page.locator('.cm-editor')).toContainText('La parité est');
+  await axe(page, 'article file tree');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(tree).toBeHidden();
+  await page.reload();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Fichiers du projet LaTeX' })).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', { name: 'Fichiers du projet LaTeX' }).click();
+});

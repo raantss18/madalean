@@ -472,7 +472,7 @@ class NotebookStore:
                           "outputs": view_outputs(c.get("outputs") or [], self.assets, (pid, doc)),
                           "last": run, "stale": stale, "stale_reason": reason,
                           "fresh": bool(run and kernel and run.get("kernel") == kernel),
-                          "autofix": s.get("autofix")})
+                          "autofix": s.get("autofix"), "uses": s.get("uses") or []})
                 hashes.append(h)
             elif kind == "figure":
                 v["figure"] = m.get("figure")
@@ -586,15 +586,26 @@ class NotebookStore:
             s = side["cells"].setdefault(cid, {"origin": "assistant" if m.get("origin") == "assistant" else "user",
                                                "model": "", "approved": None, "note": "", "versions": [],
                                                "runs": []})
-            if kind is not None and kind != cur:          # M / Y in the UI: code <-> markdown
+            if kind is not None and kind != cur:          # M / Y in the UI: code <-> markdown; S-AB: <-> request
                 if kind == "markdown" and cur in ("code", "ask"):
                     c["cell_type"] = "markdown"
                     c.pop("outputs", None)
                     c.pop("execution_count", None)
                     m["kind"] = "markdown"
-                elif kind == "code" and cur == "markdown":
-                    c.update(cell_type="code", outputs=[], execution_count=None)
-                    m["kind"] = "code"
+                    m.pop("prompt", None)
+                elif kind == "code" and cur in ("markdown", "ask"):
+                    if cur == "markdown":
+                        c.update(cell_type="code", outputs=[], execution_count=None)
+                    m["kind"] = "code"                # code a model wrote stays « assistant » (approval unchanged)
+                    m.pop("prompt", None)
+                elif kind == "ask" and cur in ("code", "markdown"):
+                    # what was typed becomes the request (unless one is given); the code is written by the model
+                    text = _text(c.get("source"))
+                    c.update(cell_type="code", source="", outputs=c.get("outputs") if cur == "code" else [],
+                             execution_count=c.get("execution_count"))
+                    m["kind"] = "ask"
+                    m["prompt"] = (prompt if prompt is not None else text)[:4000]
+                    s["autofix"] = None
                 else:
                     raise CalcError("bad_kind")
                 cur = kind
@@ -689,6 +700,13 @@ class NotebookStore:
         with self.lock(pid, doc):
             side = self.side(pid, doc)
             side["cells"].setdefault(cid, {"origin": "assistant", "versions": [], "runs": []})["autofix"] = value
+            self.save_side(pid, doc, side)
+
+    def set_side(self, pid: str, doc: str, cid: str, **values) -> None:
+        """Host-only facts of a cell (S-AB: `uses` — names of earlier cells the model's code relies on)."""
+        with self.lock(pid, doc):
+            side = self.side(pid, doc)
+            side["cells"].setdefault(cid, {"origin": "assistant", "versions": [], "runs": []}).update(values)
             self.save_side(pid, doc, side)
 
     def set_engine(self, pid: str, doc: str, engine: dict) -> None:
@@ -998,35 +1016,43 @@ VARS_RE = re.compile(r"^MADALEAN_VARS (\[.*\])\s*$", re.M)
 
 
 # ================================================================ natural language → Sage
-ASK = {
-    "fr": "Tu écris du code {lang} pour un mathématicien, dans un carnet de calcul où les cellules précédentes ont "
-          "déjà été exécutées dans le MÊME noyau (leurs variables existent).",
-    "en": "You write {lang} code for a mathematician, in a computation notebook whose earlier cells already ran in "
-          "the SAME kernel (their variables exist).",
-}
+# S-AB (DECISIONS D35): the system prompt is FIXED for a language + tool version (rules + the verified syntax card,
+# madalean/syntaxcards.py) so providers can cache it; everything that changes (names, earlier cells, request,
+# signatures) is in the user message, kept short (≈ 1–2 k characters): the transcription must start in seconds.
+ASK_SYSTEM = (
+    "You translate a mathematician's request into ONE short {lang} code cell of a computation notebook (earlier "
+    "cells already ran in the SAME kernel: reuse their variables). Answer with ONLY one fenced code block "
+    "(```{tag}), no prose before or after.\n"
+    "Rules: deterministic; no network, no files outside the working directory, no infinite loops; the last line is "
+    "an expression whose value is the answer (it is displayed), or print it; plots: return the Graphics object "
+    "(plot(...), implicit_plot(...), parametric_plot(...), polar_plot(...), G.plot(...)); 3D: plot3d(...); an "
+    "interactive figure the user can edit: fig(expr_or_equation_or_graph, ...); a formula: tex(x).{card}")
 ASK_TASK = (
-    "Translate the request into ONE short {lang} code cell. Return ONLY one fenced code block (```{tag}).\n"
-    "Rules: reuse the existing variables listed below instead of recomputing them; deterministic; no network, no "
-    "files outside the working directory, no infinite loops; make the last line an expression whose value is the "
-    "answer (it is displayed), or print it; plots: return the Graphics object (plot(...), implicit_plot(...), "
-    "parametric_plot(...), polar_plot(...), G.plot(...)); 3D: plot3d(...); for an interactive figure the user can "
-    "edit, call fig(expr_or_equation_or_graph, ...); a formula: tex(x).\n\n"
-    "Defined names (name, type, value excerpt):\n{names}\n\nEarlier cells (most recent last):\n{context}\n\n"
-    "Request: {prompt}")
+    "Translate the request into ONE short {lang} code cell (```{tag} block only).\n"
+    "Defined names (name, type, value excerpt):\n{names}\n\nEarlier cells (most recent last):\n{context}\n"
+    "{sigs}{example}\nRequest: {prompt}")
 ASK_FIX = (
     "The cell you wrote failed. Return ONLY one fenced code block (```{tag}) with a corrected cell, same intent.\n\n"
-    "Request: {prompt}\n\nCell:\n```{tag}\n{code}\n```\n\nError:\n{error}\n\nDefined names:\n{names}")
+    "Request: {prompt}\n\nCell:\n```{tag}\n{code}\n```\n\nError:\n{error}\n\nDefined names:\n{names}\n{sigs}")
+ASK_CONTEXT = 2500
 
 
 def ask_messages(lang: str, language: str, prompt: str, names: list, context: str, *, fix: bool = False,
-                 code: str = "", error: str = "") -> list[dict]:
+                 code: str = "", error: str = "", card: str = "", sigs: str = "", example: str = "") -> list[dict]:
+    """`card`: the syntax card of the installed tool version (system prompt, cacheable); `sigs`: exact signatures
+    of the functions this request needs (installed Sage). `lang` (UI language) does not change the prompt: the
+    code is the same in French and English, and one system prompt per tool version caches better."""
     name = "SageMath" if language == "sage" else "Python 3"
     tag = "sage" if language == "sage" else "python"
     ns = "\n".join(f"- {n} : {t}" + (f" = {r}" if r else "") for n, t, r in (names or [])[:40]) or "- (none)"
-    body = (ASK_FIX if fix else ASK_TASK).format(lang=name, tag=tag, names=ns, context=context[-6000:] or "(none)",
-                                                 prompt=prompt[:4000], code=code[:20000], error=error[-3000:])
-    return [{"role": "system", "content": ASK.get(lang, ASK["en"]).format(lang=name)},
-            {"role": "user", "content": body}]
+    sg = f"\nExact signatures in the installed version:\n{sigs}\n" if sigs else ""
+    ex = (f"\nA recipe that already worked on this installation for a similar request (adapt it):\n{example}\n"
+          if example else "")
+    body = (ASK_FIX if fix else ASK_TASK).format(lang=name, tag=tag, names=ns,
+                                                 context=context[-ASK_CONTEXT:] or "(none)", prompt=prompt[:4000],
+                                                 code=code[:20000], error=error[-3000:], sigs=sg, example=ex)
+    system = ASK_SYSTEM.format(lang=name, tag=tag, card=f"\n\n{card}" if card else "")
+    return [{"role": "system", "content": system}, {"role": "user", "content": body}]
 
 
 # ================================================================ publication.json « computations » (for S-Q)

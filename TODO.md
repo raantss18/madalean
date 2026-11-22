@@ -25,7 +25,14 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 6. 🔄 Cellules plus simples (S-AB) : « Réécrire » sous le texte de la demande, « Approuver et exécuter » sous le code
    produit, un seul « + » en bas et une nouvelle cellule ajoutée après l'exécution ; la cellule reconnaît seule
    code ou demande (choix corrigeable d'un clic) ; Texte et Figure dans une petite liste
+6 bis. 🔄 Correction automatique du code qui échoue (quelques essais, versions gardées, retour arrière possible) et
+   **recettes apprises** : chaque demande dont le code a marché est retenue (code, version de Sage/Lean) et resservie
+   comme raccourci pour une demande semblable ; recettes revérifiées à chaque mise à jour, visibles et supprimables (S-AB)
+6 ter. 🔄 Résultat mathématique coupé à droite sur téléphone : retour à la ligne ou défilement dans la case (S-AB)
 7. 🔄 « Expliquer l'erreur » et « Expliquer ligne par ligne » à la demande sur les cellules Sage (S-AB)
+7 bis. 🔄 Éditeur d'article plus aéré (S-AD) : panneaux latéraux repliables (mode « pleine largeur »,
+   choix retenu), calculs Sage et autres éléments du projet dans la liste avec chacun son logo et son nom bien
+   distincts, arborescence des fichiers de l'article affichable au choix
 8. ⬜ Même chose pour Lean : « Expliquer l'erreur » (avec correction proposée) et « Expliquer ligne par ligne » sur un
    énoncé ou une preuve Lean, dans les dossiers et les notes (réutilise le service d'explication de l'étape 7)
 

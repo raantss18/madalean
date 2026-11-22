@@ -70,6 +70,40 @@ def register(ctx, loop=None) -> None:
                      ("Madalean", madalean_checker()), ("Système", system_checker())):
         updates.register_checker(name, _guard_local(name, fn))
     updates.register_checker("Catalogue", _guard_local("Catalogue", catalogue_checker(current)))
+    # S-AC: health self-test of the sandboxed tools (Sage, Python, Lean, LaTeX) after every update
+    from .selftest import auto_enabled, install, selftest_checker
+    st = install(ctx, loop)
+    updates.register_checker("Auto-test", selftest_checker(current))   # each pass: did a tool change? (local)
+    upd = getattr(ctx, "updates", None)
+    if st is not None and upd is not None and hasattr(upd, "on_applied") and auto_enabled(ctx):
+        orig = upd.on_applied
+
+        def on_applied(res: dict) -> None:
+            orig(res)
+
+            async def later():
+                import asyncio
+                await asyncio.sleep(30)                 # let workspaces / components settle first
+                await st.maybe_run("update")
+            try:
+                ctx.spawn(later())
+            except RuntimeError:
+                pass
+        upd.on_applied = on_applied
+    updates.register_checker("Syntaxe", syntax_checker())     # local: no network, also in « local » mode
+
+
+def syntax_checker():
+    """S-AB: each pass of the update checkers looks at the installed Sage and Lean/Mathlib versions and rebuilds the
+    verified syntax cards (madalean/syntaxcards.py) of a version that changed. Never a candidate to install."""
+    def check():
+        ctx, loop = current()
+        if ctx is not None:
+            from .. import syntaxcards
+            syntaxcards.schedule(ctx, loop)
+        return []
+    check.__name__ = "check_syntax_cards"
+    return check
 
 
 def add_library_candidate(ws, name: str, url: str, rev: str) -> updates.Candidate:

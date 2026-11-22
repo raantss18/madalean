@@ -1275,3 +1275,29 @@ EN.update({
     "code natif (native_decide)": "native code (native_decide)",
     "import d'un module non autorisé": "import of a module that is not allowed",
 })
+
+# S-AC: health self-test of the sandboxed tools (update_checkers/selftest.py)
+EN.update({
+    "L'auto-test est déjà en cours : patientez une minute.": "The self-test is already running: wait a minute.",
+    "Auto-test {part} : en cours…": "Self-test {part}: running…",
+    "Auto-test {part} : pas encore lancé (il se lance après chaque mise à jour).":
+        "Self-test {part}: not run yet (it runs after every update).",
+    "Auto-test {part} : non installé, rien à tester.": "Self-test {part}: not installed, nothing to test.",
+    "Auto-test {part} : {n} essais réussis dans le bac à sable ({s} s, le {when}).":
+        "Self-test {part}: {n} checks passed in the sandbox ({s} s, on {when}).",
+    "Auto-test {part} : {n} essai(s) en échec : {names}. « Réparer » réinitialise les caches des outils et relance "
+    "le test.": "Self-test {part}: {n} check(s) failed: {names}. “Repair” resets the tools' caches and runs the test "
+                "again.",
+    "Auto-test {part} : l'outil n'a pas démarré ({error}). « Réparer » réinitialise les caches des outils et relance "
+    "le test.": "Self-test {part}: the tool did not start ({error}). “Repair” resets the tools' caches and runs the "
+                "test again.",
+    "Auto-test après mise à jour : {names} ne fonctionne plus correctement. Voir Réglages › Système › État de santé.":
+        "Self-test after an update: {names} no longer works correctly. See Settings › System › Health.",
+})
+
+# S-AB: Calcul notebook (fast transcription, replaced requests, cells running)
+EN.update({
+    "Des cellules sont en cours d'exécution : attendez la fin ou interrompez-les.":
+        "Cells are running: wait for them to finish or interrupt them.",
+    "Une demande plus récente a remplacé celle-ci.": "A newer request replaced this one.",
+})

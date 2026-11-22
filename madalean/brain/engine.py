@@ -24,6 +24,7 @@ from . import spend
 from .router import Candidate, compose, rank, score_model
 from .settings import EFFORT, MAX_TOKENS, merged
 from .state import States
+from .classify import fast_task
 
 log = logging.getLogger("madalean.brain")
 LOST_TIME_LIMIT = 240.0          # seconds lost in failures before giving up on the remaining online models
@@ -43,6 +44,16 @@ def spend_id(m: Model) -> str:
 # Lean work, short enough to answer before the first-byte timeout
 GEMINI_EFFORT = {"prove": "medium", "formalize": "medium", "explain": "low", "assistant": "low", "understand": "low",
                  "route": "low"}
+# S-AB (DECISIONS D35), interactive transcription (classify.task("transcribe")): minimal thinking, short timeouts, a
+# staggered parallel start of the next model when the first one has not written anything yet, its own small pool of
+# simultaneous requests (never queued behind a dossier's long online calls)
+FAST_EFFORT = "minimal"
+FAST_FIRST_BYTE = 20.0
+FAST_STALL = 20.0
+HEDGE_AFTER = 2.5            # seconds without visible text before the next model is started too
+HEDGE_MAX = 3                # models running at once for one transcription
+FAST_PARALLEL = 4
+FAST_CHAIN = 10              # online models a transcription may try before the local fallback
 UNUSABLE_PAUSE = 120 * 86400.0          # ≈ 4 months
 _UNUSABLE = re.compile(r"only supports? (real-time|bidi|bidirectional)|bidiGenerateContent|live api|"
                        r"not supported for (generatecontent|chat|this (method|endpoint))|"
@@ -53,6 +64,18 @@ _UNUSABLE = re.compile(r"only supports? (real-time|bidi|bidirectional)|bidiGener
 def unusable_model(status: int, message: str) -> bool:
     """A 400/404 that says the MODEL cannot be used for text chat at all (not a bad parameter)."""
     return status in (400, 404) and bool(_UNUSABLE.search(message or ""))
+
+
+def _first_text(on_chunk: OnChunk | None, t0: float):
+    """Wrap `on_chunk` to note the time of the first visible text (the latency the router learns, S-AB)."""
+    first: list = [None]
+
+    def cb(ch):
+        if first[0] is None and ch.kind == "text" and ch.text:
+            first[0] = time.monotonic() - t0
+        if on_chunk is not None:
+            on_chunk(ch)
+    return cb, first
 
 
 class MadaleanBrain:
@@ -71,6 +94,7 @@ class MadaleanBrain:
         self._public_task: asyncio.Task | None = None
         self.ledger = spend.Ledger(self.config_dir / "brain-spend.json")
         self._sem: asyncio.Semaphore | None = None
+        self._fast_sem: asyncio.Semaphore | None = None
         self._refresh_task: asyncio.Task | None = None
         self.last_error: dict[str, str] = {}
         self._first_done = False
@@ -116,6 +140,10 @@ class MadaleanBrain:
         return mode if mode in ("auto", "online") else "auto"
 
     def sem(self) -> asyncio.Semaphore:
+        if fast_task():
+            if self._fast_sem is None:
+                self._fast_sem = asyncio.Semaphore(FAST_PARALLEL)
+            return self._fast_sem
         if self._sem is None:
             self._sem = asyncio.Semaphore(max(1, int(self.settings.get("max_parallel") or 3)))
         return self._sem
@@ -506,6 +534,9 @@ class MadaleanBrain:
         stall = float(self.settings.get("stall_local" if m.local else "stall_online") or 90)
         first = FIRST_BYTE_LOCAL if m.local else (FIRST_BYTE_REASONING if reasoning_model(m.model_id)
                                                    else FIRST_BYTE_ONLINE)
+        fast = fast_task() and not m.local
+        if fast:
+            stall, first = min(stall, FAST_STALL), FAST_FIRST_BYTE
         if m.provider == "local":
             if self.local is None:
                 raise ProviderError("unavailable", "no local runtime")
@@ -542,6 +573,8 @@ class MadaleanBrain:
                 system, amsgs = anthropic_api.split_system(messages or [])
             effort = (self.settings.get("anthropic_effort") or {}).get(role) or (extra or {}).get("effort") \
                 or EFFORT.get(role, "medium")
+            if fast:
+                effort = "low"
             mt = max_tokens or MAX_TOKENS.get(role, 16000)
             est = 0.0
             scope = spend.SPEND_SCOPE.get()
@@ -552,7 +585,7 @@ class MadaleanBrain:
                     res = await anthropic_api.stream_messages(
                         self.http, base_url=base, model=m.model_id, system=system, messages=amsgs, mode=mode, key=key,
                         max_tokens=mt, tools=tools, effort=effort,
-                        thinking=bool(self.settings.get("anthropic_thinking", True)),
+                        thinking=bool(self.settings.get("anthropic_thinking", True)) and not fast,
                         fallbacks=bool(self.settings.get("anthropic_fallbacks", True)), cache=True,
                         on_chunk=on_chunk, stall=stall, first_byte=first)
             except ProviderError as e:
@@ -570,7 +603,7 @@ class MadaleanBrain:
                      month=round(self.ledger.month_total(), 4))
             return res
         msgs = messages if history is None else convo.to_openai(history, bool(tools))
-        if m.provider == "huggingface":
+        if m.provider == "huggingface" and not fast:
             first = max(first, FIRST_BYTE_REASONING)     # a 32B prover thinks (and may queue) before its first token
         ex = {k: v for k, v in (extra or {}).items() if k not in ("effort",)}
         if not m.local:
@@ -578,7 +611,7 @@ class MadaleanBrain:
         if p.id == "gemini" and gemini_thinking(m.model_id):
             # documented OpenAI-compatible parameter (ai.google.dev/gemini-api/docs/openai): bounds the thinking that
             # happens before the first byte; refused values are dropped by stream_chat (HTTP 400 → retry without)
-            ex["reasoning_effort"] = (self.settings.get("gemini_effort") or {}).get(role) \
+            ex["reasoning_effort"] = FAST_EFFORT if fast else (self.settings.get("gemini_effort") or {}).get(role) \
                 or GEMINI_EFFORT.get(role, "medium")
         if m.local:
             async with _nullctx():
@@ -687,6 +720,9 @@ class MadaleanBrain:
                 if not pinned:
                     raise BrainError("no_model", f"{only} is not available ({mode} mode, paused, or no key)")
                 chain = pinned[:1]
+            elif fast_task():
+                # interactive transcription: a longer chain of online models (the race starts them as needed)
+                chain = compose(self._rank(role, mode, prefer, messages, False, None), FAST_CHAIN)
             else:
                 chain = self.ranking(role, mode, prefer=prefer, messages=messages)
             if mode == "online" and not chain:
@@ -697,6 +733,9 @@ class MadaleanBrain:
                 raise BrainError("offline", "online mode: the Internet is not reachable", [c.model.key for c in chain])
             if mode == "auto" and any(not c.model.local for c in chain) and any(c.model.local for c in chain):
                 await self.http.online(mode)       # cached probe (≤ 1.5 s once): offline → straight to the local models
+            if fast_task() and not only:
+                return await self._race(role, chain, mode=mode, messages=messages, temperature=temperature,
+                                        max_tokens=max_tokens, extra=extra, on_chunk=on_chunk)
             fallbacks: list[str] = []
             reasons: list[str] = []
             lost = 0.0
@@ -726,9 +765,10 @@ class MadaleanBrain:
                 else:                      # the caller knows which model is working even if the call never returns
                     emit(on_chunk, "info", "", event="model", model=m.key)
                 t0 = time.monotonic()
+                timed, first = _first_text(on_chunk, t0)
                 try:
                     res = await self._generate(m, role, mode=mode, messages=messages, temperature=temperature,
-                                               max_tokens=max_tokens, extra=extra, on_chunk=on_chunk)
+                                               max_tokens=max_tokens, extra=extra, on_chunk=timed)
                 except ProviderError as e:
                     lost += time.monotonic() - t0
                     why = await self._on_failure(m, e, mode)
@@ -750,11 +790,117 @@ class MadaleanBrain:
                     emit(on_chunk, "info", "", event="restart", model=m.key, reason="empty answer")
                     continue
                 self.states.record(m.key, True)
+                if not m.local:
+                    self.states.record_latency(m.key, first[0] if first[0] is not None else time.monotonic() - t0)
                 return Completion(res.text, ref_of(m), _api_finish(res.finish), res.tokens_in, res.tokens_out,
                                   time.monotonic() - t0, fallbacks)
             raise BrainError(_error_kind(reasons, mode), "no model could answer:\n" + "\n".join(fallbacks), fallbacks)
         finally:
             CALL_MODE.reset(token)
+
+    # ------------------------------------------------------------------ interactive transcription (S-AB)
+    async def _race(self, role: str, chain: list[Candidate], *, mode: str, messages: list[dict],
+                    temperature: float | None, max_tokens: int | None, extra: dict | None,
+                    on_chunk: OnChunk | None) -> Completion:
+        """Latency first (DECISIONS D35): the best model starts; while no model has written any visible text, the
+        next one is started every HEDGE_AFTER seconds (at most HEDGE_MAX at once, online models only); a failure
+        starts the next one at once. The first complete, non-empty answer wins and the others are cancelled. Only the
+        first model that writes text is streamed to `on_chunk` (`info` `model`); if it fails and another wins, an
+        `info` `restart` is sent, then the winner's whole text."""
+        queue = [c.model for c in chain]
+        running: dict[asyncio.Task, tuple[Model, float, list]] = {}
+        fallbacks: list[str] = []
+        reasons: list[str] = []
+        state = {"leader": None, "text": False}
+        t_start = time.monotonic()
+
+        def start() -> bool:
+            while queue:
+                m = queue[0]
+                if m.local and running:
+                    return False                   # the local fallback only when every online model is out
+                queue.pop(0)
+                if not m.local and self.http.known_offline():
+                    fallbacks.append(f"{m.key}: skipped (offline)")
+                    continue
+                if not m.local and self.down.get(m.provider, 0) > time.monotonic():
+                    fallbacks.append(f"{m.key}: skipped (provider unreachable)")
+                    continue
+                t0 = time.monotonic()
+                first: list = [None]
+
+                def cb(ch, m=m, first=first, t0=t0):
+                    if ch.kind != "text" or not ch.text:
+                        return                       # thinking of the racers is not shown
+                    if first[0] is None:
+                        first[0] = time.monotonic() - t0
+                        state["text"] = True
+                    if state["leader"] is None:
+                        state["leader"] = m.key
+                        emit(on_chunk, "info", "", event="model", model=m.key)
+                    if state["leader"] == m.key and on_chunk is not None:
+                        on_chunk(ch)
+                task = asyncio.ensure_future(self._generate(
+                    m, role, mode=mode, messages=messages, temperature=temperature, max_tokens=max_tokens,
+                    extra=extra, on_chunk=cb))
+                running[task] = (m, t0, first)
+                return True
+            return False
+
+        async def stop_all() -> None:
+            for t in running:
+                t.cancel()
+            if running:
+                await asyncio.gather(*running, return_exceptions=True)
+            running.clear()
+
+        try:
+            start()
+            while running:
+                can_hedge = (not state["text"] and len(running) < HEDGE_MAX and queue and not queue[0].local)
+                done, _ = await asyncio.wait(set(running), timeout=HEDGE_AFTER if can_hedge else None,
+                                             return_when=asyncio.FIRST_COMPLETED)
+                if not done:
+                    start()
+                    continue
+                for t in done:
+                    m, t0, first = running.pop(t)
+                    why = ""
+                    try:
+                        res = t.result()
+                    except ProviderError as e:
+                        why = await self._on_failure(m, e, mode)
+                        res = None
+                    if res is not None:
+                        if res.finish == "refusal" and not res.text.strip():
+                            why = "refused"
+                        elif res.finish != "loop" and not leancheck.clean_model_text(res.text):
+                            self.states.record(m.key, False, 0, "empty answer")
+                            why = "empty answer"
+                    if why:
+                        fallbacks.append(f"{m.key}: {why}")
+                        reasons.append(why)
+                        if state["leader"] == m.key:
+                            state["leader"] = None
+                            emit(on_chunk, "info", "", event="restart", model=m.key, reason=why)
+                        continue
+                    await stop_all()
+                    self.states.record(m.key, True)
+                    if not m.local:
+                        self.states.record_latency(m.key, first[0] if first[0] is not None else time.monotonic() - t0)
+                    if state["leader"] != m.key:
+                        if state["leader"] is not None:
+                            emit(on_chunk, "info", "", event="restart", model=state["leader"], reason="slower")
+                        emit(on_chunk, "info", "", event="model", model=m.key)
+                        emit(on_chunk, "text", res.text)
+                    return Completion(res.text, ref_of(m), _api_finish(res.finish), res.tokens_in, res.tokens_out,
+                                      time.monotonic() - t_start, fallbacks)
+                if len(running) < HEDGE_MAX:
+                    start()
+            raise BrainError(_error_kind(reasons, mode), "no model could answer:\n" + "\n".join(fallbacks),
+                             fallbacks)
+        finally:
+            await stop_all()
 
     # ------------------------------------------------------------------ agent
     async def run_agent(self, role: Role, system: str, task: str, tools: list[ToolSpec], *, mode: Mode = "auto",

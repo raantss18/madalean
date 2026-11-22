@@ -61,11 +61,23 @@ async def running(s) -> int:
     return len(data.get("active") or [])
 
 
+REUSE = False
+
+
 async def submitter(s, stop) -> None:
     ids: list[str] = []
     while not stop.is_set():
         try:
-            if await running(s) < 6:
+            if REUSE and len(ids) >= 6:
+                if await running(s) < 6:
+                    for did in ids:
+                        async with s.post(f"{BASE}/api/dossiers/{did}/run", headers=HDRS,
+                                          json={"plan": ["notes", "proof", "explanation"]}) as r:
+                            if r.status == 202:
+                                STATS["jobs"] += 1
+                            elif r.status != 409:
+                                err(f"run {r.status} {(await r.text())[:120]}")
+            elif await running(s) < 6:
                 async with s.post(f"{BASE}/api/dossiers", headers=HDRS,
                                   json={"problem": random.choice(PROBLEMS)}) as r:
                     if r.status == 201:
@@ -151,8 +163,11 @@ def slope(xs, ys) -> float:
 async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--minutes", type=float, default=120)
+    ap.add_argument("--reuse", action="store_true", help="6 dossiers re-run forever (no new dossier)")
     ap.add_argument("--out", default=str(ROOT / "bench" / "soak_v2.json"))
     a = ap.parse_args()
+    global REUSE
+    REUSE = a.reuse
     tmp = Path(tempfile.mkdtemp(prefix="madalean-soak-"))
     env = {**os.environ, "MADALEAN_CONFIG_DIR": str(tmp / "config"), "MADALEAN_CACHE_DIR": str(tmp / "cache"),
            "MADALEAN_DATA_DIR": str(tmp / "data")}

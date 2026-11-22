@@ -157,13 +157,17 @@ A boundary is crossed in four places, and each place must hold:
     `bwrap --unshare-all --die-with-parent --cap-drop ALL`:
     - system directories, the toolchain, the workspace and the checked file are mounted read-only;
     - `/tmp` is an empty tmpfs, the home directory is absent and there is no network;
+    - `HOME` (and every XDG directory) is `/tmp/home`, created empty on that tmpfs at each run (S-AC): writable,
+      private, gone at exit; without bubblewrap a 0700 temporary directory of the server process, never `~`;
     - the environment is rebuilt from an allow-list (no API keys).
 - **TeX (F5).**
   - `sanitize_math` refuses `^^` and `\csname`, and BibTeX URLs are percent-encoded.
   - Every engine run (tectonic `--untrusted --only-cached`, or the xelatex/lualatex fallback with
     `-no-shell-escape`, `openin_any=p` and `openout_any=p`) is confined: the build directory is writable, the prefix
     and the TeX/font trees are read-only, the rest of the home directory is absent and there is no network.
-  - The environment is reduced to an allow-list.
+  - The environment is reduced to an allow-list. `HOME`, the XDG directories, `TEXMFVAR` and `TEXMFCONFIG` point to
+    a private home (S-AC): `/tmp/home` on the sandbox's empty tmpfs, or a 0700 temporary directory without
+    bubblewrap — never the user's home.
 - **Experiments (F6).**
   - Code runs only after approval of the exact code by hash (an edit resets the approval), or with the host-only
     `experiments_auto`. Paired devices are allowed only when `experiments_remote` is on.
@@ -174,7 +178,27 @@ A boundary is crossed in four places, and each place must hold:
     - `/run`, `/tmp` and `/dev/shm` are empty;
     - **own network namespace**. The launcher moves the kernel's ZMQ sockets to IPC in the experiment directory and
       relays JupyterLab's TCP ports to them from outside the namespace.
+    - **private home (S-AC)**: `HOME=/tmp/h`, a bind of `<experiments>/.home/<key>` (`p-<project>` for a Calcul
+      notebook, `shared` otherwise; 0700), with every XDG / Sage / Maxima / IPython / matplotlib / numba / cython /
+      pip directory and `TMPDIR` inside it. It is inside the experiments directory, so the writable surface is
+      unchanged (still only that directory); it never contains the user's files and is not the user's home. Short
+      on purpose (Sage's GAP probe breaks on a home longer than ~70 characters; tested). Before S-AC, `HOME` was a
+      non-existent read-only path and every library that writes a cache failed (Maxima: « Read-only file
+      system: '/nonexistent' »).
+    - the kernel's unix sockets are addressed relative to the experiments directory (a long path exceeded the
+      107-byte `sun_path` limit and the kernel died at start).
   - rlimits: address space, file size and core. Wall-clock timeout and output cap.
+  - Without bubblewrap (R-3) the same environment and home apply: the real `.home/<key>` directory, reached through a
+    short symlink in a private 0700 directory `/tmp/madalean-<uid>/` when its path is too long for GAP. The launcher stays
+    the kernel's parent and kills what the kernel left in its process group when it exits (Sage's pexpect
+    interfaces fork a helper that could deadlock and outlive the kernel; bubblewrap's pid namespace did this before).
+  - Errors caused by the sandbox (no network, read-only file system, memory / file-size limits, a missing Python
+    module) end with one French sentence « Madalean : … » (IPython startup file written by the launcher), not a raw
+    cascade.
+  - Tests: `tests/test_security_review.py::test_experiment_kernel_home_is_private_writable_and_confined` (real
+    kernel: `/tmp/h` maps to `.home/shared`; `~`, `/etc`, `/usr` not writable; config hidden; no secret in the
+    environment), `tests/test_sage_smoke.py` (environment, bind list, Lean/TeX homes and their sandboxes, the
+    real-kernel items), and the health self-test after each update (docs/CALCUL.md §10).
 - **Agent.**
   - Tools are `lean_check` (gate + sandbox), read-only searches, and the optional `lean_search_online`, which sends
     the query text to LeanSearch/Loogle.

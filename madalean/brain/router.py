@@ -8,12 +8,32 @@ import re
 from dataclasses import dataclass
 
 from .catalogue import Catalogue, Model, lean_bonus, unfit_reason
-from .classify import role_categories
+from .classify import fast_task, role_categories
+from .guards import reasoning_model
 from .leaderboard import ROLE_TASK, Leaderboard
 from .state import States
 
 _FAST = re.compile(r"flash|mini|small|fast|lite|haiku|nano|turbo|instant|-8b|-9b|7b|3b", re.I)
 _SLOW = re.compile(r"opus|fable|-r1|thinking|reasoner|405b|397b|550b|ultra", re.I)
+_PRO = re.compile(r"(^|[-/ ])pro($|[-/ ])|argon|carbon|neon", re.I)
+# S-AB, interactive transcription: measured time to first visible text decides much of the order (≤ 1.5 s → +0.20,
+# ≥ 12 s → −0.30, linear between); unknown latency → name heuristics (thinking / Pro-class models −0.10)
+LAT_GOOD, LAT_BAD, LAT_PLUS, LAT_MINUS = 1.5, 12.0, 0.20, 0.30
+
+
+def latency_bonus(latency: float | None, m: Model) -> tuple[float, str]:
+    if latency is not None:
+        x = min(max((latency - LAT_GOOD) / (LAT_BAD - LAT_GOOD), 0.0), 1.0)
+        b = LAT_PLUS - (LAT_PLUS + LAT_MINUS) * x
+        return b, f"measured {latency:.1f} s to first text {b:+.2f}"
+    name = f"{m.model_id} {m.name}"
+    if _SLOW.search(name) or _PRO.search(m.model_id):
+        return -0.10, "thinks before answering (not measured yet) -0.10"
+    if _FAST.search(name) or "codestral" in name.lower():
+        return 0.05, "fast model (not measured yet) +0.05"
+    if reasoning_model(m.model_id):
+        return -0.05, "may think before answering (not measured yet) -0.05"
+    return 0.0, ""
 
 
 FORMAL_ROLES = ("prove", "formalize", "route")
@@ -26,7 +46,8 @@ class Candidate:
     why: str
 
 
-def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_first: bool) -> tuple[float, str]:
+def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_first: bool,
+                transcribe: bool = False) -> tuple[float, str]:
     q1, q2 = m.score(cat), m.score(cat2)
     q = 0.7 * q1 + 0.3 * q2
     rel = states.reliability(m.key)
@@ -40,7 +61,12 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
             parts.append(f"(+{b:.2f}: {why})")
     parts.append(f"{cat2} {q2:.2f}, reliability {rel:.2f}")
     name = f"{m.model_id} {m.name}"
-    if fast:
+    if fast and transcribe and not m.local:
+        b, bwhy = latency_bonus(states.latency(m.key), m)
+        if bwhy:
+            s += b
+            parts.append(bwhy)
+    elif fast:
         if _FAST.search(name):
             s += 0.05
             parts.append("fast model +0.05")
@@ -70,6 +96,7 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
     measured here, a small bonus for a new model (so the tournament's exploration tries it) and from the public
     LMArena percentile."""
     cat, cat2, fast = role_categories(role, messages)
+    transcribe = fast and fast_task() and role not in FORMAL_ROLES
     task = ROLE_TASK.get(role)
 
     def chosen(m: Model) -> bool:
@@ -88,7 +115,7 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             continue
         if m.provider == "huggingface" and not (chosen(m) and role in ("prove", "formalize")):
             continue                          # Goedel specialists (S-T): only pinned, with Goedel's own prompts
-        s, why = score_model(m, cat, cat2, fast, states, paid_first)
+        s, why = score_model(m, cat, cat2, fast, states, paid_first, transcribe)
         if role in FORMAL_ROLES and not chosen(m):
             unfit = unfit_reason(m)
             if unfit and role != "route":

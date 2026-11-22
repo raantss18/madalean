@@ -527,3 +527,28 @@ up (simulated by shrinking the viewport with the editor focused) at 360–700 px
 bottom bar once it goes. Unit tests for `keyboardOpen(…, wasOpen)` and `keyboardInset`. `SHOTS_DIR=… npx playwright
 test e2e/responsive.spec.ts` saves a screenshot of every case (checked by eye, not committed); `MADALEAN_E2E_STATIC`
 runs the e2e suite against a build made elsewhere (`npx vite build --outDir …`) without touching `madalean/static`.
+
+## 13. Collapsible panels around the article (session S-AD, 2026-11-22)
+
+The article editor is full-bleed and every panel around the text folds away:
+
+| Panel | Toggle | Shortcut | Remembered (per device) |
+|---|---|---|---|
+| App navigation rail (≥ 1024 px) | ☰ in the top bar (`aria-expanded`) — below 1024 px the same button opens the drawer | Ctrl+Maj+1 | `madalean.layout` (`lib/ui/layout.svelte.ts`): one choice for the app, one for the article (hidden by default there) |
+| Project panel (Plan · Éléments) | panel icon at the left of the article toolbar, « ‹ » in the panel | Ctrl+Maj+2 | `aprefs.side`, `sideTab`, `fileTree`, `closedGroups`, `openFolders` |
+| PDF preview | « Aperçu PDF » (`aria-expanded`) | Ctrl+Maj+3 | `aprefs.preview` |
+| Focus mode | « Concentration » (`aria-pressed`) | Ctrl+Maj+F | `aprefs.focus` — hides rail, panel and preview, text column 92 ch |
+
+Shortcuts use `KeyboardEvent.code`, so they are the same on AZERTY and QWERTY. Layout by window width (§12):
+≥ 1280 px panel (256/272 px) · text · preview (38 %); 1024–1279 px text · preview, the panel is a drawer over the
+text (beside the text when the preview is off); 768–1023 px panel and preview are drawers (left / right) opened on
+demand, scrim click or Escape closes them and the focus returns to the toggle; < 768 px the panel is a bottom sheet
+above the bottom bar (on `--kb-inset` with the keyboard up), PDF opens in a tab. Drawers and sheets are never
+remembered open. Toolbar labels become icons when the toolbar is narrower than 1200 px (container query, so also
+when the rail is shown), names kept for screen readers and tooltips. Default text column: ≈ 725 px at 1440, ≈ 600 px
+at 1366 and 1024 (rail hidden on the article by default).
+
+Verified with Playwright screenshots at 360, 768, 1024, 1366 and 1440 px, light and dark (no horizontal scroll), and
+`e2e/article.spec.ts` (collapse + shortcuts + reload, drawers at 1024/768, sheet at 360, item kinds with icon + label,
+Calcul cells, insertion, file tree toggle; axe on each state). Not verified: drag-and-drop of an item onto the text
+(only « Insérer » is tested), real touch devices.

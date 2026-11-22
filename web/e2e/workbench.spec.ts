@@ -90,16 +90,38 @@ test('calcul notebook: ordered cells, exact/approx, NL cell to review, keyboard,
   const pending = page.locator('li.cell.pending').first();
   await expect(pending.getByRole('button', { name: 'Approuver et exécuter' })).toBeVisible();
   await expect(pending.getByRole('button', { name: /^Exécuter/ })).toHaveCount(0);
-  // a natural-language cell: the model writes Sage code, to review
+  // S-AB: one « + » under the last cell; the new cell recognises a request in words (chip « Code / Demande »)
   const before = await page.locator('li.cell').count();
-  await page.getByRole('group', { name: 'Ajouter une cellule' }).getByRole('button', { name: 'Demander' }).click();
+  await expect(page.getByRole('button', { name: 'Ajouter une cellule' })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Ajouter une cellule' }).click();
   await expect(page.locator('li.cell')).toHaveCount(before + 1);
-  const ask = page.locator('li.cell.ask').last();
-  await ask.getByRole('textbox', { name: /Demande de la cellule/ }).fill('graphe de Petersen et son nombre chromatique');
+  let ask = page.locator('li.cell').last();
+  await ask.getByRole('textbox', { name: /Code de la cellule/ }).fill('graphe de Petersen et son nombre chromatique');
+  const chip = ask.getByRole('group', { name: 'Ce que vous avez tapé' });
+  await expect(chip.getByRole('button', { name: 'Demande' })).toHaveAttribute('aria-pressed', 'true');
+  await chip.getByRole('button', { name: 'Code' }).click();                 // a wrong guess is fixed in one click…
+  await expect(ask.getByRole('button', { name: /^Exécuter/ })).toBeVisible();
+  await chip.getByRole('button', { name: 'Demande' }).click();              // …and back
   await ask.getByRole('button', { name: 'Écrire le code' }).click();
+  ask = page.locator('li.cell.ask').last();
   await expect(ask.getByRole('textbox', { name: /Code de la cellule/ })).toHaveValue(/PetersenGraph/);
   await expect(ask).toHaveClass(/pending/);
+  // « Réécrire » right below the request, « Approuver et exécuter » right below the code; nothing else in the head
+  await expect(ask.getByRole('button', { name: 'Réécrire' })).toBeVisible();
+  await expect(ask.locator('.cell-head').getByRole('button')).toHaveCount(1);           // only « ⋯ »
+  const rw = ask.getByRole('button', { name: 'Réécrire' });
+  await rw.click();
+  await rw.click();                                                         // rewriting again at once: never « busy »
+  await expect(page.getByText(/travaille/)).toHaveCount(0);
+  await expect(ask.getByRole('textbox', { name: /Code de la cellule/ })).toHaveValue(/PetersenGraph/);
   await axe(page, 'calcul ask cell');
+  // « Expliquer ligne par ligne » from the cell menu
+  const firstCode = page.locator('li.cell.code').first();
+  await firstCode.getByRole('button', { name: /Plus d’actions/ }).click();
+  await page.getByRole('menuitem', { name: 'Expliquer ligne par ligne' }).click();
+  await expect(firstCode.getByRole('region', { name: 'Explication ligne par ligne' }).locator('li').first()).toContainText('Cette ligne calcule');
+  await axe(page, 'calcul line explanations');
+  await firstCode.getByRole('button', { name: 'Fermer' }).click();
   // keyboard: Esc (command mode), B inserts below, D D deletes
   await ask.getByRole('textbox', { name: /Code de la cellule/ }).press('Escape');
   await expect(ask).toBeFocused();
@@ -131,7 +153,8 @@ test('calcul notebook on a phone and in dark mode: single column, big run button
   const ps = (await api<{ projects: { id: string }[] }>('GET', '/projects')).projects;
   let pid = ps[0]!.id;
   for (const p of ps) if ((await api<{ cells: unknown[] }>('GET', `/calcul/${p.id}/docs/calcul`)).cells.length) { pid = p.id; break; }
-  for (const [w, h, scheme] of [[390, 844, 'light'], [1280, 900, 'dark']] as const) {
+  for (const [w, h, scheme] of [[360, 780, 'light'], [360, 780, 'dark'], [412, 915, 'light'], [768, 1024, 'light'], [768, 1024, 'dark'],
+    [1440, 900, 'light'], [1440, 900, 'dark']] as const) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme, locale: 'fr-FR' });
     const page = await ctx.newPage();
     await page.addInitScript((id) => { localStorage.setItem('madalean.project', id); }, pid);
@@ -145,7 +168,13 @@ test('calcul notebook on a phone and in dark mode: single column, big run button
       expect(box!.height).toBeGreaterThanOrEqual(44);
     }
     await axe(page, `calcul ${w}px ${scheme}`);
-    await page.screenshot({ path: `../docs/screenshots/v2/calcul-${w < 600 ? 'phone' : 'dark'}.png`, fullPage: w >= 600 });
+    // long formulas scroll inside their box, never clipped (S-AB: the LaTeX result cut on a phone)
+    const clipped = await page.evaluate(() => [...document.querySelectorAll('.output .tex')].filter((el) => {
+      const cs = getComputedStyle(el);
+      return el.scrollWidth > el.clientWidth + 1 && cs.overflowX !== 'auto' && cs.overflowX !== 'scroll';
+    }).length);
+    expect(clipped).toBe(0);
+    await page.screenshot({ path: `../docs/screenshots/v2/calcul-${w}-${scheme}.png`, fullPage: true });
     await ctx.close();
   }
 });

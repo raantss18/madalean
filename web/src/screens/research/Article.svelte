@@ -3,7 +3,7 @@
   // (rendered maths, theorem boxes, citations, figures; one click shows the raw source of the same text). Outline on
   // the left, PDF preview on the right on wide screens; advanced options in a drawer. AI help arrives only as
   // suggestions you accept or reject.
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, untrack, tick } from 'svelte';
   import { articleApi, type TexProject, type CompileResult, type Diagnostic, type AssistAction, type Suggestion as TexSug } from '../../lib/api/article';
   import { consigne, type Suggestion as QSug } from '../../lib/api/consigne';
   import { ApiError } from '../../lib/api/client';
@@ -25,6 +25,8 @@
   import SuggestionsReview from '../../components/SuggestionsReview.svelte';
   import ArticleOptions from './article/ArticleOptions.svelte';
   import ArticleDialogs from './article/ArticleDialogs.svelte';
+  import ArticleSide from './article/ArticleSide.svelte';
+  import { layout, isShortcut } from '../../lib/ui/layout.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -77,7 +79,7 @@
       if (ed) { ed.open(current, texts[current] ?? ''); pushSugs(); ed.refresh(); }
       if (r.last?.ok && r.last.pdf && !result) result = { ok: true, pdf: articleApi.pdfUrl(pid, r.last.pdf), hash: r.last.hash, seconds: r.last.seconds, engine: r.last.engine, cached: true, diagnostics: [], packages: null as never, states: r.states };
       headsTick++;
-      if (preview && !narrow && !result?.ok) void compile();
+      if (previewShown && !result?.ok) void compile();
     } catch (e) { err = errorText(e); }
   }
   async function loadQ() {
@@ -176,20 +178,90 @@
     ed?.setVisual(v);
   }
 
-  // phone: visual mode only, one column
+  // ---------------------------------------------------------------- panels (S-AD, docs/UI.md §13)
+  // Size classes follow docs/UI.md §12 (window width only): phone < 768 (visual mode only, one column, project panel
+  // as a bottom sheet), tablet 768–1023 (panel and PDF preview as drawers over the text, opened on demand),
+  // 1024–1279 (preview beside the text; the panel beside it too when the preview is off, else a drawer), ≥ 1280
+  // (panel · text · preview). Inline panels are remembered per device; drawers and sheets open on demand only.
+  let size = $state<'phone' | 'tablet' | 'mid' | 'wide'>('wide');
   $effect(() => {
-    const mq = matchMedia('(max-width: 760px)');
-    const f = () => { narrow = mq.matches; if (narrow && ed && !visual) { visual = true; ed.setVisual(true); } };
-    f(); mq.addEventListener('change', f);
-    return () => mq.removeEventListener('change', f);
+    const qs = [matchMedia('(max-width: 767px)'), matchMedia('(max-width: 1023px)'), matchMedia('(max-width: 1279px)')];
+    const f = () => {
+      size = qs[0]!.matches ? 'phone' : qs[1]!.matches ? 'tablet' : qs[2]!.matches ? 'mid' : 'wide';
+      narrow = size === 'phone';
+      if (narrow && ed && !visual) { visual = true; ed.setVisual(true); }
+      sideTemp = false; previewTemp = false;
+    };
+    f(); for (const q of qs) q.addEventListener('change', f);
+    return () => { for (const q of qs) q.removeEventListener('change', f); };
   });
+  let sideTemp = $state(false);            // drawer / sheet open
+  let previewTemp = $state(false);         // tablet: PDF drawer open
+  let sideBtn: HTMLButtonElement | undefined = $state();
+  let previewBtn: HTMLButtonElement | undefined = $state();
+  let barH = $state(56);
+  const focusMode = $derived(aprefs.focus && size !== 'phone');
+  const previewInline = $derived(!focusMode && preview && (size === 'mid' || size === 'wide'));
+  const previewOverlay = $derived(size === 'tablet' && previewTemp && !focusMode);
+  const previewShown = $derived(previewInline || previewOverlay);
+  const sideMode = $derived<'inline' | 'overlay' | 'sheet'>(size === 'phone' ? 'sheet' : size === 'tablet' || (size === 'mid' && previewInline) ? 'overlay' : 'inline');
+  const sideShown = $derived(!focusMode && (sideMode === 'inline' ? aprefs.side : sideTemp));
+  const cols = $derived([sideShown && sideMode === 'inline' ? 'var(--ae-side-w)' : '', 'minmax(0, 1fr)',
+    previewInline && aprefs.preview !== 'below' ? 'minmax(320px, var(--ae-preview-w))' : ''].filter(Boolean).join(' '));
+  // The app's navigation rail: the article keeps its own choice (hidden by default) and focus mode hides it.
+  layout.scope = 'article';
+  layout.focus = aprefs.focus;
+  onDestroy(() => { layout.scope = ''; layout.focus = false; });
+  $effect(() => { if (!layout.focus && aprefs.focus) setAPref('focus', false); });
+
+  function setFocus(v: boolean) {
+    setAPref('focus', v);
+    layout.focus = v;
+    if (v) { sideTemp = false; previewTemp = false; }
+    toast('info', v ? t('ae.focus.on') : t('ae.focus.off'));
+  }
+  async function toggleSide() {
+    const show = !sideShown;
+    if (show && aprefs.focus) { setAPref('focus', false); layout.focus = false; }
+    if (sideMode === 'inline') setAPref('side', show); else sideTemp = show;
+    if (show && sideMode !== 'inline') { await tick(); document.querySelector<HTMLElement>('#ae-side [role=tab][aria-selected=true]')?.focus(); }
+    if (!show) sideBtn?.focus();
+  }
+  function togglePreview() {
+    if (size === 'tablet') {
+      previewTemp = !previewTemp;
+      if (previewTemp && !result) void compile();
+      if (!previewTemp) previewBtn?.focus();
+      return;
+    }
+    const show = !previewInline;
+    if (show && aprefs.focus) { setAPref('focus', false); layout.focus = false; }
+    preview = show;
+    setAPref('preview', show ? (aprefs.preview === 'off' ? 'right' : aprefs.preview) : 'off');
+    if (show && !result) void compile();
+  }
+  function closeOverlays() {
+    if (sideTemp) { sideTemp = false; sideBtn?.focus(); }
+    if (previewTemp) { previewTemp = false; previewBtn?.focus(); }
+  }
+  function onKey(e: KeyboardEvent) {
+    if (isShortcut(e, 'Digit2')) { e.preventDefault(); void toggleSide(); }
+    else if (isShortcut(e, 'Digit3') && !narrow) { e.preventDefault(); togglePreview(); }
+    else if (isShortcut(e, 'KeyF') && !narrow) { e.preventDefault(); setFocus(!aprefs.focus); }
+    else if (e.key === 'Escape' && (sideTemp || previewTemp)) { e.preventDefault(); closeOverlays(); }
+  }
+  function insertSnippet(s: { text: string; cursor?: number }) {
+    if (!ed) return;
+    ed.insert(s.text, s.cursor);
+    ed.focus();
+  }
 
   // ---------------------------------------------------------------- saving
   function schedule() {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => { saveTimer = null; void saveAll(); }, aprefs.autosave);
   }
-  async function saveNow() { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } await saveAll(); if (preview) void compile(); }
+  async function saveNow() { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } await saveAll(); if (previewShown) void compile(); }
   async function saveAll() {
     const paths = Object.keys(dirty).filter((p) => dirty[p]);
     if (!paths.length || conflict) return;
@@ -213,7 +285,7 @@
       }
     }
     saveState = Object.values(dirty).some(Boolean) ? 'dirty' : 'saved';
-    if (preview && aprefs.autoCompile) scheduleCompile();
+    if (previewShown && aprefs.autoCompile) scheduleCompile();
   }
   function resolveConflict(keepMine: boolean) {
     if (!conflict) return;
@@ -236,7 +308,7 @@
     try {
       const r = await articleApi.compile(pid, opts);
       result = r;
-      if (r.ok) { pdfNonce++; if (!preview && !narrow && opts.fetch === undefined && !opts.force) toast('ok', t('ae.compiled', { s: r.seconds.toFixed(1) })); }
+      if (r.ok) { pdfNonce++; if (!previewShown && !narrow && opts.fetch === undefined && !opts.force) toast('ok', t('ae.compiled', { s: r.seconds.toFixed(1) })); }
       showDiagsInEditor();
       if (proj && r.states) proj.states = r.states;
       ed?.refresh();
@@ -252,7 +324,7 @@
   }
   async function forward() {
     if (!ed) return;
-    if (!preview) { preview = true; setAPref('preview', aprefs.preview === 'off' ? 'right' : aprefs.preview); }
+    if (!previewShown && !narrow) togglePreview();
     try {
       const r = (await articleApi.forward(pid, current, ed.selection().line)).result;
       if (r) target = { page: r.page, bbox: [r.x - 4, r.y - 4, r.x + r.w + 4, r.y + r.h + 4], nonce: Date.now() };
@@ -503,11 +575,16 @@
   const busyAssist = $derived(Object.keys(pending).length > 0);
 </script>
 
+<svelte:window onkeydown={onKey} />
 <ProjectGate>
   {#snippet children(_pid)}
-    <div class="ae" class:narrow class:with-preview={preview && !narrow} class:below={aprefs.preview === 'below'}
-      style:--ae-scale={aprefs.fontSize / 100} style:--ae-measure={WIDTHS[aprefs.width]}>
-      <header class="bar">
+    <div class="ae" class:narrow class:focus={focusMode} class:below={aprefs.preview === 'below'}
+      style:--ae-scale={aprefs.fontSize / 100} style:--ae-measure={focusMode ? WIDTHS.wide : WIDTHS[aprefs.width]} style:--ae-bar-h="{barH}px">
+      <header class="bar" bind:offsetHeight={barH}>
+        <button bind:this={sideBtn} class="btn small icon tgl" onclick={toggleSide} aria-expanded={sideShown} aria-controls={sideShown ? 'ae-side' : undefined}
+          aria-label={t('ae.side.toggle')} aria-keyshortcuts="Control+Shift+2" title={`${sideShown ? t('ae.side.hide') : t('ae.side.show')} (${t('layout.key', { k: '2' })})`}>
+          <Icon name="panelLeft" size={18} />
+        </button>
         <h1 class="atitle" title={proj?.settings.front.title}>{proj?.settings.front.title || t('ae.untitled')}</h1>
         <HelpLink page="articles" />
         <span class="status xs" class:warn={saveState === 'conflict' || saveState === 'error'} role="status" aria-live="polite">{statusText}</span>
@@ -520,11 +597,16 @@
         {/if}
         <Menu label={t('ae.insert')} icon="plus" text={narrow ? '' : t('ae.insert')} items={insertItems} />
         <button class="btn small" onclick={() => (showSugs = !showSugs)} aria-pressed={showSugs}>
-          <Icon name="sparkle" size={16} /><span class:sr-only={narrow}>{t('ae.suggestions')}</span>{#if pendingCount}<span class="count">{pendingCount}</span>{/if}
+          <Icon name="sparkle" size={16} /><span class="lbl" class:sr-only={narrow}>{t('ae.suggestions')}</span>{#if pendingCount}<span class="count">{pendingCount}</span>{/if}
         </button>
         {#if !narrow}
-          <button class="btn small" onclick={() => { preview = !preview; setAPref('preview', preview ? (aprefs.preview === 'off' ? 'right' : aprefs.preview) : 'off'); if (preview && !result) void compile(); }} aria-pressed={preview}>
-            <Icon name="eye" size={16} />{t('ae.preview')}
+          <button bind:this={previewBtn} class="btn small" onclick={togglePreview} aria-expanded={previewShown} aria-controls={previewShown ? 'ae-preview' : undefined}
+            aria-keyshortcuts="Control+Shift+3" title={`${t('ae.preview')} (${t('layout.key', { k: '3' })})`}>
+            <Icon name="panelRight" size={16} /><span class="lbl">{t('ae.preview')}</span>
+          </button>
+          <button class="btn small" class:on={focusMode} onclick={() => setFocus(!aprefs.focus)} aria-pressed={focusMode} aria-keyshortcuts="Control+Shift+F"
+            title={`${t('ae.focus.hint')} (${t('layout.key', { k: 'F' })})`}>
+            <Icon name="focus" size={16} /><span class="lbl">{t('ae.focus')}</span>
           </button>
         {/if}
         <button class="btn small primary" onclick={() => compile({ force: false })} disabled={compiling} aria-busy={compiling}>
@@ -542,34 +624,17 @@
       {/if}
       {#if err}<p class="error-text">{err}</p>{/if}
 
-      <div class="body">
-        {#if !narrow}
-          <nav class="outline" aria-label={t('ae.outline')}>
-            <ol>
-              <li><button class="node" class:cur={current === 'main.tex'} onclick={() => openFile('main.tex')}><Icon name="file" size={14} />{t('ae.front.node')}</button></li>
-              {#each outline as s, i (s.path)}
-                <li>
-                  <div class="row node-row">
-                    <button class="node" class:cur={current === s.path} onclick={() => openFile(s.path)} title={s.path}><span class="num">{i + 1}</span>{s.title}</button>
-                    <span class="tools">
-                      <button class="btn quiet icon tiny" onclick={() => moveSection(s.path, -1)} disabled={i === 0} aria-label={t('ae.section.up', { title: s.title })}><Icon name="chevronUp" size={14} /></button>
-                      <button class="btn quiet icon tiny" onclick={() => moveSection(s.path, 1)} disabled={i === outline.length - 1} aria-label={t('ae.section.down', { title: s.title })}><Icon name="chevronDown" size={14} /></button>
-                      <button class="btn quiet icon tiny" onclick={() => deleteSection(s.path)} aria-label={t('ae.section.delete', { title: s.title })}><Icon name="trash" size={14} /></button>
-                    </span>
-                  </div>
-                  {#if s.subs.length && current === s.path}
-                    <ol class="subs">{#each s.subs as h}<li><button class="sub" onclick={() => openFile(s.path, h.line)}>{h.title}</button></li>{/each}</ol>
-                  {/if}
-                </li>
-              {/each}
-            </ol>
-            <button class="btn small quiet add" onclick={() => (dialog = 'newSection')}><Icon name="plus" size={14} />{t('ae.section.add')}</button>
-            {#if proj}
-              <p class="xs muted meta">{tk(`ae.tpl.${proj.settings.document.template}`, proj.settings.document.class)} · {proj.settings.document.language === 'fr' ? 'Français' : 'English'}
-                <button class="linkish" onclick={() => openOptions('document')}>{t('ae.change')}</button></p>
-            {/if}
-          </nav>
-        {:else if proj}
+      <div class="body" style:grid-template-columns={cols}>
+        {#if sideShown && proj}
+          {#if sideMode !== 'inline'}<button class="scrim {sideMode}" tabindex="-1" aria-label={t('common.close')} onclick={closeOverlays}></button>{/if}
+          <aside id="ae-side" class="side {sideMode}" aria-label={t('ae.side.label')}>
+            <ArticleSide {pid} {proj} {outline} {current} {dirty} mode={sideMode} onclose={() => void toggleSide()}
+              onopen={(path, line) => openFile(path, line ?? 0)} onmove={moveSection} ondelete={deleteSection}
+              onnewsection={() => (dialog = 'newSection')} onoptions={(tab) => openOptions(tab)} oninsert={insertSnippet}
+              onversions={() => (dialog = 'versions')} />
+          </aside>
+        {/if}
+        {#if narrow && proj}
           <label class="sr-only" for="ae-file">{t('ae.outline')}</label>
           <select id="ae-file" class="input phone-nav" value={current} onchange={(e) => openFile((e.target as HTMLSelectElement).value)}>
             <option value="main.tex">{t('ae.front.node')}</option>
@@ -597,8 +662,12 @@
           {/if}
         </div>
 
-        {#if preview && !narrow}
-          <aside class="preview" aria-label={t('ae.preview')}>
+        {#if previewShown}
+          {#if previewOverlay}<button class="scrim overlay" tabindex="-1" aria-label={t('common.close')} onclick={closeOverlays}></button>{/if}
+          <aside id="ae-preview" class="preview" class:overlay={previewOverlay} aria-label={t('ae.preview')}>
+            {#if previewOverlay}
+              <div class="row ph"><span class="spacer"></span><button class="btn quiet icon small" onclick={closeOverlays} aria-label={t('ae.previewClose')}><Icon name="x" size={16} /></button></div>
+            {/if}
             {#if problems.length}
               <details class="diags" open={errors > 0}>
                 <summary>{errors ? t('ae.diag.errors', { n: errors }) : t('ae.diag.notes', { n: problems.length })}</summary>
@@ -671,33 +740,26 @@
 </ProjectGate>
 
 <style>
-  .ae { display: flex; flex-direction: column; min-height: calc(100dvh - var(--topbar-h) - 32px); margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-4)) 0; }
-  .bar { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: var(--topbar-h); z-index: 4; }
+  /* Full-bleed: the editor takes the whole main area (main's own padding is cancelled at each size). */
+  .ae { --ae-side-w: 256px; --ae-preview-w: 38%; display: flex; flex-direction: column; min-height: calc(100dvh - var(--topbar-h) - 32px); margin: calc(-1 * var(--s-5)) calc(-1 * var(--s-6)) 0; }
+  .bar { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: var(--topbar-h); z-index: 4; }
+  .tgl { flex: none; }
+  .btn.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .atitle { font: 700 var(--fs-md) var(--font-serif); margin: 0; max-width: 22ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .status { color: var(--text-3); }
   .status.warn { color: var(--failed); font-weight: 600; }
   .count { background: var(--accent); color: var(--on-ink); border-radius: 999px; font: 700 11px var(--font-ui); padding: 1px 6px; margin-left: 2px; }
   .banner { padding: var(--s-2) var(--s-4); background: var(--running-soft); color: var(--text); border-bottom: 1px solid var(--line); }
-  .body { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 0; }
-  .with-preview .body { grid-template-columns: 180px minmax(0, 1fr) minmax(320px, 40%); }
-  .with-preview.below .body { grid-template-columns: 200px minmax(0, 1fr); }
-  .with-preview.below .preview { grid-column: 1 / -1; }
-  .narrow .body { grid-template-columns: 1fr; }
-  .outline { border-right: 1px solid var(--line); padding: var(--s-3) var(--s-2); font-size: var(--fs-sm); overflow-y: auto; max-height: calc(100dvh - var(--topbar-h) - 90px); position: sticky; top: calc(var(--topbar-h) + 56px); }
-  .outline ol { list-style: none; margin: 0; padding: 0; }
-  .node { display: flex; gap: 6px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 6px 6px; border-radius: var(--r-1); cursor: pointer; font: inherit; min-height: 32px; }
-  .node:hover { background: var(--surface-2); }
-  .node.cur { background: var(--accent-soft); color: var(--text); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
-  .node .num { color: var(--text-3); font-variant-numeric: tabular-nums; min-width: 1.2em; }
-  .node-row { gap: 0; flex-wrap: nowrap; }
-  .node-row .tools { display: none; }
-  .node-row:hover .tools, .node-row:focus-within .tools { display: inline-flex; }
-  .tiny { width: 26px !important; min-height: 26px !important; }
-  .subs { padding-left: 1.6em !important; }
-  .sub { background: none; border: none; color: var(--text-2); font: var(--fs-xs) var(--font-ui); text-align: left; padding: 3px 4px; cursor: pointer; min-height: 24px; }
-  .sub:hover { color: var(--text); }
-  .add { margin-top: var(--s-2); }
-  .meta { margin-top: var(--s-4); padding: 0 6px; }
+  .body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .below .preview { grid-column: 1 / -1; position: static; max-height: none; border-left: 0; border-top: 1px solid var(--line); }
+  /* Project panel: a column (sticky under the toolbar), a drawer over the text, or a bottom sheet. */
+  .side { background: var(--surface); min-width: 0; display: flex; flex-direction: column; }
+  .side.inline { border-right: 1px solid var(--line); position: sticky; top: calc(var(--topbar-h) + var(--ae-bar-h)); align-self: start; height: calc(100dvh - var(--topbar-h) - var(--ae-bar-h)); }
+  .side.overlay { position: fixed; z-index: 600; left: 0; top: var(--topbar-h); bottom: 0; width: min(360px, 88vw); box-shadow: var(--shadow-2); border-right: 1px solid var(--line); padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom); }
+  .side.sheet { position: fixed; z-index: 770; left: max(0px, calc(50% - 280px)); right: max(0px, calc(50% - 280px)); bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); max-height: min(75dvh, 640px); height: 75dvh; border-radius: var(--r-3) var(--r-3) 0 0; box-shadow: var(--shadow-2); border: 1px solid var(--line); }
+  :global(html[data-kb='open']) .side.sheet { bottom: var(--kb-inset, 0px); max-height: calc(var(--kb-vh, 100dvh) - 16px); }
+  .scrim { position: fixed; inset: var(--topbar-h) 0 0 0; z-index: 590; background: rgba(10, 14, 24, 0.35); border: 0; padding: 0; }
+  .scrim.sheet { inset: 0; z-index: 760; background: rgba(10, 14, 24, 0.4); }
   .linkish { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0 2px; font: inherit; text-decoration: underline; min-height: 24px; }
   .writing { position: relative; min-width: 0; background: var(--bg); }
   .writing.ae-paper { background: var(--surface-2); }
@@ -705,7 +767,9 @@
   .pad { padding: var(--s-4); }
   .phone-nav { margin: var(--s-2) var(--s-3); width: calc(100% - 2 * var(--s-3)); }
   .bubble { position: absolute; z-index: 6; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: var(--shadow-2); padding: 2px 4px 2px 8px; color: var(--online); }
-  .preview { border-left: 1px solid var(--line); padding: var(--s-2) var(--s-3); background: var(--surface-3); min-width: 0; position: sticky; top: calc(var(--topbar-h) + 56px); align-self: start; max-height: calc(100dvh - var(--topbar-h) - 70px); overflow: auto; }
+  .preview { border-left: 1px solid var(--line); padding: var(--s-2) var(--s-3); background: var(--surface-3); min-width: 0; position: sticky; top: calc(var(--topbar-h) + var(--ae-bar-h)); align-self: start; max-height: calc(100dvh - var(--topbar-h) - var(--ae-bar-h)); overflow: auto; }
+  .preview.overlay { position: fixed; z-index: 600; right: 0; top: var(--topbar-h); bottom: 0; max-height: none; width: min(560px, 92vw); box-shadow: var(--shadow-2); padding-right: max(var(--s-3), env(safe-area-inset-right)); }
+  .ph { margin-bottom: var(--s-1); }
   .preview .empty { display: grid; place-items: center; gap: var(--s-2); min-height: 40vh; text-align: center; color: var(--text-2); }
   .diags { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--s-2) var(--s-3); margin-bottom: var(--s-2); font-size: var(--fs-sm); }
   .diags.phone { margin: var(--s-2) var(--s-3); }
@@ -717,6 +781,17 @@
   .sugs .mine { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
   .sugs del { color: var(--failed); } .sugs ins { color: var(--proved); text-decoration: none; }
   .h3 { font-size: var(--fs-md); margin: 0; }
+  @media (min-width: 1440px) { .ae { --ae-side-w: 272px; } }
+  @media (max-width: 1279px) { .ae { --ae-preview-w: 42%; } }
+  /* Narrow editor (small window, or the app's navigation shown beside it): toolbar labels become icons (their names
+     stay for screen readers and in the tooltips). */
+  @media (min-width: 768px) { .bar { container: aebar / inline-size; } }   /* not on phones: menu sheets there are position:fixed */
+  @container aebar (max-width: 1199px) {
+    .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  }
+  @media (max-width: 1023px) {
+    .ae { margin: calc(-1 * var(--s-4)) calc(-1 * var(--s-4)) 0; }
+  }
   @media (max-width: 767px) {
     .ae { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0; }
     .bar { padding: var(--s-2) var(--s-3); }
@@ -724,10 +799,10 @@
     :global(html[data-kb='open']) .sugs { bottom: calc(var(--kb-inset, 0px) + var(--s-2)); }
   }
   @media (pointer: coarse) {
-    .node, .linkish { min-height: var(--touch); }
-    .sub { min-height: 40px; }
-    .tiny { width: 40px !important; min-height: 40px !important; }
-    .node-row .tools { display: inline-flex; }
+    .linkish { min-height: var(--touch); }
   }
-  @media (max-width: 1100px) { .with-preview .body { grid-template-columns: 0 minmax(0, 1fr) minmax(320px, 46%); } .with-preview .outline { display: none; } }
+  @media (prefers-reduced-motion: no-preference) {
+    .side.overlay, .preview.overlay, .side.sheet { animation: ae-in 140ms var(--ease); }
+  }
+  @keyframes ae-in { from { opacity: 0; } to { opacity: 1; } }
 </style>

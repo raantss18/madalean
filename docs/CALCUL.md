@@ -6,7 +6,8 @@ everything: SageMath (or Python for a Python document). **One file**: a standard
 **One kernel** per document, shared with JupyterLab. Code: `madalean/research/notebook.py` (documents, cells,
 outputs, publication producer), `madalean/research/nbkernels.py` (kernels), `madalean/server/plugins/workbench.py`
 (HTTP API), `web/src/screens/research/Calcul.svelte`, `web/src/lib/figure/**` + `web/src/components/figure/`
-(interactive figures). Tests: `tests/test_calcul_notebook.py`, `tests/test_workbench.py`,
+(interactive figures). Tests: `tests/test_calcul_notebook.py`, `tests/test_workbench.py`, `tests/test_brain_fast.py`, `tests/test_syntaxcards.py`,
+`web/tests/unit/calcul-detect.test.ts`, `web/tests/unit/calcul-texwrap.test.ts`,
 `web/tests/unit/figure.test.ts`, `web/e2e/workbench.spec.ts` (« calcul notebook … »).
 
 ## 1. Documents and cells
@@ -70,10 +71,95 @@ outputs, publication producer), `madalean/research/nbkernels.py` (kernels), `mad
 The user writes a request (« trace sin(x)/x sur [-10,10] », « factorise x^4+4 sur Z[i] », « graphe de Petersen et
 son nombre chromatique »). The model receives a compact summary of the names defined in the kernel (name, type,
 80-character value excerpt — asked to the running kernel through Madalean's own helper, or read from the code above
-when no kernel runs or the device may not execute) and the cells above with cut outputs, and returns one code cell.
-The code is shown; it runs under the unchanged rules: model code runs only once its exact hash was approved on the
-host (or the host enabled `experiments_auto`); paired devices need `experiments_remote`. If it fails, the error goes
-back to the model **once** for a corrected proposal, which needs approval again.
+when no kernel runs, the device may not execute, or the kernel is busy) and the last earlier cells (≤ 2 500
+characters), and returns one code cell. The code is shown; it runs under the unchanged rules: model code runs only
+once its exact hash was approved on the host (or the host enabled `experiments_auto`); paired devices need
+`experiments_remote`.
+
+### 3.1 Speed (session S-AB, DECISIONS D35) — `research/codegen.py`
+
+| Cause found (2026-11-22, measured) | Fix |
+|---|---|
+| Role `assistant` → best-quality chain (Gemini 4 Hydrogen, 2.5 Pro, GLM…), tried one after the other with a 120–300 s first-byte wait: one real run took **128 s** (503, 404, a 120 s stall, 402) before Gemini 3.6 Flash answered; a good run 5.5–6 s (Hydrogen thinking « low ») | `classify.task("transcribe")`: code models ranked with their **measured latency** (`States.record_latency`, moving average of the time to the first visible text; ≤ 1.5 s +0.20 … ≥ 12 s −0.30), thinking capped (Gemini `reasoning_effort: minimal`, Claude effort low, no thinking), 20 s first-byte / stall timeouts, a chain of 10 online models, and a **staggered race**: the next model starts when nothing was written after 2.5 s (≤ 3 at once), a failure starts the next one at once, the first complete answer wins, the others are cancelled |
+| The call took one of the job scheduler's 3 `online` slots and the brain's 3-request pool: it queued behind a dossier's long proof calls | no scheduler slot; a separate pool of 4 for interactive transcriptions |
+| The names query to the kernel waited (up to 20 s) when a cell was running | names read from the code when the kernel is busy; 3 s cap otherwise |
+| Long prompt (≈ 6 000 characters of earlier cells), rules mixed with variable parts | fixed system prompt per tool version (rules + syntax card, §3.3: cacheable) + short user message |
+| The whole answer arrived at the end | the code streams into the cell (`calcul.draft {cell_id, code, state}` events) |
+
+Identical first requests (same text, names, context, version) are answered from memory for 1 h; « Réécrire » never
+uses the cache. Measured after (same machine, same keys, free models, 2026-11-22): first code **0.6–1.7 s** (Gemini
+Flash-Lite / 3 Flash, minimal thinking), 3.9 s when the first model was slow (race), 6.7 s when two providers
+answered 503 / 429; before: 5.5–6 s at best, 128 s in the bad case.
+
+### 3.2 Checked before it is shown, corrected automatically
+
+- **Before display**: the installed Sage's own preparser + Python's compiler (never executes) + names defined
+  nowhere (not in Sage's `sage.all`, the builtins, the cell, the kernel / earlier cells). On an error the model gets
+  the exact error and the signatures of what the code calls, up to 2 times; every attempt is kept as a version of
+  the cell.
+- **After a failed run** (`ask` cells): the error goes back to the model, at most 3 corrections per request, each a
+  version (« Corrigé automatiquement (n/3) », « Revenir à la version précédente »). **Policy (D35)**: the corrected
+  code runs again by itself only where model code needs no approval (`experiments_auto`); otherwise it waits for
+  « Approuver et exécuter » like any model code. The correction runs after the kernel lock is released (other cells
+  can run meanwhile) and is cancelled by a new request on that cell.
+- **« Réécrire » is always possible**: one generation per cell (`codegen.Generations`); a new request cancels the one
+  still running for that cell (the replaced request answers 409 `replaced`, ignored by the UI). Cause of the old
+  refusal: the automatic correction ran INSIDE the notebook's kernel lock (15–30 s of model time measured in the
+  user's notebook), so « Approuver et exécuter » / « Exécuter » got 409 `busy`, which the UI showed with the generic
+  text « Ce dossier travaille déjà ». The notebook now answers `calcul_busy` (« Des cellules sont en cours
+  d'exécution… ») only while cells really run.
+- When the code relies on names of earlier cells, the cell says so (« Utilise F, f des cellules précédentes »).
+
+### 3.3 Version-aware syntax catalogue — `madalean/syntaxcards.py`
+
+- **Sage card**: 23 idioms and pitfalls (`var`, `^`, exactness / `N`, callable functions, `integral` = `integrate`,
+  `assume` / `forget`, symbolic `sum` and `hold=True`, Fourier series, limits, Taylor, `solve` / `find_root`,
+  polynomial rings incl. `ZZ[I]`, ODE, matrices, number theory, `srange` / `[a..b]`, plots as last expression,
+  implicit / parametric / polar / 3D, `latex` / `tex`, graphs). Each entry carries a snippet with `assert`s that the
+  **installed Sage runs** during the build (its own `DOT_SAGE` / `MAXIMA_USERDIR` under the cache); a failing entry
+  is dropped. Same build: the name index of `sage.all` (1 887 names on 10.10) and exact signatures + first doc
+  paragraph of ≈ 35 functions, chosen per request from its words (FR/EN). Build ≈ 15 s, file
+  `<cache>/syntax/sage-<version>.json`. Version read at runtime from the interpreter of the `sagemath` kernelspec
+  (Madalean's own Sage env first, else /usr/bin/python).
+- **Lean card**: 13 Lean 4 / Mathlib rules (no Lean 3 syntax, naming, `∑ i ∈ s` vs the older `∑ i in s`,
+  `obtain` / `rcases`, induction, closing tactics, casts, `calc`, predicates, reals). Names cited by an entry are
+  checked in the workspace's declaration index (`names.py`, reused; `@[to_additive]` names via their
+  multiplicative source), then all entries are compiled in ONE file with the workspace's Lean; an entry with an error
+  or a deprecation warning is dropped (measured: `lean-prover49` keeps `∑ … in`, `lean-current` (Lean 4.36) drops
+  it). Key = workspace + toolchain + Mathlib revision. Injected in the prover agent's system prompt (cached on
+  Anthropic).
+- **Regeneration**: 90 s after the server starts (missing or outdated cards only), at every pass of the update
+  checkers (checker « Syntaxe », no network, also in local mode), after a Mathlib / Lake update applied; a first
+  ask with a new Sage version uses the unverified built-in card and schedules the build. Learned recipes are
+  re-checked after a new Sage card (§3.5).
+
+### 3.4 Cells (UI, S-AB)
+
+One « + » under the last cell; running the last cell adds a new empty one. A new cell recognises what is typed: code
+(the installed Sage compiles it, names exist) or a request in words (request verb, French / English words, `?`,
+accents) — `POST …/detect`, with an instant local guess (`lib/calcul/detect.ts`); the chip « Code / Demande » shows
+the guess and switches it in one click. Shift+Enter runs code or sends the request. The cell type (Code, Demande,
+Texte, Figure) is a small menu in the cell's head; the head keeps only « ⋯ ». Request cell: the request, « Réécrire »
+right below it, the code (filling live while the model writes), « Approuver et exécuter » right below the code.
+
+« Expliquer » on demand (`research/explain.py`, generic: `POST /api/code/explain {language: sage|python|lean, code,
+error?, mode: error|lines}`, reusable by the Lean screens): on an error, « Expliquer l'erreur » (plain French, a
+proposed fix shown as a suggestion; « Appliquer la correction » makes it model code, approval needed); « Expliquer
+ligne par ligne » (« ⋯ »): one sentence under each line. Same fast role and syntax card.
+
+Long LaTeX results wrap (outer commas, inline KaTeX) or scroll inside their focusable box; never clipped (e2e checks
+360 / 412 / 768 / 1440 px, light and dark).
+
+### 3.5 Learned recipes — `research/recipes.py`
+
+A request whose model code ran successfully (the corrected code after an automatic correction) is kept: normalised
+request, template (parameters — numbers, formulas, intervals, `F_16` — abstracted), code, Sage version, names of
+earlier cells it relied on. A later request with the same template, each old parameter found exactly once in the
+code (`F_16` ↔ `GF(16)`), the relied-on names defined again → the code with the new parameters, checked by the
+preparser, **without a model call** (still model code: approval). Otherwise a close request (word overlap ≥ 0.5)
+gives the recipe to the model as a proven example. After a Sage update each recipe is re-checked (preparser + new
+name index) and dropped when it fails. Local file `<config>/research/recipes.json` (0600); « ⋯ » (notebook) →
+« Recettes apprises » lists and deletes them (`GET /api/calcul/recipes`, `DELETE /api/calcul/recipes/{id}`).
 
 ## 4. Outputs
 
@@ -156,3 +242,53 @@ Phone: one column, run buttons ≥ 44 px, toolbar not sticky.
 - 3D: static image only (no interactive 3D viewer yet).
 - The article's « Calculs » section is a normal section (not `\appendix`) so that it works with every template.
 - Conic ∩ conic intersections and loci of loci are not computed by the figure engine (Sage does it exactly).
+
+## 10. The kernel's home, the smoke suite and the health self-test (S-AC)
+
+**Root cause of the 2026-11-22 failure.** The sandboxed kernel had `HOME=/nonexistent` (kept short because Sage's
+GAP probe breaks on a long home) and a read-only file system outside the experiments directory. Every library that
+writes under `HOME` without asking therefore failed, one at a time: Maxima (used by `integral`, `limit`, `sum`)
+could not create its cache (« OSError: Read-only file system: '/nonexistent' »), and the half-initialised Maxima
+interface then made the next symbolic calls (`var('n')`) fail with a `SystemError` cascade. Setting
+`MAXIMA_USERDIR` fixed only Maxima.
+
+**Fix at the root** (`sagebridge.launcher_env / bwrap_argv / prepare_home`). Every kernel gets a real home:
+`HOME=/tmp/h` inside bubblewrap, a bind of `<experiments>/.home/<key>` (`p-<project>` for a Calcul notebook — from
+Jupyter's `JPY_SESSION_NAME` —, `shared` for conjecture experiments). It is writable, private (0700, never the
+user's home, empty of the user's files), persistent (caches survive restarts: the first Fourier cell of a
+new kernel takes 0.9 s instead of 8.1 s once Maxima's cache exists) and short (GAP: `<HOME>/.gap/` must
+stay under ~78 characters; `GAP_HOME_MAX = 64`, tested against the real `gap`). `TMPDIR`, all XDG directories,
+`DOT_SAGE`, `MAXIMA_USERDIR`, `MAXIMA_TEMPDIR`, `IPYTHONDIR`, `MPLCONFIGDIR`, `NUMBA_CACHE_DIR`, `CYTHON_CACHE_DIR`,
+`PYTHONUSERBASE`, `PIP_CACHE_DIR`, `TEXMFVAR`, `TEXMFCONFIG` point inside it. `PYTHONPYCACHEPREFIX` is deliberately
+not set: Python would ignore the system `__pycache__` and recompile Sage at each start (`import sage.all` 0.9 s →
+3.0 s, measured). Without bubblewrap (rlimits only) the kernel uses the same directory, through a short symlink in a
+private `/tmp/madalean-<uid>/` when the real path is too long. In that mode the launcher also stays the kernel's
+parent and kills what the kernel leaves in its process group at exit (a Sage pexpect helper could deadlock and
+survive; found by the smoke suite). The kernel's IPC sockets use paths relative to the
+experiments directory (the 107-byte unix socket limit killed kernels in long directories). Lean and TeX follow the
+same principle: a private writable `HOME` with its XDG directories (`/tmp/home` on the sandbox's own tmpfs).
+
+**Clear French messages.** An IPython startup file (`sagebridge.STARTUP_PY`, rewritten at every start) appends one
+sentence « Madalean : … » to tracebacks caused by the sandbox: no network, writing outside the working directory,
+memory or file-size limit, a Python module missing from the system (e.g. `cython()` needs `python-pkgconfig`,
+absent on this Arch host). The original `ename: evalue` is kept.
+
+**Smoke suite** (`madalean/research/sagesmoke.py`, `tests/test_sage_smoke.py`, marker `sage`, runs whenever Sage
+and JupyterLab are installed). One real sandboxed kernel, one cell per item: home, GAP probe, `var`, Fourier
+coefficients with `assume` + `integral`, `integrate`, `limit`, `sum`/`hold`, `taylor`/`series`, `solve`,
+`simplify_full`, `diff`, `laplace`/`inverse_laplace`, Maxima, GAP (libgap and pexpect), PARI (+ gp), number fields,
+Singular (Gröbner), FLINT/NTL, linear algebra over QQ/GF(p)/RR/RDF, numerics (`find_root`, `numerical_integral`,
+scipy, numpy), 2D plots (PNG + SVG), 3D (Tachyon PNG), implicit/parametric plots, `show()` (image/png output),
+`latex()`, ipywidgets, randomness, matplotlib, sympy ↔ Sage, `cython()` (or its clear message), files in the
+working directory, multiprocessing + `@parallel`, and three items that must fail with the French message (network,
+read-only file system, memory). The Python kernel runs its own subset; the rlimits-only mode runs the fast subset.
+
+**Health self-test** (`madalean/update_checkers/selftest.py`). Réglages › Système › État de santé shows
+« Auto-test SageMath / Python / Lean / LaTeX »: the `fast` items in a fresh Sage and Python kernel, a tiny Lean file
+plus a probe of the Lean sandbox (writable private home, only `lo`, the user's home absent), a tiny LaTeX document
+plus the same probe in the TeX sandbox. It runs by itself when the tools' fingerprint changes (Madalean version,
+kernelspecs, the Sage library, the prefix's component versions, Lean toolchain, tectonic): checked at start (after
+3 minutes), every 30 minutes, at each pass of the update checkers (« Auto-test » checker) and after each applied
+update. A failure shows the failed items and a toast; « Réparer » moves the kernels' homes aside (`.home.old`,
+caches rebuilt) and runs the test again; « Relancer le test » re-runs it. Report: `<config>/selftest.json`; event
+`system.selftest`.

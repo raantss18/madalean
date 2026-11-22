@@ -68,12 +68,15 @@ export interface NbCell { id: string; type: NbCellType; language: 'sage' | 'pyth
   code?: string; code_hash?: string; origin?: 'user' | 'assistant'; model?: string; approved?: { hash: string; t: number; device: string } | null;
   prompt?: string; versions?: { code: string; t: number; origin: string }[]; runs?: { id: string; t: number; status: string; seconds: number }[];
   exec_count?: number | null; outputs?: NbOutput[]; last?: NbRunMeta | null; stale?: boolean; stale_reason?: string; fresh?: boolean;
-  autofix?: { t: number; model: string } | null; figure?: Record<string, unknown>; svg?: { asset: string } }
+  autofix?: { t: number; model: string; n?: number; max?: number; reran?: boolean } | null; uses?: string[]; figure?: Record<string, unknown>; svg?: { asset: string } }
 export interface NbDocInfo { id: string; title: string; language: 'sage' | 'python'; path: string; cells?: number; updated?: number; engine?: { name: string; version: string } | null; rev?: number }
 export interface NbKernel { kernel: string; state: string; shared?: boolean; name?: string; sandboxed?: boolean; connections?: number }
 export interface NbStatus extends CalcStatus { kernel: NbKernel; idle_minutes: number }
 export interface NbView { doc: NbDocInfo; cells: NbCell[]; trash: { id: string; source: string }[]; status: NbStatus }
 export interface NbRunResult { runs: Record<string, CalcRun & { outputs: NbOutput[] }>; stopped: { cell_id: string; reason: string } | null; autofix: NbCell | null }
+
+export interface NbExplainError { explanation: string; fix: string; fix_valid: boolean; model: string }
+export interface NbExplainLine { line: number; code: string; text: string }
 
 const D = (pid: string, doc: string) => `/calcul/${enc(pid)}/docs/${enc(doc)}`;
 export const nb = {
@@ -95,6 +98,11 @@ export const nb = {
   kernel: (pid: string, doc: string, action: 'interrupt' | 'restart' | 'shutdown' | 'clear') => request<Record<string, unknown>>('POST', `${D(pid, doc)}/${action}`, {}),
   variables: (pid: string, doc: string) => request<{ names: { name: string; type: string; value: string }[] }>('GET', `${D(pid, doc)}/variables`),
   explain: (pid: string, doc: string, cell_id: string) => request<{ text: string; model: string }>('POST', `${D(pid, doc)}/assist`, { action: 'explain', cell_id }),
+  // S-AB: code or request? · « Expliquer l'erreur » / « ligne par ligne » · apply a proposed fix (model code: approval)
+  detect: (pid: string, doc: string, text: string) => request<{ kind: 'code' | 'ask'; why: string }>('POST', `${D(pid, doc)}/detect`, { text }),
+  explainError: (pid: string, doc: string, cid: string) => request<NbExplainError>('POST', `${D(pid, doc)}/cells/${enc(cid)}/explain`, { mode: 'error' }),
+  explainLines: (pid: string, doc: string, cid: string) => request<{ lines: NbExplainLine[]; model: string }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/explain`, { mode: 'lines' }),
+  suggestion: (pid: string, doc: string, cid: string, code: string, model: string) => request<{ cell: NbCell; approval_required: boolean }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/suggestion`, { code, model }),
   sendTo: (pid: string, doc: string, cid: string, body: { target: CalcTarget; text?: string; title?: string; png?: string; asset?: string }) =>
     request<Record<string, unknown>>('POST', `${D(pid, doc)}/cells/${enc(cid)}/to`, body),
   ipynbUrl: (pid: string, doc: string) => `/api${D(pid, doc)}/ipynb`,
