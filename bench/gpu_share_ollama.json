@@ -1,0 +1,82 @@
+{
+ "baseline": {
+  "used": 78.0,
+  "free": 7780.0,
+  "util": 0.0
+ },
+ "initial_unload_s": 0.01,
+ "ollama_small_cold": {
+  "first_token_s": 54.21,
+  "total_s": 54.3,
+  "load_s": 48.26,
+  "tokens": 8,
+  "eval_tok_s": 87.4
+ },
+ "ollama_small_vram_api_mib": [
+  3137
+ ],
+ "ollama_small_vram_smi_mib": 3424.0,
+ "ollama_small_warm": {
+  "first_token_s": 0.14,
+  "total_s": 0.23,
+  "load_s": 0.13,
+  "tokens": 8,
+  "eval_tok_s": 101.6
+ },
+ "signals_loaded_idle": {
+  "tcp_established_11434": 0,
+  "gpu_util": 0.0,
+  "runner_cpu_pct": 0,
+  "ps": [
+   [
+    "phi4-mini:latest",
+    "2026-11-22T18:54:33.210304016+03:00"
+   ]
+  ]
+ },
+ "signals_generating": [
+  {
+   "tcp_established_11434": 1,
+   "gpu_util": 94.0,
+   "runner_cpu_pct": 102,
+   "ps": [
+    [
+     "phi4-mini:latest",
+     "2026-11-22T18:54:33.210304016+03:00"
+    ]
+   ]
+  },
+  {
+   "tcp_established_11434": 1,
+   "gpu_util": 94.0,
+   "runner_cpu_pct": 104,
+   "ps": [
+    [
+     "phi4-mini:latest",
+     "2026-11-22T18:54:33.210304016+03:00"
+    ]
+   ]
+  }
+ ],
+ "unload_request_while_generating_returns_s": 0.0,
+ "long_generation_result": {
+  "first_token_s": 0.15,
+  "total_s": 7.81,
+  "load_s": 0.13,
+  "tokens": 600,
+  "eval_tok_s": 83.3
+ },
+ "unloaded_after_generation_end_s": 0.51,
+ "unload_to_vram_free_s": 0.08,
+ "signals_unloaded": {
+  "tcp_established_11434": 0,
+  "gpu_util": 0.0,
+  "runner_cpu_pct": 0,
+  "ps": []
+ },
+ "end": {
+  "used": 78.0,
+  "free": 7780.0,
+  "util": 0.0
+ }
+}

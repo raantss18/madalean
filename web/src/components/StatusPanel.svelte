@@ -110,6 +110,18 @@
             {/if}
           </dl>
           <p class="xs muted gpu-name">{r.gpu ? r.gpu.name : t('status.noGpu')}</p>
+          {#if r.gpu_share}
+            {@const g = r.gpu_share}
+            <!-- S-AS (D51): « Partage de la carte graphique avec Ollama », in plain words -->
+            <div class="share" aria-labelledby="st-share">
+              <p class="xs"><strong id="st-share">{t('share.title')}</strong> — {#if !g.enabled}{t('share.off')}{:else if !g.ollama?.reachable}{t('share.noOllama')}{:else if g.ollama.busy}<span class="busy-txt">{t('share.busy')}</span>{:else if g.ollama.models.some((x) => x.vram_mib > 0)}{t('share.holds', { models: g.ollama.models.filter((x) => x.vram_mib > 0).map((x) => x.name).join(', '), gb: gb(g.ollama.models.reduce((a, x) => a + x.vram_mib, 0)) })}{:else}{t('share.idle')}{/if}</p>
+              {#if g.enabled && g.ollama?.reachable}
+                <p class="xs muted">{t('share.rule', { min: g.idle_unload_minutes })}</p>
+                {#if g.last_lend?.unloaded?.length}<p class="xs muted">{t('share.lent', { models: g.last_lend.unloaded.join(', ') })}</p>
+                {:else if g.last_lend?.reason === 'ollama_busy'}<p class="xs muted">{t('share.waited')}</p>{/if}
+              {/if}
+            </div>
+          {/if}
         {/if}
         {#if slots}
           <p class="xs slots"><span class="muted">{t('status.slots')}</span>
@@ -169,6 +181,9 @@
   dd { margin: 0; display: grid; grid-template-columns: minmax(60px, 1fr) auto; align-items: center; gap: var(--s-2); color: var(--text-2); font-variant-numeric: tabular-nums; }
   meter { width: 100%; height: 8px; }
   .gpu-name { margin: 0; }
+  .share { margin-top: var(--s-2); display: grid; gap: 2px; }
+  .share p { margin: 0; }
+  .busy-txt { color: var(--running); font-weight: 600; }
   .slots { margin: var(--s-2) 0 0; }
   .slots .wait { color: var(--running); font-weight: 600; }
   .tok { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }

@@ -1,0 +1,53 @@
+{
+ "baseline": {
+  "used": 79.0,
+  "free": 7779.0,
+  "util": 2.0
+ },
+ "initial_unload_s": 0.01,
+ "llama_small_blob_ctx8192": {
+  "load_s": 1.25,
+  "vram_mib": 3106.0,
+  "first_token_s": 0.05,
+  "total_32tok_s": 0.16,
+  "release_s": 0.02
+ },
+ "llama_goedel_q4_ctx24576": {
+  "load_s": 1.11,
+  "vram_mib": 6564.0,
+  "first_token_s": 0.05,
+  "total_32tok_s": 0.72,
+  "release_s": 0.02
+ },
+ "ollama_big_cold": {
+  "first_token_s": -1,
+  "total_s": 3.11,
+  "load_s": 2.67,
+  "tokens": 8,
+  "eval_tok_s": 25.3
+ },
+ "ollama_big_vram_smi_mib": 6126.0,
+ "ollama_big_vram_api_mib": [
+  5987
+ ],
+ "lend_big_unload_to_free_s": 0.32,
+ "llama_goedel_after_lend": {
+  "load_s": 1.15,
+  "vram_mib": 6564.0,
+  "first_token_s": 0.05,
+  "total_32tok_s": 0.72,
+  "release_s": 0.02
+ },
+ "ollama_big_reload_after_return": {
+  "first_token_s": -1,
+  "total_s": 3.36,
+  "load_s": 2.92,
+  "tokens": 8,
+  "eval_tok_s": 25.8
+ },
+ "end": {
+  "used": 79.0,
+  "free": 7779.0,
+  "util": 56.0
+ }
+}

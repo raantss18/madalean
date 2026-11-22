@@ -253,6 +253,9 @@ Quelques réglages n'ont pas d'interrupteur dans l'interface : ils se changent d
 | Réglage | Défaut | Effet |
 |---|---|---|
 | `local_idle_unload_minutes` | 10 | le modèle local s'arrête après ce temps sans travail, pour rendre la mémoire graphique (0 = jamais) |
+| `gpu_share_ollama` | oui (hôte) | partage de la carte graphique avec Ollama : faire décharger ses modèles quand la place manque, jamais pendant qu'il répond |
+| `gpu_share_busy_wait_s` | 30 (hôte) | attente maximale quand Ollama répond à une autre application |
+| `gpu_share_busy_fallback` | `cpu` (hôte) | ensuite : `cpu` (mémoire libre, en partie sur le processeur) ou `online` (modèle suivant, en ligne) |
 | `calcul_idle_minutes` | 30 | le noyau d'un carnet de « Calcul » s'arrête après ce temps sans activité (0 = jamais) |
 | `browser_session_idle_minutes` | 120 (hôte) | une session ouverte dans un navigateur depuis un autre appareil se ferme après ce temps d'inactivité |
 

@@ -131,6 +131,28 @@
         {#if m.local?.state === 'ready'}<button class="btn small" onclick={unload}>{t('models.unload')}</button>{/if}
       </div>
       <p class="small">{tk(`localstate.${m.local?.state ?? 'stopped'}`, m.local?.state ?? '')}{#if m.local?.model} — <span class="mono">{m.local.model}</span>{/if}{#if m.local?.offload} · {t('models.offload', { o: m.local.offload })}{/if}</p>
+      <!-- S-AS (D51): « Partage de la carte graphique avec Ollama » (host-only settings) -->
+      <div class="share" role="group" aria-labelledby="share-h">
+        <label class="switch" id="share-h"><input type="checkbox" checked={Boolean(s.gpu_share_ollama)} disabled={!app.m.local}
+          aria-describedby="share-hint" onchange={(e) => saveSettings({ gpu_share_ollama: (e.target as HTMLInputElement).checked })} />{t('share.setting')}</label>
+        <p id="share-hint" class="hint">{t('share.settingHint')}</p>
+        {#if s.gpu_share_ollama}
+          <div class="field">
+            <label for="share-fb">{t('share.fallback')}</label>
+            <select id="share-fb" class="input" value={s.gpu_share_busy_fallback} disabled={!app.m.local}
+              onchange={(e) => saveSettings({ gpu_share_busy_fallback: (e.target as HTMLSelectElement).value })}>
+              {#each ['cpu', 'online'] as v}<option value={v}>{tk(`share.fallback.${v}`, v)}</option>{/each}
+            </select>
+          </div>
+          {#each [['gpu_share_busy_wait_s', 'share.wait', 0, 600], ['local_idle_unload_minutes', 'share.idleUnload', 0, 1440]] as [k, label, min, max]}
+            <div class="field">
+              <label for="share-{k}">{tk(label as string, String(k))}</label>
+              <input id="share-{k}" class="input" type="number" min={min} max={max} value={s[k as string] as number} disabled={!app.m.local && k !== 'local_idle_unload_minutes'}
+                onchange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v >= (min as number) && v <= (max as number)) void saveSettings({ [k as string]: v }); else toast('error', t('settings.range', { min: Number(min), max: Number(max) })); }} />
+            </div>
+          {/each}
+        {/if}
+      </div>
       {#if m.local_files.length}
         <ul class="files">{#each m.local_files as f}<li class="small"><span class="mono">{f.file}</span> <span class="muted xs">{f.quant ?? ''} {fmtBytes(f.size ?? 0)}</span>{#if f.error}<span class="error-text xs"> {f.error}</span>{/if}</li>{/each}</ul>
       {:else}<p class="muted small">{t('models.noLocal')}</p>{/if}
@@ -171,6 +193,8 @@
   @media (max-width: 767px) { .role-row { grid-template-columns: minmax(0, 1fr); } }
   .ranking { margin: var(--s-2) 0 0; padding-left: 1.4em; display: grid; gap: 4px; font-size: var(--fs-sm); }
   .files { list-style: none; padding: 0; margin: 0; }
+  .share { display: grid; gap: var(--s-2); margin: var(--s-3) 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); }
+  .share .hint { margin: 0; }
   .table-wrap { overflow-x: auto; }
   .board { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
   .board th, .board td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }

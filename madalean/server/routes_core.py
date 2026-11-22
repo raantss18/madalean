@@ -575,6 +575,7 @@ async def usage_status(request: web.Request) -> web.Response:
             pass
     gpu = ctx.monitor.gpu
     cpu = await asyncio.to_thread(_cpu_percent)
+    share = await _gpu_share_view(ctx, gpu)
     try:
         load = round(os.getloadavg()[0], 2)
     except OSError:
@@ -590,12 +591,28 @@ async def usage_status(request: web.Request) -> web.Response:
         "mode": s.mode,
         "resources": {"cpu_percent": cpu, "cpus": os.cpu_count(), "load": load, "memory": await asyncio.to_thread(_memory),
                       "gpu": ({k: gpu[k] for k in ("name", "total", "used", "util", "temp")} if gpu else None),
-                      "t": time.time()},
+                      "gpu_share": share, "t": time.time()},
         "tokens": {"today": tally["today"], "month": tally["month"], "by_provider_today": tally["by_provider_today"]},
         "spend": {"today_usd": paid_today, "month_usd": paid_month, "cap_month_usd": s.claude_cap_month_usd,
                   "cap_request_usd": s.claude_cap_proof_usd},
         "requests": tally["requests"],
     })
+
+
+async def _gpu_share_view(ctx, gpu: dict | None) -> dict | None:
+    """S-AS (D51): who holds the GPU and the state of « Partage de la carte graphique avec Ollama » (a short look at
+    Ollama: /api/ps + its runner's CPU over 0.25 s; only while the status panel is open)."""
+    local = ctx.local
+    if not gpu or not hasattr(local, "share_status"):
+        return None
+    from ..runtime.llama import gpu_share
+    try:
+        await local.look_at_ollama(sample=0.25)
+    except Exception:  # noqa: BLE001
+        pass
+    view = local.share_status()
+    view["holders"] = (gpu_share(gpu, getattr(local, "last_pid", None)) or {}).get("holders", [])
+    return view
 
 
 @routes.post("/api/models/refresh")
@@ -733,9 +750,30 @@ async def health(ctx) -> list[dict]:
     from ..runtime.llama import gpu_share          # S-N: who holds the GPU (automatic lending with Ollama)
     share = gpu_share(ctx.monitor.gpu, getattr(ctx.local, "last_pid", None))
     if share:
-        add("gpu_share", True, "Carte graphique : {who} ; {free} Mo libres. Si la place manque, Madalean fait "
-            "décharger les modèles d'Ollama (rechargés à la demande) et rend la carte après inactivité.",
-            who=", ".join(f"{h['app']} {h['mib']} Mo" for h in share["holders"]) or "personne", free=share["free"])
+        who = ", ".join(f"{h['app']} {h['mib']} Mo" for h in share["holders"]) or "personne"
+        sv = None
+        if hasattr(ctx.local, "look_at_ollama"):     # S-AS (D51): the sharing setting and Ollama's state now
+            try:
+                await ctx.local.look_at_ollama(sample=0.25)
+            except Exception:  # noqa: BLE001
+                pass
+            sv = ctx.local.share_status()
+        if sv is None or not (sv["ollama"] or {}).get("reachable"):
+            add("gpu_share", True, "Carte graphique : {who} ; {free} Mo libres. Ollama n'est pas lancé : rien à "
+                "partager.", who=who, free=share["free"])
+        elif not sv["enabled"]:
+            add("gpu_share", True, "Carte graphique : {who} ; {free} Mo libres. Partage avec Ollama désactivé : si "
+                "la place manque, le modèle local tourne en partie sur le processeur.", who=who, free=share["free"])
+        else:
+            add("gpu_share", True, "Carte graphique : {who} ; {free} Mo libres. Partage avec Ollama activé : si la "
+                "place manque, Madalean fait décharger les modèles d'Ollama (rechargés à la demande), jamais pendant "
+                "qu'il répond à une autre application, et rend la carte après {min} min sans utilisation.",
+                who=who, free=share["free"], min=sv["idle_unload_minutes"])
+    lv = next((c for c in await asyncio.to_thread(deps_health.components) if c["component"] == "llama.cpp"), None)
+    if lv and lv["variant"] == "cpu" and ctx.monitor.gpu_ok and ctx.monitor.gpu:
+        add("llama_variant", False, "Le moteur des modèles locaux est la version « processeur » alors que la carte "
+            "graphique {gpu} fonctionne : réparez-le pour installer la version CUDA (ici 5 à 7 fois plus rapide).",
+            repair="dep_llama.cpp", gpu=ctx.monitor.gpu.get("name", ""))
     add("brain", ctx.brain_kind != "fake" or ctx.demo, "Moteur de modèles : {kind}." if ctx.brain_kind != "fake"
         or ctx.demo else "Moteur de modèles absent : réponses simulées (installation incomplète).", kind=ctx.brain_kind)
     return checks

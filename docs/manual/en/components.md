@@ -269,9 +269,14 @@ Ollama is another program that runs models locally. Madalean **does not install 
 already installed and running on the host, its models show up among the available local models and can be chosen;
 the two programs coexist without conflict.
 
-Mind only the **graphics memory**: if Ollama and Madalean's local model run at the same time, they share the graphics
-card, and one or the other may run out of memory. “Settings › System” shows the graphics memory used by each
-program.
+**Sharing the graphics card with Ollama** (“Settings › Models”, “Local models” part; on by default, useful only when
+Ollama runs). Both programs do not fit together on an 8 GB card. When Madalean's local model does not fit, Madalean
+asks Ollama to unload its models (Ollama's own request: nothing is stopped, Ollama reloads them by itself on its next
+request, in about 3 seconds), loads its own, then gives the card back after `local_idle_unload_minutes` without work.
+**Never while Ollama is answering another application**: Madalean waits for it to finish (30 s at most, adjustable),
+then, depending on the setting, loads its model with the free memory (partly on the processor, slower) or moves on to
+the next model (online). The status panel (top-right button) and “Settings › System › Health” say in plain words who
+holds the card.
 
 ## bubblewrap, the sandbox
 

@@ -22,11 +22,12 @@ import aiohttp
 
 from .. import config
 from ..brain.api import BrainError, ModelRef
+from ..brain.providers.base import ProviderError
 from ..gguf import GGUFError, GGUFInfo, find_models, read_info
 from ..i18n import _
 from ..logs import get
 from ..slots import Slots, current_owner
-from . import guarded
+from . import guarded, ollama_share
 from .monitor import Monitor
 
 log = get("llama")
@@ -312,6 +313,8 @@ class LocalLlama:
         self.idle_poll = 30.0
         self._idle_task: asyncio.Task | None = None
         self.last_lend: dict | None = None
+        self.ollama: dict | None = None         # S-AS: last look at Ollama (reachable, models, busy)
+        self.busy_poll = 1.0
 
     # ------------------------------------------------------------ models
     async def refresh_models(self) -> list:
@@ -353,6 +356,7 @@ class LocalLlama:
                 "gpu_layers": self.plan.gpu_layers if self.plan else None, "notes": self.notes[-3:],
                 "error": self.last_error, "holder": self._holder, "last_lend": self.last_lend,
                 "gpu_share": gpu_share(self.monitor.gpu, self.last_pid if self.state != self.STOPPED else None),
+                "share_ollama": self.share_status(),
                 "roles": {r: (self.path_for(r).name if self.path_for(r) else None)
                           for r in ("formalize", "prove", "explain")}}
 
@@ -426,9 +430,31 @@ class LocalLlama:
                 self._fail(e.kind, e.details)
 
     async def _borrow_gpu(self, model: Path, s: config.ServerSettings, vram: int | None) -> int | None:
-        """Free VRAM held by Ollama when the model would not fit entirely (S-N); returns the new free VRAM."""
+        """Free VRAM held by Ollama when the model would not fit entirely (S-N); returns the new free VRAM.
+
+        S-AS (D51): only with « Partage de la carte graphique avec Ollama » on, and never while Ollama is answering
+        another application — wait up to `gpu_share_busy_wait_s`, then the fallback of the settings."""
         need = full_gpu_need_mib(model, s) if vram is not None else None
         if need is None or vram >= need or not self._ollama_holds_gpu():
+            return vram
+        st = self.get_settings()
+        if not getattr(st, "gpu_share_ollama", True):
+            self.last_lend = {"ok": False, "reason": "disabled", "need_mib": need, "t": time.time()}
+            self.notes.append(_("Partage de la carte graphique avec Ollama désactivé : le modèle utilise la mémoire "
+                                "graphique libre (en partie sur le processeur, plus lent)."))
+            return vram
+        if not await self._wait_ollama_idle(float(getattr(st, "gpu_share_busy_wait_s", 30) or 0)):
+            self.last_lend = {"ok": False, "reason": "ollama_busy", "need_mib": need, "t": time.time(),
+                              "unloaded": []}
+            self._changed()
+            if getattr(st, "gpu_share_busy_fallback", "cpu") == "online":
+                self.notes.append(_("Ollama répond toujours à une autre application : Madalean ne l'interrompt pas "
+                                    "et confie la tâche au modèle suivant (en ligne)."))
+                raise ProviderError("unavailable", "GPU busy: Ollama is answering another application "
+                                                   "(not interrupted)")
+            self.notes.append(_("Ollama répond toujours à une autre application : Madalean ne l'interrompt pas et "
+                                "charge son modèle avec la mémoire graphique libre (en partie sur le processeur, "
+                                "plus lent)."))
             return vram
         res = await lend_gpu(need - vram + int(self.monitor.gpu["free"]) if self.monitor.gpu else need)
         self.last_lend = {k: res.get(k) for k in ("ok", "reason", "via", "unloaded", "free_before", "free_after",
@@ -443,6 +469,42 @@ class LocalLlama:
         except Exception:  # noqa: BLE001
             log.exception("monitor poll after GPU lending failed")
         return self.monitor.free_excluding(self.last_pid) if self.monitor.gpu_ok else vram
+
+    async def look_at_ollama(self, sample: float = 0.5) -> dict:
+        """Is Ollama answering someone now? (ollama_share.activity, cached for the status views)."""
+        self.ollama = await ollama_share.activity(ollama_url(), (self.monitor.gpu or {}).get("util"), sample)
+        return self.ollama
+
+    async def _wait_ollama_idle(self, wait_s: float) -> bool:
+        act = await self.look_at_ollama()
+        if not act["busy"]:
+            return True
+        log.info("Ollama is answering another application (%s): waiting up to %s s", act["signals"], wait_s)
+        self.notes.append(_("Ollama répond à une autre application : Madalean attend qu'il ait fini (au plus {s} s) "
+                            "avant de lui emprunter la carte graphique.").format(s=int(wait_s)))
+        self._changed()
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < wait_s:
+            await asyncio.sleep(self.busy_poll)
+            try:
+                await self.monitor.poll()
+            except Exception:  # noqa: BLE001
+                pass
+            if not (await self.look_at_ollama())["busy"]:
+                return True
+        return False
+
+    def share_status(self) -> dict:
+        """« Partage de la carte graphique avec Ollama » for the status panel and the health page."""
+        st = self.get_settings()
+        o = self.ollama or {}
+        return {"enabled": bool(getattr(st, "gpu_share_ollama", True)),
+                "fallback": getattr(st, "gpu_share_busy_fallback", "cpu"),
+                "wait_s": getattr(st, "gpu_share_busy_wait_s", 30),
+                "idle_unload_minutes": getattr(st, "local_idle_unload_minutes", 10),
+                "ollama": {"reachable": o.get("reachable"), "models": o.get("models", []), "busy": o.get("busy", False),
+                           "t": o.get("t")} if o else None,
+                "last_lend": self.last_lend}
 
     def _ollama_holds_gpu(self) -> bool:
         return any("ollama" in _proc_cmdline(int(p)) for p in (self.monitor.gpu or {}).get("apps", {}))

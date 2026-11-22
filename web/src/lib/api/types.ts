@@ -158,6 +158,8 @@ export interface Settings {
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;
+  local_idle_unload_minutes: number; gpu_share_ollama: boolean; gpu_share_busy_wait_s: number;
+  gpu_share_busy_fallback: 'cpu' | 'online';
   server: { port: number; ctx_size: number; gpu_layers: number; batch_size: number; ubatch_size: number;
     kv_type: 'f16' | 'q8_0' | 'q4_0'; flash_attn: boolean; threads: number };
   sampling: { temperature: number; top_p: number; max_tokens: number };
@@ -235,12 +237,21 @@ export type SeqEvent = Extract<ServerEvent, { seq: number; ts: number }>;
 
 /** GET /api/usage (S-AK status panel). */
 export interface UsageTotals { tokens_in: number; tokens_out: number; calls: number; usd: number }
+/** S-AS (D51): « Partage de la carte graphique avec Ollama » (GET /api/usage → resources.gpu_share). */
+export interface GpuShare {
+  enabled: boolean; fallback: 'cpu' | 'online'; wait_s: number; idle_unload_minutes: number;
+  ollama: { reachable: boolean | null; models: { name: string; vram_mib: number }[]; busy: boolean; t: number | null } | null;
+  last_lend: { ok: boolean; reason: string; unloaded?: string[] | null; t: number } | null;
+  holders: { app: string; mib: number }[];
+}
+
 export interface UsageStatus {
   mode: Mode;
   resources: {
     cpu_percent: number | null; cpus: number | null; load: number | null;
     memory: { total_mb: number; used_mb: number } | null;
     gpu: { name: string; total: number; used: number; util: number; temp: number } | null;
+    gpu_share?: GpuShare | null;
     t: number;
   };
   tokens: { today: UsageTotals; month: UsageTotals; by_provider_today: Record<string, UsageTotals> };

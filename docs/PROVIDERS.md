@@ -175,6 +175,15 @@ notebook's code generation (S-P) should wrap their call in `classify.task("sage"
 - A free vision model (Gemini free tier) can read formulas, but the free tier may use the image to improve Google's
   products.
 
+## 6 bis. Ollama (local, optional) — S-AS, DECISIONS D51
+
+A running Ollama (127.0.0.1:11434) adds its models to the catalogue (provider `ollama`, free, local, nothing leaves
+the host) and is used for embeddings when an embedding model is installed. It is **not** Madalean's engine for the
+Goedel / Qwen3 GGUFs (no grammar, server-wide KV/flash-attention settings, Go templates, GGUF copied into its blob
+store, unpinned llama.cpp: D51 « rejected (b) »). Both share the GPU: « Partage de la carte graphique avec Ollama »
+(`gpu_share_ollama`, on) — Madalean asks an idle Ollama to unload its models (`keep_alive: 0`) before loading its
+own, never while Ollama answers another application, and gives the card back after `local_idle_unload_minutes`.
+
 ## 7. Risks
 - Free tiers move monthly (GitHub Models closed, Mistral free API gone, Leanstral retired in 3 months, Gemini model
   names changed): the hub shows the check date; failures degrade to the next provider, never block.

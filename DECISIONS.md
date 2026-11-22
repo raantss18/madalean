@@ -908,3 +908,49 @@
   essayé ? », reflection), conductor instruction (dropped when the run starts), Lean correction (its field reopens),
   notebook assistant, new conjecture (statement, motivation). Sending empties the field, which removes the draft.
   Rejected: server-side drafts (unsent text is not project data, and would sync half-typed text to other devices).
+
+## D51 — GPU sharing with Ollama: Madalean borrows the card only from an idle Ollama; Ollama stays its own engine (user request, 2026-11-22, S-AS)
+- Request: « Trouve un moyen très efficace pour gérer la carte graphique avec Ollama ». Ollama (user service, 0.18.2,
+  `OLLAMA_KEEP_ALIVE=24h`) serves Sampana's guest (socat bridge), mi-saina, L Katta; Madalean runs llama.cpp. On the
+  RTX 4060 (8 GB) one 8B model of each does not fit together (Goedel Q4_K_M at ctx 24576: 6.6 GB; qwen3.5:9b in
+  Ollama: 6.1 GB).
+- Measured (`scripts/bench_gpu_share.py`, raw data `bench/gpu_share_*.json`, docs/PERFORMANCE.md « Partage de la
+  carte graphique »): unloading Ollama's 6 GB model (`keep_alive: 0`) frees the VRAM in 0.32 s; Goedel then loads in
+  1.1 s (CUDA build, warm page cache), first token 0.05 s; Ollama reloads its model on its next request in 2.7–2.9 s.
+  A `keep_alive: 0` sent while Ollama is generating returns at once but Ollama finishes the generation (600 tokens
+  here) and unloads 0.5 s after — it never cuts a generation, so a blind lend would wait an unknown time holding the
+  GPU slot. While generating: Ollama's runner process uses ~100 % of a core, GPU 94 %, one connection on :11434;
+  idle with the model loaded: 0 %, 0 %, none; `/api/ps` is identical in both states.
+- Decision — **(a) on-demand lending, now aware of Ollama's activity** (extends S-N): before loading a GGUF that does
+  not fit, Madalean looks at Ollama (`runtime/ollama_share.py`: runner CPU over 0.5 s, connections to :11434 not
+  opened by Madalean itself, GPU utilisation); busy = runner ≥ 25 % CPU, or a foreign connection while the GPU
+  computes (≥ 30 %). Busy → wait up to `gpu_share_busy_wait_s` (30), polling each second; still busy →
+  `gpu_share_busy_fallback`: `cpu` (default: load with the free memory, partly on the processor) or `online`
+  (ProviderError « unavailable »: the engine's chain moves on to the next model, no penalty recorded). Idle → unload
+  through `fitantanana gpu lend` when present, else the built-in `keep_alive: 0` (unchanged). The GPU is given back
+  after `local_idle_unload_minutes` (unchanged). Each step is a plain-words note in the local model status.
+- Setting « Partage de la carte graphique avec Ollama » (`gpu_share_ollama`, on by default; it only acts when a local
+  Ollama holds the GPU), host-only with its two companions; shown in Réglages › Modèles › Modèles locaux with
+  `local_idle_unload_minutes`. Status panel (☁): « Partage avec Ollama » line (what Ollama keeps on the card, busy or
+  not, last loan) from `GET /api/usage` → `resources.gpu_share` (looked at only while the panel is open). Health: the
+  `gpu_share` row says whether sharing is on / off / Ollama absent; new `llama_variant` row warns when the installed
+  llama.cpp is the CPU build although the GPU works (repair `dep_llama.cpp` reinstalls with `variant auto`).
+- Rejected — **(b) Ollama as Madalean's local engine** (one VRAM manager): no GBNF grammar (only JSON `format`), KV
+  cache type and flash attention are server-wide environment variables (Madalean needs q8_0 KV + FA per model to fit
+  24k context in 8 GB), no `-cram` bound, Go templates instead of the GGUF's Jinja template (Goedel/Qwen3 prompts
+  would need hand-written Modelfiles), importing a GGUF copies it into Ollama's blob store (+5 GB per model, or a
+  hard link through fitantanana) and Ollama's own llama.cpp version is not pinned with Madalean's (D2: reproducible
+  bench). Speed decides nothing: the same GGUF (phi4-mini's blob, read in place) answers in both with a first token
+  in 0.05–0.15 s warm (same ggml CUDA kernels); Ollama would add a dependency on a daemon Madalean does not control. Rejected — killing or stopping Ollama
+  (other apps depend on it), a permanent VRAM split (neither 8B model fits in half of 8 GB).
+- **Proposed, not applied** (Ollama's configuration belongs to the user): lower `OLLAMA_KEEP_ALIVE` from 24h to 15m
+  with a user drop-in `~/.config/systemd/user/ollama.service.d/gpu-share.conf` (`[Service]`
+  `Environment=OLLAMA_KEEP_ALIVE=15m`), then `systemctl --user daemon-reload && systemctl --user restart ollama` at a
+  quiet moment. Effect: the card is free most of the time without any lending; Sampana's guest, mi-saina and L Katta
+  (none of them send their own `keep_alive`) pay one reload (≈ 3 s warm, more right after a reboot) on the first
+  request after 15 min idle. The socat bridge needs no restart (one TCP connection per guest connection). Undo:
+  remove the file, daemon-reload, restart.
+- Found while measuring: the live install runs llama.cpp **b12608-cpu** (the installer picked CPU at 18:10 while the
+  NVIDIA driver/module mismatch hid the GPU; the CUDA build was replaced). After the reboot the GPU works: Goedel
+  32 tokens take 3.5 s on the CPU build vs 0.72 s with CUDA, first token 0.35 s vs 0.05 s. The new health row offers
+  the repair (the CUDA tarball b12608 is still in the download cache).

@@ -159,7 +159,15 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 ### D — Plus tard
 - ✅ Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (S-AO, D47 : tous les fournisseurs ; pauses,
   attentes et compteurs d'échecs effacés, puis test rapide de la clé)
-- Partage de la carte graphique avec Ollama ; fitantanana (doublons, sur ton accord)
+- ⚠️ Partage de la carte graphique avec Ollama (S-AS, D51) : prêt automatique seulement quand Ollama ne répond à
+  personne (attente 30 s puis mémoire libre ou modèle en ligne, au choix), réglage « Partage de la carte graphique
+  avec Ollama » dans Réglages › Modèles, état dans le panneau ☁ et l'état de santé. Mesures : prêt ≈ 1,5 s, Ollama
+  recharge en ≈ 3 s
+- ⬜ À ton accord : `OLLAMA_KEEP_ALIVE` 24h → 15m par un fichier d'appoint systemd (commandes prêtes dans D51)
+- ⬜ Réparer le moteur llama.cpp : l'installation utilise la version processeur (choisie avant le redémarrage) ;
+  « Réparer » dans l'état de santé remet la version CUDA (5 à 7 fois plus rapide ici)
+- ⬜ fitantanana : ses racines Lean ne voient pas ~/Documents/04_* ni site/publication/sample (il dit « inutilisées »
+  des chaînes v4.23.0-rc2 et v4.34.1 qui servent) — inventaire S-AS dans le dossier de travail de la session
 
 ## ⭐ Priorités avant la release 2.0.0 (mis à jour le 21/11/2026)
 

@@ -350,3 +350,26 @@ Checked and left as is: no polling while idle (the status panel samples only whi
 slow without an audience, S-Q); fonts are `font-display: swap` and only the used subsets download; pdf.js, the
 figure engine, the manual and the glossary data were already loaded only by the screens that use them.
 Not verified: a real phone (the emulation throttles the CPU of this PC 4×, which is not a given phone's profile).
+
+# Partage de la carte graphique avec Ollama (S-AS, 2026-11-22, DECISIONS D51)
+
+RTX 4060 Laptop 8 GB, driver 620.73, Ollama 0.18.2, llama.cpp b12608 (CUDA build from `vendor/`, the live install
+had the CPU build — see D51). `scripts/bench_gpu_share.py`; raw data `bench/gpu_share_ollama.json`,
+`bench/gpu_share_llama_lend_cuda.json`, `bench/gpu_share_llama_lend_cpu_build.json`.
+
+| Measure | Value |
+|---|---|
+| Ollama phi4-mini (2.3 GB) cold load, first after the reboot | 48 s (cold disk cache); later loads 2.7–4 s |
+| Ollama phi4-mini warm: first token / decode | 0.14 s / ~100 tok/s; VRAM 3.4 GB (nvidia-smi), 3.1 GB (`/api/ps`) |
+| Same GGUF (Ollama blob read in place) in llama-server, ctx 8192 | load 1.25 s, first token 0.05 s, VRAM 3.1 GB |
+| Goedel-Prover Q4_K_M in llama-server, ctx 24576, KV q8_0 + FA | load 1.1 s, first token 0.05 s, 32 tokens 0.72 s, VRAM 6.6 GB |
+| Same, CPU build of llama.cpp (live install) | load 5.8 s, first token 0.35 s, 32 tokens 3.5 s |
+| Ollama qwen3.5:9b loaded | 6.1 GB VRAM → Goedel cannot load next to it |
+| Lend: `keep_alive: 0` → VRAM free | 0.32 s; then Goedel load 1.15 s (total ≈ 1.5 s) |
+| Ollama reload of qwen3.5:9b after the card is given back | 2.9 s |
+| `keep_alive: 0` while Ollama generates | returns at once; the generation (600 tokens) finishes; unload 0.5 s after |
+| Busy signals, generating vs idle-loaded | runner CPU 102 % vs 0 %, GPU 94 % vs 0 %, connections on :11434 1 vs 0 |
+| Cost of the activity look before a lend | 0.5 s (only when the model does not fit and Ollama holds the GPU) |
+
+Result: borrowing the card costs ≈ 1.5 s to Madalean and ≈ 3 s to the next Ollama request; no process is stopped and
+no generation is interrupted (Madalean waits up to 30 s, then falls back to the free memory or an online model).

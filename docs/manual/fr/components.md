@@ -275,9 +275,14 @@ Ollama est un autre programme qui fait tourner des modèles en local. Madalean *
 besoin. S'il est déjà installé et en marche sur l'hôte, ses modèles apparaissent parmi les modèles locaux disponibles
 et peuvent être choisis ; les deux programmes coexistent sans conflit.
 
-Attention seulement à la **mémoire graphique** : si Ollama et le modèle local de Madalean tournent en même temps,
-ils se partagent la carte graphique, et l'un ou l'autre peut manquer de mémoire. « Réglages › Système » montre la
-mémoire graphique utilisée par chaque programme.
+**Partage de la carte graphique avec Ollama** (« Réglages › Modèles », partie « Modèles locaux » ; activé par
+défaut, utile seulement quand Ollama est lancé). Les deux programmes ne tiennent pas ensemble sur une carte de 8 Go.
+Quand le modèle local de Madalean ne tient pas, Madalean demande à Ollama de décharger ses modèles (la demande prévue
+par Ollama : rien n'est arrêté, Ollama les recharge seul à sa prochaine demande, en 3 secondes environ), charge le
+sien, puis rend la carte après `local_idle_unload_minutes` sans travail. **Jamais pendant qu'Ollama répond à une autre
+application** : Madalean attend qu'il ait fini (30 s au plus, réglable), puis, selon le réglage, charge son modèle
+avec la mémoire libre (en partie sur le processeur, plus lent) ou passe au modèle suivant (en ligne). Le panneau
+d'état (bouton en haut à droite) et « Réglages › Système › État de santé » disent en clair qui tient la carte.
 
 ## bubblewrap, le bac à sable
 

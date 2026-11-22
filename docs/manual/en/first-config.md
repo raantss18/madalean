@@ -244,6 +244,9 @@ with Madalean stopped (`systemctl --user stop madalean`, edit, then `systemctl -
 | Setting | Default | Effect |
 |---|---|---|
 | `local_idle_unload_minutes` | 10 | the local model stops after this time without work, to give the graphics memory back (0 = never) |
+| `gpu_share_ollama` | yes (host) | share the graphics card with Ollama: have its models unloaded when memory is short, never while it is answering |
+| `gpu_share_busy_wait_s` | 30 (host) | longest wait when Ollama is answering another application |
+| `gpu_share_busy_fallback` | `cpu` (host) | then: `cpu` (free memory, partly on the processor) or `online` (next model, online) |
 | `calcul_idle_minutes` | 30 | the kernel of a “Calcul” notebook stops after this time without activity (0 = never) |
 | `browser_session_idle_minutes` | 120 (host) | a session opened in a browser from another device closes after this idle time |
 

@@ -1192,10 +1192,38 @@ EN.update({
     'Ce lemme fait partie d\'un plan : redécoupez-le depuis le plan du théorème.':
         'This lemma belongs to a plan: split it from the theorem\'s plan.',
     # S-N: GPU lending with Ollama, idle unload
-    'Carte graphique : {who} ; {free} Mo libres. Si la place manque, Madalean fait décharger les modèles d\'Ollama '
-    '(rechargés à la demande) et rend la carte après inactivité.':
-        'GPU: {who}; {free} MB free. When memory is short, Madalean asks Ollama to unload its models (reloaded on '
-        'demand) and gives the GPU back when idle.',
+    # S-AS (D51): « Partage de la carte graphique avec Ollama »
+    'Carte graphique : {who} ; {free} Mo libres. Ollama n\'est pas lancé : rien à partager.':
+        'GPU: {who}; {free} MB free. Ollama is not running: nothing to share.',
+    'Carte graphique : {who} ; {free} Mo libres. Partage avec Ollama désactivé : si la place manque, le modèle local '
+    'tourne en partie sur le processeur.':
+        'GPU: {who}; {free} MB free. Sharing with Ollama is off: when memory is short, the local model runs partly '
+        'on the processor.',
+    'Carte graphique : {who} ; {free} Mo libres. Partage avec Ollama activé : si la place manque, Madalean fait '
+    'décharger les modèles d\'Ollama (rechargés à la demande), jamais pendant qu\'il répond à une autre application, '
+    'et rend la carte après {min} min sans utilisation.':
+        'GPU: {who}; {free} MB free. Sharing with Ollama is on: when memory is short, Madalean asks Ollama to unload '
+        'its models (reloaded on demand), never while it is answering another application, and gives the GPU back '
+        'after {min} min without use.',
+    'Le moteur des modèles locaux est la version « processeur » alors que la carte graphique {gpu} fonctionne : '
+    'réparez-le pour installer la version CUDA (ici 5 à 7 fois plus rapide).':
+        'The local model engine is the « processor » build although the {gpu} GPU works: repair it to install the '
+        'CUDA build (5 to 7 times faster here).',
+    'Partage de la carte graphique avec Ollama désactivé : le modèle utilise la mémoire graphique libre (en partie '
+    'sur le processeur, plus lent).':
+        'GPU sharing with Ollama is off: the model uses the free GPU memory (partly on the processor, slower).',
+    'Ollama répond toujours à une autre application : Madalean ne l\'interrompt pas et confie la tâche au modèle '
+    'suivant (en ligne).':
+        'Ollama is still answering another application: Madalean does not interrupt it and hands the task to the '
+        'next model (online).',
+    'Ollama répond toujours à une autre application : Madalean ne l\'interrompt pas et charge son modèle avec la '
+    'mémoire graphique libre (en partie sur le processeur, plus lent).':
+        'Ollama is still answering another application: Madalean does not interrupt it and loads its model with the '
+        'free GPU memory (partly on the processor, slower).',
+    'Ollama répond à une autre application : Madalean attend qu\'il ait fini (au plus {s} s) avant de lui emprunter '
+    'la carte graphique.':
+        'Ollama is answering another application: Madalean waits for it to finish (at most {s} s) before borrowing '
+        'the GPU.',
     'Carte graphique prêtée par Ollama : {models} déchargé(s) (Ollama les rechargera à la demande).':
         'GPU lent by Ollama: {models} unloaded (Ollama reloads them on demand).',
     'Modèle local arrêté après {m} min sans utilisation : la carte graphique est rendue aux autres applications.':

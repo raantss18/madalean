@@ -118,6 +118,13 @@ class Settings:
     updates_auto: bool = True               # install safe updates automatically at a quiet moment (else: ask first)
     browser_session_idle_minutes: int = 120  # browser (remote/LAN) session: closed after this idle time (host-only)
     local_idle_unload_minutes: int = 10     # S-N: stop llama-server after this idle time to give the GPU back (0 = never)
+    # S-AS (D51): « Partage de la carte graphique avec Ollama » — before loading a local model that does not fit,
+    # Madalean asks a running Ollama to unload its models (keep_alive 0), never while Ollama is answering another
+    # application: it waits up to `gpu_share_busy_wait_s`, then `gpu_share_busy_fallback` (cpu: load with the free
+    # memory, partly on the processor | online: let the next model of the chain — an online one — answer)
+    gpu_share_ollama: bool = True
+    gpu_share_busy_wait_s: int = 30
+    gpu_share_busy_fallback: str = "cpu"
     calcul_idle_minutes: int = 30           # S-P: a Calcul notebook's kernel stops after this idle time (0 = never)
     # S-AO (D47): opening a Calcul document (or its project) starts its kernel in the background and runs the first-use
     # initialisations (Maxima, plots, finite fields); first-use caches are prepared once per Sage version
