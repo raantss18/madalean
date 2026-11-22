@@ -198,3 +198,21 @@ async def test_model_download_refused_in_the_demo(tmp_path, monkeypatch):
             assert st == 409 and e["error"] == "demo"
             st, w = await _json(await s.get(local + "/api/setup/wizard"))
             assert w["auto"] is True                                            # the demo's examples do not count
+
+
+async def test_inherited_wizard_done_is_reset_once(tmp_path, monkeypatch):
+    """1.x / 2.0.0 settings carried `wizard_done: true` from the old assistant: the new one still opens, once."""
+    monkeypatch.setenv("MADALEAN_NO_NET", "1")
+    ctx = make_ctx(tmp_path)
+    ctx.settings.wizard_done = True
+    async with running(ctx) as (_srv, local, _remote):
+        async with aiohttp.ClientSession() as s:
+            st, w = await _json(await s.get(local + "/api/setup/wizard"))
+            assert st == 200 and w["auto"] is True and w["done"] is False
+            st, w = await _json(await s.patch(local + "/api/setup/wizard", json={"done": True}))
+            assert st == 200 and w["done"] is True
+    ctx2 = make_ctx(tmp_path)                                   # next start: « Plus tard » is respected
+    async with running(ctx2) as (_srv, local, _remote):
+        async with aiohttp.ClientSession() as s:
+            st, w = await _json(await s.get(local + "/api/setup/wizard"))
+            assert st == 200 and w["auto"] is False and w["done"] is True

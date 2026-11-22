@@ -355,9 +355,24 @@ async def models_cancel(request: web.Request) -> web.Response:
     return ok({"cancelled": True})
 
 
+async def _reset_inherited_done(ctx) -> None:
+    """`wizard_done` may come from 1.x / 2.0.0 settings (the old assistant, carried over by migrate.py). Until this
+    assistant has been seen once (no first-run.json yet), that inherited value is reset so it opens at the first
+    start, as the user asked; the file is written at once so this happens only once."""
+    if getattr(ctx, "demo", False) or _wiz_file(ctx).exists():
+        return
+    if ctx.settings.wizard_done:
+        await ctx.patch_settings({"wizard_done": False}, True)
+    d = {"schema": WIZARD_SCHEMA, "step": STEPS[0], "visited": [], "reminder": True}
+    await asyncio.to_thread(config.atomic_write_text, _wiz_file(ctx), json.dumps(d, indent=1, ensure_ascii=False))
+
+
 def register(app: web.Application, ctx) -> None:
     # The assistant opens by itself at the first start of the host's web app, an update from 2.0.0 included (the
     # user's choice, 2026-11-22); « Plus tard » or « Terminer » sets wizard_done and it never opens by itself again.
+    async def reset(_app: web.Application) -> None:
+        await _reset_inherited_done(ctx)
+    app.on_startup.append(reset)
     app.router.add_get("/api/setup", setup_get)
     app.router.add_get("/api/setup/wizard", wizard_get)
     app.router.add_patch("/api/setup/wizard", wizard_patch)
