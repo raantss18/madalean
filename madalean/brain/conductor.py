@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 from . import spend, toolcards
+from ._util import fix_mojibake_deep, looks_mojibake
 from ._util import now, read_json, write_private
 from .providers.base import ProviderError
 
@@ -104,7 +105,8 @@ computation the user may run in Calcul), latex (article text).
 
 Answer with the plan as JSON:
 - difficulty: easy | medium | hard for a Lean proof;
-- summary: one short French sentence for the user (what will be done);
+- summary: one short French sentence for the user (what will be done), accents written as plain characters (é, è,
+  «, ≠), never escaped or re-encoded;
 - tasks: 3 to 8 tasks; id short (t1, t2…); depends_on lists ids that must finish first (tasks without a common
   dependency run in parallel); model: one key from the candidates given for that kind, or "auto" (Madalean's
   ranking); why: a few words; hint: what the model of that task should know (exact Mathlib names to try,
@@ -313,6 +315,8 @@ def validate_plan(raw: dict | None, candidates: dict[str, list[str]]) -> tuple[s
         return None
     diff = raw.get("difficulty") if raw.get("difficulty") in NEED else "medium"
     summary = str(raw.get("summary") or "")[:300]
+    if looks_mojibake(summary):                # not repairable: the UI builds the line from the steps instead
+        summary = ""
     tasks: list[PlanTask] = []
     ids: set[str] = set()
     for i, t in enumerate(raw["tasks"][: MAX_TASKS * 2]):
@@ -582,6 +586,8 @@ class Conductor:
                 tried.append(f"{ch.key}: refused")
                 continue
             data = parse_json(res.text)
+            if data is not None:                 # French accents re-read in a legacy code page (seen on real answers)
+                data = fix_mojibake_deep(data)
             if data is None or not all(k in data for k in schema.get("required", [])):
                 tried.append(f"{ch.key}: invalid answer")
                 self.stats.record(ch.key, decision, False, secs, usd)
