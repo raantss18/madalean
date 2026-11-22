@@ -3,7 +3,7 @@ module github.com/raantss18/madalean/net
 go 1.27.4
 
 require (
-	golang.org/x/sys v0.49.0
+	golang.org/x/sys v0.50.0
 	tailscale.com v1.104.7
 )
 
