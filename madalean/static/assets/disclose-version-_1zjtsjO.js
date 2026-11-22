@@ -1,0 +1,1 @@
+import{rt as e}from"./preload-helper-BGkDiV1l.js";e(),typeof window<`u`&&((globalThis.__svelte??={}).v??=new Set).add(`5`);

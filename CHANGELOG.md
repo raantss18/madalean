@@ -1,29 +1,42 @@
 # Changelog
 
-## 2.0.1 — à venir
+## 2.0.1 — 2026-11-22
 
-Travail en cours (branches non encore publiées) :
+**Interface repensée**
+- Le logo est le menu (Accueil en premier) ; plus de barre du bas ni de boutons en double. « Projet › Dossier » en
+  texte complet, seul endroit pour changer de projet ou de dossier.
+- Le bouton ☁ montre le modèle utilisé, le processeur, la mémoire, la carte graphique, les jetons et le coût (cette
+  demande, aujourd'hui, ce mois).
+- Entrée envoie, Maj+Entrée va à la ligne (dans une cellule de code Calcul, Entrée exécute) ; cliquer à côté ferme
+  un menu ou un panneau ; tout s'enregistre automatiquement, et ce qui est tapé sans être envoyé est gardé.
+- Écrans plus rapides sur téléphone (accueil 2,4 → 1,6 s sur un téléphone lent simulé).
+
+**Premiers pas** — un assistant à la première ouverture : outils (réutiliser SageMath ou LaTeX déjà installés, ou la
+copie de Madalean), modèle local conseillé pour votre machine, clés, Claude et ses plafonds, modes, choix
+automatiques ou manuels, appareils. Il reprend où vous l'avez laissé.
 
 **Installation guidée**
-- Installateur graphique `Madalean-installer.run` : il vérifie sa propre intégrité, examine la machine (carte
-  graphique, mémoire, disque, SageMath, TeX Live, Python, Lean, Ollama, Tailscale déjà présents), propose un plan
-  adapté (réutiliser un outil déjà installé ou installer la copie de Madalean, modèle local conseillé ou non) et
-  montre l'installation en direct dans le navigateur, avec « Réessayer » en cas d'erreur.
-- Le même assistant dans le terminal (`./install.sh`) ; `./install.sh --yes` garde les choix par défaut, sans
-  question ; `--dry-run` montre le plan sans rien installer ; nouvelles options `--models`, `--sage`, `--tex`, `--plan`.
-- SageMath et TeX Live déjà installés sur l'ordinateur peuvent être réutilisés (même bac à sable).
-- Les choix d'installation sont gardés et appliqués au premier démarrage ; l'application peut les lire.
+- Nouvel installateur graphique `Madalean-installer.run` : rendez-le exécutable (clic droit › Propriétés ›
+  « Autoriser l'exécution », ou `chmod +x Madalean-installer.run`), double-cliquez. Il vérifie son intégrité, examine
+  votre machine, propose le meilleur plan et montre l'installation en direct dans votre navigateur.
+- Le même assistant dans le terminal : `./install.sh` ; sans question : `./install.sh --yes`.
 
-**Site**
-- Nouvel accueil (démonstration animée, fonctions, fonctionnement, installation en 3 étapes, questions
-  fréquentes), page « À propos » avec les coordonnées de l'auteur, guide complet d'installation et de première
-  configuration ; téléchargements classés serveur / clients, toujours vers la dernière version.
+**Preuves et calculs**
+- « Expliquer » pour Lean : l'erreur (avec une correction proposée seulement si Lean l'accepte) et la preuve ligne
+  par ligne, avec les buts donnés par Lean.
+- Le chef d'orchestre corrige aussi les cellules Calcul qui échouent et les compilations d'article (correction
+  vérifiée, proposée en suggestion) ; une preuve trouvée avant un verdict « douteux » est gardée pour « Prouver
+  quand même ».
+- Calcul prêt d'avance : première intégrale en 0,1 s au lieu de 8 s.
+- Historique des dossiers relancés très souvent compacté, sans rien perdre de ce qui est affiché.
+- Enregistrer une nouvelle clé relance aussitôt le fournisseur mis en pause.
 
-**Applications**
-- « À propos » avec les coordonnées de l'auteur dans l'application Android et l'application de bureau ; licence
-  indiquée dans l'application web.
+**Site et applications** — nouveau site (accueil, guide complet d'installation et de première configuration, page
+« À propos ») ; téléchargements classés serveur / clients, toujours vers la dernière version ; coordonnées de
+l'auteur dans les applications.
 
-**Interface** — nouvelle présentation de l'application web : en cours (session S-AK).
+Fichiers (noms stables) : `Madalean-installer.run`, `madalean-server.tar.gz`, `Madalean-x86_64.AppImage`,
+`Madalean-android.apk` (+ par processeur), `SHA256SUMS`, `SHA256SUMS.sig`.
 
 ## 2.0.0 — 2026-11-22
 
