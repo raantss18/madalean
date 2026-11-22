@@ -1853,7 +1853,7 @@ const fr = {
   'calc.interrupt': 'Interrompre',
   'calc.remoteOff': 'Depuis cet appareil, vous pouvez lire et écrire les cellules ; leur exécution n’est autorisée que depuis l’ordinateur hôte (réglage « expériences depuis les appareils »).',
   'calc.noSage': 'SageMath n’est pas encore installé.',
-  'calc.noSageText': 'Les cellules Python fonctionnent déjà ; Sage s’installe à la demande (environ 2 Go).',
+  'calc.noSageText': 'Les cellules Python fonctionnent déjà ; Sage s’installe à la demande (environ 1,5 Go à télécharger, 5 Go sur le disque).',
   'calc.installSage': 'Installer SageMath',
   'calc.installing': 'Installation de SageMath…',
   'calc.installHostOnly': 'L’installation se lance depuis l’ordinateur hôte.',

@@ -1854,7 +1854,7 @@ const en: Record<keyof typeof fr, string> = {
   'calc.interrupt': 'Interrupt',
   'calc.remoteOff': 'From this device you can read and write cells; running them is allowed only from the host computer (setting “experiments from devices”).',
   'calc.noSage': 'SageMath is not installed yet.',
-  'calc.noSageText': 'Python cells already work; Sage installs on demand (about 2 GB).',
+  'calc.noSageText': 'Python cells already work; Sage installs on demand (about 1.5 GB to download, 5 GB on disk).',
   'calc.installSage': 'Install SageMath',
   'calc.installing': 'Installing SageMath…',
   'calc.installHostOnly': 'Installation is started from the host computer.',

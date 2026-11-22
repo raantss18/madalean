@@ -2,6 +2,28 @@
 
 État : ⬜ à faire · 🔄 en cours · ✅ fait et vérifié · ⚠️ fait, non vérifié en réel
 
+## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
+
+Publié : 2.0.0, 2.0.1, 2.0.2 (GitHub, signées ; site https://raantss18.github.io/madalean/ et canal de mises à jour
+en ligne ; liens « dernière version » sans numéro). Installé chez toi : 2.0.2 (Madalean Server, partage de la carte
+avec Ollama, moteur des modèles sur la carte graphique).
+
+Reste à faire (développement) :
+- ⬜ Défauts vus sur tes vrais dossiers (S-O) : Riesz manqué par la recherche Mathlib, modèle Gemini « Live » choisi,
+  doublon dans une course — à revérifier sur tes dossiers avec la 2.0.2
+- 🔄 fitantanana (projets Lean profonds, restes de développement, prêt de la carte seulement si Ollama est libre) et
+  Sampana (cibles du contrôle de santé à jour à chaque application) — en cours
+- ⏸ Arrêt précoce des essais (B11) — mis de côté volontairement ; ⏸ noyau Jupyter Lean 4 — aucun n'est fiable
+
+Reste à faire (toi) :
+- ⬜ Essais en réel : Madalean Server dans le menu KDE (icône, fenêtre, Démarrer/Arrêter) ; « Premiers pas » ; nouvelle
+  interface (logo-menu, panneau ☁, enregistrement automatique) ; Calcul (même code après « Réécrire », F_125 sous
+  toutes ses écritures, « Expliquer les étapes », première intégrale rapide) ; une vraie preuve avec ta clé Claude
+  (chef d'orchestre et coût, « Expliquer » Lean) ; relancer Riesz, Banach, polynôme de degré 3 ; APK 2.0.3 sur le
+  téléphone ; AppImage sur un autre PC ; Réglages › « Tester la connexion » GitHub, clés Gemini / Mistral ; partage
+  de la carte quand Ollama et Madalean servent en même temps
+- ⬜ Sauvegarder `release-keys/` (clés de signature) sur un support à part
+
 ## 🚀 Ordre de travail à partir du 22/11/2026 (demandes du 22/11)
 
 ⚠️ = installé le 22/11, à essayer par toi.
@@ -126,7 +148,7 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 
 ### C — Avant la publication 2.0.0 (sur ton accord)
 17. ✅ Essai continu de 2 h (0 erreur) + 1 h sur les mêmes dossiers ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version
-18. ⬜ Tes essais : APK 2.0.1 (scan dans l'app), Calcul, une vraie preuve (coût Hugging Face), GitHub « Tester la connexion »
+18. ⬜ Tes essais (voir « État au 22/11 au soir ») : APK 2.0.3 (scan dans l'app), Calcul, une vraie preuve (coût Hugging Face), GitHub « Tester la connexion »
 19. ✅ Publication 2.0.0 : v2 fusionnée dans main, tag v2.0.0, release GitHub signée, GitHub Pages activé, canal
     de mises à jour en ligne (https://raantss18.github.io/madalean/)
 
@@ -143,7 +165,7 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 23. ⚠️ Installateur graphique `Madalean-installer.run` (assistant dans le navigateur, progression en direct,
     « Réessayer ») — à essayer par toi sur un vrai téléchargement à la prochaine version
 24. ⚠️ « À propos » avec tes coordonnées dans l'application web, l'application Android et l'AppImage
-25. ⬜ Prochaine release : noms de fichiers stables (`Madalean-installer.run`, `madalean-server.tar.gz`,
+25. ✅ (2.0.1) Noms de fichiers stables (`Madalean-installer.run`, `madalean-server.tar.gz`,
     `Madalean-x86_64.AppImage`, `Madalean-android*.apk`) avec `scripts/stage_release.sh` puis
     `scripts/sign_release.sh` — sur ton accord ; d'ici là les liens du site ouvrent la page de la dernière version
 26. ⚠️ Assistant « Premiers pas » dans l'application (S-AQ, D49, docs/UI.md §15, branche s-aq-first-run) : plein écran
@@ -153,7 +175,7 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     Hugging Face, Claude et ses plafonds, modes, automatique ou manuel, appareils, liste de vérification ; « Plus
     tard » + carte sur l'accueil, reprise là où tu t'étais arrêté (menu du logo, Réglages) — à essayer par toi ;
     téléchargement réel d'un modèle depuis l'assistant non essayé (testé avec un faux téléchargeur)
-27. ⬜ Texte « environ 2 Go » de l'écran Calcul sans SageMath : 1,5 Go à télécharger, 5 Go sur le disque (S-AK)
+27. ✅ Texte « environ 2 Go » de l'écran Calcul sans SageMath : 1,5 Go à télécharger, 5 Go sur le disque (S-AK)
 28. ✅ Icône 32x32 de l'AppImage convertie en RGBA (`build_brand.py` écrit toutes les icônes Tauri en RGBA ; S-AR)
 29. ⚠️ **« Madalean Server »**, l'application de l'ordinateur hôte (S-AR, D50, branche feat/madalean-server-app) :
     Madalean dans sa propre fenêtre + menu « Serveur » (état, Démarrer / Arrêter / Redémarrer, journaux, ouvrir dans
@@ -162,7 +184,7 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     la mise à jour automatique, sans compilation chez toi. Essayée ici en vrai (lecture seule, fenêtre à part) — à
     essayer par toi après la prochaine installation : le menu, l'icône dans la barre des tâches, l'icône près de
     l'horloge, Arrêter / Démarrer sur le vrai service
-30. ⬜ Prochaine release : construire l'application serveur avec `scripts/stage_release.sh` (elle appelle
+30. ✅ (2.0.2) Construire l'application serveur avec `scripts/stage_release.sh` (elle appelle
     `scripts/build_host_app.sh`) pour qu'elle soit dans `madalean-server.tar.gz`
 
 ### D — Plus tard
@@ -172,8 +194,8 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
   personne (attente 30 s puis mémoire libre ou modèle en ligne, au choix), réglage « Partage de la carte graphique
   avec Ollama » dans Réglages › Modèles, état dans le panneau ☁ et l'état de santé. Mesures : prêt ≈ 1,5 s, Ollama
   recharge en ≈ 3 s
-- ⬜ À ton accord : `OLLAMA_KEEP_ALIVE` 24h → 15m par un fichier d'appoint systemd (commandes prêtes dans D51)
-- ⬜ Réparer le moteur llama.cpp : l'installation utilise la version processeur (choisie avant le redémarrage) ;
+- ✅ (22/11, ton accord) `OLLAMA_KEEP_ALIVE` 24h → 15m par un fichier d'appoint systemd (commandes prêtes dans D51)
+- ✅ (22/11) Réparer le moteur llama.cpp : l'installation utilise la version processeur (choisie avant le redémarrage) ;
   « Réparer » dans l'état de santé remet la version CUDA (5 à 7 fois plus rapide ici)
 - ⬜ fitantanana : ses racines Lean ne voient pas ~/Documents/04_* ni site/publication/sample (il dit « inutilisées »
   des chaînes v4.23.0-rc2 et v4.34.1 qui servent) — inventaire S-AS dans le dossier de travail de la session
@@ -210,12 +232,12 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 10. ⚠️ Écran « Calcul » = vrai carnet Sage (S-P, docs/CALCUL.md) : cellules qui s'enchaînent dans un seul noyau partagé avec JupyterLab (même fichier .ipynb), « Demander » en langage naturel, courbes et géométrie dynamique (outils de Fikajiana), exact/approché, reliés aux conjectures, notes, dossiers Lean, article et Publier — testé avec de vrais noyaux Sage et Python ; section « Calculs » du site publié faite (S-W) : cellules, demandes, résultats, formules rendues par KaTeX, images, figures en SVG fixe, carnets téléchargeables, case « Joindre les calculs » dans Publier ; message clair quand le noyau ne démarre pas ou que SageMath manque (bouton Redémarrer / Installer SageMath) ; reste : essai par toi
 11. ✅ Défauts du PDF (S-O puis S-W, vérifié sur tes vrais dossiers) : version de Mathlib affichée ; énoncé une seule fois (l'annexe ne le répète plus, l'article non plus dans ses preuves) ; annexe : titres sans numéro, seules les étapes sont numérotées ; « Lecture guidée » coupée après une phrase (Gemini) : plus enregistrée — à refaire sur Riesz, compact, E/ker f (relancer la lecture guidée)
 12. ✅ Interfaces téléphone et tablette pour l'APK et l'AppImage (S-X, docs/UI.md §12) : vérifiées écran par écran à 360, 412, 768, 1024 et 1366 px, clair et sombre — plus aucun défilement de côté ni chevauchement, boutons d'au moins 44 px au doigt, menus et fenêtres en volets du bas sur téléphone, « ⋯ » pour les boutons secondaires du Calcul, Notes et Conjectures en liste puis détail, barre du bas masquée quand le clavier est ouvert et texte saisi gardé visible ; reste : essai sur ton téléphone et ta tablette
-13. ⬜ Suite de tests complète verte ; 44 points du manuel ; README et notes de version 2.0.0 ; essai prolongé de 2 h
+13. ✅ Suite de tests complète verte ; 44 points du manuel ; README et notes de version 2.0.0 ; essai prolongé de 2 h
 14. ✅ Clé Gemini présente et acceptée par Google (le modèle de test était surchargé : 503)
 
 ### P2 — publication (sur ton accord)
 13. ✅ Fusion `v2` → `main`, tag `v2.0.0`, release signée (AppImage, APK, canal de mises à jour), site GitHub Pages
-14. ⬜ Tests de l'AppImage et de l'APK après la release (toi), puis retrait de l'ancienne application 1.1.4
+14. ✅ (22/11) Retrait de l'ancienne application 1.1.4 ; tests de l'AppImage et de l'APK : voir 18
 
 ### Après la 2.0.0
 - Ollama occupe 4,8 Go de la carte graphique : partage à prévoir avec les modèles locaux
