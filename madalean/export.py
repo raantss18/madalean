@@ -532,11 +532,16 @@ def tectonic_cmd() -> list[str] | None:
 
 def _engines() -> list[list[str]]:
     """Commands to try, best first. Each is run in the document's directory with the file name appended.
-    tectonic from the prefix first; a system XeLaTeX/LuaLaTeX only as a fallback (§18)."""
+    tectonic from the prefix first; a system XeLaTeX/LuaLaTeX only as a fallback (§18). S-AL (D44): the user's
+    `tex_engine` reorders them (system = the TeX Live first, tectonic as fallback; tectonic = tectonic only when
+    present). Every engine runs confined the same way (tex_confine)."""
     out = []
+    pref = deps.preference("tex_engine")
     tec = tectonic_cmd()
     if tec:
         out.append(tec)
+    if pref == "tectonic" and tec:
+        return out
     latexmk = deps.tool("latexmk")
     for eng in ("xelatex", "lualatex"):
         if not deps.tool(eng):
@@ -549,6 +554,8 @@ def _engines() -> list[list[str]]:
         else:
             out.append([deps.tool(eng), "-interaction=nonstopmode", "-halt-on-error", "-no-shell-escape",
                         "\x00twice"])
+    if pref == "system" and tec and len(out) > 1:
+        out = out[1:] + out[:1]
     return out
 
 

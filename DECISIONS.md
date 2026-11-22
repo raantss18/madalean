@@ -605,3 +605,67 @@
   could check the wrong thing); a probe for every operation (kept to the five with a clear by-hand derivation; the
   others get the method, unverified); Sage's own step-by-step (none exists in Sage for these operations); a cache
   on disk (the answer depends on the model and language; memory is enough for a session).
+
+
+## D44 — Guided install (one engine, terminal + graphical `.run`), reuse of system SageMath / TeX Live, showcase site, stable release names (user request, 2026-11-22, S-AL)
+
+- **Request** (French, summarised): a more attractive site with the author's contacts on the site and in the apps; at
+  install time Madalean must guide the user to the best tools for the machine (Sage, local model or none, LaTeX,
+  Python…), check what is already there, help install the rest, and guide the first configuration — all documented on
+  GitHub Pages. Answers: contacts = README's; assistant = terminal + first opening in the browser (the in-app part is a
+  later session); existing system tools = proposed, the user chooses; site = showcase home + academic guide/manual.
+  Then: a graphical self-extracting `.run` installer opening a wizard in the browser; the site shows no version and
+  links to the latest server (.run, sources) and client (AppImage, APK) files.
+- **One engine** `madalean/deps/assistant.py` (stdlib only, Python ≥ 3.8, runs under the system `python3` before
+  Madalean's own environment exists; after step 3 with Madalean's Python when there is none): `detect()` (CPU, RAM,
+  disk, NVIDIA GPU + VRAM + CUDA through `nvidia-smi --query-gpu`, SageMath + its `sagemath` Jupyter kernel, TeX Live
+  year + fontspec, tectonic, Pythons, elan toolchains, Ollama, Tailscale, bubblewrap, models in ~/models, prefix
+  state), `recommend()` (plan + reason per item, FR/EN, options marked unavailable when incompatible, advice with the
+  exact package command — never run), `validate()`, `shell_vars()`, `record()`/`apply_pending()`. Front-ends: the
+  terminal assistant of `install.sh` (interactive only when stdin and stdout are terminals and neither `--yes` nor
+  `--plan` is given — `--yes`/non-TTY = the 2.0.0 defaults, unchanged, checked by a test), the graphical installer
+  (`packaging/installer/server.py`), and `GET /api/setup` (host only, read-only) for the future in-app wizard.
+  `install.sh` reads the plan as `KEY=value` lines matched against fixed allow-lists (no `eval`).
+- **Plan items** and defaults (`--yes`): models `all` (≈ 15 GB; `prover` ≈ 5 GB; `none`), llama.cpp `auto` (CUDA when
+  the driver allows) / `cpu`, Sage `later` (own copy on first use) / `now` / `system`, TeX `own` / `system`, workspace
+  `import` / `build` / `skip`, mode `auto` / `online` / `local`. Recommendations: all models with ≥ 10 GB VRAM and
+  ≥ 15 GiB RAM, prover only with ≥ 7.8 GB VRAM (24k context, q8_0 KV ≈ 7.0 GiB, config.py), otherwise « pas de modèle
+  local conseillé » + CPU llama.cpp (23 MB instead of 660 MB) + mode `online`; system Sage when ≥ 10.0 AND its kernel
+  exists; tectonic always (TeX Live stays the automatic fallback); build lean-current when no workspace and enough
+  disk.
+- **Reuse of system tools** = two settings, `sage_source` (auto | own | system) and `tex_engine` (auto | tectonic |
+  system), published to `madalean.deps.preference()` whenever settings load or change, read by
+  `sagebridge.find_kernelspec` (system = system kernel dirs only, own = prefix only, auto = prefix first — the 2.0.0
+  behaviour) and `export._engines` (system = TeX Live first, tectonic last; tectonic = tectonic only). The S-AC/S-H
+  sandbox is unchanged for both: the Sage launcher (env allow-list, private home, rlimits, bubblewrap with `/`
+  read-only) and `tex_confine` (system TeX trees mounted read-only) already applied to system binaries. The install
+  choices live in `<config>/setup.json` (schema `madalean-setup/1`: detected, recommended, plan, result, apply,
+  applied, history ≤ 10) and are applied **once** at first start (`applied` flag; re-armed only when a later install
+  uses a different plan, so a repair run never overrides what the user changed in the app).
+- **Graphical installer**: `Madalean-installer.run` = `packaging/installer/header.sh` (payload SHA-256 + byte offset
+  written by `scripts/build_installer.sh`) + an uncompressed tar of `SHA256SUMS` + `madalean-server.tar.gz`. The header
+  verifies the whole payload, then `SHA256SUMS`, before unpacking anything; `--check`, `--extract DIR`, `--terminal`,
+  `--yes`. With a graphical session and `python3`, a stdlib HTTP server on 127.0.0.1 (random port; never another
+  interface) with a 256-bit one-time token in the URL (removed from the address bar by the page), required on every
+  API call (`X-Install-Token`), Host header pinned to the loopback address (DNS rebinding), Origin checked on POST,
+  strict CSP, no external resource. It streams `install.sh --plan FILE` (steps `==> n/9` → progress bar), offers
+  « Réessayer » (install.sh resumes), « Ouvrir Madalean » (xdg-open of the local URL) and stops on « Fermer », or after
+  30 min idle while no install runs. Fallbacks: no display/browser → the terminal assistant; no terminal either → the
+  default install. Rejected: a Tk/GTK window (python3-tk is often missing, GTK needs bindings), Electron/Tauri for the
+  installer (hundreds of MB), makeself itself (an extra tool to vendor; 60 lines of sh do the same, with our checks).
+- **Site**: root `index.html` = French showcase, `en/home.html` = English; CSS-only demo (12 s loop, still frames
+  under `prefers-reduced-motion`), SVG « how it works », 3 steps, FAQ, author band; `fr|en/about.html` with the
+  contacts; footer with author, e-mail, GitHub, licence on every page; download page grouped **server** (`.run`
+  recommended, sources/`install.sh`, server archive) / **clients** (APK with QR, AppImage, « un navigateur suffit »).
+  **No version number anywhere**; links use `releases/latest/download/<stable name>` when the published release has
+  that name, else the `releases/latest` page (v2.0.0 used versioned names: nothing on the live site breaks).
+  Size +≈ 30 KiB (no new image: the home reuses the manual's screenshots).
+- **Stable release asset names** from 2.0.1: `madalean-server.tar.gz`, `Madalean-installer.run`,
+  `Madalean-x86_64.AppImage`, `Madalean-android.apk` (+ `Madalean-android-<abi>.apk`), collected by
+  `scripts/stage_release.sh` (build scripts unchanged). The signed channel carries the version; readers never relied
+  on names, except the server's GitHub-API fallback (`madalean-<v>.tar.gz`, now also `madalean-server.tar.gz`) and
+  `sign_release.sh` (version now read from the archive when the name has none). `make_update_manifest.py`: `.run` →
+  kind `installer`, an APK without ABI in its name → `universal`.
+- **Contacts** (README's): RANIRIAMANJAKA Antsa, antsa.raniriamanjaka@univ-antananarivo.mg, github.com/raantss18,
+  Apache-2.0, version — web About (licence sentence added; phone kept, the user had added it), Android (new About
+  screen from the connect screens), desktop shell (About block on the connect screen), site footer + About, README.

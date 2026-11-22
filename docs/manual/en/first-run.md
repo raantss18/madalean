@@ -18,6 +18,10 @@ host computer).
 
 ## Three choices to make
 
+These choices, the providers' keys and each automatic behaviour are detailed in
+[First configuration](first-config.md).
+
+
 1. **Where the models work** (“Settings › Models”):
    - *Local*: nothing leaves the host computer; only the models installed here work.
    - *Automatic* (default): the best available model, online first, local models when the network is missing.

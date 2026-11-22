@@ -181,6 +181,24 @@ class S {
       _t('Échec du téléchargement.', 'Download failed.');
   String get downloading => _t('Téléchargement…', 'Downloading…');
 
+  // About.
+  String get about => _t('À propos', 'About');
+  String get aboutWhat => _t(
+    'Client Android de Madalean : traduction d’énoncés en Lean et '
+        'recherche de preuves, vérifiées par Lean.',
+    'Android client for Madalean: statements translated to Lean and proofs '
+        'searched for, checked by Lean.',
+  );
+  String get author => _t('Auteur', 'Author');
+  String get email => _t('Courriel', 'E-mail');
+  String get github => 'GitHub';
+  String get licence => _t('Licence', 'Licence');
+  String get version => _t('Version', 'Version');
+  String copy(String what) => _t('Copier : $what', 'Copy: $what');
+  String get copied => _t('Copié.', 'Copied.');
+  String get cannotOpenLink =>
+      _t('Impossible d’ouvrir ce lien.', 'Could not open this link.');
+
   // Updates.
   String get settings => _t('Réglages', 'Settings');
   String get autoUpdates =>

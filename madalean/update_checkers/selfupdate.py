@@ -182,7 +182,9 @@ def latest_release(api: str = RELEASES_API, current: str = __version__) -> dict 
         return None
     assets = {a.get("name"): a.get("browser_download_url") for a in v.get("assets") or [] if isinstance(a, dict)}
     ver = tag.lstrip("v")
-    archive = next((n for n in assets if n == f"madalean-{ver}.tar.gz"), None)
+    # stable release names since 2.0.1 (D44: the site links to releases/latest/download/<name>); versioned before
+    archive = next((n for n in assets if n == f"madalean-{ver}.tar.gz"), None) or \
+        ("madalean-server.tar.gz" if "madalean-server.tar.gz" in assets else None)
     out = {"version": ver, "tag": tag, "notes": str(v.get("body") or "")[:20000], "page": v.get("html_url", ""),
            "archive": assets.get(archive) if archive else "", "archive_name": archive or "",
            "sums": assets.get("SHA256SUMS", ""), "sig": assets.get("SHA256SUMS.sig", ""),

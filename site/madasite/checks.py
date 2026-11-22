@@ -13,9 +13,13 @@ VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "met
 SVG_VOID_OK = {"path", "rect", "circle", "line", "polyline", "polygon", "stop", "use", "ellipse"}
 # Links (never loaded resources) allowed to leave the site. Anything else is an error.
 ALLOWED = {
-    "github": re.compile(r"^https://github\.com/raantss18/madalean(\.git|/.*)?$"),
+    "github": re.compile(r"^https://github\.com/raantss18(/madalean(\.git|/.*)?)?/?$"),
     "scholarly": re.compile(r"^https://(doi\.org|arxiv\.org|zbmath\.org|www\.ams\.org/mathscinet)/"),
-    "instructions": re.compile(r"^https://(tailscale\.com|platform\.claude\.com|aistudio\.google\.com)(/.*)?$"),
+    "instructions": re.compile(r"^https://(tailscale\.com|platform\.claude\.com|aistudio\.google\.com|"
+                               r"console\.anthropic\.com|huggingface\.co|console\.mistral\.ai|console\.groq\.com|"
+                               r"cloud\.cerebras\.ai|cloud\.sambanova\.ai|openrouter\.ai|build\.nvidia\.com|"
+                               r"platform\.openai\.com|platform\.deepseek\.com|app\.tavily\.com|dashboard\.exa\.ai|"
+                               r"api-dashboard\.search\.brave\.com)(/.*)?$"),
 }
 
 

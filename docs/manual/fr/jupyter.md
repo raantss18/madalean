@@ -17,11 +17,11 @@ le reste de Madalean. Les carnets sont rangés dans `~/Documents/Madalean/notebo
 | Noyau | Disponible si |
 |---|---|
 | Python 3 | toujours (avec JupyterLab) |
-| SageMath | Sage est installé sur l'hôte (paquet de votre distribution) |
+| SageMath | la copie de Madalean est installée, ou le SageMath du système est compatible |
 | Lean 4 | non fourni : aucun noyau Lean 4 n'est assez fiable aujourd'hui. Utilisez les dossiers ou les blocs `lean` des [notes](notes.md). |
 
-Madalean n'installe pas Sage lui-même (il ne lance jamais `sudo`) : « Réglages › Mises à jour » indique la commande
-exacte pour votre distribution.
+Madalean installe sa propre copie de SageMath à la demande, ou réutilise celui de votre système s'il est compatible :
+voir [Ce qu'installe Madalean › SageMath](components.md#sagemath).
 
 ## L'assistant à côté du carnet
 

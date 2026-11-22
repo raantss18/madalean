@@ -67,21 +67,35 @@ Screens adapt to phones and tablets.
 
 ## Install
 
-Linux x86_64, about 40 GB of disk. An NVIDIA card is recommended for local models (without one, everything works
-online, and offline on the CPU, more slowly).
+**Madalean 2.0.0 is released.** Site, complete installation guide and manual: <https://raantss18.github.io/madalean/>.
+
+Linux x86_64; about 6 GB without a local model, 25 GB with. An NVIDIA card with at least 8 GB enables local models;
+without one, everything works with online models.
+
+**Easiest: the graphical installer** `Madalean-installer.run` (from the next release on; the link always leads to the
+latest): <https://github.com/raantss18/madalean/releases/latest/download/Madalean-installer.run>. Make it executable
+(right-click › Properties › “Allow executing”, or `chmod +x Madalean-installer.run`) and double-click it: it checks
+its integrity, examines the machine (graphics card, memory, SageMath, TeX Live, Python, Lean, Ollama, Tailscale
+already present), proposes a plan (reuse or install each tool, local model recommended or not) and shows the
+installation live in your browser.
+
+**From source**, the same assistant in the terminal:
 
 ```bash
 git clone https://github.com/raantss18/madalean.git ~/madalean
 cd ~/madalean
-./install.sh
+./install.sh            # assistant: machine table, recommended plan, every choice can be changed
+./install.sh --yes      # no question (defaults)
+./install.sh --dry-run  # shows the plan, installs nothing
 ```
 
-The script installs everything into one folder (Lean and Mathlib, SageMath on demand, LaTeX, the model engine, a
-Tailscale node), without `sudo` or system packages. It can be re-run safely. Madalean then starts with the computer;
-open it from the applications menu or at `http://127.0.0.1:11500`. To uninstall: `./uninstall.sh` (your settings
-and projects are kept).
+Everything goes into one folder (Lean and Mathlib, SageMath on demand or the system's, LaTeX, the model engine, a
+Tailscale node), without `sudo` or system packages: when a system package would help (bubblewrap), the exact command
+is printed for you to run. It can be re-run safely. Madalean then starts with the computer; open it from the menu or
+at `http://127.0.0.1:11500`. To uninstall: `./uninstall.sh` (your settings and projects are kept).
 
-Details: [docs/INSTALL.md](docs/INSTALL.md) and the [manual](docs/manual/en/index.md).
+Details: [installation guide](https://raantss18.github.io/madalean/en/install.html), [docs/INSTALL.md](docs/INSTALL.md)
+and the [manual](docs/manual/en/index.md).
 
 ## Updates
 
@@ -100,5 +114,5 @@ switches over. Your proofs are then re-checked.
 RANIRIAMANJAKA Antsa — [antsa.raniriamanjaka@univ-antananarivo.mg](mailto:antsa.raniriamanjaka@univ-antananarivo.mg)
 — [github.com/raantss18](https://github.com/raantss18)
 
-Apache 2.0 license. Lean, Mathlib, SageMath, the models and the other components keep their own licenses.
+Apache-2.0 licence. Current version: 2.0.0. Lean, Mathlib, SageMath, the models and the other components keep their own licenses.
 The former 1.x application ("Lean AI Station") is described in [CHANGELOG.md](CHANGELOG.md).

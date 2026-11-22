@@ -17,6 +17,7 @@ const T = {
     localHint: 'Sur l’ordinateur hôte, l’interface s’ouvre directement, sans code.',
     updTitle: 'Mises à jour', updAuto: 'Mises à jour automatiques', updCheck: 'Vérifier maintenant', updRestart: 'Redémarrer',
     updHelp: 'Vérifie deux fois par jour, télécharge et contrôle la signature, puis installe au prochain démarrage.',
+    aboutTitle: 'À propos', aboutAuthor: 'Auteur', aboutEmail: 'Courriel', aboutLicence: 'Licence', aboutVersion: 'Version',
     upd: {
       idle: (u) => `Version ${u.current}.`, checking: () => 'Vérification…',
       downloading: (u) => `Téléchargement de la version ${u.version}… ${u.progress} %`,
@@ -71,6 +72,7 @@ const T = {
     localHint: 'On the host computer itself, the interface opens directly, no code needed.',
     updTitle: 'Updates', updAuto: 'Automatic updates', updCheck: 'Check now', updRestart: 'Restart',
     updHelp: 'Checks twice a day, downloads and verifies the signature, then installs at the next start.',
+    aboutTitle: 'About', aboutAuthor: 'Author', aboutEmail: 'E-mail', aboutLicence: 'Licence', aboutVersion: 'Version',
     upd: {
       idle: (u) => `Version ${u.current}.`, checking: () => 'Checking…',
       downloading: (u) => `Downloading version ${u.version}… ${u.progress} %`,
@@ -278,6 +280,7 @@ async function main() {
   state = await invoke('init_state');
   lang = state.lang === 'en' ? 'en' : 'fr';
   $('version').textContent = `Madalean ${state.version}`;
+  $('about-version').textContent = state.version;
   $('device').value = state.device_name;
   applyLang();
 

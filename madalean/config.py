@@ -122,6 +122,9 @@ class Settings:
     # S-AE (D37): a Lean kept running per workspace in use, Mathlib loaded, for intermediate attempts (~3.4 GB each)
     lean_warm: bool = True
     lean_warm_idle_minutes: int = 10        # stopped after this idle time
+    # S-AL (D44): reuse of system tools chosen at install (setup.json, applied once at first start)
+    sage_source: str = "auto"               # auto (Madalean's SageMath first, else the system's) | own | system
+    tex_engine: str = "auto"                # auto (tectonic first, system TeX Live as fallback) | tectonic | system
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 
@@ -183,13 +186,21 @@ def read_json(path: Path) -> tuple[dict, bool]:
         return {}, True
 
 
+def publish_preferences(s: Settings) -> None:
+    """Tool preferences read by modules without a context (export, Sage bridge): madalean.deps.preference()."""
+    deps.set_preferences(sage_source=s.sage_source, tex_engine=s.tex_engine)
+
+
 def load_settings() -> tuple[Settings, bool]:
     data, corrupt = read_json(SETTINGS_FILE)
-    return _from_dict(Settings, data), corrupt
+    s = _from_dict(Settings, data)
+    publish_preferences(s)
+    return s, corrupt
 
 
 def save_settings(s: Settings) -> None:
     atomic_write_text(SETTINGS_FILE, json.dumps(asdict(s), indent=2, ensure_ascii=False))
+    publish_preferences(s)
 
 
 def load_session() -> dict:

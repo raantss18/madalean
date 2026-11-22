@@ -28,7 +28,8 @@ from .slots import Slots
 from .workspaces import Workspace, all_workspaces
 
 log = get("context")
-ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agent", "auto"), "language": tuple(i18n.LANGS)}
+ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agent", "auto"), "language": tuple(i18n.LANGS),
+         "sage_source": ("auto", "own", "system"), "tex_engine": ("auto", "tectonic", "system")}
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
                       "experiments_remote", "updates_auto", "browser_session_idle_minutes"}
 LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
@@ -191,11 +192,17 @@ class ServerContext:
     def _load_settings(self) -> None:
         data, self.settings_corrupt = config.read_json(self.paths.settings)
         self.settings = config._from_dict(config.Settings, data)
+        # S-AL (D44): the choices made at install time (setup.json: Sage / TeX reuse, mode) apply once, at first start
+        from .deps import assistant
+        if assistant.apply_pending(self.settings, self.paths.config):
+            config.atomic_write_text(self.paths.settings, json.dumps(asdict(self.settings), indent=2, ensure_ascii=False))
+        config.publish_preferences(self.settings)
         i18n.set_language(self.settings.language)
 
     async def save_settings(self) -> None:
         text = json.dumps(asdict(self.settings), indent=2, ensure_ascii=False)
         await asyncio.to_thread(config.atomic_write_text, self.paths.settings, text)
+        config.publish_preferences(self.settings)
 
     def settings_public(self) -> dict:
         return asdict(self.settings)

@@ -170,11 +170,13 @@ class _MadaleanAppState extends State<MadaleanApp> with WidgetsBindingObserver {
             updater: widget.updater,
             openTailscale: widget.native.openTailscale,
             openAppSettings: widget.native.openAppSettings,
+            version: widget.version,
           ),
           final UnreachableState st => UnreachableScreen(
             controller: c,
             state: st,
             openTailscale: widget.native.openTailscale,
+            version: widget.version,
           ),
           final WebState st => WebScreen(
             key: ValueKey(originKey(st.origin)),

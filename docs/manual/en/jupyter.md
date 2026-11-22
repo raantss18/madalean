@@ -17,11 +17,11 @@ the rest of Madalean. Notebooks are stored in `~/Documents/Madalean/notebooks/`.
 | Kernel | Available if |
 |---|---|
 | Python 3 | always (with JupyterLab) |
-| SageMath | Sage is installed on the host (your distribution's package) |
+| SageMath | Madalean's copy is installed, or the system's SageMath is compatible |
 | Lean 4 | not provided: no Lean 4 kernel is reliable enough today. Use dossiers or the `lean` blocks of [notes](notes.md). |
 
-Madalean does not install Sage itself (it never runs `sudo`): “Settings › Updates” gives the exact command for your
-distribution.
+Madalean installs its own copy of SageMath on demand, or reuses your system's if it is compatible: see
+[What Madalean installs › SageMath](components.md#sagemath).
 
 ## The assistant next to the notebook
 

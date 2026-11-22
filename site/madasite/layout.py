@@ -30,6 +30,8 @@ def brand(root: str, site_name: str) -> str:
 STR = {
     "fr": {
         "skip": "Aller au contenu", "manual": "Manuel", "download": "Installer", "updates": "Mises à jour",
+        "home": "Accueil", "guide": "Guide", "about": "À propos", "author": "Auteur", "licence": "Licence Apache-2.0",
+        "contact": "Contact", "source_code": "Code source", "privacy": "Ni traceur, ni cookie, ni ressource externe.",
         "search": "Chercher", "theme": "Thème : automatique", "theme_light": "Thème : clair",
         "theme_dark": "Thème : sombre", "lang_name": "Français", "other": "English", "menu": "Pages du manuel",
         "on_page": "Sur cette page", "prev": "Précédent", "next": "Suivant", "source": "Source de cette page",
@@ -41,6 +43,8 @@ STR = {
     },
     "en": {
         "skip": "Skip to content", "manual": "Manual", "download": "Install", "updates": "Updates",
+        "home": "Home", "guide": "Guide", "about": "About", "author": "Author", "licence": "Apache-2.0 licence",
+        "contact": "Contact", "source_code": "Source code", "privacy": "No tracker, no cookie, no external resource.",
         "search": "Search", "theme": "Theme: automatic", "theme_light": "Theme: light", "theme_dark": "Theme: dark",
         "lang_name": "English", "other": "Français", "menu": "Manual pages", "on_page": "On this page",
         "prev": "Previous", "next": "Next", "source": "Source of this page", "learner": "learner",
@@ -62,6 +66,29 @@ SECTIONS = {
 E = html.escape
 
 
+AUTHOR = {"name": "RANIRIAMANJAKA Antsa", "email": "antsa.raniriamanjaka@univ-antananarivo.mg",
+          "github": "https://github.com/raantss18", "repo": "https://github.com/raantss18/madalean"}
+
+
+def home_href(root: str, lang: str) -> str:
+    """The showcase home: the site root in French, en/home.html in English."""
+    return f"{root}index.html" if lang == "fr" else f"{root}en/home.html"
+
+
+def site_footer(root: str, lang: str) -> str:
+    s = STR[lang]
+    return (f'<div class="foot-grid"><div class="foot-brand"><p class="foot-name">Madal<span class="foot-e">∃</span>an</p>'
+            f'<p>{E(s["licence"])}. {E(s["privacy"])}</p></div>'
+            f'<div><p class="foot-h">{E(s["author"])}</p><p>{E(AUTHOR["name"])}<br>'
+            f'<a href="mailto:{AUTHOR["email"]}">{E(AUTHOR["email"])}</a><br>'
+            f'<a href="{AUTHOR["github"]}" rel="noopener noreferrer">github.com/raantss18</a></p></div>'
+            f'<div><p class="foot-h">Madalean</p><p><a href="{root}{lang}/download.html">{E(s["download"])}</a> · '
+            f'<a href="{root}{lang}/install.html">{E(s["guide"])}</a> · <a href="{root}{lang}/index.html">{E(s["manual"])}</a>'
+            f' · <a href="{root}{lang}/about.html">{E(s["about"])}</a><br>'
+            f'<a href="{AUTHOR["repo"]}" rel="noopener noreferrer">{E(s["source_code"])}</a> · '
+            f'<a href="{root}updates/index.html">{E(s["updates"])}</a></p></div></div>')
+
+
 def page(*, lang: str, title: str, body: str, root: str, description: str = "", alt_href: str | None = None,
          active: str = "", extra_css: list[str] | None = None, site_name: str = "Madalean",
          header_nav: bool = True, scripts: bool = True, home: str | None = None,
@@ -76,8 +103,10 @@ def page(*, lang: str, title: str, body: str, root: str, description: str = "", 
             cur = ' aria-current="page"' if key == active else ""
             return f'<li><a href="{href}"{cur}>{E(s[key])}</a></li>'
         nav = (f'<nav class="top-nav" aria-label="{E(s["nav_main"])}"><ul>'
-               + item("manual", f"{root}{lang}/index.html") + item("download", f"{root}{lang}/download.html")
-               + item("search", f"{root}{lang}/search.html") + "</ul></nav>")
+               + item("home", home_href(root, lang)) + item("download", f"{root}{lang}/download.html")
+               + item("guide", f"{root}{lang}/install.html") + item("manual", f"{root}{lang}/index.html")
+               + item("about", f"{root}{lang}/about.html") + item("search", f"{root}{lang}/search.html")
+               + "</ul></nav>")
     langsw = ""
     if alt_href:
         langsw = (f'<nav class="lang" aria-label="{E(s["nav_lang"])}"><a href="{E(alt_href)}" hreflang="{other}" '
@@ -106,12 +135,12 @@ def page(*, lang: str, title: str, body: str, root: str, description: str = "", 
 <body>
 <a class="skip" href="#main">{E(s["skip"])}</a>
 <header class="site-header">
-<a class="brand" href="{home or (root + lang + '/index.html')}">{brand(root, site_name)}</a>
+<a class="brand" href="{home or home_href(root, lang)}">{brand(root, site_name)}</a>
 {nav}{nav_html}
 <div class="header-tools">{langsw}{theme}</div>
 </header>
 {body}
-<footer class="site-footer"><p>{footer if footer is not None else E(s["footer"])}</p></footer>
+<footer class="site-footer">{f"<p>{footer}</p>" if footer is not None else site_footer(root, lang)}</footer>
 </body>
 </html>
 """

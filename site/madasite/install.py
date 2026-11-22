@@ -22,41 +22,68 @@ E = html.escape
 DER_PREFIX = bytes.fromhex("302a300506032b6570032100")
 ARCH_ORDER = ["arm64-v8a", "armeabi-v7a", "x86_64", "universal"]
 
+RELEASES = "https://github.com/raantss18/madalean/releases"
+LATEST = RELEASES + "/latest"
+LATEST_DL = LATEST + "/download/"
+# Stable release asset names (DECISIONS D44, scripts/stage_release.sh). The site never shows a version: links go to
+# releases/latest/download/<name>, which GitHub resolves to the newest release. Until a release publishes a name
+# (v2.0.0 used versioned names), the link points to the latest release page instead, so nothing breaks.
+ASSETS = {"installer": "Madalean-installer.run", "server": "madalean-server.tar.gz",
+          "appimage": "Madalean-x86_64.AppImage", "apk": "Madalean-android.apk"}
+APK_ABIS = ["arm64-v8a", "armeabi-v7a", "x86_64"]
+
 T = {
     "fr": {
         "title": "Installer et télécharger",
-        "lead": "Madalean s'installe sur <strong>un ordinateur hôte</strong> sous Linux, qui fait tout le calcul. Les "
-                "autres appareils (téléphone, tablette, autre PC) se relient à lui par votre réseau privé Tailscale, avec "
-                "une application légère ou un simple navigateur. Voir le <a href=\"install.html\">guide d'installation</a> "
-                "et <a href=\"pairing.html\">relier un appareil</a>.",
-        "latest": "Dernière version", "none": "Aucune version n'est encore publiée sur ce canal. En attendant, "
-                  "installez depuis les sources (ci-dessous).",
+        "lead": "Madalean s'installe sur <strong>un ordinateur hôte</strong> sous Linux, qui fait tout le calcul (le "
+                "<em>serveur</em>). Vos autres appareils — téléphone, tablette, autre PC — sont des <em>clients</em> : "
+                "ils se relient à l'hôte par votre réseau privé Tailscale. Les liens ci-dessous mènent toujours à la "
+                "dernière version publiée.",
         "sample": "Aperçu avec des données d'exemple : ces fichiers n'existent pas.",
-        "released": "publiée le", "notes": "Notes de version",
-        "host": "Ordinateur hôte (Linux)", "host_text": "Le serveur s'installe depuis les sources, avec le script "
-                "d'installation (relançable sans risque). Il faut environ 40 Go de disque ; une carte NVIDIA est conseillée.",
+        "server": "Serveur — l'ordinateur hôte (Linux x86_64)",
+        "server_text": "À installer une seule fois, sur l'ordinateur qui fera le calcul. Environ 6 Go sans modèle local, "
+                       "25 Go avec ; une carte NVIDIA est utile mais pas nécessaire.",
+        "run": "Installateur graphique", "recommended": "conseillé",
+        "run_text": "Un seul fichier. Il vérifie sa propre intégrité, regarde ce qui est déjà sur votre machine, vous "
+                    "propose le meilleur plan et installe tout en vous montrant l'avancement, dans votre navigateur.",
+        "run_dl": "Télécharger l'installateur",
+        "run_exec": "Un fichier téléchargé n'est pas exécutable. Deux façons de l'autoriser :",
+        "run_gui": "dans le gestionnaire de fichiers : clic droit › <em>Propriétés</em> › <em>Permissions</em> › "
+                   "cocher « Autoriser l'exécution du fichier comme un programme » (le libellé varie selon le bureau), "
+                   "puis double-cliquer sur le fichier ;",
+        "run_term": "ou dans un terminal, dans le dossier du fichier :",
+        "src": "Depuis les sources, dans un terminal", "src_text": "Le même installateur, sans fenêtre : "
+               "<code>install.sh</code> vérifie la machine, affiche un tableau et un plan conseillé, puis vous laisse "
+               "accepter ou changer chaque élément. Avec <code>--yes</code>, il installe les choix par défaut sans "
+               "question.",
+        "src_tar": "Ou l'archive du serveur, sans git :",
+        "guide": "Guide complet d'installation", "guide2": "Ce qu'installe Madalean, composant par composant",
+        "guide3": "Première configuration (clés, modes, réglages)",
+        "clients": "Clients — les appareils qui se connectent à l'hôte",
+        "clients_text": "Rien à calculer sur ces appareils : ils affichent Madalean et parlent à l'hôte. Reliez-les avec "
+                        "le code affiché par l'hôte (Réglages › Appareils).",
         "android": "Téléphone et tablette Android", "android_text": "Scannez le QR code avec l'appareil photo du "
-                   "téléphone, ou touchez le lien depuis le téléphone. Android demande une fois d'autoriser l'installation "
-                   "depuis le navigateur.",
-        "which": "Quel fichier choisir ?", "arch": "Architecture", "file": "Fichier", "size": "Taille",
-        "qr": "QR code",
+                   "téléphone, ou touchez le lien depuis le téléphone. Android demande une fois d'autoriser "
+                   "l'installation depuis le navigateur.",
+        "apk_dl": "Télécharger l'application Android", "apk_small": "Fichiers plus petits, par type de processeur",
         "arch_help": {"arm64-v8a": "presque tous les téléphones et tablettes depuis 2017",
                       "armeabi-v7a": "appareils 32 bits plus anciens",
-                      "x86_64": "émulateurs, quelques tablettes et Chromebooks",
-                      "universal": "fonctionne partout, plus volumineux"},
-        "desktop": "Autre ordinateur Linux (application de bureau)",
-        "desktop_text": "Fichier AppImage : rendez-le exécutable, puis lancez-le. L'application se relie à l'hôte "
-                        "comme un téléphone. Construite et testée sur Arch Linux ; elle peut ne pas démarrer sur une "
-                        "distribution beaucoup plus ancienne.",
-        "ios": "iPhone, iPad, autres appareils",
-        "ios_text": "Pas d'application : ouvrez l'adresse de l'hôte sur votre réseau Tailscale dans le navigateur "
-                    "(par exemple <code>https://madalean.tailXXXX.ts.net</code>) et reliez l'appareil avec le "
-                    "code affiché par l'hôte.",
+                      "x86_64": "émulateurs, quelques tablettes et Chromebooks"},
+        "qr": "QR code du lien de l'application Android",
+        "desktop": "Autre ordinateur Linux", "desktop_text": "Application de bureau (AppImage) : rendez le fichier "
+                   "exécutable, puis lancez-le. Elle se relie à l'hôte comme un téléphone.",
+        "appimage_dl": "Télécharger l'AppImage",
+        "browser": "iPhone, iPad, Mac, Windows… : un navigateur suffit",
+        "browser_text": "Pas d'application à installer : ouvrez l'adresse de l'hôte sur votre réseau Tailscale (par "
+                        "exemple <code>https://madalean.tailXXXX.ts.net</code>) et reliez l'appareil avec le code "
+                        "affiché par l'hôte.", "pairing": "Relier un appareil",
+        "all": "Toutes les versions et leurs notes", "pending": "Le lien direct sera actif avec la prochaine version ; "
+               "en attendant, il ouvre la page de la dernière version.",
         "verify": "Vérifier un téléchargement",
         "verify_text": "Chaque version publie <code>SHA256SUMS</code> (empreintes de tous les fichiers) et "
                        "<code>SHA256SUMS.sig</code>, sa signature Ed25519. La clé publique est inscrite dans Madalean, "
-                       "qui refuse toute mise à jour mal signée. Pour vérifier vous-même, dans le dossier des fichiers "
-                       "téléchargés :",
+                       "qui refuse toute mise à jour mal signée ; l'installateur graphique vérifie lui-même son contenu. "
+                       "Pour vérifier vous-même, dans le dossier des fichiers téléchargés :",
         "verify_key": "Clé publique de publication (Ed25519, hexadécimal)",
         "verify_apk": "Certificat de signature des APK (SHA-256) — vérifiable avec <code>apksigner verify --print-certs</code> :",
         "channel": "Canal de mise à jour", "channel_text": "Lu par Madalean et ses applications pour savoir qu'une "
@@ -67,33 +94,51 @@ T = {
     "en": {
         "title": "Install and download",
         "lead": "Madalean is installed on <strong>one host computer</strong> running Linux, which does all the "
-                "computing. Other devices (phone, tablet, another PC) link to it over your private Tailscale network, "
-                "with a light app or just a browser. See the <a href=\"install.html\">installation guide</a> and "
-                "<a href=\"pairing.html\">linking a device</a>.",
-        "latest": "Latest version", "none": "No version has been published on this channel yet. Meanwhile, install "
-                  "from source (below).",
+                "computing (the <em>server</em>). Your other devices — phone, tablet, another PC — are <em>clients</em>: "
+                "they link to the host over your private Tailscale network. The links below always lead to the latest "
+                "published version.",
         "sample": "Preview with sample data: these files do not exist.",
-        "released": "released on", "notes": "Release notes",
-        "host": "Host computer (Linux)", "host_text": "The server is installed from source with the install script "
-                "(safe to re-run). It needs about 40 GB of disk; an NVIDIA graphics card is recommended.",
+        "server": "Server — the host computer (Linux x86_64)",
+        "server_text": "Installed once, on the computer that will do the computing. About 6 GB without a local model, "
+                       "25 GB with; an NVIDIA card helps but is not required.",
+        "run": "Graphical installer", "recommended": "recommended",
+        "run_text": "One file. It checks its own integrity, looks at what is already on your machine, proposes the "
+                    "best plan and installs everything while showing the progress, in your browser.",
+        "run_dl": "Download the installer",
+        "run_exec": "A downloaded file is not executable. Two ways to allow it:",
+        "run_gui": "in the file manager: right-click › <em>Properties</em> › <em>Permissions</em> › tick “Allow "
+                   "executing file as program” (the wording depends on the desktop), then double-click the file;",
+        "run_term": "or in a terminal, in the file's folder:",
+        "src": "From source, in a terminal", "src_text": "The same installer without a window: <code>install.sh</code> "
+               "checks the machine, shows a table and a recommended plan, then lets you accept or change each item. "
+               "With <code>--yes</code> it installs the defaults without any question.",
+        "src_tar": "Or the server archive, without git:",
+        "guide": "Complete installation guide", "guide2": "What Madalean installs, component by component",
+        "guide3": "First configuration (keys, modes, settings)",
+        "clients": "Clients — the devices that connect to the host",
+        "clients_text": "Nothing is computed on these devices: they show Madalean and talk to the host. Link them with "
+                        "the code shown by the host (Settings › Devices).",
         "android": "Android phone and tablet", "android_text": "Scan the QR code with the phone's camera, or tap the "
                    "link on the phone. Android asks once to allow installing from the browser.",
-        "which": "Which file?", "arch": "Architecture", "file": "File", "size": "Size", "qr": "QR code",
+        "apk_dl": "Download the Android app", "apk_small": "Smaller files, per processor type",
         "arch_help": {"arm64-v8a": "almost every phone and tablet since 2017",
                       "armeabi-v7a": "older 32-bit devices",
-                      "x86_64": "emulators, a few tablets and Chromebooks",
-                      "universal": "works everywhere, larger"},
-        "desktop": "Another Linux computer (desktop app)",
-        "desktop_text": "AppImage file: make it executable, then run it. The app links to the host like a phone. "
-                        "Built and tested on Arch Linux; it may not start on a much older distribution.",
-        "ios": "iPhone, iPad, other devices",
-        "ios_text": "No app: open the host's address on your Tailscale network in the browser (for example "
-                    "<code>https://madalean.tailXXXX.ts.net</code>) and link the device with the code shown by "
-                    "the host.",
+                      "x86_64": "emulators, a few tablets and Chromebooks"},
+        "qr": "QR code of the Android app link",
+        "desktop": "Another Linux computer", "desktop_text": "Desktop app (AppImage): make the file executable, then "
+                   "run it. It links to the host like a phone.",
+        "appimage_dl": "Download the AppImage",
+        "browser": "iPhone, iPad, Mac, Windows…: a browser is enough",
+        "browser_text": "No app to install: open the host's address on your Tailscale network (for example "
+                        "<code>https://madalean.tailXXXX.ts.net</code>) and link the device with the code shown by the "
+                        "host.", "pairing": "Linking a device",
+        "all": "Every version and its notes", "pending": "The direct link becomes active with the next release; "
+               "meanwhile it opens the latest release page.",
         "verify": "Verify a download",
         "verify_text": "Each release publishes <code>SHA256SUMS</code> (hashes of every file) and "
                        "<code>SHA256SUMS.sig</code>, its Ed25519 signature. The public key is built into Madalean, which "
-                       "refuses any badly signed update. To check yourself, in the folder of the downloaded files:",
+                       "refuses any badly signed update; the graphical installer checks its own content. To check "
+                       "yourself, in the folder of the downloaded files:",
         "verify_key": "Release public key (Ed25519, hexadecimal)",
         "verify_apk": "APK signing certificate (SHA-256) — check with <code>apksigner verify --print-certs</code>:",
         "channel": "Update channel", "channel_text": "Read by Madalean and its apps to learn that a version exists:",
@@ -186,72 +231,98 @@ def build(out: Path, repo: Path, channel_src: Path, problems: list[str], sample:
     return {"published_manifest": raw is not None, "sample": is_sample}
 
 
+def asset_url(name: str, files: list[dict]) -> tuple[str, bool]:
+    """(URL, direct): releases/latest/download/<name> when the published release has that stable name, else the
+    latest release page. Never a versioned URL (the site shows no version)."""
+    if any(f.get("name") == name for f in files):
+        return LATEST_DL + name, True
+    return LATEST, False
+
+
 def _page(lg: str, d: dict | None, is_sample: bool, pub: bytes) -> str:
     t = T[lg]
     other = "en" if lg == "fr" else "fr"
-    parts = [f'<main id="main" class="narrow prose" tabindex="-1"><h1>{t["title"]}</h1><p class="lead">{t["lead"]}</p>']
+    colon = " :" if lg == "fr" else ":"
+    files = (d or {}).get("files", [])
+    parts = [f'<main id="main" class="wide dl-page" tabindex="-1"><div class="prose"><h1>{t["title"]}</h1>'
+             f'<p class="lead">{t["lead"]}</p></div>']
     if is_sample:
         parts.append(f'<p class="notice notice-warn" role="note"><strong>{E(t["sample"])}</strong></p>')
-    files = (d or {}).get("files", [])
-    if d:
-        notes = (d.get("notes") or {}).get(lg, "")
-        url = d.get("notes_url", "")
-        parts.append(f'<section aria-labelledby="latest"><h2 id="latest">{t["latest"]} : {E(d["version"])}</h2>'.replace(
-            " : ", " : " if lg == "fr" else ": "))
-        parts.append(f'<p>{E(t["released"])} {E(d["date"])}.'
-                     + (f' <a href="{E(url)}" rel="noopener noreferrer">{t["notes"]}</a>' if url else "") + "</p>")
-        if notes:
-            parts.append(f"<p>{E(notes)}</p>")
-        parts.append("</section>")
-    else:
-        parts.append(f'<p class="notice" role="note">{t["none"]}</p>')
-    tag = (d or {}).get("tag", "")
-    parts.append(f'<section aria-labelledby="host"><h2 id="host">{t["host"]}</h2><p>{t["host_text"]}</p>'
+    pending = False
+
+    def link(key: str, label: str, cls: str = "button") -> str:
+        nonlocal pending
+        url, direct = asset_url(ASSETS[key], files)
+        pending = pending or not direct
+        c = f' class="{cls}"' if cls else ""
+        return f'<a{c} href="{E(url)}" rel="noopener noreferrer">{E(label)}</a>'
+
+    # ---------------------------------------------------------------- server
+    run = ASSETS["installer"]
+    parts.append(f'<section class="dl-group" aria-labelledby="server"><h2 id="server">{t["server"]}</h2>'
+                 f'<p>{t["server_text"]}</p><div class="dl-cards">'
+                 f'<article class="dl-card dl-card-main" aria-labelledby="run"><p class="badge-rec">{t["recommended"]}</p>'
+                 f'<h3 id="run">{t["run"]}</h3><p><code>{run}</code></p><p>{t["run_text"]}</p>'
+                 f'<p>{link("installer", t["run_dl"])}</p>'
+                 f'<p>{t["run_exec"]}</p><ol><li>{t["run_gui"]}</li><li>{t["run_term"]}'
+                 f'<pre class="code" tabindex="0"><code>chmod +x {run}\n./{run}</code></pre></li></ol></article>'
+                 f'<article class="dl-card" aria-labelledby="source"><h3 id="source">{t["src"]}</h3><p>{t["src_text"]}</p>'
                  '<pre class="code" tabindex="0"><code>git clone https://github.com/raantss18/madalean.git ~/madalean\n'
-                 'cd ~/madalean\n' + (f"git checkout {E(tag)}\n" if tag else "") +
-                 './install.sh --install-deps</code></pre></section>')
-    apks = sorted([f for f in files if f.get("kind") == "apk"],
-                  key=lambda f: ARCH_ORDER.index(f.get("arch")) if f.get("arch") in ARCH_ORDER else 99)
-    parts.append(f'<section aria-labelledby="android"><h2 id="android">{t["android"]}</h2><p>{t["android_text"]}</p>')
-    if apks:
-        parts.append(f'<h3>{t["which"]}</h3><ul class="dl-list">')
-        for f in apks:
-            arch = f.get("arch", "")
-            q = qr_svg(f["url"], f'{t["qr"]} — {f["name"]}', 168)
-            parts.append(f'<li class="dl-item"><div class="dl-text"><h4>{E(arch)}</h4>'
-                         f'<p>{E(t["arch_help"].get(arch, ""))}</p>'
-                         f'<p><a class="button" href="{E(f["url"])}">{E(f["name"])}</a> '
-                         f'<span class="muted">{_size(int(f.get("size", 0)), lg)}</span></p>'
-                         f'<p class="hash"><span class="sr-only">SHA-256 </span><code>{E(f["sha256"])}</code></p></div>'
-                         f'<div class="dl-qr">{q}</div></li>')
-        parts.append("</ul>")
-    parts.append("</section>")
-    imgs = [f for f in files if f.get("kind") == "appimage"]
-    parts.append(f'<section aria-labelledby="desktop"><h2 id="desktop">{t["desktop"]}</h2><p>{t["desktop_text"]}</p>')
-    for f in imgs:
-        parts.append(f'<p><a class="button" href="{E(f["url"])}">{E(f["name"])}</a> '
-                     f'<span class="muted">{_size(int(f.get("size", 0)), lg)}</span></p>'
-                     f'<pre class="code" tabindex="0"><code>chmod +x {E(f["name"])}\n./{E(f["name"])}</code></pre>')
-    parts.append("</section>")
-    parts.append(f'<section aria-labelledby="ios"><h2 id="ios">{t["ios"]}</h2><p>{t["ios_text"]}</p></section>')
-    sums = (d or {}).get("sums_url") or "https://github.com/raantss18/madalean/releases/latest/download/SHA256SUMS"
-    sumsig = (d or {}).get("sums_sig_url") or sums + ".sig"
-    parts.append(f'<section aria-labelledby="verify"><h2 id="verify">{t["verify"]}</h2><p>{t["verify_text"]}</p>'
+                 'cd ~/madalean\n./install.sh</code></pre>'
+                 f'<p>{t["src_tar"]} {link("server", ASSETS["server"], "")}</p>'
+                 f'<pre class="code" tabindex="0"><code>tar -xzf {ASSETS["server"]}\ncd madalean\n./install.sh</code></pre>'
+                 f'</article></div>'
+                 f'<ul class="dl-guides"><li><a href="install.html">{t["guide"]}</a></li>'
+                 f'<li><a href="components.html">{t["guide2"]}</a></li>'
+                 f'<li><a href="first-config.html">{t["guide3"]}</a></li></ul></section>')
+
+    # ---------------------------------------------------------------- clients
+    apk_url, apk_direct = asset_url(ASSETS["apk"], files)
+    pending = pending or not apk_direct
+    q = qr_svg(apk_url, t["qr"], 168)
+    abis = [a for a in APK_ABIS if any(f.get("name") == f"Madalean-android-{a}.apk" for f in files)]
+    parts.append(f'<section class="dl-group" aria-labelledby="clients"><h2 id="clients">{t["clients"]}</h2>'
+                 f'<p>{t["clients_text"]}</p><div class="dl-cards">'
+                 f'<article class="dl-card" aria-labelledby="android"><h3 id="android">{t["android"]}</h3>'
+                 f'<p>{t["android_text"]}</p><ul class="dl-list"><li class="dl-item"><div class="dl-text">'
+                 f'<p><code>{ASSETS["apk"]}</code></p>'
+                 f'<p><a class="button" href="{E(apk_url)}" rel="noopener noreferrer">{E(t["apk_dl"])}</a></p></div>'
+                 f'<div class="dl-qr">{q}</div></li></ul>')
+    if abis:
+        parts.append(f'<details><summary>{t["apk_small"]}</summary><ul>' + "".join(
+            f'<li><a href="{E(LATEST_DL)}Madalean-android-{a}.apk" rel="noopener noreferrer">'
+            f'Madalean-android-{a}.apk</a> — {E(t["arch_help"][a])}</li>' for a in abis) + "</ul></details>")
+    parts.append("</article>")
+    parts.append(f'<article class="dl-card" aria-labelledby="desktop"><h3 id="desktop">{t["desktop"]}</h3>'
+                 f'<p>{t["desktop_text"]}</p><p><code>{ASSETS["appimage"]}</code></p>'
+                 f'<p>{link("appimage", t["appimage_dl"])}</p>'
+                 f'<pre class="code" tabindex="0"><code>chmod +x {ASSETS["appimage"]}\n./{ASSETS["appimage"]}</code></pre>'
+                 f'</article>'
+                 f'<article class="dl-card" aria-labelledby="browser"><h3 id="browser">{t["browser"]}</h3>'
+                 f'<p>{t["browser_text"]}</p><p><a href="pairing.html">{E(t["pairing"])}</a></p>'
+                 f'</article></div></section>')
+    parts.append(f'<p class="dl-all"><a href="{RELEASES}" rel="noopener noreferrer">{t["all"]}</a>'
+                 + (f' <span class="muted">— {t["pending"]}</span>' if pending else "") + "</p>")
+
+    # ---------------------------------------------------------------- verification + channel
+    sums = LATEST_DL + "SHA256SUMS"
+    parts.append(f'<div class="prose"><section aria-labelledby="verify"><h2 id="verify">{t["verify"]}</h2>'
+                 f'<p>{t["verify_text"]}</p>'
                  f'<ol><li>{t["step_sums"]}<pre class="code" tabindex="0"><code>sha256sum -c --ignore-missing SHA256SUMS</code></pre></li>'
                  f'<li>{t["step_sig"]}<pre class="code" tabindex="0"><code>base64 -d SHA256SUMS.sig &gt; SHA256SUMS.sig.bin\n'
                  'openssl pkeyutl -verify -pubin -inkey madalean-release.pub.pem -rawin \\\n'
                  '  -in SHA256SUMS -sigfile SHA256SUMS.sig.bin</code></pre></li></ol>'
                  f'<p><a href="../updates/madalean-release.pub.pem" download>madalean-release.pub.pem</a> · '
                  f'<a href="{E(sums)}" rel="noopener noreferrer">SHA256SUMS</a> · '
-                 f'<a href="{E(sumsig)}" rel="noopener noreferrer">SHA256SUMS.sig</a></p>'
-                 f'<p>{t["verify_key"]} :</p><p class="hash"><code>{pub.hex()}</code></p>'.replace(" :</p>", ":</p>" if lg == "en" else " :</p>"))
+                 f'<a href="{E(sums)}.sig" rel="noopener noreferrer">SHA256SUMS.sig</a></p>'
+                 f'<p>{t["verify_key"]}{colon}</p><p class="hash"><code>{pub.hex()}</code></p>')
     cert = (d or {}).get("apk_certificate_sha256", "0d43426ba9682f791707ee3233361c369c8ebec3f1209c6e000d7322936fc544")
     parts.append(f'<p>{t["verify_apk"]}</p><p class="hash"><code>{E(cert)}</code></p></section>')
-    parts.append(f'<section aria-labelledby="channel"><h2 id="channel">{t["channel"]}</h2><p>{t["channel_text"]}</p>'
-                 '<ul><li><a href="../updates/stable.json"><code>updates/stable.json</code></a></li>'
-                 '<li><a href="../updates/stable.json.sig"><code>updates/stable.json.sig</code></a></li></ul></section>'
-                 if not is_sample and d else "")
-    parts.append("</main>")
+    if d and not is_sample:
+        parts.append(f'<section aria-labelledby="channel"><h2 id="channel">{t["channel"]}</h2><p>{t["channel_text"]}</p>'
+                     '<ul><li><a href="../updates/stable.json"><code>updates/stable.json</code></a></li>'
+                     '<li><a href="../updates/stable.json.sig"><code>updates/stable.json.sig</code></a></li></ul></section>')
+    parts.append("</div></main>")
     return layout.page(lang=lg, title=f'{t["title"]} — Madalean', body="".join(parts), root="../",
                        alt_href=f"../{other}/download.html", active="download",
                        description=T[lg]["title"])

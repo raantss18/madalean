@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<title>Installer Madalean</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="wizard.css">
+<script src="wizard.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Aller au contenu</a>
+<header class="top">
+  <div class="brand">
+    <img class="wm wm-light" src="wordmark.svg" alt="Madalean" width="150" height="44">
+    <img class="wm wm-dark" src="wordmark-dark.svg" alt="Madalean" width="150" height="44">
+    <span class="tag" data-i18n="installer">Installation</span>
+  </div>
+  <div class="tools">
+    <button type="button" id="lang" class="chip-btn" aria-label="English">EN</button>
+    <button type="button" id="theme" class="chip-btn" data-i18n-label="theme" aria-label="Thème">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Étapes" data-i18n-label="steps">
+    <ol id="steps">
+      <li data-for="welcome"><span class="dot" aria-hidden="true">1</span><span data-i18n="s_welcome">Bienvenue</span></li>
+      <li data-for="machine"><span class="dot" aria-hidden="true">2</span><span data-i18n="s_machine">Votre machine</span></li>
+      <li data-for="plan"><span class="dot" aria-hidden="true">3</span><span data-i18n="s_plan">Plan d'installation</span></li>
+      <li data-for="install"><span class="dot" aria-hidden="true">4</span><span data-i18n="s_install">Installation</span></li>
+      <li data-for="config"><span class="dot" aria-hidden="true">5</span><span data-i18n="s_config">Première configuration</span></li>
+      <li data-for="done"><span class="dot" aria-hidden="true">6</span><span data-i18n="s_done">Terminé</span></li>
+    </ol>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <noscript><p class="card">JavaScript est nécessaire pour cet assistant. Sinon, lancez l'installateur dans un terminal : <code>./Madalean-installer.run --terminal</code></p></noscript>
+
+    <section class="pane" id="p-welcome" aria-labelledby="h-welcome">
+      <p class="eyebrow" data-i18n="eyebrow">Assistant de démonstration pour Lean 4 et Mathlib</p>
+      <h1 id="h-welcome" data-i18n="welcome_h">Installons Madalean sur cet ordinateur</h1>
+      <p class="lead" data-i18n="welcome_p">Cet ordinateur deviendra l'hôte : il fera tout le calcul. Vos autres appareils s'y relieront ensuite.</p>
+      <ul class="ticks">
+        <li data-i18n="welcome_1">Tout s'installe dans un seul dossier de votre compte, sans mot de passe administrateur.</li>
+        <li data-i18n="welcome_2">L'assistant regarde ce qui est déjà installé et vous conseille ; vous gardez le dernier mot.</li>
+        <li data-i18n="welcome_3">Chaque fichier téléchargé est vérifié (empreinte SHA-256).</li>
+      </ul>
+      <div class="actions"><button type="button" class="btn primary" id="go-machine" data-i18n="start">Commencer</button></div>
+    </section>
+
+    <section class="pane" id="p-machine" aria-labelledby="h-machine" hidden>
+      <h1 id="h-machine" data-i18n="machine_h">Votre machine</h1>
+      <p class="lead" data-i18n="machine_p">Voici ce que l'assistant a trouvé.</p>
+      <div id="detecting" class="status" role="status"><span class="spinner" aria-hidden="true"></span><span data-i18n="detecting">Vérification en cours…</span></div>
+      <div id="machine-grid" class="grid"></div>
+      <div class="actions">
+        <button type="button" class="btn" data-back="welcome" data-i18n="back">Retour</button>
+        <button type="button" class="btn primary" id="go-plan" disabled data-i18n="next">Continuer</button>
+      </div>
+    </section>
+
+    <section class="pane" id="p-plan" aria-labelledby="h-plan" hidden>
+      <h1 id="h-plan" data-i18n="plan_h">Le plan conseillé</h1>
+      <p class="lead" data-i18n="plan_p">Chaque élément est réglé pour cette machine. Changez ce que vous voulez.</p>
+      <div id="advice"></div>
+      <form id="plan-form" class="items"></form>
+      <p id="disk" class="muted"></p>
+      <div class="actions">
+        <button type="button" class="btn" data-back="machine" data-i18n="back">Retour</button>
+        <button type="button" class="btn" id="reset-plan" data-i18n="reset">Revenir au plan conseillé</button>
+        <button type="button" class="btn primary" id="go-install" data-i18n="install_btn">Installer</button>
+      </div>
+    </section>
+
+    <section class="pane" id="p-install" aria-labelledby="h-install" hidden>
+      <h1 id="h-install" data-i18n="install_h">Installation</h1>
+      <p class="lead" id="install-title" aria-live="polite"></p>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bar" data-i18n-label="progress"><span id="bar-fill" class="w0"></span></div>
+      <p id="install-step" class="muted"></p>
+      <div id="install-error" class="alert" role="alert" hidden>
+        <h2 data-i18n="error_h">L'installation s'est arrêtée</h2>
+        <p data-i18n="error_p">Rien n'est perdu : l'installation reprend là où elle s'est arrêtée. Les dernières lignes ci-dessous indiquent la cause.</p>
+        <pre id="error-tail"></pre>
+        <div class="actions"><button type="button" class="btn primary" id="retry" data-i18n="retry">Réessayer</button></div>
+      </div>
+      <details id="log-box"><summary data-i18n="details">Voir le détail</summary><pre id="log" tabindex="0"></pre></details>
+      <div class="actions"><button type="button" class="btn primary" id="go-config" hidden data-i18n="next">Continuer</button></div>
+    </section>
+
+    <section class="pane" id="p-config" aria-labelledby="h-config" hidden>
+      <h1 id="h-config" data-i18n="config_h">Première configuration</h1>
+      <p class="lead" data-i18n="config_p">Madalean est installé et démarré. Il reste quelques réglages, faits dans Madalean lui-même :</p>
+      <ol class="todo">
+        <li><strong data-i18n="cfg1_t">Une clé de modèle en ligne</strong> — <span data-i18n="cfg1">gratuite (par exemple Google Gemini ou Mistral) : Réglages › Modèles et clés.</span></li>
+        <li><strong data-i18n="cfg2_t">Le mode de travail</strong> — <span data-i18n="cfg2">en ligne, automatique ou local ; Apprendre ou Recherche.</span></li>
+        <li><strong data-i18n="cfg3_t">Ce qui part tout seul</strong> — <span data-i18n="cfg3">exécution du code proposé par les modèles (après votre accord par défaut), mises à jour, chef d'orchestre.</span></li>
+        <li><strong data-i18n="cfg4_t">Vos appareils</strong> — <span data-i18n="cfg4">téléphone, tablette, autre ordinateur : Réglages › Appareils.</span></li>
+      </ol>
+      <div class="actions">
+        <button type="button" class="btn primary" id="open-app" data-i18n="open_app">Ouvrir Madalean</button>
+        <a class="btn" id="guide-link" href="#" target="_blank" rel="noopener noreferrer" data-i18n="guide">Guide de configuration</a>
+        <button type="button" class="btn" id="go-done" data-i18n="next">Continuer</button>
+      </div>
+    </section>
+
+    <section class="pane" id="p-done" aria-labelledby="h-done" hidden>
+      <div class="done-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="22"/><path d="M14 25l7 7 13-15"/></svg></div>
+      <h1 id="h-done" data-i18n="done_h">C'est prêt</h1>
+      <p class="lead" data-i18n="done_p">Madalean démarre avec l'ordinateur. Adresse sur cet ordinateur :</p>
+      <p><a id="app-url" href="#"></a></p>
+      <p data-i18n="done_p2">Vos choix sont enregistrés ; vous pourrez les changer dans les réglages de Madalean.</p>
+      <div class="actions"><button type="button" class="btn primary" id="finish" data-i18n="finish">Fermer l'assistant</button></div>
+      <p id="closed" class="muted" hidden data-i18n="closed">Vous pouvez fermer cet onglet.</p>
+    </section>
+  </main>
+</div>
+<footer class="foot"><span data-i18n="foot">Madalean — logiciel libre (Apache-2.0) · RANIRIAMANJAKA Antsa</span> · <a href="mailto:antsa.raniriamanjaka@univ-antananarivo.mg">antsa.raniriamanjaka@univ-antananarivo.mg</a></footer>
+</body>
+</html>

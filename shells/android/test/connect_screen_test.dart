@@ -120,4 +120,14 @@ void main() {
     expect(find.text('Ouvrir Tailscale'), findsNothing);
     expect(find.text('Réessayer'), findsOneWidget);
   });
+
+  testWidgets('« À propos » opens from the connect screen', (t) async {
+    final c = controller();
+    await c.init();
+    await t.pumpWidget(app(c));
+    await t.tap(find.byTooltip('À propos'));
+    await t.pumpAndSettle();
+    expect(find.text('RANIRIAMANJAKA Antsa'), findsOneWidget);
+    expect(find.text('Apache-2.0'), findsOneWidget);
+  });
 }

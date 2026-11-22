@@ -1,5 +1,7 @@
 # STATE (memory across context resets / reboots)
 
+> **Current state (2026-11-22):** Madalean 2.0.0 is released (main, tag v2.0.0, signed GitHub release, GitHub Pages live with the signed update channel). Work for 2.0.1 is on branches: site redesign + guided install + `.run` installer + contacts (S-AL, DECISIONS D44), web UI redesign (S-AK). The task list is TODO.md; the log below is the 1.x history.
+
 ## Snapshot
 No root change was needed (D1) → no timeshift snapshot taken. Latest existing: 2026-10-03_13-48-44.
 

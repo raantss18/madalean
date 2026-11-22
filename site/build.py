@@ -20,7 +20,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 
-from madasite import checks, install, layout, manual, publication  # noqa: E402
+from madasite import checks, home, install, layout, manual, publication  # noqa: E402
 from madasite.mathrender import MathBatch  # noqa: E402
 
 SITE_URL = "https://raantss18.github.io/madalean/"
@@ -49,22 +49,11 @@ def copy_assets(out: Path) -> None:
 
 
 def door(out: Path) -> None:
-    fr, en = layout.STR["fr"], layout.STR["en"]
-    body = ('<main id="main" class="door prose" tabindex="-1"><h1>Madalean</h1>'
-            '<p class="lead">Assistant de démonstration pour Lean 4 et Mathlib : rien n’est déclaré prouvé sans le '
-            'verdict de Lean. <span lang="en">Proof assistant companion for Lean 4 and Mathlib: nothing is declared '
-            'proved without Lean’s verdict.</span></p><div class="door-grid">'
-            f'<section class="door-card" aria-labelledby="d-fr"><h2 id="d-fr">Français</h2><ul>'
-            f'<li><a href="fr/index.html">{fr["manual"]}</a></li><li><a href="fr/download.html">{fr["download"]}</a></li>'
-            f'<li><a href="fr/search.html">{fr["search"]}</a></li></ul></section>'
-            f'<section class="door-card" lang="en" aria-labelledby="d-en"><h2 id="d-en">English</h2><ul>'
-            f'<li><a href="en/index.html">{en["manual"]}</a></li><li><a href="en/download.html">{en["download"]}</a></li>'
-            f'<li><a href="en/search.html">{en["search"]}</a></li></ul></section>'
-            '<section class="door-card" aria-labelledby="d-up"><h2 id="d-up">Mises à jour · <span lang="en">Updates</span></h2>'
-            '<ul><li><a href="updates/index.html">updates/</a></li></ul></section></div></main>')
-    (out / "index.html").write_text(layout.page(lang="fr", title="Madalean", body=body, root="",
-                                                description="Manuel, installation et canal de mise à jour de Madalean."),
-                                    encoding="utf-8")
+    """Showcase home (index.html = French, en/home.html = English), About pages and the 404 page (S-AL, D44)."""
+    (out / "index.html").write_text(home.home_page("fr", ""), encoding="utf-8")
+    (out / "en" / "home.html").write_text(home.home_page("en", "../"), encoding="utf-8")
+    for lg in ("fr", "en"):
+        (out / lg / "about.html").write_text(home.about_page(lg), encoding="utf-8")
     body404 = ('<main id="main" class="narrow prose" tabindex="-1"><h1>Page introuvable</h1>'
                '<p>Cette page n’existe pas. <a href="/madalean/index.html">Accueil du site</a>.</p>'
                '<p lang="en">This page does not exist. <a href="/madalean/index.html">Site home</a>.</p></main>')

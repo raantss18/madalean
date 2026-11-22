@@ -542,8 +542,22 @@ SYSTEM_PATH = "/usr/local/bin:/usr/bin:/bin"
 def find_kernelspec(name: str) -> dict | None:
     """The base kernelspec `name`. Madalean's own prefix wins; a system spec with a bare interpreter (Arch's
     sagemath spec says just `python`) is resolved against the system PATH, never the server's PATH, which starts
-    with Madalean's env (whose python has no Sage: the kernel died with « No module named 'sage' »)."""
-    for d in KERNEL_DIRS:
+    with Madalean's env (whose python has no Sage: the kernel died with « No module named 'sage' »).
+    S-AL (D44): for SageMath, the user's choice `sage_source` decides between Madalean's own copy (prefix kernel) and
+    the system's (system kernel dirs): auto = own first, then the system's; own / system = that one only. The
+    launcher (environment allow-list, private home, rlimits, bubblewrap) is the same for both."""
+    dirs = list(KERNEL_DIRS)
+    if name == SPEC_NAMES["sage"][1]:
+        try:
+            from madalean import deps
+            src = deps.preference("sage_source")
+        except ImportError:                       # pragma: no cover (launcher context)
+            src = "auto"
+        if src == "own":
+            dirs = [PREFIX_KERNELS]
+        elif src == "system":
+            dirs = [d for d in KERNEL_DIRS if d != PREFIX_KERNELS]
+    for d in dirs:
         f = Path(d) / name / "kernel.json"
         try:
             spec = json.loads(f.read_text(encoding="utf-8"))
