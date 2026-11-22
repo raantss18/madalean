@@ -124,9 +124,15 @@ export class StreamStore {
     this.scheduled = true;
     this.raf(() => {
       this.scheduled = false;
-      const ids = [...this.dirty];
-      this.dirty.clear();
-      for (const id of ids) for (const fn of this.listeners.get(id) ?? []) fn();
+      this.flush();
     });
+  }
+
+  /** Notifies the views of what changed now (the socket batch already runs inside a frame, S-AP). */
+  flush(): void {
+    if (!this.dirty.size) return;
+    const ids = [...this.dirty];
+    this.dirty.clear();
+    for (const id of ids) for (const fn of this.listeners.get(id) ?? []) fn();
   }
 }

@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { breakable } from '../../src/lib/calcul/texwrap';
 import { renderMath } from '../../src/lib/md';
+import { loadKatex } from '../../src/lib/katex.svelte';
+
+beforeAll(async () => { await loadKatex(); });          // KaTeX is lazy (S-AP): load it as a formula on screen would
 
 const ROOTS = '\\left[\\left(1, 1\\right), \\left(a^{3} + 1, 1\\right), \\left(a^{3} + a + 1, 1\\right), \\left(a^{3} + a^{2} + 1, 1\\right), \\left(a^{2} + a + 1, 1\\right)\\right]';
 

@@ -21,6 +21,8 @@
   import { costText } from '../../lib/conductor';
   import { kernelProblem } from '../../lib/calcul/kernel';
   import { renderMath } from '../../lib/md';
+  import { preloadKatex } from '../../lib/katex.svelte';
+  import { loadDraft, saveDraft, clearDraft } from '../../lib/ui/drafts.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
   import { errorText } from '../../lib/ui/errors';
   import { currentProjectId } from '../../lib/project.svelte';
@@ -34,6 +36,7 @@
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const FIG = 'application/vnd.madalean.figure+json';
+  preloadKatex();               // results are formulas: KaTeX downloads while the cells are fetched (S-AP)
   let docs = $state<NbDocInfo[]>([]);
   let docId = $state('');
   let v = $state<NbView | null>(null);
@@ -107,11 +110,24 @@
       docId = doc; v = r; err = '';
       for (const c of r.cells) {
         if (drafts[c.id] === undefined || drafts[c.id] === c.source) drafts[c.id] = c.source;
-        if (prompts[c.id] === undefined) prompts[c.id] = c.prompt ?? '';
+        if (prompts[c.id] === undefined) prompts[c.id] = loadDraft(promptKey(pid, doc, c.id)) || (c.prompt ?? '');
       }
       if (side === 'variables') void loadVars();
     } catch (e) { err = errorText(e); }
   }
+  // S-AP: a « Demande » typed but not sent yet is kept on this device (per cell); sending it makes it the cell's
+  // prompt, which drops the draft
+  const promptKey = (pid: string, doc: string, id: string) => `calcul.${pid}.${doc}.${id}`;
+  $effect(() => {
+    if (!loadedFor || !docId) return;
+    for (const c of cells) {
+      if (c.type !== 'ask') continue;
+      const p = prompts[c.id];
+      if (p === undefined) continue;
+      if (p.trim() && p !== (c.prompt ?? '')) saveDraft(promptKey(loadedFor, docId, c.id), p);
+      else clearDraft(promptKey(loadedFor, docId, c.id));
+    }
+  });
   let reloadT = 0;
   function reload() { clearTimeout(reloadT); reloadT = window.setTimeout(() => { if (loadedFor && docId) void open(loadedFor, docId); }, 150); }
   $effect(() => app.on('calcul.output', (ev) => {

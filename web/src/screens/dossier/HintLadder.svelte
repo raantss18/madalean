@@ -10,6 +10,7 @@
   import { app } from '../../lib/store/app.svelte';
   import { t, tk } from '../../lib/i18n/index.svelte';
   import { loadJSON, saveJSON } from '../../lib/prefs.svelte';
+  import { keepDraft, clearDraft } from '../../lib/ui/drafts.svelte';
   import { askHint, HINT_LEVELS, LEVEL_OF_NUMBER, learnError, type HintLevel } from '../../lib/learn/tutor';
   import Md from '../../components/Md.svelte';
 
@@ -23,6 +24,9 @@
   let busy = $state(false);
   let err = $state('');
   const rkey = $derived(`reflections.${d.id}.${d.cur_proof}`);
+  // unsent text kept on this device until sent (S-AP)
+  keepDraft(() => `hints.tried.${d.id}`, () => tried, (v) => (tried = v));
+  keepDraft(() => `hints.reflection.${d.id}.${d.cur_proof}`, () => reflection, (v) => (reflection = v));
 
   async function load() {
     try {
@@ -52,6 +56,7 @@
     try {
       const h: HintAnswer = await askHint(d.id, nextLevel, { tried: started || attempted ? tried || '-' : tried, help, reflections });
       attempted = true;
+      clearDraft(`hints.tried.${d.id}`);
       if (h.level >= 5 || nextLevel === 'full') { hints = [...hints, { level: 'full', text: '', redacted: false }]; onreveal(); return; }
       hints = [...hints, { level: LEVEL_OF_NUMBER[h.level] ?? nextLevel, text: h.text, redacted: h.redacted }];
     } catch (e) {

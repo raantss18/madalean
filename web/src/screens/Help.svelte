@@ -4,8 +4,7 @@
   import { i18n, t } from '../lib/i18n/index.svelte';
   import { navigate, route } from '../lib/router.svelte';
   import { loadManual, searchManual, rewriteLink, imageUrl, type ManualIndex } from '../lib/manual';
-  import { renderTrusted } from '../lib/md';
-  import 'katex/dist/katex.min.css';
+  import { renderTrusted } from '../lib/md';                // KaTeX + its CSS load on the first formula (S-AP)
 
   let { params }: { params: Record<string, string> } = $props();
   let idx = $state<ManualIndex | null>(null);

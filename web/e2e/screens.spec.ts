@@ -56,8 +56,13 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto(`${process.env['MADALEAN_URL']}/d/${id}/preuve`);
       await expect(page.getByRole('heading', { name: /Preuve vérifiée/ })).toBeVisible();
       await shot(page, `${s.name}-${scheme}-proof-learn`);
-      await page.evaluate(() => localStorage.setItem('madalean.density', 'research'));
-      await page.reload();
+      // S-AP: through the logo menu — open()'s init script sets Learn again on every reload, so the old
+      // localStorage + reload left this screenshot in Learn mode (identical to proof-learn)
+      await page.locator('.logo-btn').click();
+      await page.getByRole('menuitemradio', { name: /Recherche/ }).click();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('html')).toHaveAttribute('data-mode', 'research');
+      await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur(); window.scrollTo(0, 0); });
       await expect(page.getByRole('heading', { name: /Preuve vérifiée/ })).toBeVisible();
       await shot(page, `${s.name}-${scheme}-proof-research`);
       await page.goto(`${process.env['MADALEAN_URL']}/reglages/cles`);

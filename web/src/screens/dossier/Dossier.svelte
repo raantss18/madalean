@@ -13,8 +13,9 @@
   import StepStatement from './StepStatement.svelte';
   import StepLean from './StepLean.svelte';
   import StepProof from './StepProof.svelte';
-  import PlanTree from './PlanTree.svelte';
   import Thread from './Thread.svelte';
+  import { preloadKatex } from '../../lib/katex.svelte';
+  import { prefetch } from '../../lib/ui/idle';
   import DossierMenu from './DossierMenu.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
   import ConductorLine from '../../components/ConductorLine.svelte';
@@ -22,6 +23,16 @@
 
   let { params }: { params: Record<string, string> } = $props();
   const id = $derived(params['id'] ?? '');
+  // S-AP: the plan (tree, map, outline) is its own chunk, fetched on the « Plan » step or when the browser is idle;
+  // statements and proofs are full of formulas, so KaTeX starts downloading with the dossier.
+  let planChunk: Promise<typeof import('./PlanTree.svelte').default> | null = null;
+  function loadPlan() {
+    planChunk ??= import('./PlanTree.svelte').then((m) => m.default);
+    planChunk.catch(() => { planChunk = null; });
+    return planChunk;
+  }
+  preloadKatex();
+  prefetch('dossier.plan', loadPlan);
   let loadError = $state<'' | 'not_found' | 'other'>('');
 
   $effect(() => {
@@ -126,7 +137,7 @@
         {#if step === 'enonce'}<StepStatement dossier={d} {job} />
         {:else if step === 'lean'}<StepLean dossier={d} {job} />
         {:else if step === 'preuve'}<StepProof dossier={d} {job} />
-        {:else}<PlanTree dossier={d} />{/if}
+        {:else}{#await loadPlan()}<div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span><div class="skel"></div></div>{:then PlanTree}<PlanTree dossier={d} />{/await}{/if}
       </div>
       <aside class="side" aria-label={t('thread.title')}>
         <Thread dossier={d} {job} />

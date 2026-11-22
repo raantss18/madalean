@@ -5,8 +5,9 @@ import type { Dossier, Job, SeqEvent, ServerEvent } from '../api/types';
 import { i18n } from '../i18n/index.svelte';
 import { toast } from '../ui/toasts.svelte';
 import { Connection, type ConnState } from './connection';
-import { activeJobFor, applyEvent, emptyModel, lastJobFor, loadSnapshot, type Model } from './model';
+import { applyEvent, emptyModel, loadSnapshot, TERMINAL, type Model } from './model';
 import { Sequencer } from './sequencer';
+import { FrameBatcher } from './coalesce';
 import { StreamStore } from './streams';
 
 type AssistantListener = (ev: { type: string; kind?: string; text: string; model?: string; finish?: string; error?: string; result?: unknown; [k: string]: unknown }) => void;
@@ -90,8 +91,21 @@ class AppStore {
     return this.resyncing;
   }
 
+  // S-AP: socket messages are applied together once per frame (lib/store/coalesce.ts): one render per burst.
+  private batch = new FrameBatcher<ServerEvent>((evs) => {
+    for (const ev of evs) {
+      try { this.seq.receive(ev); } catch (e) { console.error('event', (ev as { type?: string }).type, e); }
+    }
+    this.streams.flush();          // streamed text shows in this frame, not the next
+  });
+
   private onSocket(ev: ServerEvent): void {
-    this.seq.receive(ev);
+    this.batch.push(ev);
+  }
+
+  /** For tests and the perf page: how the socket events were batched. */
+  get batchStats() {
+    return { ...this.batch.stats };
   }
 
   private deliver(ev: SeqEvent): void {
@@ -200,18 +214,35 @@ class AppStore {
     return r.dossier;
   }
 
+  // S-AP: one pass over the jobs per change, shared by every reader (each dossier row, the status button, the menu…)
+  // instead of each of them scanning all the jobs (rows × jobs on every job event). Same rules as activeJobFor /
+  // lastJobFor in model.ts.
+  private jobIndex = $derived.by(() => {
+    const active = new Map<string, Job>();
+    const last = new Map<string, Job>();
+    const running: Job[] = [];
+    for (const j of Object.values(this.m.jobs)) {
+      const l = last.get(j.dossier_id);
+      if (!l || j.created > l.created) last.set(j.dossier_id, j);
+      if (TERMINAL.has(j.state)) continue;
+      const a = active.get(j.dossier_id);
+      if (!a || j.created > a.created) active.set(j.dossier_id, j);
+      if (j.state === 'queued' || j.state === 'running') running.push(j);
+    }
+    running.sort((a, b) => a.created - b.created);
+    return { active, last, running };
+  });
+
   activeJob(dossierId: string): Job | undefined {
-    return activeJobFor(this.m, dossierId);
+    return this.jobIndex.active.get(dossierId);
   }
 
   lastJob(dossierId: string): Job | undefined {
-    return lastJobFor(this.m, dossierId);
+    return this.jobIndex.last.get(dossierId);
   }
 
   get activeJobs(): Job[] {
-    return Object.values(this.m.jobs)
-      .filter((j) => j.state === 'queued' || j.state === 'running')
-      .sort((a, b) => a.created - b.created);
+    return this.jobIndex.running;
   }
 
   get remote(): boolean {

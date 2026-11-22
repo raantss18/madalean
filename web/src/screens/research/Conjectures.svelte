@@ -21,6 +21,7 @@
   import { onDestroy } from 'svelte';
   import { Autosave } from '../../lib/ui/autosave.svelte';
   import { enterSubmit } from '../../lib/ui/enter';
+  import { keepDraft } from '../../lib/ui/drafts.svelte';
   import SaveState from '../../components/SaveState.svelte';
   import EnterHint from '../../components/EnterHint.svelte';
 
@@ -36,6 +37,9 @@
   let writing = $state(false);
   let newStmt = $state('');
   let newMotiv = $state('');
+  // a conjecture not yet created is kept on this device (S-AP): shown again when « Écrire » reopens the dialog
+  keepDraft(() => (pid ? `conjecture.${pid}` : ''), () => newStmt, (v) => (newStmt = v));
+  keepDraft(() => (pid ? `conjecture.${pid}.motivation` : ''), () => newMotiv, (v) => (newMotiv = v));
   let lean = $state('');
   let leanCheck = $state<CheckResult | null>(null);
   let busy = $state('');

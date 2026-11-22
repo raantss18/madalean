@@ -51,7 +51,9 @@ test('revoking a device from the host sends the remote browser back to pairing',
   const dev = [...devices.devices, ...devices.browsers].find((d) => d.name === 'Tablette révoquée')!;
   await api('DELETE', `/devices/${dev.id}`);
   // Next API call (navigation to settings triggers fetches) → 401 → pairing screen.
-  await page.goto(REMOTE() + '/bibliotheque');
+  // the revoked socket may already be sending the page to /pair while this navigation starts: an aborted goto is
+  // that same outcome (S-AP: seen once in a full run)
+  await page.goto(REMOTE() + '/bibliotheque').catch((e: Error) => { if (!/ERR_ABORTED/.test(e.message)) throw e; });
   await expect(page).toHaveURL(/\/pair/, { timeout: 15_000 });
   await ctx.close();
 });

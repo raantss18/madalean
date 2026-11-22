@@ -245,6 +245,9 @@ paint by `public/theme-init.js` (external file: CSP forbids inline scripts).
 5. Long operations: show progress, make them cancellable (`AbortSignal` in `request`), errors through `errorText(e)`;
    destructive actions: optimistic + undo toast (`toast('ok', …, { action: { label: t('common.undo'), run } })`).
 6. Add an axe pass for the new route in `e2e/a11y.spec.ts`, and a screenshot in `e2e/screens.spec.ts`.
+7. Phones (S-AP, §16): import nothing heavy at the top of the screen — maths go through `Md` / `renderMath` (KaTeX
+   loads on the first formula), code through `CodeEditor` (CodeMirror loads when idle), a part shown only on demand
+   through a dynamic `import()`. A field that **sends** keeps its unsent text with `keepDraft(…)`.
 
 ## 5. Dependencies (exact versions, `web/package-lock.json`; `npm audit`: 0 vulnerabilities)
 
@@ -757,3 +760,55 @@ horizontal scroll (checked at 390 px). axe (WCAG 2.1 AA) clean on every step tes
 - `web/e2e/wizard-screens.spec.ts` (project `screens`): `docs/screenshots/v2/wizard-<step>-desktop-light.png` (10),
   `wizard-{welcome,tools,keys,claude,done}-desktop-dark.png`, `wizard-{welcome,tools,local,keys,done}-phone-light.png`,
   `wizard-home-card-desktop-light.png`; `docs/manual/img/wizard-tools.png` copied from them.
+
+## 16. Phones: open time, batched updates, unsent text kept (S-AP, 2026-11-22, DECISIONS D48, TODO B16)
+
+Measured with `scripts/dev/phone_perf.mjs` (production build, demo server, phone emulation, 4× CPU, 150 ms RTT,
+1.6 Mbit/s); before / after numbers in docs/PERFORMANCE.md « Interface sur téléphone (S-AP) ».
+
+**Loaded on use, not on start**
+
+| What | Before | Now |
+|---|---|---|
+| KaTeX + its CSS (≈ 270 kB min.) | with `lib/md.ts`, i.e. before the first paint of every screen but Réglages | `lib/katex.svelte.ts`: on the first formula shown; meanwhile the TeX source (`.math-pending`), then reactive views render again. Calcul and the dossier screen start it at once (they always show formulas); the article editor refreshes its math widgets when it arrives |
+| Language catalogues | French and English in the entry | French in the entry (source and fallback); English its own chunk — awaited before mounting on an English device, or loaded on a switch (`i18n.set` returns a promise; the last language asked for wins) |
+| Screen chunk | requested after `GET /state` answered | requested together with it (`App.svelte`) |
+| CodeMirror (≈ 110 kB br) | fetched and built right after mounting | built when the browser is idle (≤ 1.5 s) or at once when its plain field is focused (`CodeEditor.svelte`); the plain field shows the text meanwhile |
+| Proof plan (tree, map, outline) | in the dossier chunk | own chunk, on the « Plan » step (prefetched when idle) |
+| Command palette, first-run tour | in the entry | own chunks; the palette on its first opening or when idle |
+| Markdown renderer on Home | via the .tex import dialog | `LazyMd` there too: Home's first paint needs no Markdown |
+
+Idle prefetch (`lib/ui/idle.ts`): after the screen is on screen and the browser is idle, the likely next screen
+(Home → dossier, dossier → Home, Sources → reader, project → Home) and the palette; never on Save-Data or 2G.
+
+**One render per burst**: socket messages are queued and applied together at the next animation frame
+(`lib/store/coalesce.ts`, `FrameBatcher`; 100 ms timer when the tab is hidden), in order, through the same sequencer;
+streamed text is flushed in that same frame. `app.activeJob` / `lastJob` / `activeJobs` read one derived index
+(one pass over the jobs per change) instead of each dossier row scanning every job. `app.batchStats` shows the
+batching (perf page, tests).
+
+**Unsent text kept per device** (`lib/ui/drafts.svelte.ts`: `keepDraft(key, get, set)`, `loadDraft` / `saveDraft` /
+`clearDraft`, localStorage `madalean.draft.*`, the store of the S-AK new-problem and follow-up drafts). Sending
+empties the field, which removes the draft.
+
+| Field | Draft key | Dropped |
+|---|---|---|
+| Calcul « Demande » of a request cell | `calcul.<project>.<doc>.<cell>` | when it becomes the cell's prompt (« Écrire le code ») |
+| Grounded question (Sources, reader) | `qa.<project>.<scope>` | when asked |
+| Explain-back | `explain.<dossier>.statement` or `.proof` | when sent |
+| Hint ladder: « qu'avez-vous essayé ? », reflection | `hints.tried.<dossier>`, `hints.reflection.<dossier>.<proof>` | first hint received / when sent |
+| Conductor instruction | `consigne.<project>` | when the run starts |
+| Lean « Corriger l'énoncé… » (the field reopens) | `lean.correction.<dossier>` | when sent |
+| Notebook assistant | `notebook.ask` | when sent |
+| New conjecture (statement, motivation) | `conjecture.<project>[.motivation]` | when created |
+
+Tests: `web/tests/unit/sap-perf.test.ts` (batcher order / one flush per frame / hidden-tab timer, stream flush,
+job index = reducer helpers, lazy KaTeX placeholder then render, lazy English with a switch back winning, idle
+prefetch once and never on Save-Data / 2G, drafts), `web/e2e/drafts.spec.ts` (Calcul « Demande » across a screen
+change and a reload, dropped once sent; Q&A, Lean correction, new conjecture). Screenshots: every
+`docs/screenshots/v2` image regenerated (`e2e/screens.spec.ts`, `plan-screens.spec.ts`, `article.spec.ts`,
+`workbench.spec.ts`, and `extra-screens.spec.ts` for the glossary, library, Claude caps, Calcul 820 / dark / phone,
+hint ladder and `plan-real-compact-proved-desktop-light.png` — the latter now the demo's richest plan (« Le carré
+d'un entier pair est pair », 7 nodes, 3 of 5 lemmas proved: the demo data has no fully proved plan), the user's own
+« Fonction continue sur un compact » dossier being unavailable to a test server; the file name is kept for the
+existing references).

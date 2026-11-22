@@ -107,8 +107,14 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     dossier, seulement celles que cet espace a compilées (S-AM, D45 : +50 à +90 tokens quand utile, rien sinon, cache
     préservé).
     Reste : à essayer sur tes dossiers, carnets et articles avec ta clé Claude (coût affiché)
-16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
-    tant qu'on ne l'ouvre pas
+16. ✅ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
+    tant qu'on ne l'ouvre pas (S-AP, D48, docs/PERFORMANCE.md « Interface sur téléphone ») : mesuré sur téléphone
+    simulé (processeur ÷ 4, réseau lent), premier affichage utile plus tôt sur chaque écran — accueil 2,4 → 1,6 s,
+    dossier 2,9 → 2,5 s, Calcul 3,1 → 2,5 s, Notes 2,8 → 2,2 s, Réglages 1,6 → 1,3 s, Article 3,7 → 3,5 s ; les
+    formules (KaTeX), l'anglais, l'éditeur de code, le plan et la palette ne se chargent qu'à l'usage ; une rafale
+    de mises à jour s'applique en une seule fois (300 événements : 587 → 68 ms) ; ce qui est tapé et pas encore
+    envoyé (« Demande » de Calcul, questions, correction Lean, consigne, conjecture…) est gardé sur l'appareil
+    jusqu'à l'envoi. Reste : essai sur ton téléphone
 16b. ⚠️ **Refonte de l'interface** (demande du 22/11, S-AK, D43, docs/UI.md §14) : le logo est le menu (« Accueil » en
     premier, second clic = accueil) ; plus de barre du bas ni de liens en double ; « Projet › Dossier » en texte
     complet, seul endroit pour changer de projet ou de dossier ; barre du projet ; bouton d'état (modèle, processeur,

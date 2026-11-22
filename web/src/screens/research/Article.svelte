@@ -29,6 +29,7 @@
   import { layout, isShortcut } from '../../lib/ui/layout.svelte';
   import { dismiss } from '../../lib/ui/dismiss';
   import { costText } from '../../lib/conductor';
+  import { preloadKatex } from '../../lib/katex.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -137,6 +138,7 @@
   $effect(() => {
     if (!host || ed || !proj) return;
     let cancelled = false;
+    preloadKatex();          // S-AP: KaTeX is no longer inside the editor chunk; fetch it alongside
     void import('../../lib/article/editor').then(({ createArticleEditor }) => {
       if (cancelled || !host || ed) return;
       ed = createArticleEditor({

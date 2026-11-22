@@ -878,3 +878,35 @@
   the server (event `models.key_test`); the key form passes `test: false` and runs the same test itself to show its
   result. Rejected: clearing only `key_refused` pauses (a 429 / quota pause of the old account would still block the
   new key).
+
+## D48 — Phone open time: nothing heavy before the first paint, socket bursts applied once per frame, unsent text kept per device (TODO B16, 2026-11-22, S-AP)
+- Request (TODO B16): « temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
+  tant qu'on ne l'ouvre pas » + keep the unsent « Demande » of Calcul and the other sending fields S-AK left
+  unsaved (docs/UI.md §14.1 row 19).
+- Measured first, then changed (`scripts/dev/phone_perf.mjs`: production build, demo server, phone emulation, 4× CPU,
+  150 ms RTT / 1.6 Mbit/s; numbers in docs/PERFORMANCE.md « Interface sur téléphone (S-AP) »). Findings: every
+  screen but Settings pulled KaTeX (≈ 270 kB minified) through the Markdown renderer before its first paint; the
+  entry carried both language catalogues (≈ 260 kB of source); a screen's chunk started downloading only after
+  `GET /state` answered; CodeMirror was fetched and built right after mounting, in the way of the first
+  interactions; each WebSocket message was applied (and rendered) on its own, and every dossier row scanned every
+  job on each job event. Idle traffic was already nil (one `pong` per 25 s).
+- Decision — **load on use, not on start**: KaTeX (and its CSS) on the first formula shown (`lib/katex.svelte.ts`;
+  until it is in the TeX source is shown, then reactive views render again; Calcul and the dossier screen start it
+  early because they always show formulas); only the French catalogue in the entry, English its own chunk awaited
+  before mounting on an English device (one request) or on a switch; the plan (tree / map / outline), the command
+  palette and the first-run tour are their own chunks; CodeMirror built when the browser is idle or when its plain
+  field is focused; the screen's chunk requested together with `GET /state`. **Idle prefetch** of the likely next
+  screen (Home → dossier, dossier → Home, Sources → reader) and of the palette, skipped on Save-Data / 2G.
+- Decision — **one render per burst**: socket messages are queued and applied together in the next animation frame
+  (`FrameBatcher`, timer fallback 100 ms for hidden tabs), in arrival order through the same sequencer; streamed
+  text is flushed inside that frame (no extra frame of delay). A derived job index (active / last job per dossier,
+  running list) replaces the per-row scans. Rejected: dropping intermediate `job.updated` events of a batch (the
+  sequencer needs every seq, and the reducer is cheap once rendering is batched); a service worker (assets are
+  already hashed, immutable and pre-compressed; a SW adds an update path to maintain for little gain on a LAN /
+  Tailscale link); server-side rendering (the screens depend on the live store).
+- Decision — **drafts of unsent text per device** (`lib/ui/drafts.svelte.ts`, `keepDraft`, localStorage
+  `madalean.draft.*`, the store already used by the new-problem and follow-up drafts): Calcul « Demande » (per
+  cell; dropped when it becomes the cell's prompt), grounded Q&A, explain-back, hint ladder (« qu'avez-vous
+  essayé ? », reflection), conductor instruction (dropped when the run starts), Lean correction (its field reopens),
+  notebook assistant, new conjecture (statement, motivation). Sending empties the field, which removes the draft.
+  Rejected: server-side drafts (unsent text is not project data, and would sync half-typed text to other devices).

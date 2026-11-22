@@ -8,6 +8,7 @@
   import type { ExplainAnswer } from '../../lib/api/research';
   import { t } from '../../lib/i18n/index.svelte';
   import { loadJSON, saveJSON } from '../../lib/prefs.svelte';
+  import { keepDraft } from '../../lib/ui/drafts.svelte';
   import { askExplainBack, learnError } from '../../lib/learn/tutor';
   import Md from '../../components/Md.svelte';
   import Icon from '../../components/Icon.svelte';
@@ -20,6 +21,7 @@
   let busy = $state(false);
   let err = $state('');
   $effect(() => { turns = loadJSON<Turn[]>(key, []); });
+  keepDraft(() => key, () => draft, (v) => (draft = v));       // unsent explanation kept until sent (S-AP)
   const rounds = $derived(turns.filter((x) => x.who === 'tutor').length);
 
   async function send() {
