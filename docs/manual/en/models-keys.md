@@ -26,8 +26,8 @@ minute. In *Automatic* mode, a proof that the online models searched without fin
 local model (the online Goedel 32B is stronger than the local 8B).
 
 For a given dossier, “Options for this dossier” (on the home screen) lets you choose another mode than the general
-one. The indicator at the top of the screen
-(“Who receives what”) tells at every moment which model receives your work. Every text produced by a model shows
+one. The status button at the top right of the screen
+(its panel “Who receives what”) tells at every moment which model receives your work, with the tokens and cost spent. Every text produced by a model shows
 its name.
 
 ## What is sent, and to whom

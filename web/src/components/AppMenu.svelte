@@ -126,7 +126,8 @@
     .scrim { display: block; position: fixed; inset: var(--topbar-h) 0 0 0; z-index: 790; background: rgba(10, 14, 24, 0.4); }
     .panel { position: fixed; top: var(--topbar-h); left: 0; bottom: 0; width: min(320px, 86vw); max-height: none; border-radius: 0 var(--r-3) var(--r-3) 0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
     .kbd-h { display: none; }
+    .panel a, .panel button { min-height: 48px; }
   }
   @media (prefers-reduced-motion: no-preference) { .panel { animation: am-in 120ms var(--ease); } }
-  @keyframes am-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  @keyframes am-in { from { transform: translateY(-4px); } to { transform: none; } }   /* no opacity: contrast stays exact */
 </style>

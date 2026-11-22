@@ -87,7 +87,7 @@
             {#each flows as f (f.job)}
               <li>
                 <span class="chip {f.local ? 'local' : 'online'}">{f.local ? t('privacy.here') : providerName(f.provider)}</span>
-                <span class="small"><strong>{f.title}</strong> — {tk(`stage.${f.stage}`, f.stage)}{#if f.model} · {f.model}{/if}</span>
+                <span class="small"><strong>{f.title}</strong> — {`${tk(`stage.${f.stage}`, f.stage)}${f.model ? ` · ${f.model}` : ''}`}</span>
                 <span class="xs muted">{f.local ? t('privacy.sentNothing') : tk(`privacy.sent.${f.stage}`, t('privacy.sent.default'))}</span>
               </li>
             {/each}
@@ -107,11 +107,9 @@
             {#if r.gpu}
               <div><dt>{t('status.gpu')}</dt><dd><meter min="0" max="100" value={r.gpu.util} aria-hidden="true"></meter><span>{`${pct(r.gpu.util)} · ${r.gpu.temp} °C`}</span></dd></div>
               <div><dt>{t('status.vram')}</dt><dd><meter min="0" max={r.gpu.total} value={r.gpu.used} aria-hidden="true"></meter><span>{t('status.ofGb', { used: gb(r.gpu.used), total: gb(r.gpu.total) })}</span></dd></div>
-              <p class="xs muted gpu-name">{r.gpu.name}</p>
-            {:else}
-              <p class="xs muted">{t('status.noGpu')}</p>
             {/if}
           </dl>
+          <p class="xs muted gpu-name">{r.gpu ? r.gpu.name : t('status.noGpu')}</p>
         {/if}
         {#if slots}
           <p class="xs slots"><span class="muted">{t('status.slots')}</span>

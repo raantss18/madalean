@@ -50,7 +50,9 @@ test('reconnect: a dropped WebSocket resumes without losing events', async ({ pa
   await api('POST', '/projects', { title: 'Créé pendant la coupure' });
   await page.context().setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(page.getByRole('combobox', { name: 'Projet' }).locator('option', { hasText: 'Créé pendant la coupure' })).toHaveCount(1, { timeout: 15_000 });
+  // S-AK: projects are listed in the context switcher
+  await page.locator('#context-switcher').click();
+  await expect(page.getByRole('dialog', { name: 'Projets et dossiers' }).getByRole('button', { name: 'Créé pendant la coupure' })).toHaveCount(1, { timeout: 15_000 });
   const after = await page.evaluate(() => (window as unknown as { __madalean: { seqStats: { last: number } } }).__madalean.seqStats.last);
   expect(after).toBeGreaterThan(before);
 });

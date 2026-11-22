@@ -156,10 +156,11 @@ client holds no prompt any more (`web/src/lib/learn/tutor.ts` only calls the end
 ## 2. Information architecture
 
 ```
-Top bar:  [☰ dossiers] [Madalean] [Projet ▾]  ……  [Chercher Ctrl K] [Qui reçoit quoi] [Activité n] [Apprendre|Recherche] [⚙]
-Rail (≥1024 px, drawer below): project sections (Dossiers · Sources · Notes · Graphe · Blueprint · Article ·
-                                Conjectures · Calcul · Publier), dossiers of the project with live status, lemmas nested;
-                                Activité · Bibliothèque · Glossaire · Carnet · Aide · Réglages
+(S-AK, §14 — replaces the ☰ / rail / drawer / bottom bar of earlier versions)
+Top bar:      [Madal∃an ▾ = menu]  [Projet › Dossier ▾]  ……  [Chercher Ctrl K] [état: mode · n]
+Logo menu:    Accueil · (project sections when the bar is hidden) · Activité · Bibliothèque · Glossaire · Carnet ·
+              Aide · Réglages · Apprendre | Recherche · Barre du projet
+Project bar:  Dossiers · Sources · Notes · Graphe · Blueprint · Article · Conjectures · Calcul · Publier (project screens)
 Main:
   /                         Énoncé of a NEW dossier (natural language/LaTeX with live preview, or Lean), .tex import,
                             examples, recent dossiers
@@ -178,11 +179,10 @@ Main:
   /pair                     pairing screen (public; remote browsers)
   /__perf                   measurement page used by e2e/perf.spec.ts
 Ctrl+K searches everything: screens, actions, dossiers, notes (full text), sources of the project, the manual.
-Phone (<768 px): bottom navigation Accueil · Projet · Activité · Aide · Réglages; mode switch moves into the drawer;
-                 the privacy indicator becomes an icon when idle, shows the model while work runs.
-Tablet (768–1023 px): rail as a drawer, full top bar (labels become icons); ≥ 1024 px: permanent rail; ≥ 1280 px the
-                 dossier shows its thread beside the steps (tablet landscape 1366 px: rail + steps + thread).
-                 Details and adaptive patterns: §12.
+Phone (<768 px): same top bar (logo icon, switcher on two lines, search icon, status icon), the logo menu is a sheet
+                 from the left, panels are sheets under the top bar; the project bar scrolls sideways.
+Tablet / desktop: labels become icons below 1280 px; ≥ 1280 px the dossier shows its thread beside the steps.
+                 Details and adaptive patterns: §12 (bottom bar parts superseded by §14).
 ```
 
 **Data layer** (`web/src/lib/`): `api/types.ts` (types of docs/API.md §5), `api/client.ts` (typed client, errors as
@@ -626,8 +626,10 @@ Main:         full width — no rail, no drawer, no bottom bar
 | Long-form editors: article (visual and LaTeX source), notes body, Calcul text cells, profile, BibTeX paste, experiment code, merge result, plan node fields | new line / paragraph | new line | **exception on purpose**: writing several lines is the job there; Ctrl+Entrée keeps its own meaning (compile the article) |
 | Single-line fields (titles, search) | validates / nothing (results are live) | — | — |
 
-The hint « Entrée pour envoyer · Maj+Entrée pour aller à la ligne » (`components/EnterHint.svelte`) sits under each
-sending field, small and muted. Shared code: `lib/ui/enter.ts` (`enterIntent`, `enterSubmit` action) and the
+On touch-only screens (no mouse or trackpad: on-screen keyboards have no Shift+Enter) Enter stays a new line and the
+field's button sends; the hint is hidden there. The hint « Entrée pour envoyer · Maj+Entrée pour aller à la ligne »
+(`components/EnterHint.svelte`) sits under each sending field, small and muted (in Calcul it sits in the cell's
+button row and shows while the cell has the focus, always laid out so nothing moves under the pointer). Shared code: `lib/ui/enter.ts` (`enterIntent`, `enterSubmit` action) and the
 CodeMirror keymap in `lib/lean/editor.ts` (`enterSubmits`).
 
 ### 14.4 Panels close on an outside click
@@ -664,3 +666,21 @@ navigation (router `beforeNavigate` hooks), on `pagehide` / hidden tab and on un
 Explicit buttons kept because they are not « save »: Traduire et prouver, Retraduire, Vérifier avec Lean, Exécuter,
 Approuver et lancer, Publier, Compiler, Accepter une suggestion, the merge view's choice, and API keys (« Enregistrer
 la clé » checks and tests the key, then empties the field: a secret is never autosaved).
+
+### 14.6 Tests and screenshots
+
+- `web/tests/unit/sak-ui.test.ts`: Enter intent (IME, Alt, Shift, Ctrl), newline-with-indent and Tab indent / dedent,
+  outside test, Autosave (debounce, flush, change during a save, backoff retry, 409 conflict).
+- `web/e2e/sak.spec.ts`: logo menu (Accueil first and focused, every destination, arrows / End / Escape → focus back,
+  mode radio, second click → home, sections only when the bar is hidden, Ctrl+Shift+1); outside click and Escape on
+  the logo menu, the switcher, the status panel and a « ⋯ » menu; context switcher (projects beside their dossiers,
+  full title + tooltip); status panel (content, polled only while open, stops when closed); Enter / Shift+Enter on
+  the new problem and the follow-up request; Calcul cell (Shift+Enter indentation, Shift+Tab, autosave without blur
+  + reload, Enter runs); autosave + reload of dossier title, statement, project description, profile; a failing save
+  shows « Non enregistré — réessai » and recovers; axe with each panel open at 1440 and 820 px, light and dark, and at
+  390 px (sheets, 44 px targets, no bottom bar). Older specs updated (phone, responsive, article, parallel, sync,
+  research, screens).
+- `tests/test_usage_status.py` (tally, persistence, `GET /api/usage` after a real request) and
+  `tests/test_autosave_persist.py` (every autosaved field read back after a server restart).
+- Screenshots: `docs/screenshots/v2/{phone,tablet,desktop}-{light,dark}-{home,menu,switcher,status}.png` (+ the
+  existing sets, regenerated); the manual's images copied from them.

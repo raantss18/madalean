@@ -90,6 +90,14 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     tes dossiers (coût affiché sur chaque demande)
 16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
     tant qu'on ne l'ouvre pas
+16b. ⚠️ **Refonte de l'interface** (demande du 22/11, S-AK, D43, docs/UI.md §14) : le logo est le menu (« Accueil » en
+    premier, second clic = accueil) ; plus de barre du bas ni de liens en double ; « Projet › Dossier » en texte
+    complet, seul endroit pour changer de projet ou de dossier ; barre du projet ; bouton d'état (modèle, processeur,
+    mémoire, carte graphique, tokens et coût, travaux en cours ; mesuré seulement panneau ouvert) ; Entrée envoie /
+    Maj+Entrée va à la ligne (Calcul : Entrée exécute, Tab indente) ; clic ailleurs ou Échap ferme tout volet ;
+    enregistrement automatique partout (titre, énoncé, notes, Calcul, expériences, plan, projet, profil). Branche
+    `s-ak-ui-refonte`, à essayer avant fusion. Reste : coût par demande pour les modèles Hugging Face estimés,
+    essais sur vrais téléphone / tablette
 
 ### C — Avant la publication 2.0.0 (sur ton accord)
 17. ✅ Essai continu de 2 h (0 erreur) + 1 h sur les mêmes dossiers ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version

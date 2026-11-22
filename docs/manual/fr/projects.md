@@ -9,11 +9,35 @@ summary: Regrouper des dossiers en projets, lancer plusieurs travaux à la fois,
 
 # Projets et dossiers en parallèle
 
+## Se repérer
+
+Tout se trouve au même endroit sur un ordinateur, une tablette ou un téléphone :
+
+- **Le logo Madal∃an**, en haut à gauche, ouvre le menu : « Accueil » en premier, puis Activité, Bibliothèque,
+  Glossaire, Carnet, Aide, Réglages, le choix *Apprendre* / *Recherche* et la barre du projet. Un second clic sur
+  le logo, menu ouvert, ramène à l'accueil.
+- **Le nom du projet** (et, dans un dossier, celui du dossier) à côté du logo est le seul endroit où l'on change de
+  projet ou de dossier : à gauche les projets (« Nouveau projet… », « Vue d'ensemble du projet »), à droite les
+  dossiers du projet choisi, avec leur état. Les noms sont écrits en entier.
+- **La barre du projet**, sous la barre du haut : Dossiers · Sources · Notes · Graphe · Blueprint · Article ·
+  Conjectures · Calcul · Publier. `Ctrl+Maj+1` la masque ou la remet.
+- **Le bouton d'état**, en haut à droite (nuage : en ligne ; puce : local) : le mode, le modèle qui reçoit votre
+  travail, les ressources de l'ordinateur hôte (processeur, mémoire, carte graphique), les tokens et le coût
+  (cette demande, aujourd'hui, ce mois-ci), les travaux en cours. Ces mesures ne sont prises que panneau ouvert.
+
+Un menu ou un volet se ferme d'un clic ailleurs ou avec `Échap`. **Tout s'enregistre tout seul** : titre et énoncé
+d'un dossier, notes, article, cellules de Calcul, code des expériences, plan, description du projet, réglages. Un petit
+« Enregistré » le confirme ; « Non enregistré — réessai » signale un problème de réseau (Madalean réessaie, votre
+texte reste à l'écran).
+
+![Le menu du logo](../img/navigation.png)
+
 ## Projets
 
 Un **projet** regroupe des dossiers : un chapitre de cours, un article en préparation, une série d'exercices. Le
-sélecteur en haut à gauche (« Tous les projets ») filtre la liste des dossiers. Un projet a son espace Lean, sa
-bibliographie, ses sources, ses notes, son plan d'article.
+nom du projet en haut à gauche (« Tous les projets ») permet d'en choisir un ; la page « Dossiers » montre alors ses
+dossiers. Un projet a son espace Lean, sa bibliographie, ses sources, ses notes, son plan d'article ; son titre et
+sa description se modifient sur sa page (« Vue d'ensemble du projet »).
 
 Supprimer un projet le met à la corbeille : « Annuler » le restaure. Ses dossiers ne sont pas supprimés.
 

@@ -26,8 +26,8 @@ sauté pendant une minute. En mode *Automatique*, une preuve que les modèles en
 n'est **pas** relancée sur le modèle local (le Goedel 32B en ligne est plus fort que le 8B local).
 
 Pour un dossier précis, « Options de ce dossier » (sur l'accueil) permet de choisir un autre mode que le mode
-général. L'indicateur en haut de l'écran
-(« Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail. Chaque texte produit par un modèle
+général. Le bouton d'état en haut à droite de l'écran
+(son panneau « Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail, avec les tokens et le coût dépensés. Chaque texte produit par un modèle
 indique son nom.
 
 ## Ce qui part, et vers qui

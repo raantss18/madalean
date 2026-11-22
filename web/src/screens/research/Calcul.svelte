@@ -644,8 +644,7 @@
                     {:else}
                       <textarea id="src-{c.id}" class="code-in" spellcheck="false" autocapitalize="off" autocomplete="off" rows={rows(drafts[c.id] ?? c.source)}
                         placeholder={isFresh(c) ? ct('autoPh') : ''} bind:value={drafts[c.id]} oninput={() => onType(c)} onfocus={() => { mode = 'edit'; }} onblur={() => sheetSaver.flush()}
-                        onkeydown={(e) => codeKey(c, e)} aria-describedby={sel === c.id ? `run-e-${c.id}` : undefined}></textarea>
-                      {#if sel === c.id}<EnterHint id="run-e-{c.id}" action="run" />{/if}
+                        onkeydown={(e) => codeKey(c, e)} aria-describedby="run-e-{c.id}"></textarea>
                     {/if}
                     {@const fresh = isFresh(c) && !!(drafts[c.id] ?? '').trim()}
                     <div class="actions">
@@ -659,6 +658,8 @@
                         </div>
                         <span class="xs muted">{forced[c.id] ? '' : ct('detectHint')}</span>
                       {/if}
+                      <!-- shown while the cell has the focus; always laid out, so nothing moves under the pointer -->
+                      <span class="run-hint"><EnterHint inline id="run-e-{c.id}" action="run" /></span>
                     </div>
                     {#if c.autofix}
                       <p class="xs note-fix" role="status">{ct((c.autofix as { reran?: boolean }).reran ? 'autofixedRan' : 'autofixed', { n: c.autofix.n ?? 1, max: c.autofix.max ?? 3 })}
@@ -862,6 +863,8 @@
   .lead { color: var(--text-2); max-width: var(--measure); margin: var(--s-1) 0 var(--s-2); }
   .banner { border: 1px solid var(--line); border-left: 4px solid var(--local); background: var(--surface); padding: var(--s-3); border-radius: var(--r-2); margin-bottom: var(--s-3); }
   .banner.warn { border-left-color: var(--running-fill); }
+  .run-hint { visibility: hidden; margin-left: auto; }
+  :global(li.cell:focus-within) .run-hint { visibility: visible; }
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; position: sticky; top: 0; z-index: 3; background: var(--bg, var(--surface)); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); margin-bottom: var(--s-3); }
   .chip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
   .kernel-problem p { margin: 0 0 var(--s-1); white-space: normal; }
