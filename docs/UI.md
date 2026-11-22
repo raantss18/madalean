@@ -684,3 +684,76 @@ la clé » checks and tests the key, then empties the field: a secret is never a
   `tests/test_autosave_persist.py` (every autosaved field read back after a server restart).
 - Screenshots: `docs/screenshots/v2/{phone,tablet,desktop}-{light,dark}-{home,menu,switcher,status}.png` (+ the
   existing sets, regenerated); the manual's images copied from them.
+
+## 15. « Premiers pas », the first-run assistant (session S-AQ, 2026-11-22, DECISIONS D49)
+
+User request (FR, summarised): at the first opening on the host, Madalean guides the whole starting configuration —
+tools (installed / missing, reuse the system's SageMath or LaTeX or Madalean's own copy, install or repair with live
+progress), local model yes/no and which one, API keys one card per provider (« Tester », never autosaved, on the
+host only), Hugging Face for Goedel-Prover, Claude as conductor and its caps, modes, automatic vs manual
+behaviours, pairing, a final checklist; each step linked to its manual page.
+
+### 15.1 Where it lives
+
+| What | Where |
+|---|---|
+| Route | `/premiers-pas/:step?` (`routes.ts`), rendered by `App.svelte` **full screen** (no top bar): own header (wordmark, « Premiers pas · étape i sur 10 », « Plus tard »), an orange progress line, a stepper (`nav` « Étapes », `aria-current="step"`, ✓ for visited steps; one scrolling row of numbers below 1024 px), the step, « Précédent » / « Passer cette étape » / « Suivant » (« Terminer » at the end) |
+| Steps | `screens/setup/Step{Welcome,Tools,Local,Keys,Hf,Claude,Modes,Auto,Pair,Done}.svelte`, one chunk each; shared provider card `ProviderKey.svelte` (wraps Réglages' `KeyForm`), Home card `SetupReminder.svelte` |
+| Logic | `lib/setup/wizard.ts` (pure: steps, help pages + anchors per language, resume, auto-open rule, reminder rule, model choice, recommended reuse, checklist) — `tests/unit/setup-wizard.test.ts` |
+| State | `lib/setup/state.svelte.ts`: `GET /api/setup/wizard` once at the start of the web app **on the host** (`setupBoot`, after `app.boot()`), `setup.wizard` events; `lib/setup/api.ts` typed client |
+| Hooks | `App.svelte` (full-screen branch + `setupBoot`), `AppMenu.svelte` (« Premiers pas » after Aide, host only), `Home.svelte` (`<SetupReminder />`), `Settings.svelte` (link above the sections, host only) |
+
+### 15.2 Rules
+
+- **Opens by itself** only when: the request is local (host), the route is Home, `settings.wizard_done === false`
+  and the server's `auto` is true (false after « Plus tard » / « Terminer », and on a server that started with the
+  user's dossiers already there — an update from 2.0.0). A deep link is never redirected. Paired devices: no
+  automatic opening, no menu entry, no Home card, `/premiers-pas` says it is for the host; the API is host-only.
+- **Progress on the server** (`first-run.json`): each move saves `step` + `visited`; opening `/premiers-pas` without a
+  step resumes there (also from the browser's back / forward). « Plus tard » = `wizard_done: true`; the **Home card**
+  (« Reprendre » / « Ne plus afficher ») stays until « Terminer » (`completed`).
+- **Saving** follows D43: radios, switches and caps are saved when they change (`PATCH /api/settings`,
+  `POST /api/setup/reuse`, `PATCH /api/setup/wizard` for the local-model choice); **keys** only by their own
+  « Enregistrer » (the form submits on Enter), then tested; a saved key has « Tester » again
+  (`POST /api/models/test`, `/api/search/test`). No panel opens inside the assistant, so no outside-click rule
+  applies; Escape does nothing (it is a page, « Plus tard » leaves).
+- **Real option names only**: `sage_source`, `tex_engine`, `mode`, `hf_goedel`, `conductor`, `conductor_cap_usd`,
+  `claude_reinforce`, `claude_cap_proof_usd`, `claude_cap_month_usd`, `experiments_auto`, `parallel_stages`,
+  `lean_warm`, `pause_after_translation`, `check_updates`, `updates_auto`, `language`; Apprendre / Recherche is the
+  per-device preference of the logo menu.
+- **Recommendations** come from the install engine (`assistant.recommend()` over the machine check: graphics
+  memory, RAM, SageMath version + kernel, TeX Live), shown as a « conseillé » badge and the reason in an
+  orange-ruled note; options that cannot work here are disabled with the reason (and refused by the server).
+- **Components**: « Installer » / « Installer maintenant » / « Mettre à jour » call `POST /api/deps/{c}/install`;
+  `deps.progress` events drive a progress bar (phase translated, percentage); a running install started elsewhere
+  is picked up from `GET /api/deps`. bubblewrap stays a command for the user to type (copy button): Madalean never
+  uses sudo.
+- **Local models**: none / prover / all with the size still to download (files already in `~/models` count as
+  present); « Télécharger » → `POST /api/setup/models`, progress `setup.models`, « Arrêter le téléchargement »;
+  refused in Local mode and in the demo.
+- **Help**: each step's « Aide » opens the in-app manual at the matching heading (anchors from
+  `docs/manual/index.json`, one per language; a unit test checks they exist).
+
+### 15.3 Accessibility and layouts
+
+`main` with the step's `h1` (focused on each move by the router), `nav` « Étapes » with `aria-current="step"` and
+« déjà vue » for screen readers, every choice a real radio in a `fieldset`/`legend`, progress bars
+(`role="progressbar"`, values), polite live regions for key tests, installs and downloads. Colours are the theme
+tokens (light / dark), orange only as decoration (progress line, reason rule, Home card top border; BRAND.md).
+Phones: the stepper is a scrolling row of numbers (current step labelled and kept in view), 44 px targets, no
+horizontal scroll (checked at 390 px). axe (WCAG 2.1 AA) clean on every step tested at 1440 px light and 390 px dark.
+
+### 15.4 Tests and screenshots
+
+- `tests/test_setup_wizard.py`: wizard progress (host only, validation, merge, persisted across a restart, « Plus
+  tard », resume, completion), no automatic opening after an update with existing dossiers, reuse checked against
+  fake system Sage / TeX, local-model download with a fake downloader (progress events, Local mode, busy, nothing
+  missing), refused in the demo.
+- `web/e2e/setup-wizard.spec.ts`: first start on the host opens it, a deep link does not, a paired browser never
+  sees it; skip, « Plus tard », Home card, resume from the card, the logo menu and Réglages, « Ne plus afficher »;
+  each step's controls (reuse choice persisted, local-model choice persisted, key save + « Tester », cap saved,
+  mode and Apprendre / Recherche, a behaviour switch), « Terminer » hides it; phone + dark: no horizontal scroll,
+  axe, Enter in a key field saves it explicitly. `e2e/global-setup.ts` marks it finished for the other specs.
+- `web/e2e/wizard-screens.spec.ts` (project `screens`): `docs/screenshots/v2/wizard-<step>-desktop-light.png` (10),
+  `wizard-{welcome,tools,keys,claude,done}-desktop-dark.png`, `wizard-{welcome,tools,local,keys,done}-phone-light.png`,
+  `wizard-home-card-desktop-light.png`; `docs/manual/img/wizard-tools.png` copied from them.

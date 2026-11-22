@@ -17,6 +17,7 @@
   import HelpLink from '../components/HelpLink.svelte';
   import EnterHint from '../components/EnterHint.svelte';
   import DossierList from '../components/DossierList.svelte';
+  import SetupReminder from './setup/SetupReminder.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const draft = loadJSON<{ text: string; lean: string; asLean: boolean; title?: string }>('draft.new', { text: '', lean: '', asLean: false });
@@ -73,6 +74,7 @@
 </script>
 
 <div class="home">
+  <SetupReminder />
   <section class="compose" aria-labelledby="home-h">
     <div class="row"><h1 id="home-h">{t('home.title')}</h1><HelpLink page="workflow" /></div>
     <p class="lead">{project ? t('home.inProject', { title: project.title }) : t('home.lead')}</p>

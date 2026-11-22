@@ -22,9 +22,38 @@ rencontrerez :
 Tout se trouve dans « Réglages » (l'icône d'engrenage en haut à droite). Une [liste de vérification](#liste-de-verification)
 récapitule le tout à la fin de la page.
 
-Quand vous ouvrez Madalean pour la première fois (en particulier depuis l'installateur graphique), un assistant de
-premier démarrage vous guide à travers ces mêmes choix ; vous pouvez y revenir à tout moment dans « Réglages ».
-<!-- verify after integration: the in-app first-run assistant (beyond the four-step tour) and its exact screens. -->
+## L'assistant « Premiers pas »
+
+Quand vous ouvrez Madalean pour la première fois **sur l'ordinateur hôte**, l'assistant « Premiers pas » s'affiche
+en plein écran et vous guide à travers ces mêmes choix, dans l'ordre de cette page. Vos appareils reliés (téléphone,
+tablette, autre PC) ne le voient jamais : il ne s'ouvre que là où Madalean est installé.
+
+![Premiers pas : les outils](../img/wizard-tools.png)
+
+| Étape | Ce que vous y faites | Pour en savoir plus |
+|---|---|---|
+| Bienvenue | voir ce qui vous attend, les ressources de la machine, choisir la langue | — |
+| Outils | voir les composants installés ou absents, les **installer ou les réparer** (avec la progression) ; choisir quel SageMath (`sage_source`) et quel LaTeX (`tex_engine`) utiliser, avec le choix conseillé et sa raison ; la commande à taper vous-même pour bubblewrap | [Composants](components.md) |
+| Modèle local | aucun, le modèle de preuve ou les trois, selon votre carte graphique (choix conseillé et taille à télécharger) ; « Télécharger » récupère les fichiers manquants, vérifiés | [Modèles locaux](components.md#modeles-locaux) |
+| Clés gratuites | une carte par fournisseur (Groq, Gemini, Tavily d'abord) : à quoi il sert, ce qui est gratuit, où créer la clé ; collez-la, « Enregistrer », « Tester » | [Clés](#cles-des-fournisseurs-en-ligne) |
+| Hugging Face | le jeton pour Goedel-Prover 32B en ligne, et l'interrupteur `hf_goedel` | [plus bas](#jeton-hugging-face-goedel-prover-32b-en-ligne) |
+| Claude | la clé Anthropic, les plafonds par demande, par preuve et par mois, le renfort payant | [plus bas](#claude-chef-dorchestre-et-renfort-payant) |
+| Modes | *Local*, *Automatique* ou *En ligne* (choix conseillé pour la machine) ; Apprendre ou Recherche | [plus bas](#ou-travaillent-les-modeles) |
+| Automatique ou manuel | expériences sans approbation, chef d'orchestre, étapes en parallèle, Lean prêt d'avance, pause après la traduction, mises à jour | [plus bas](#comportements-automatiques-et-manuels) |
+| Appareils | relier un téléphone ou un autre PC (le même écran que « Réglages › Appareils ») | [Relier un appareil](pairing.md) |
+| Récapitulatif | la [liste de vérification](#liste-de-verification), vérifiée de nouveau, et vos choix ; « Terminer » | — |
+
+- Chaque étape a un lien « Aide » vers la page du manuel qui l'explique.
+- Chaque étape se **passe** (« Passer cette étape ») ; chaque choix est **enregistré tout de suite**, sauf les clés,
+  qui ne sont enregistrées (et testées) que par leur bouton « Enregistrer ».
+- « **Plus tard** » ferme l'assistant. Il ne se rouvre plus tout seul, mais une carte « Premiers pas » reste sur
+  l'accueil jusqu'à ce que vous l'ayez terminé (« Reprendre », ou « Ne plus afficher »). L'assistant reprend **là où
+  vous vous êtes arrêté** : depuis cette carte, depuis le menu (le logo), entrée « Premiers pas », ou depuis
+  « Réglages », lien « Premiers pas : l'assistant de configuration ».
+- Après une mise à jour depuis la version 2.0.0, l'assistant ne s'ouvre pas tout seul (votre travail est déjà là) :
+  la carte de l'accueil le propose.
+- La visite en quatre étapes de l'écran d'accueil ([Premier démarrage](first-run.md)) est distincte : elle montre
+  comment prouver un premier énoncé.
 
 ## Clés des fournisseurs en ligne
 
@@ -248,12 +277,17 @@ applique au premier démarrage. Deux d'entre eux deviennent des réglages :
 
 Les modèles locaux choisis à l'installation sont simplement les fichiers présents dans `~/models`.
 
-<!-- verify after integration: where sage_source and tex_engine appear in the app (first-run wizard, Settings). -->
+Dans l'application, `sage_source` et `tex_engine` se voient et se changent dans l'étape « Outils » de l'assistant
+« Premiers pas » (menu du logo, ou « Réglages », lien « Premiers pas »). Madalean vérifie le choix avant de
+l'enregistrer : « Celui du système » demande un SageMath compatible (10.0 ou plus, avec son noyau Jupyter
+« sagemath ») ou un TeX Live (XeLaTeX ou LuaLaTeX), « tectonic seulement » le tectonic de Madalean ; sinon le choix
+est refusé avec la raison. L'étape dit aussi quelle copie est utilisée en ce moment.
 
 ## Liste de vérification
 
 | À faire | Où | Indispensable ? |
 |---|---|---|
+| Suivre l'assistant « Premiers pas » (ou le reprendre) | s'ouvre au premier démarrage ; menu du logo › « Premiers pas » | conseillé |
 | Ouvrir Madalean et vérifier que tout est en ordre | « Réglages › Système », partie « État de santé » | oui |
 | Installer bubblewrap si le bac à sable est signalé inactif | terminal, voir [bubblewrap](components.md#bubblewrap-le-bac-a-sable) | fortement conseillé |
 | Ajouter une ou deux clés gratuites (Groq, Gemini) | « Réglages › Fournisseurs » | conseillé |

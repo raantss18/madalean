@@ -44,7 +44,9 @@ Updates”, “Tracked components” part, shows the installed version of Lean, 
 “System components” part the programs you install yourself (such as bubblewrap), with the exact command and the
 “Open a terminal with the command” button.
 
-<!-- verify after integration: name of the screen that lists the components and offers « install later / repair » (a dedicated « Components » screen may be added to Settings › System). -->
+The “Tools” step of the [“First steps”](first-config.md#the-first-steps-assistant) assistant (logo menu › “First
+steps”) lists the same components, each with its state (installed, installed on first use, missing, new version
+ready) and an “Install”, “Install now” or “Update” button that shows the stage and the percentage while installing.
 
 **In a terminal**, on the host, the same tool `install.sh` uses:
 
@@ -123,7 +125,9 @@ folder (see [bubblewrap](#bubblewrap-the-sandbox)).
 | `system` | always the system's |
 
 It is written at installation (`--sage`, or the choice made in the graphical installer) and can then be changed in
-the application. <!-- verify after integration: where sage_source is shown and changed in the app (Settings › System or the Calcul screen). -->
+the application, in the “Tools” step of the “First steps” assistant (logo menu, or “Settings”, link “First steps”),
+which shows the recommended choice with its reason and the copy in use right now. “The system's” is only offered
+there when a compatible SageMath is present.
 
 **Install later.** By default (`--sage later`), Madalean's copy is installed **on first use**: in a SageMath notebook
 of the “Calcul” screen, “Install SageMath” button, on the host computer; the screen shows the step and the
@@ -132,7 +136,8 @@ percentage. To install it right away: `./install.sh --sage now`, or `python -m m
 
 **Removing Madalean's copy**: stop Madalean (`systemctl --user stop madalean`), delete
 `~/.local/share/madalean/envs/sage` and the `~/.local/share/madalean/envs/sage-…` folders, then start it again.
-<!-- verify after integration: no « remove SageMath » button in the app; removing envs/sage* by hand is safe. -->
+The application has no button for this. Afterwards SageMath shows again as “installed on first use”, and with
+`sage_source` on `auto` the system's SageMath is used when there is one.
 
 ## JupyterLab
 
@@ -230,8 +235,10 @@ requires TeX Live 2022 or newer, with `fontspec`.
 | `tectonic` | tectonic only |
 | `system` | the system's TeX Live first |
 
-It is written at installation (`--tex own` or `--tex system`, or the choice made in the graphical installer).
-<!-- verify after integration: where tex_engine is shown and changed in the app; fallback order of export.py with tex_engine = system. -->
+It is written at installation (`--tex own` or `--tex system`, or the choice made in the graphical installer), and
+changed in the “Tools” step of the “First steps” assistant. With `system` the export tries the system's XeLaTeX,
+then LuaLaTeX, and tectonic last; with `tectonic`, tectonic only (this choice is refused while Madalean's tectonic is
+not installed).
 
 **Repair**: “LaTeX (PDF export)” line of “Health”, “Repair” button, or `python -m madalean.deps install tex-bundle`.
 The fonts used in PDFs (DejaVu Sans Mono, Noto Sans Math) are installed with Madalean and checked in the same place.

@@ -9,7 +9,9 @@ summary: Visite guidée, choix du mode, premier énoncé, mode démo.
 
 # Premier démarrage
 
-À la première ouverture (en mode *Apprendre*, celui par défaut), une courte visite en quatre étapes présente les
+Sur l'ordinateur hôte, la toute première ouverture commence par l'assistant « Premiers pas » (outils, modèle local,
+clés, modes… ; voir [Première configuration](first-config.md#lassistant-premiers-pas)). Ensuite, à la première
+ouverture de l'accueil (en mode *Apprendre*, celui par défaut), une courte visite en quatre étapes présente les
 idées de l'interface : écrire un énoncé, vérifier la traduction, Lean vérifie chaque preuve, vous gardez la main.
 « Passer la visite » la ferme.
 

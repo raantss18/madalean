@@ -21,9 +21,37 @@ page reviews what is worth setting next, in the order you will meet it:
 Everything is in “Settings” (the gear icon at the top right). A [checklist](#checklist) sums it all up at the end of
 the page.
 
-When you open Madalean for the first time (in particular from the graphical installer), a first-run assistant guides
-you through these same choices; you can come back to them at any time in “Settings”.
-<!-- verify after integration: the in-app first-run assistant (beyond the four-step tour) and its exact screens. -->
+## The “First steps” assistant
+
+When you open Madalean for the first time **on the host computer**, the “First steps” assistant opens full screen and
+guides you through these same choices, in the order of this page. Your linked devices (phone, tablet, other PC)
+never see it: it only opens where Madalean is installed.
+
+![First steps: the tools](../img/wizard-tools.png)
+
+| Step | What you do there | More |
+|---|---|---|
+| Welcome | see what lies ahead, the machine's resources, choose the language | — |
+| Tools | see the installed and missing components, **install or repair** them (with progress); choose which SageMath (`sage_source`) and which LaTeX (`tex_engine`) to use, with the recommended choice and its reason; the command to type yourself for bubblewrap | [Components](components.md) |
+| Local model | none, the prover model or all three, depending on your graphics card (recommended choice and download size); “Download” fetches the missing files, verified | [Local models](components.md#local-models) |
+| Free keys | one card per provider (Groq, Gemini, Tavily first): what it is good for, what is free, where to create the key; paste it, “Save”, “Test” | [Keys](#keys-of-online-providers) |
+| Hugging Face | the token for Goedel-Prover 32B online, and the `hf_goedel` switch | [below](#hugging-face-token-goedel-prover-32b-online) |
+| Claude | the Anthropic key, the caps per request, per proof and per month, the paid reinforcement | [below](#claude-conductor-and-paid-reinforcement) |
+| Modes | *Local*, *Automatic* or *Online* (recommended choice for the machine); Learn or Research | [below](#where-the-models-work) |
+| Automatic or manual | experiments without approval, conductor, stages in parallel, warm Lean, pause after the translation, updates | [below](#automatic-and-manual-behaviours) |
+| Devices | link a phone or another PC (the same screen as “Settings › Devices”) | [Link a device](pairing.md) |
+| Summary | the [checklist](#checklist), checked again, and your choices; “Finish” | — |
+
+- Every step has a “Help” link to the manual page that explains it.
+- Every step can be **skipped** (“Skip this step”); every choice is **saved at once**, except keys, which are saved
+  (and tested) only by their “Save” button.
+- “**Later**” closes the assistant. It no longer opens by itself, but a “First steps” card stays on the home screen
+  until you finish it (“Resume”, or “Don't show again”). The assistant resumes **where you stopped**: from that card,
+  from the menu (the logo), “First steps” entry, or from “Settings”, link “First steps: the setup assistant”.
+- After an update from version 2.0.0 the assistant does not open by itself (your work is already there): the home
+  card offers it.
+- The four-step tour of the home screen ([First run](first-run.md)) is separate: it shows how to prove a first
+  statement.
 
 ## Keys of online providers
 
@@ -240,12 +268,17 @@ at first start. Two of them become settings:
 
 The local models chosen at installation are simply the files present in `~/models`.
 
-<!-- verify after integration: where sage_source and tex_engine appear in the app (first-run wizard, Settings). -->
+In the app, `sage_source` and `tex_engine` are shown and changed in the “Tools” step of the “First steps” assistant
+(logo menu, or “Settings”, link “First steps”). Madalean checks the choice before saving it: “The system's” needs a
+compatible SageMath (10.0 or later, with its “sagemath” Jupyter kernel) or a TeX Live (XeLaTeX or LuaLaTeX), “tectonic
+only” needs Madalean's tectonic; otherwise the choice is refused with the reason. The step also says which copy is in
+use right now.
 
 ## Checklist
 
 | To do | Where | Essential? |
 |---|---|---|
+| Go through the “First steps” assistant (or resume it) | opens at the first start; logo menu › “First steps” | recommended |
 | Open Madalean and check that everything is fine | “Settings › System”, “Health” part | yes |
 | Install bubblewrap if the sandbox is reported inactive | terminal, see [bubblewrap](components.md#bubblewrap-the-sandbox) | strongly recommended |
 | Add one or two free keys (Groq, Gemini) | “Settings › Providers” | recommended |

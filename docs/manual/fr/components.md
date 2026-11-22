@@ -44,7 +44,10 @@ lancent depuis l'ordinateur hôte. « Réglages › Mises à jour », partie « 
 installée de Lean, Mathlib, SageMath et LaTeX, et la partie « Composants du système » les programmes que vous
 installez vous-même (comme bubblewrap), avec la commande exacte et le bouton « Ouvrir un terminal avec la commande ».
 
-<!-- verify after integration: name of the screen that lists the components and offers « install later / repair » (a dedicated « Composants » screen may be added to Réglages › Système). -->
+L'étape « Outils » de l'assistant [« Premiers pas »](first-config.md#lassistant-premiers-pas) (menu du logo ›
+« Premiers pas ») liste les mêmes composants, chacun avec son état (installé, installé à la première utilisation,
+absent, nouvelle version prête) et un bouton « Installer », « Installer maintenant » ou « Mettre à jour » qui montre
+l'étape et le pourcentage pendant l'installation.
 
 **En terminal**, sur l'hôte, le même outil que celui qu'utilise `install.sh` :
 
@@ -124,7 +127,9 @@ installer sa propre copie. Dans les deux cas, le calcul tourne dans **le même b
 | `system` | toujours celui du système |
 
 Il est écrit à l'installation (`--sage`, ou le choix fait dans l'installateur graphique) et se change ensuite dans
-l'application. <!-- verify after integration: where sage_source is shown and changed in the app (Réglages › Système or the Calcul screen). -->
+l'application, dans l'étape « Outils » de l'assistant « Premiers pas » (menu du logo, ou « Réglages », lien
+« Premiers pas »), qui indique le choix conseillé avec sa raison et la copie utilisée en ce moment. « Celui du
+système » n'y est proposé que si un SageMath compatible est présent.
 
 **Installer plus tard.** Par défaut (`--sage later`), la copie de Madalean s'installe **à la première utilisation** :
 dans un carnet SageMath de l'écran « Calcul », bouton « Installer SageMath », sur l'ordinateur hôte ; l'écran
@@ -133,7 +138,8 @@ affiche l'étape et le pourcentage. Pour l'installer tout de suite : `./install.
 
 **Retirer la copie de Madalean** : arrêtez Madalean (`systemctl --user stop madalean`), supprimez
 `~/.local/share/madalean/envs/sage` et les dossiers `~/.local/share/madalean/envs/sage-…`, puis redémarrez.
-<!-- verify after integration: no « remove SageMath » button in the app; removing envs/sage* by hand is safe. -->
+L'application n'a pas de bouton pour cela. Ensuite, SageMath apparaît de nouveau comme « installé à la première
+utilisation », et avec `sage_source` sur `auto` le SageMath du système est utilisé s'il existe.
 
 ## JupyterLab
 
@@ -233,8 +239,10 @@ paquets LaTeX absents du paquet TeX de Madalean ; il faut alors TeX Live 2022 ou
 | `tectonic` | tectonic seulement |
 | `system` | TeX Live du système d'abord |
 
-Il est écrit à l'installation (`--tex own` ou `--tex system`, ou le choix fait dans l'installateur graphique).
-<!-- verify after integration: where tex_engine is shown and changed in the app; fallback order of export.py with tex_engine = system. -->
+Il est écrit à l'installation (`--tex own` ou `--tex system`, ou le choix fait dans l'installateur graphique), et se
+change dans l'étape « Outils » de l'assistant « Premiers pas ». Avec `system`, l'export essaie XeLaTeX puis
+LuaLaTeX du système, et tectonic en dernier ; avec `tectonic`, seulement tectonic (ce choix est refusé tant que le
+tectonic de Madalean n'est pas installé).
 
 **Réparer** : ligne « LaTeX (export PDF) » de l'« État de santé », bouton « Réparer », ou
 `python -m madalean.deps install tex-bundle`. Les polices utilisées dans les PDF (DejaVu Sans Mono, Noto Sans Math)

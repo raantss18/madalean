@@ -211,7 +211,8 @@ Madalean reads this file at first start and applies the settings that follow fro
 (which SageMath to use) and `tex_engine` (which LaTeX to use); you can change
 them at any time (the application also reads them through `GET /api/setup`). See [First configuration › Choices made at installation](first-config.md#choices-made-at-installation).
 
-<!-- verify after integration: setup.json is read at first start and its choices are shown in the app. -->
+At the first start in the browser on the host, the [“First steps”](first-config.md#the-first-steps-assistant)
+assistant shows these choices again (recommended choice and reason for this machine) and lets you change them.
 
 ## Where things are
 

@@ -706,6 +706,33 @@ lists the online Goedel first when it leads the proof. `GET /api/models/spend` a
   `providers_disabled: [ids]` (`"keyless"` = every keyless model provider, `"wikipedia"` = the keyless search
   fallback), `web_search: bool`. Details and verified facts: docs/PROVIDERS.md.
 
+## 6d. Setup status and the first-run assistant (S-AL D44, S-AQ D49, plugin `setup_api.py`, all **host** only)
+
+- `GET /api/setup[?refresh=1]` → `{schema: "madalean-setup-status/1", setup (setup.json | null), detected, prefs
+  {sage_source, tex_engine, mode, wizard_done}, components [as GET /api/deps], reuse {sage, tex}, keys [ids],
+  devices (n), next_steps [{id, done, title {fr,en}, help}], recommended, models, wizard}` (docs/INSTALL.md).
+  S-AQ added: `recommended` = `assistant.recommend(detected)` (`{plan, items [{id, recommended, why, detected,
+  title, options [{value, label, available}]}], advice [{id, text, command}], disk}`, in the settings' language;
+  null without a machine check), `models` = `{dir, files [{key: Q4_K_M|formalizer|explainer, file, present, bytes,
+  download_bytes}], download_bytes {all, prover, none}, choice, fetch}` and `wizard` (below).
+- `GET /api/setup/wizard` → `{schema: "madalean-first-run/1", steps [welcome, tools, local, keys, hf, claude, modes,
+  auto, pair, done], step, visited [steps], models ("" | all | prover | none), done, completed, reminder, auto}`.
+  `done` = setting `wizard_done` (« Plus tard » or finished); `completed` = finished with « Terminer »; `auto` = the
+  web app opens the assistant by itself on the host's Home: `!done && !completed`, and false when the server started
+  with the user's dossiers already there and no `first-run.json` (an update from 2.0.0; never in the demo).
+- `PATCH /api/setup/wizard {step?, visited?, models?, done?, completed?, reminder?}` → the same object, saved in
+  `<config>/first-run.json` (`visited` merges, in step order); `done` writes `wizard_done`; `completed: true` also sets
+  `wizard_done`. 400 `bad_fields` on an unknown key or value. Event `setup.wizard {wizard}`.
+- `POST /api/setup/reuse {sage_source?, tex_engine?}` → `{prefs, reuse}` after a check against this machine;
+  409 `{error: "unavailable", field, reason}`, reason ∈ `no_system_sage` (no `sagemath` kernel outside the prefix),
+  `system_sage_too_old`, `no_system_tex` (no XeLaTeX / LuaLaTeX), `no_tectonic` (the prefix's tectonic + bundle
+  missing), `invalid`; 400 `bad_fields`. Saved like `PATCH /api/settings` (`settings.updated`).
+- `POST /api/setup/models {models: "prover" | "all"}` → `202 {started: true, models}` (downloads the missing files
+  with `scripts/download_model.sh` into `MADALEAN_MODELS_DIR`/`~/models`: pinned revisions, SHA-256 checked,
+  resumable), `200 {started: false}` when nothing is missing; 409 `busy` | `local_mode` | `demo`. Progress:
+  events `setup.models {fetch: {running, phase: download|done|error, keys, index, done_gb, total_gb, message, ok}}`;
+  the local models are rescanned at the end. `POST /api/setup/models/cancel` → `{cancelled}` (parts kept: resumes).
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

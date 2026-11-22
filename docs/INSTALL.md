@@ -83,7 +83,9 @@ DIR`, `--no-browser`; other arguments go to install.sh. A browser-downloaded fil
 (setup.json or null), detected, prefs {sage_source, tex_engine, mode, wizard_done}, components (as /api/deps), reuse
 {sage {preference, used: own|system|"", ok, system}, tex {preference, used: tectonic|system|"", ok, engines, system}},
 keys [provider names], devices (count), next_steps [{id: keys|workspace|sandbox|sage|tex|components|pair, done, title
-{fr, en}, help: manual page id}]}`; `?refresh=1` re-runs the machine check.
+{fr, en}, help: manual page id}]}`; `?refresh=1` re-runs the machine check. S-AQ (D49) added `recommended`, `models`
+and `wizard` for the in-app assistant « Premiers pas », plus `/api/setup/wizard`, `/api/setup/reuse` and
+`/api/setup/models` (docs/API.md §6d); the assistant shows the same plan and reasons as the install assistant.
 
 `install.sh --help` lists every option (`--prefix`, `--config-dir`, `--cache-dir`, `--unit-name`, `--no-systemd`,
 `--no-desktop`, `--no-models`, `--no-workspaces`, `--build-workspace`, `--build-net`, `--port`, `--remote-port`,
