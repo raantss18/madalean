@@ -68,7 +68,9 @@ export interface NbCell { id: string; type: NbCellType; language: 'sage' | 'pyth
   code?: string; code_hash?: string; origin?: 'user' | 'assistant'; model?: string; approved?: { hash: string; t: number; device: string } | null;
   prompt?: string; versions?: { code: string; t: number; origin: string }[]; runs?: { id: string; t: number; status: string; seconds: number }[];
   exec_count?: number | null; outputs?: NbOutput[]; last?: NbRunMeta | null; stale?: boolean; stale_reason?: string; fresh?: boolean;
-  autofix?: { t: number; model: string; n?: number; max?: number; reran?: boolean } | null; uses?: string[]; figure?: Record<string, unknown>; svg?: { asset: string } }
+  autofix?: { t: number; model: string; n?: number; max?: number; reran?: boolean } | null; uses?: string[]; figure?: Record<string, unknown>; svg?: { asset: string };
+  // S-AG: what the request was recognized as, its intent key, where the code came from (catalogue | best | model | variant | fix | recipe)
+  recognized?: { fr: string; en: string } | null; intent_key?: string; gen?: string }
 export interface NbDocInfo { id: string; title: string; language: 'sage' | 'python'; path: string; cells?: number; updated?: number; engine?: { name: string; version: string } | null; rev?: number }
 export interface NbKernel { kernel: string; state: string; shared?: boolean; name?: string; sandboxed?: boolean; connections?: number }
 export interface NbStatus extends CalcStatus { kernel: NbKernel; idle_minutes: number }
@@ -94,7 +96,7 @@ export const nb = {
   approve: (pid: string, doc: string, cid: string, code_hash: string) => request<{ cell: NbCell }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/approve`, { code_hash }),
   run: (pid: string, doc: string, body: { cells?: string[]; until?: string; from?: string; all?: boolean; timeout?: number }) =>
     request<NbRunResult>('POST', `${D(pid, doc)}/run`, body),
-  ask: (pid: string, doc: string, cid: string, prompt: string) => request<{ cell: NbCell; model: string; approval_required: boolean }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/ask`, { prompt }),
+  ask: (pid: string, doc: string, cid: string, prompt: string, variant = false) => request<{ cell: NbCell; model: string; approval_required: boolean; origin?: string; coverage?: string; recipe?: string }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/ask`, variant ? { prompt, variant: true } : { prompt }),
   kernel: (pid: string, doc: string, action: 'interrupt' | 'restart' | 'shutdown' | 'clear') => request<Record<string, unknown>>('POST', `${D(pid, doc)}/${action}`, {}),
   variables: (pid: string, doc: string) => request<{ names: { name: string; type: string; value: string }[] }>('GET', `${D(pid, doc)}/variables`),
   explain: (pid: string, doc: string, cell_id: string) => request<{ text: string; model: string }>('POST', `${D(pid, doc)}/assist`, { action: 'explain', cell_id }),

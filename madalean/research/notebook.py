@@ -472,7 +472,10 @@ class NotebookStore:
                           "outputs": view_outputs(c.get("outputs") or [], self.assets, (pid, doc)),
                           "last": run, "stale": stale, "stale_reason": reason,
                           "fresh": bool(run and kernel and run.get("kernel") == kernel),
-                          "autofix": s.get("autofix"), "uses": s.get("uses") or []})
+                          "autofix": s.get("autofix"), "uses": s.get("uses") or [],
+                          # S-AG (D39): what the request was recognized as, its intent key, where the code came from
+                          "intent_key": s.get("intent_key") or "", "recognized": s.get("recognized"),
+                          "gen": s.get("gen") or ""})
                 hashes.append(h)
             elif kind == "figure":
                 v["figure"] = m.get("figure")
@@ -1038,10 +1041,14 @@ ASK_CONTEXT = 2500
 
 
 def ask_messages(lang: str, language: str, prompt: str, names: list, context: str, *, fix: bool = False,
-                 code: str = "", error: str = "", card: str = "", sigs: str = "", example: str = "") -> list[dict]:
+                 code: str = "", error: str = "", card: str = "", sigs: str = "", example: str = "",
+                 prefix: str = "", avoid: list[dict] | None = None, other: str = "") -> list[dict]:
     """`card`: the syntax card of the installed tool version (system prompt, cacheable); `sigs`: exact signatures
     of the functions this request needs (installed Sage). `lang` (UI language) does not change the prompt: the
-    code is the same in French and English, and one system prompt per tool version caches better."""
+    code is the same in French and English, and one system prompt per tool version caches better.
+    S-AG (D39): `prefix` — the canonical constructions of the recognized objects (catalogue), the cell MUST start
+    with them; `avoid` — earlier versions of this request that failed when run; `other` — the current best version
+    (« Autre version »: write a different one)."""
     name = "SageMath" if language == "sage" else "Python 3"
     tag = "sage" if language == "sage" else "python"
     ns = "\n".join(f"- {n} : {t}" + (f" = {r}" if r else "") for n, t, r in (names or [])[:40]) or "- (none)"
@@ -1051,6 +1058,16 @@ def ask_messages(lang: str, language: str, prompt: str, names: list, context: st
     body = (ASK_FIX if fix else ASK_TASK).format(lang=name, tag=tag, names=ns,
                                                  context=context[-ASK_CONTEXT:] or "(none)", prompt=prompt[:4000],
                                                  code=code[:20000], error=error[-3000:], sigs=sg, example=ex)
+    if prefix:
+        body += (f"\n\nThe cell MUST start with exactly these lines (canonical constructions of the objects of the "
+                 f"request, already checked on this installation; keep these names, do not redefine them):\n"
+                 f"```{tag}\n{prefix}\n```")
+    for a in (avoid or [])[:3]:
+        body += (f"\n\nThis earlier version FAILED when run; do not write it again:\n```{tag}\n{a['code'][:1500]}\n```"
+                 + (f"\nError: {a['error'][-300:]}" if a.get("error") else ""))
+    if other:
+        body += (f"\n\nThe user asked for ANOTHER version: write a different correct cell than this one (another "
+                 f"method or presentation), same result:\n```{tag}\n{other[:3000]}\n```")
     system = ASK_SYSTEM.format(lang=name, tag=tag, card=f"\n\n{card}" if card else "")
     return [{"role": "system", "content": system}, {"role": "user", "content": body}]
 

@@ -16,6 +16,9 @@ const FR: Record<string, string> = {
   recipes: 'Recettes apprises', recipe: 'recette apprise', recipeUsed: 'Code repris d’une recette apprise (sans appel au modèle).',
   recipesLead: 'Les demandes dont le code a fonctionné sur cet ordinateur : une demande semblable est écrite aussitôt. Elles restent ici et sont revérifiées à chaque mise à jour de Sage.',
   noRecipes: 'Aucune recette pour l’instant.', deleteRecipe: 'Supprimer la recette', figureEmptyOnly: 'Une figure ne peut remplacer qu’une cellule vide.',
+  // S-AG: same request, same code; what was recognized; « Autre version »
+  recognized: 'Reconnu : {what}', otherVersion: 'Autre version', otherVersionHint: 'Demander une autre écriture du code (la version qui marche le mieux est gardée)',
+  fromCatalogue: 'construction vérifiée', fromBest: 'meilleure version', fromFix: 'import ajouté', variantDone: 'Autre version écrite : exécutez-la pour la comparer.',
 
   title: 'Calcul', lead: 'Un carnet Sage : des cellules qui s’enchaînent dans un même noyau. Le même fichier s’ouvre dans JupyterLab.',
   docs: 'Carnets', newDoc: 'Nouveau carnet', newDocTitle: 'Titre du carnet', create: 'Créer', rename: 'Renommer', language: 'Langage',
@@ -72,6 +75,8 @@ const EN: Record<string, string> = {
   backVersion: 'Go back to the previous version', uses: 'Uses {names} from earlier cells.',
   recipes: 'Learned recipes', recipe: 'learned recipe', recipeUsed: 'Code taken from a learned recipe (no model call).',
   recipesLead: 'Requests whose code worked on this computer: a similar request is written at once. They stay here and are re-checked at every Sage update.',
+  recognized: 'Recognized: {what}', otherVersion: 'Another version', otherVersionHint: 'Ask for another way to write the code (the version that works best is kept)',
+  fromCatalogue: 'verified construction', fromBest: 'best version', fromFix: 'import added', variantDone: 'Another version written: run it to compare.',
   noRecipes: 'No recipe yet.', deleteRecipe: 'Delete the recipe', figureEmptyOnly: 'A figure can only replace an empty cell.',
 
   title: 'Calcul', lead: 'A Sage notebook: cells that follow each other in one kernel. The same file opens in JupyterLab.',

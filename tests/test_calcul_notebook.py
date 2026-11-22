@@ -492,13 +492,17 @@ async def test_rewrite_replaces_generation_autofix_never_blocks_and_fast_loop(tm
         q2 = (await (await add({"type": "ask", "prompt": "broken"})).json())["cell"]
         j = await (await s.post(D + f"/cells/{q2['id']}/ask", json={})).json()
         assert j["cell"]["code"] == "print('repaired')" and j["checked"] == {"valid": True, "fixed": True, "error": ""}
-        # identical first request on a new cell: answered from memory; « Réécrire » never is
+        # identical request on a new cell: its best version, no model; S-AG (D39): « Réécrire » too (one syntax
+        # per request); only « Autre version » (variant) asks the model for a different one
         n = len(brain.requests)
         q3 = (await (await add({"type": "ask", "prompt": "quick one", "at": 0})).json())["cell"]   # same place
         j = await (await s.post(D + f"/cells/{q3['id']}/ask", json={})).json()
         assert j["timing"]["cached"] is True and len(brain.requests) == n and j["cell"]["code"] == "'quick one'"
         j = await (await s.post(D + f"/cells/{q3['id']}/ask", json={})).json()
-        assert j["timing"]["cached"] is False and len(brain.requests) == n + 1
+        assert j["timing"]["cached"] is True and len(brain.requests) == n and j["origin"] == "best"
+        j = await (await s.post(D + f"/cells/{q3['id']}/ask", json={"variant": True})).json()
+        assert j["timing"]["cached"] is False and len(brain.requests) == n + 1 and j["origin"] == "variant"
+        assert "ANOTHER version" in brain.requests[-1]["messages"][-1]["content"]
         # a failed ask cell: the automatic fix runs AFTER the kernel lock is released — other cells may run
         c1 = (await (await add({"source": "40 + 2"})).json())["cell"]
         q4 = (await (await add({"type": "ask", "prompt": "fail"})).json())["cell"]
@@ -581,7 +585,9 @@ async def test_auto_fix_policy_recipes_detect_explain_and_kinds(tmp_path, monkey
         assert len(brain.requests) == before and j["approval_required"]   # still model code: approval rule
         rid = next(x["id"] for x in rec if x["request"] == "somme de 3 et 4")
         assert (await s.delete(L + f"/api/calcul/recipes/{rid}")).status == 200
-        assert len((await (await s.get(L + "/api/calcul/recipes")).json())["recipes"]) == 1
+        rec = (await (await s.get(L + "/api/calcul/recipes")).json())["recipes"]
+        # S-AG: the shortcut's code is now the best version of « somme de 5 et 8 » (kept by intent)
+        assert {x["request"] for x in rec} == {"fail", "somme de 5 et 8"}
         # 4. code or request?
         j = await (await s.post(D + "/detect", json={"text": "la somme des carrés de 1 à 10"})).json()
         assert j["kind"] == "ask"

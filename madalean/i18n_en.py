@@ -1311,4 +1311,5 @@ EN.update({
                  "at once.",
     "Déjà trouvé dans Mathlib pour cet énoncé ({name}) : preuve vérifiée à nouveau par Lean.":
         "Already found in Mathlib for this statement ({name}): proof checked again by Lean.",
+    "{text}": "{text}",                 # S-AG: a message already written in the interface's language (intent.py)
 })

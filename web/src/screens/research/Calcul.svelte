@@ -12,7 +12,7 @@
   import { breakable } from '../../lib/calcul/texwrap';
   import { app } from '../../lib/store/app.svelte';
   import { navigate } from '../../lib/router.svelte';
-  import { fmtTime } from '../../lib/i18n/index.svelte';
+  import { fmtTime, i18n } from '../../lib/i18n/index.svelte';
   import { ct } from '../../lib/calcul/strings';
   import { kernelProblem } from '../../lib/calcul/kernel';
   import { renderMath } from '../../lib/md';
@@ -43,6 +43,7 @@
   let queue = $state(false);
   let live = $state<Record<string, string>>({});
   let writing = $state<string | null>(null);
+  let reqErr = $state<Record<string, string>>({});          // S-AG: the request itself is wrong (F_12), said under it
   let approxOn = $state<Record<string, boolean>>({});
   let history = $state<string | null>(null);
   let explain = $state<Record<string, string>>({});
@@ -255,20 +256,32 @@
     catch (e) { toast('error', errorText(e)); }
   }
   // « Réécrire » is always possible: a new request replaces the one still running for this cell (server side too)
-  async function write(c: NbCell) {
-    const p = (prompts[c.id] ?? '').trim();
+  // S-AG (D39): the same request gives the same code (« Réécrire »); « Autre version » (cell menu) asks for a variant
+  async function write(c: NbCell, variant = false) {
+    const p = (prompts[c.id] ?? c.prompt ?? '').trim();
     if (!p) { document.getElementById(`prompt-${c.id}`)?.focus(); return; }
     const n = (asking[c.id] = (asking[c.id] ?? 0) + 1);
-    writing = c.id;
+    writing = c.id; delete reqErr[c.id];
     try {
-      const r = await nb.ask(loadedFor, docId, c.id, p);
+      const r = await nb.ask(loadedFor, docId, c.id, p, variant);
       if (asking[c.id] !== n) return;
       drafts[r.cell.id] = r.cell.source; patchCell(r.cell);
-      if ((r as { recipe?: string }).recipe) toast('info', ct('recipeUsed'));
+      if (r.origin === 'recipe') toast('info', ct('recipeUsed'));
+      else if (variant) toast('info', ct('variantDone'));
       await tick(); document.getElementById(r.approval_required ? `approve-${c.id}` : `run-${c.id}`)?.focus();
     } catch (e) {
-      if (!(e instanceof ApiError && e.kind === 'replaced') && asking[c.id] === n) toast('error', errorText(e));
+      if (e instanceof ApiError && e.kind === 'bad_request_math' && asking[c.id] === n) reqErr[c.id] = errorText(e);
+      else if (!(e instanceof ApiError && e.kind === 'replaced') && asking[c.id] === n) toast('error', errorText(e));
     } finally { if (asking[c.id] === n) { writing = null; delete drafting[c.id]; } }
+  }
+  function i18nLang() { return i18n.lang; }
+  function who(c: NbCell): string {
+    const m = c.model ?? '';
+    if (!m) return '';
+    if (m === 'recipe') return ct('recipe');
+    if (m === 'catalogue') return ct('fromCatalogue');
+    if (m === 'fix') return ct('fromFix');
+    return c.gen === 'best' ? `${m} · ${ct('fromBest')}` : m;
   }
   async function addCell(type: NbCell['type'], after: string | null, edit = true, extra: Record<string, unknown> = {}, above = false) {
     try {
@@ -393,6 +406,7 @@
       if ((c.versions?.length ?? 0) > 1) items.push({ label: ct('history'), run: () => (history = history === c.id ? null : c.id) });
     }
     if (isCode(c) && (drafts[c.id] ?? c.source).trim()) items.push({ label: ct('explainLines'), run: () => explainLines(c) });
+    if (c.type === 'ask' && (prompts[c.id] ?? c.prompt ?? '').trim() && c.source.trim()) items.push({ label: ct('otherVersion'), run: () => write(c, true), disabled: writing === c.id });
     items.push({ label: ct('moveUp'), run: () => move(c, idx(c.id) - 1), disabled: idx(c.id) === 0 });
     items.push({ label: ct('moveDown'), run: () => move(c, idx(c.id) + 1), disabled: idx(c.id) === cells.length - 1 });
     items.push({ label: ct('del', { n: idx(c.id) + 1 }), run: () => remove(c), danger: true });
@@ -544,7 +558,7 @@
                     <select id="kind-{c.id}" class="kind-pick" value={c.type} onchange={(e) => setKind(c, (e.target as HTMLSelectElement).value)}>
                       {#each ['code', 'ask', 'markdown', 'figure'] as k (k)}<option value={k} disabled={k === 'figure' && c.type !== 'figure' && !!((drafts[c.id] ?? c.source).trim() || (c.prompt ?? '').trim())}>{ct(`type.${k}`)}</option>{/each}
                     </select>
-                    {#if isCode(c) && c.origin === 'assistant'}<span class="who">{ct('byAssistant')}{c.model ? ` · ${c.model === 'recipe' ? ct('recipe') : c.model}` : ''}</span>
+                    {#if isCode(c) && c.origin === 'assistant'}<span class="who">{ct('byAssistant')}{c.model ? ` · ${who(c)}` : ''}</span>
                       {#if ap}<span class="badge pending">{ct('toReview')}</span>{:else if c.approved}<span class="badge ok">{ct('approved')}</span>{/if}{/if}
                     {#if st}<span class="badge stale" title={st}>{c.stale ? ct('stale') : '↺'}<span class="sr-only"> : {st}</span></span>{/if}
                     <span class="spacer"></span>
@@ -561,6 +575,8 @@
                         <Icon name="sparkle" size={14} />{c.source.trim() || writing === c.id ? ct('rewrite') : ct('write')}</button>
                       <span class="xs muted" role="status" aria-live="polite">{writing === c.id ? ct('writing') : ''}</span>
                     </div>
+                    {#if reqErr[c.id]}<p class="xs req-err" role="alert">{reqErr[c.id]}</p>
+                    {:else if c.recognized && (c.recognized.fr || c.recognized.en)}<p class="xs muted recognized">{ct('recognized', { what: (i18nLang() === 'en' ? c.recognized.en : c.recognized.fr) || c.recognized.fr })}</p>{/if}
                     {#if (c.uses?.length ?? 0) > 0}<p class="xs muted uses">{ct('uses', { names: c.uses!.join(', ') })}</p>{/if}
                   {/if}
                   {#if isCode(c) && (c.type === 'code' || (drafts[c.id] ?? '').trim() || drafting[c.id] !== undefined)}
@@ -826,6 +842,8 @@
   .detect { margin: 0; }
   .live-code { color: var(--text-2); }
   .uses { margin: 0 0 var(--s-1); }
+  .recognized { margin: 0 0 var(--s-1); overflow-wrap: anywhere; }
+  .req-err { margin: 0 0 var(--s-1); color: var(--failed); overflow-wrap: anywhere; }
   .explain-btn { margin-bottom: var(--s-2); }
   .line-list { list-style: none; padding: 0; margin: var(--s-1) 0 0; display: grid; gap: 4px; }
   .line-list li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--s-2); align-items: baseline; }

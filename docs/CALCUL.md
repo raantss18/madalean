@@ -86,8 +86,9 @@ once its exact hash was approved on the host (or the host enabled `experiments_a
 | Long prompt (≈ 6 000 characters of earlier cells), rules mixed with variable parts | fixed system prompt per tool version (rules + syntax card, §3.3: cacheable) + short user message |
 | The whole answer arrived at the end | the code streams into the cell (`calcul.draft {cell_id, code, state}` events) |
 
-Identical first requests (same text, names, context, version) are answered from memory for 1 h; « Réécrire » never
-uses the cache. Measured after (same machine, same keys, free models, 2026-11-22): first code **0.6–1.7 s** (Gemini
+S-AG (DECISIONS D39) replaced the « first model to answer wins » choice for code: one pinned model per language,
+temperature 0 + seed, the race only as fallback, and a request whose code was already written gets that same code
+(§3.6) — « Réécrire » included. Measured after (same machine, same keys, free models, 2026-11-22): first code **0.6–1.7 s** (Gemini
 Flash-Lite / 3 Flash, minimal thinking), 3.9 s when the first model was slow (race), 6.7 s when two providers
 answered 503 / 429; before: 5.5–6 s at best, 128 s in the bad case.
 
@@ -150,16 +151,65 @@ ligne par ligne » (« ⋯ »): one sentence under each line. Same fast role and
 Long LaTeX results wrap (outer commas, inline KaTeX) or scroll inside their focusable box; never clipped (e2e checks
 360 / 412 / 768 / 1440 px, light and dark).
 
-### 3.5 Learned recipes — `research/recipes.py`
+### 3.5 Learned recipes — `research/recipes.py` (S-AB, keyed by intent since S-AG)
 
-A request whose model code ran successfully (the corrected code after an automatic correction) is kept: normalised
-request, template (parameters — numbers, formulas, intervals, `F_16` — abstracted), code, Sage version, names of
-earlier cells it relied on. A later request with the same template, each old parameter found exactly once in the
-code (`F_16` ↔ `GF(16)`), the relied-on names defined again → the code with the new parameters, checked by the
-preparser, **without a model call** (still model code: approval). Otherwise a close request (word overlap ≥ 0.5)
-gives the recipe to the model as a proven example. After a Sage update each recipe is re-checked (preparser + new
-name index) and dropped when it fails. Local file `<config>/research/recipes.json` (0600); « ⋯ » (notebook) →
-« Recettes apprises » lists and deletes them (`GET /api/calcul/recipes`, `DELETE /api/calcul/recipes/{id}`).
+A recipe is one request **intent** (§3.6: « F_125 », « F_{5^3} », « GF(125) » share it) in one tool version, with
+every code version written for it and what happened to it (origin catalogue / model / variant / fix, runs OK and
+failed, approvals, best run time). The best version is what any later identical request gets, without a model.
+Ranking: ran OK > approved > ≥ 30 % faster run > older; a version that only ever failed is never preferred again
+(and is shown to the model as « do not repeat »). The S-AB shortcut stays: same template, each old parameter found
+exactly once in the code (`F_16` ↔ `GF(16)`), relied-on names defined again → the code with the new parameters,
+checked by the preparser, without a model; a close request (word overlap ≥ 0.5) is a proven example for the model.
+After a Sage update each recipe is re-checked (preparser + new name index) and dropped when it fails. Local file
+`<config>/research/recipes.json` (0600, schema 2; an S-AB file is migrated on first read, `recipes.v1.json` kept);
+« ⋯ » (notebook) → « Recettes apprises » lists and deletes them (`GET /api/calcul/recipes`,
+`DELETE /api/calcul/recipes/{id}`).
+
+### 3.6 One canonical code per request (S-AG, DECISIONS D39)
+
+**Analysis** (`research/intent.py`, no model, ≈ 1–2 ms): the request (French / English, LaTeX, Unicode) → objects with
+canonical parameters, the operation, formulas in one spelling, variables. Examples: `F_125`, `F_{125}`, `F_{5^3}`,
+`\mathbb{F}_{125}`, `GF(125)`, `GF(5^3)`, `𝔽₁₂₅`, `F125` → the finite field of order 5³ (`F_12`: « Il n'existe pas
+de corps fini à 12 éléments : 12 = 2^2 × 3 … », no code); `Z/12Z`, `ℤ/12ℤ`, `Zmod(12)`; `Q[x]`, `F_7[x,y]`,
+`Z[i]`; `Q(√-5)` (`Q(√8)` = `Q(√2)`), `Q(i)`, `Q(ζ_7)`, `Q(∛2)`; `[[1,2],[3,4]]`, `\begin{pmatrix}…`, `M_2(Q)`,
+`GL_2(F_7)`; `S_5`, `A_4`, `D_4` (8 elements, Sage's convention), `C_6`; `y^2 = x^3 + x + 1` with « courbe
+elliptique », Cremona labels; integers. Operations: factor, roots, irreducibility / list of irreducible polynomials
+of a degree, gcd / lcm, integral (definite or not), derivative (order), limit (point, side), sum (bounds), Taylor
+(point, order), plot (interval, several functions), solve, simplify, expand, determinant, inverse, eigenvalues /
+vectors, rank, kernel, characteristic / minimal polynomial, trace, Jordan form, order, elements, generator, units,
+subgroups, conjugacy classes, centre, commutativity, character / Cayley table, class number, discriminant, degree,
+ring of integers, Galois group, curve rank / points / number of points / torsion / j-invariant / conductor, primes,
+divisors, Euler φ, modular inverse. `POST /api/calcul/analyze {text, language}` shows the analysis.
+
+**Catalogue** (`research/codecat.py`, `GET /api/calcul/catalogue`): one construction per object / operation —
+Sage `F125.<a> = GF(5^3)`, `F7 = GF(7)`, `Z12 = Zmod(12)`, `R.<x> = PolynomialRing(F125)`, `K.<a> = QuadraticField(-5)`,
+`M = matrix(QQ, …)`, `G = DihedralGroup(4)`, `E = EllipticCurve(F7, [0, 0, 0, 1, 1])`, symbolic variables always
+declared (`x = var('x')`); Python with sympy / numpy / matplotlib and explicit sorted imports
+(`from sympy import integrate, pi, sin, symbols`; Python covers prime fields only); Lean / Mathlib per version
+(`GaloisField 5 3` with `Fact (Nat.Prime 5)`; `Nat.card` on the current Mathlib, `Fintype.card` on Lean 4.9;
+`Nat.primeFactorsList` / `Nat.factors`; `∑ i ∈` / `∑ i in`). **Verified**: 55 samples (request → assembly →
+assertion on the result) run in the installed Sage 10.10 (3.8 s), 39 in the kernel's Python (sympy 1.14, numpy 2.5,
+matplotlib 3.11; 1.1 s), the 21 Lean entries compiled in `lean-current` (Lean 4.36) and `lean-prover49` (Lean 4.9);
+built into `<cache>/syntax/codecat-*.json` by the syntax-card hooks; a failing entry is not used.
+
+**Generation** (`research/codegen.py`): the best version of the intent (§3.5) → else the catalogue (fully covered,
+no model) → else the S-AB shortcut → else the model, with the catalogue's constructions as a mandatory first lines
+(the model's redefinitions of those names are removed), temperature 0 + seed, the pinned model of the language
+(`<config>/research/codegen-models.json`: measured run success per model, sticky; the race of §3.1 only when it
+fails). Every code is then canonicalized (`research/codefix.py`): imports at the top, deduplicated, ordered; missing
+imports (`np`, `plt`, sympy names, `Fraction`…), conventional objects (`F9` → `F9.<a> = GF(3^2)`) and single-line
+definitions of earlier cells added. A run error « name '…' is not defined » is fixed the same way before any
+model. « Réécrire » returns the best version; « Autre version » (cell menu « ⋯ ») asks the model for a different one
+(temperature 0.7, another seed), kept as a version, best only if it ranks higher. Under the request: « Reconnu :
+corps fini F₁₂₅ = F_{5³} · anneau de polynômes F₁₂₅[x] · factorisation de x^5 + 4*x - 1 »; the cell head says
+« construction vérifiée » (catalogue) or « meilleure version ».
+
+Measured (`scripts/dev/calcul_determinism.py --sage`, 31 typical requests written two ways each, a fake model that
+answers differently every time): **31/31 identical** after « Réécrire » and **31/31 identical** across the two
+notations; Sage: 29 fully from the catalogue, 2 partial (model with the canonical prefix), 2 model calls in total
+(the second asks of those two are the stored best), **31/31 cells ran** in the installed Sage; analysis + assembly
+median **2 ms** (max 44 ms), best-version answer 37 ms (preparser check). Python: 22/31 from the catalogue, 31/31
+identical.
 
 ## 4. Outputs
 
