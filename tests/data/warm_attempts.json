@@ -1,0 +1,131 @@
+{
+ "_doc": "Lean attempts (Goedel header) for the warm-Lean checker (D37): each one is checked by a fresh `lean --json` and by the warm LSP checker; messages, verdict and model feedback must be identical. `strict` = checked with the axiom probe. `expect` = the fresh verdict on lean-prover49 (v4.9.0-rc1). Order matters: `leak_*` attempts check that nothing declared by a previous attempt survives into the next one.",
+ "attempts": [
+  {
+   "id": "omega_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_omega (a b : ℕ) (h : a < b) : a + 1 ≤ b := by\n  omega\n"
+  },
+  {
+   "id": "norm_num_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_norm (x : ℝ) (hx : x = 2) : x ^ 2 + 1 = 5 := by\n  subst hx\n  norm_num\n"
+  },
+  {
+   "id": "linarith_fail",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_lin (x : ℝ) (h : 0 < x) : 0 < x ^ 2 := by\n  linarith\n"
+  },
+  {
+   "id": "nlinarith_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_nlin (x y : ℝ) (h : x ^ 2 + y ^ 2 = 0) : x = 0 := by\n  nlinarith [sq_nonneg x, sq_nonneg y]\n"
+  },
+  {
+   "id": "leak_define",
+   "strict": true,
+   "expect": true,
+   "body": "lemma w_helper_leak (n : ℕ) : n + 0 = n := by simp\n\ntheorem w_leak_a (n : ℕ) : n + 0 = n := by\n  exact w_helper_leak n\n"
+  },
+  {
+   "id": "leak_use",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_leak_b (n : ℕ) : n + 0 = n := by\n  exact w_helper_leak n\n"
+  },
+  {
+   "id": "unknown_identifier",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_unknown (a b : ℕ) : a + b = b + a := by\n  exact Nat.add_comm_nonexistent a b\n"
+  },
+  {
+   "id": "exact_mathlib_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_exact (a b : ℕ) : a + b = b + a := by\n  exact Nat.add_comm a b\n"
+  },
+  {
+   "id": "parse_error",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_parse (a : ℕ) : a = a := by\n  rfl\n theorem\n"
+  },
+  {
+   "id": "unsolved_goals",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_unsolved (p q : Prop) (hp : p) (hq : q) : p ∧ q := by\n  constructor\n  exact hp\n"
+  },
+  {
+   "id": "sorry_rejected",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_sorry (n : ℕ) : n * 0 = 0 := by\n  sorry\n"
+  },
+  {
+   "id": "type_mismatch_astral",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_astral (f : ℕ → ℝ) (l : ℝ) (h : Filter.Tendsto f Filter.atTop (𝓝 l)) : (𝓝 l) = (𝓝 (l + 0)) := by\n  exact h\n"
+  },
+  {
+   "id": "multi_line_error",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_multi (a b c : ℕ) (h₁ : a ≤ b) (h₂ : b ≤ c) : a ≤ c := by\n  have h₃ : a ≤ c := by\n    calc a ≤ b := h₁\n      _ ≤ c := h₁\n  exact h₃\n"
+  },
+  {
+   "id": "decide_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_decide : (17 : ℕ) % 5 = 2 := by\n  decide\n"
+  },
+  {
+   "id": "simp_no_progress",
+   "strict": true,
+   "expect": false,
+   "body": "theorem w_simp (a b : ℕ) (h : a = b) : a + 0 = b := by\n  simp\n  simp\n"
+  },
+  {
+   "id": "set_option_in_body",
+   "strict": true,
+   "expect": true,
+   "body": "set_option maxRecDepth 2000 in\ntheorem w_opt (a : ℤ) : a * 1 = a := by\n  ring\n"
+  },
+  {
+   "id": "extra_open",
+   "strict": true,
+   "expect": true,
+   "body": "open Finset in\ntheorem w_open (n : ℕ) : ∑ i in range n, (0 : ℕ) = 0 := by\n  simp\n"
+  },
+  {
+   "id": "heartbeats",
+   "strict": true,
+   "expect": false,
+   "body": "set_option maxHeartbeats 200 in\ntheorem w_heart (x y z : ℝ) (h : x ^ 2 + y ^ 2 + z ^ 2 = 0) : x = 0 := by\n  nlinarith [sq_nonneg x, sq_nonneg y, sq_nonneg z, sq_nonneg (x + y), sq_nonneg (y + z)]\n"
+  },
+  {
+   "id": "statement_sorry",
+   "strict": false,
+   "expect": false,
+   "body": "theorem w_statement (n : ℕ) (h : 2 ≤ n) : n ! ≥ n := by sorry\n"
+  },
+  {
+   "id": "statement_bad",
+   "strict": false,
+   "expect": false,
+   "body": "theorem w_statement_bad (n : ℕ) : n ≥ undefined_thing := by sorry\n"
+  },
+  {
+   "id": "two_theorems_ok",
+   "strict": true,
+   "expect": true,
+   "body": "theorem w_classical (p : Prop) : p ∨ ¬p := by\n  exact Classical.em p\n\ntheorem w_axioms_ok (p : Prop) : p ∨ ¬p := w_classical p\n"
+  }
+ ]
+}

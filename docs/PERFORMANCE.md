@@ -150,3 +150,36 @@ Before (S-AB; seen in the user's recipes file, read-only): temperature 0.2 with 
 — the code of « Réécrire » changed by design, and the same field was written `GF(125, 'b')`, `F125` from an earlier
 cell, or `F.<a> = GF(16)` depending on the model that answered first. Catalogue build: Sage 3.8 s (55 samples),
 Python 1.1 s (39 samples), Lean: both workspaces compile the 21 entries (one file each).
+
+# Lean chaud (S-AE, 2026-11-22, DECISIONS D37)
+
+Measured with `scripts/perf_report.py --warm --workspace <key>` (21 attempts of `tests/data/warm_attempts.json`,
+8 accepted / 13 rejected, checked one after another as a job does; then the Lean part of « Mathlib first » on
+`a + c ≤ b + c` with 12 candidate lemmas). « Before » = a fresh `lean --json` every time (today's path); « after » =
+`LeanRunner.check(warm=True)` with all the reliability rules (first check fresh while the warm Lean loads, fresh
+confirmation of every acceptance, audits). Same machine, page cache warm unless stated. Raw output:
+`perf_report.py --json`.
+
+| | lean-prover49 (v4.9.0-rc1) | lean-current (v4.36.0) |
+|---|---|---|
+| warm Lean start (Mathlib loaded, page cache warm) | 2.1 s | 3.2 s |
+| rejected attempt, before (fresh) | 2.1 s median | 3.0 s median (39 s for the first, cold) |
+| rejected attempt, after (warm) | **0.011 s** median, 0.19 s max | **0.014 s** median, 0.03 s max |
+| accepted attempt, after (warm + fresh confirmation) | 2.4 s median (before 2.2 s) | 3.5 s median (before 3.0 s) |
+| 21 attempts in a row, total | 45.1 s → **24.7 s** | 98.2 s → **30.9 s** |
+| verdicts identical before/after | yes (21/21) | yes (21/21) |
+| Mathlib first, Lean part (old code, fresh, parallel batch + `exact?`) | 6.5 s | 12.1 s |
+| Mathlib first, templates first then `exact?` if needed, warm | **3.6 s** (of which 2.1 s = mandatory fresh strict check) | **3.4 s** |
+| memory of the warm Lean (PSS, whole sandbox tree) | 3.9 GB after start, 4.9 GB after the bench | 6.4 GB after the bench (`exact?` cache) |
+
+Reading:
+- A failing attempt — the common case in a proof search (32-attempt agent proofs, tournaments) — no longer pays a
+  Mathlib load: 100–200× faster. An accepted proof costs ~0.2 s more than before (warm pass + the fresh strict check
+  that still decides).
+- The cold case is where the old path hurt most (10–39 s per check after the page cache was evicted): the warm Lean
+  keeps Mathlib's files mapped, so neither the attempts nor the fresh confirmations meet a cold load while it lives.
+- Messages, positions, axiom lines and model feedback are identical to a fresh run on all 21 attempts on both Lean
+  versions (`tests/test_lean_warm.py::test_real_lean_warm_equals_fresh_attempt_after_attempt`); the bench's audits
+  found no disagreement.
+- Cost: one resident Lean of 4–6.5 GB per workspace in use (≤ 2), stopped after 10 min without an attempt (setting),
+  recycled above 8 GB. Switch: « Garder Lean prêt d'avance ».

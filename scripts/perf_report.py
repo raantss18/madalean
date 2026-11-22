@@ -7,8 +7,13 @@
    the time from the accepted statement (or the job start) to the first proof attempt.
 3. `--lean`: cost of one `lean --json` check of a trivial Mathlib proof in every installed workspace, cold then warm
    (page cache), through the same sandbox as the server.
+3. `--warm` (S-AE, D37): the attempts of tests/data/warm_attempts.json checked one after another as a job does,
+   fresh every time (before) then through the warm Lean policy (after: `LeanRunner.check(warm=True)`, with its
+   fresh confirmations and audits), plus the Lean part of « Mathlib first » (template batch + `exact?` + strict
+   check). Verdicts of both runs must be identical.
 
 Usage: perf_report.py [--dossiers ~/.config/madalean/dossiers] [--jobs ~/.config/madalean/jobs] [--lean]
+                      [--warm [--workspace KEY]]
                       [--json out.json]"""
 from __future__ import annotations
 
@@ -127,11 +132,98 @@ async def lean_costs() -> dict:
     return res
 
 
+MLF_STATEMENT = (
+    "import Mathlib\nimport Aesop\n\nset_option maxHeartbeats 400000\n\nopen BigOperators Real Nat Topology Rat\n\n"
+    "theorem perf_mlf (a b c : ℕ) (h : a ≤ b) : a + c ≤ b + c := by sorry\n")
+MLF_NAMES = ["Nat.add_le_add_right", "add_le_add_right", "Nat.add_le_add", "add_le_add", "Nat.le_add_right",
+             "le_add_right", "Nat.add_comm", "add_comm", "Nat.succ_le_succ", "Nat.le_refl", "le_refl", "Nat.zero_le"]
+
+
+class _BenchIO:
+    """StageIO for the benchmark: attempts kept in memory, Lean checks through `runner` (warm or not)."""
+
+    def __init__(self, runner, warm: bool):
+        self.runner, self.warm, self.n = runner, warm, 0
+
+    def new_attempt(self, stage, kind):
+        from madalean.jobs import Attempt
+        self.n += 1
+        return Attempt(self.n, stage, kind)
+
+    def update_attempt(self, a):
+        pass
+
+    async def check(self, code, ws, timeout_s, strict_name):
+        return await self.runner.check(code, ws, timeout_s, strict_name, owner="bench", warm=self.warm)
+
+    async def complete(self, *a, **k):
+        raise RuntimeError("no model in the benchmark")
+
+
+class _BenchRetriever:
+    async def premises(self, ws_key, statement, k):
+        return [{"name": n, "kind": "theorem", "signature": ""} for n in MLF_NAMES[:k]]
+
+    async def search(self, ws_key, text, k):
+        return []
+
+    async def declaration(self, ws_key, name):
+        return None
+
+
+async def warm_bench(only: str = "") -> dict:
+    import tempfile
+    from madalean import leancheck
+    from madalean.pipeline.mathlib_first import MathlibFirst
+    from madalean.runtime.lean import LeanRunner
+    from madalean.slots import Slots
+    from madalean.workspaces import all_workspaces
+    data = json.loads((ROOT / "tests" / "data" / "warm_attempts.json").read_text(encoding="utf-8"))["attempts"]
+    attempts = []
+    for a in data:
+        code = leancheck.GOEDEL_HEADER + a["body"]
+        name = leancheck.theorem_name(code) if a["strict"] else None
+        attempts.append((a["id"], leancheck.with_axiom_probe(code, name) if name else code, name))
+    out = {}
+    for w in all_workspaces():
+        if (only and w.key != only) or w.check():
+            continue
+        tmp = Path(tempfile.mkdtemp(prefix="madalean-bench-"))
+        res: dict = {"toolchain": w.toolchain}
+        for label, warm in (("before", False), ("after", True)):
+            r = LeanRunner(Slots(), tmp)
+            rows = []
+            t0 = time.monotonic()
+            for aid, code, name in attempts:
+                t = time.monotonic()
+                c = await r.check(code, w, 300, name, owner="bench", warm=warm)
+                rows.append({"id": aid, "ok": c.verdict.ok, "via": c.via, "s": round(time.monotonic() - t, 3)})
+            total = time.monotonic() - t0
+            mf = MathlibFirst(_BenchIO(r, warm), "local", _BenchRetriever(), True, use_model=False)
+            t = time.monotonic()
+            m = await mf.run(MLF_STATEMENT, w, [], 300)
+            mlf_s = time.monotonic() - t
+            st = r.warm.status()
+            load = next((x["load_seconds"] for x in st["workers"]), None)
+            rss = next((x["rss_mb"] for x in st["workers"]), None)
+            r.kill_all()
+            per = sorted(x["s"] for x in rows)
+            res[label] = {"total_s": round(total, 1), "median_s": per[len(per) // 2], "max_s": per[-1],
+                          "via": {v: sum(1 for x in rows if x["via"] == v) for v in ("fresh", "warm", "warm+fresh")},
+                          "mathlib_first_s": round(mlf_s, 1), "mathlib_first_ok": m.ok, "lemma": m.lemma,
+                          "warm_load_s": load, "warm_rss_mb": rss, "stats": st["stats"], "rows": rows}
+        res["same_verdicts"] = [x["ok"] for x in res["before"]["rows"]] == [x["ok"] for x in res["after"]["rows"]]
+        out[w.key] = res
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dossiers", default=str(Path.home() / ".config/madalean/dossiers"))
     ap.add_argument("--jobs", default=str(Path.home() / ".config/madalean/jobs"))
     ap.add_argument("--lean", action="store_true")
+    ap.add_argument("--warm", action="store_true")
+    ap.add_argument("--workspace", default="")
     ap.add_argument("--json")
     a = ap.parse_args()
     rep = stages(Path(a.dossiers).expanduser())
@@ -155,6 +247,16 @@ def main() -> None:
         rep["lean"] = asyncio.run(lean_costs())
         for k, v in rep["lean"].items():
             print(f"lean {k[:50]:50} 1er {v['first_s']} s, ensuite {v['warm_s']} s")
+    if a.warm:
+        rep["warm"] = asyncio.run(warm_bench(a.workspace))
+        for k, v in rep["warm"].items():
+            for label in ("before", "after"):
+                x = v[label]
+                print(f"warm-bench {k:14} {label:6} {len(x['rows'])} essais : total {x['total_s']} s, médiane "
+                      f"{x['median_s']} s, max {x['max_s']} s, via {x['via']} ; Mathlib d'abord {x['mathlib_first_s']} s "
+                      f"({'trouvé ' + x['lemma'] if x['mathlib_first_ok'] else 'rien'})"
+                      + (f" ; chargement Lean chaud {x['warm_load_s']} s, {x['warm_rss_mb']} Mo" if x['warm_load_s'] else ""))
+            print(f"warm-bench {k:14} mêmes verdicts : {v['same_verdicts']}")
     if a.json:
         Path(a.json).write_text(json.dumps(rep, indent=1, ensure_ascii=False), encoding="utf-8")
 

@@ -12,6 +12,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 from .. import leancheck, leansandbox
 from ..i18n import _
@@ -19,6 +20,7 @@ from ..logs import get
 from ..slots import Slots, current_owner
 from ..workspaces import Workspace
 from . import guarded
+from .leanwarm import WarmOutcome, WarmPool, WarmUnavailable, messages_to_json
 
 log = get("lean")
 
@@ -33,6 +35,7 @@ class CompileResult:
     cancelled: bool = False
     infra_error: str = ""      # non-empty: the check could not run (workspace broken…)
     job: int = 0
+    via: str = "fresh"         # fresh | warm (intermediate verdict) | warm+fresh (warm, then confirmed by a fresh run)
 
     def to_dict(self) -> dict:
         v = self.verdict
@@ -40,6 +43,7 @@ class CompileResult:
                                                               "severity": m.severity} for m in v.errors],
                 "axioms": v.axioms, "has_sorry": v.has_sorry, "reasons": v.reasons, "seconds": round(self.seconds, 2),
                 "timed_out": self.timed_out, "cancelled": self.cancelled, "infra_error": self.infra_error,
+                "via": self.via,
                 # a statement (with `sorry`) is valid when Lean reports no error (1.1.4 formalizer rule)
                 "statement_ok": not v.errors and not self.timed_out and not self.infra_error}
 
@@ -103,19 +107,24 @@ def git_head(path: Path) -> str:
 
 
 class LeanRunner:
-    def __init__(self, slots: Slots, tmp_dir: Path):
+    def __init__(self, slots: Slots, tmp_dir: Path, settings: Callable[[], object] | None = None):
         self.slots = slots
         self.tmp_dir = Path(tmp_dir)
         self._ids = itertools.count(1)
         self.procs: dict[int, asyncio.subprocess.Process] = {}
         self.running: dict[int, dict] = {}
+        self.warm = WarmPool(settings)          # D37: warm Lean for intermediate attempts
 
     async def problems(self, ws: Workspace) -> list[str]:
         return await asyncio.to_thread(ws.check)
 
     async def check(self, code: str, ws: Workspace, timeout_s: int = 180, strict_name: str | None = None,
-                    owner: str | None = None) -> CompileResult:
-        """Compile `code` (with the axiom probe already appended when `strict_name` is given)."""
+                    owner: str | None = None, warm: bool = False) -> CompileResult:
+        """Compile `code` (with the axiom probe already appended when `strict_name` is given).
+
+        `warm=True` (intermediate attempts only: search loops, probe batches, statement checks of a running job) lets
+        the warm Lean answer (DECISIONS D37). A warm acceptance of a strict check is never returned as such: it is
+        re-checked by a fresh `lean --json`, whose verdict is returned. Without `warm` the check is always fresh."""
         job = next(self._ids)
         owner = owner or current_owner()
         risks = leancheck.exec_risks(code.rsplit("#print axioms", 1)[0] if strict_name else code)
@@ -128,8 +137,84 @@ class LeanRunner:
         problems = await asyncio.to_thread(ws.check)
         if problems:
             return CompileResult(leancheck.Verdict(False, problems[0]), code, 0.0, "", infra_error=problems[0], job=job)
+        if warm:
+            r = await self._check_warm(job, code, ws, timeout_s, strict_name, owner)
+            if r is not None:
+                return r
+        return await self._fresh(job, code, ws, timeout_s, strict_name, owner)
+
+    async def _fresh(self, job: int, code: str, ws: Workspace, timeout_s: int, strict_name: str | None,
+                     owner: str) -> CompileResult:
         async with self.slots.hold("lean", owner):
             return await self._run(job, code, ws, timeout_s, strict_name)
+
+    async def _check_warm(self, job: int, code: str, ws: Workspace, timeout_s: int, strict_name: str | None,
+                          owner: str) -> CompileResult | None:
+        """The warm path with its reliability rules (D37); None = run the fresh check instead."""
+        pool = self.warm
+        w = await pool.take(ws, code)
+        if w is None:
+            pool.stats["fresh_fallback"] += 1
+            return None
+        try:
+            async with self.slots.hold("lean", owner):
+                self.running[job] = {"pid": w.proc.pid if w.proc else 0, "workspace": ws.key, "started": time.time(),
+                                     "warm": True}
+                try:
+                    out = await w.check(code, timeout_s)
+                finally:
+                    self.running.pop(job, None)
+        except WarmUnavailable as e:
+            log.info("warm check unavailable on %s (%s): checking fresh", ws.key, e)
+            pool.discard(w, str(e))
+            pool.stats["fresh_fallback"] += 1
+            return None
+        except asyncio.CancelledError:
+            pool.discard(w, "check cancelled")        # Lean may still be elaborating: never reuse that state
+            raise
+        finally:
+            pool.give_back(w)
+        pool.stats["warm"] += 1
+        res = self._warm_result(job, code, out, strict_name)
+        if out.timed_out:
+            pool.stats["timeouts"] += 1
+            pool.discard(w, "attempt timed out")       # the next attempt gets a clean worker
+            return res
+        if res.verdict.ok and strict_name:
+            # the warm Lean never makes a proof « verified »: a fresh, strict `lean --json` decides
+            pool.stats["confirmed"] += 1
+            fresh = await self._fresh(job, code, ws, timeout_s, strict_name, owner)
+            if not fresh.verdict.ok and not fresh.timed_out and not fresh.infra_error:
+                pool.distrust(ws.key, f"warm accepted, fresh rejected: {fresh.verdict.summary}")
+                log.warning("warm/fresh disagreement on %s (warm accepted); fresh verdict kept:\n%s", ws.key,
+                            code[-1500:])
+            fresh.via = "warm+fresh"
+            fresh.seconds += res.seconds
+            return fresh
+        if pool.audit_due(w):
+            fresh = await self._fresh(job, code, ws, timeout_s, strict_name, owner)
+            if not (fresh.timed_out or fresh.infra_error):
+                if fresh.verdict.ok != res.verdict.ok:
+                    pool.distrust(ws.key, f"audit: warm {'accepted' if res.verdict.ok else 'rejected'}, fresh "
+                                          f"{'accepted' if fresh.verdict.ok else 'rejected'}")
+                    log.warning("warm/fresh disagreement on %s (audit); fresh verdict kept:\n%s", ws.key, code[-1500:])
+                elif _sig(fresh) != _sig(res):
+                    log.info("warm/fresh audit on %s: same verdict, different messages\nwarm: %s\nfresh: %s", ws.key,
+                             _sig(res), _sig(fresh))
+            fresh.via = "warm+fresh"
+            return fresh
+        return res
+
+    def _warm_result(self, job: int, code: str, out: WarmOutcome, strict_name: str | None) -> CompileResult:
+        stdout = messages_to_json(out.messages)
+        if out.timed_out:
+            v = leancheck.Verdict(False, _("Lean a dépassé le délai ({s} s).").format(s=int(out.seconds)),
+                                  feedback_en="Compilation timed out. Use simpler, faster tactics (avoid heavy nlinarith/simp searches).")
+            return CompileResult(v, code, out.seconds, stdout, timed_out=True, job=job, via="warm")
+        rc = 1 if any(m.severity == "error" for m in out.messages) else 0
+        r = self._verdict(job, code, stdout, "", rc, out.seconds, strict_name)
+        r.via = "warm"
+        return r
 
     async def _run(self, job: int, code: str, ws: Workspace, timeout_s: int, strict_name: str | None) -> CompileResult:
         f = self.tmp_dir / f"check_{os.getpid()}_{job}_{int(time.time() * 1000)}.lean"
@@ -213,4 +298,11 @@ class LeanRunner:
     def kill_all(self) -> None:
         for p in list(self.procs.values()):
             self._kill(p)
+        self.warm.stop_all("shutdown")
+
+
+def _sig(r: CompileResult) -> list[tuple]:
+    """What a caller can see of a result's messages (for warm/fresh comparisons)."""
+    return [(m.severity, m.line, m.col, m.end_line, m.end_col, m.text) for m in leancheck.parse_lean_json(r.stdout)
+            if m.severity == "error"] + [("ok", r.verdict.ok, tuple(r.verdict.axioms or ()))]
 

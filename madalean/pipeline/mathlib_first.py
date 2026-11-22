@@ -5,8 +5,9 @@
    of_isCompact_closedBall`, first isomorphism theorem → `LinearMap.quotKerEquivRange`…), only names that exist in
    the workspace's Mathlib.
 2. ONE compilation tries short templates on the top-k (`exact N`, `exact N _`, `exact ⟨N _⟩`, `simpa using N`,
-   `apply N` with side goals by assumption / norm_num, also after `intros`); `exact?` runs once, in parallel, in its own file (unless the statement check already
-   ran it).
+   `apply N` with side goals by assumption / norm_num, also after `intros`) — on the warm Lean during a job (D37);
+   `exact?` (a 3–9 s library search) runs once, in its own file, only when no template passed the strict check
+   (and unless the statement check already ran it).
 3. Otherwise the general model may write a 1–5 line proof that uses one of the candidates (≤ 2 calls, Lean-checked).
 Success → the proof is recorded with the model « mathlib:<name> » and the explanation cites the lemma. Failure → the
 candidates are handed to the provers as hints. Every proof is re-checked with the strict verdict."""
@@ -126,6 +127,17 @@ async def candidates(retriever, ws_key: str, statement: str, texts: list[str], k
     return out[:k]
 
 
+async def _batch(io, ws, preamble: str, probes: list, timeout_s: int) -> float:
+    """`run_batch` that never raises (a failed batch = no candidate from it)."""
+    try:
+        return await P.run_batch(io, ws, preamble, probes, timeout_s)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        log.info("Mathlib-first batch failed: %s", e)
+        return 0.0
+
+
 ADAPT_PROMPT = (
     "Prove the following Lean 4 theorem (Mathlib) with a SHORT proof (1 to 5 tactic lines) that uses one of the "
     "Mathlib results listed below. The theorem is very likely one of them, up to notation, coercions, argument "
@@ -179,29 +191,22 @@ class MathlibFirst:
                                         {"tactic": "exact?"})]
         a.status = "compiling"
         self.io.update_attempt(a)
-        jobs = [P.run_batch(self.io, ws, sig.preamble, probes, BATCH_TIMEOUT)]
-        if exq:
-            jobs.append(P.run_batch(self.io, ws, sig.preamble, exq, EXACT_TIMEOUT))
-        secs = await asyncio.gather(*jobs, return_exceptions=True)
-        a.compile_seconds = sum(s for s in secs if isinstance(s, (int, float)))
+        # templates first (one batch: a fraction of a second on the warm Lean, D37); `exact?` (the slow library
+        # search: 3–9 s whatever the Lean) only when no template closes the goal strictly
+        secs = [await _batch(self.io, ws, sig.preamble, probes, BATCH_TIMEOUT)]
         for p in probes:
             if p.ok:
                 tries.append((p.meta["tactic"], "template", p.meta["lemma"]))
-        for p in exq:
-            if p.suggestion and "?" not in p.suggestion:
-                tries.append((p.suggestion, "exact?", lemma_in(p.suggestion, [c["name"] for c in cands])))
         # every batch success is re-checked alone (strict verdict), in order, until one passes; the same tactic is
         # never tried twice
         seen: set[str] = set()
-        for tac, src, lemma in tries:
-            if tac in seen:
-                continue
-            seen.add(tac)
-            if len(seen) > MAX_STRICT:
-                break
-            ok = await self._accept(res, statement, name, ws, tac, src, lemma, timeout_s)
-            if ok:
-                break
+        await self._strict_tries(res, statement, name, ws, tries, seen, timeout_s)
+        if not res.ok and exq:
+            secs.append(await _batch(self.io, ws, sig.preamble, exq, EXACT_TIMEOUT))
+            found = [(p.suggestion, "exact?", lemma_in(p.suggestion, [c["name"] for c in cands])) for p in exq
+                     if p.suggestion and "?" not in p.suggestion]
+            await self._strict_tries(res, statement, name, ws, found, seen, timeout_s)
+        a.compile_seconds = sum(secs)
         if not res.ok and self.use_model and cands:
             await self._adapt(res, statement, name, ws, cands[:6], timeout_s)
         a.status = "accepted" if res.ok else "rejected"
@@ -212,6 +217,16 @@ class MathlibFirst:
         self.io.update_attempt(a)
         res.seconds = time.monotonic() - t0
         return res
+
+    async def _strict_tries(self, res: MathlibResult, statement: str, name: str, ws, tries: list, seen: set,
+                            timeout_s: int) -> None:
+        for tac, src, lemma in tries:
+            if res.ok or len(seen) >= MAX_STRICT:
+                return
+            if tac in seen:
+                continue
+            seen.add(tac)
+            await self._accept(res, statement, name, ws, tac, src, lemma, timeout_s)
 
     async def _accept(self, res: MathlibResult, statement: str, name: str, ws, tac: str, src: str, lemma: str,
                       timeout_s: int) -> bool:

@@ -196,7 +196,8 @@ class JobIO:
                 pass
 
     async def check(self, code: str, ws, timeout_s: int, strict_name: str | None):
-        return await self.ctx.lean.check(code, ws, timeout_s, strict_name, owner=job_owner(self.job))
+        return await self.ctx.lean.check(code, ws, timeout_s, strict_name, owner=job_owner(self.job),
+                                           warm=True)  # D37: intermediate attempts
 
 
 class Failed(Exception):

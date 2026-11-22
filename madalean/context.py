@@ -36,7 +36,8 @@ LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), 
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
           "tournament_attempts_per_model": (1, 16), "claude_cap_proof_usd": (0, 100),
           "claude_cap_month_usd": (0, 1000), "plan_max_depth": (1, 5), "plan_budget_minutes": (10, 1440),
-          "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440)}
+          "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440),
+          "lean_warm_idle_minutes": (1, 240)}
 
 
 class ServerContext:
@@ -75,7 +76,7 @@ class ServerContext:
             local = LocalLlama(self.slots, self.monitor, paths.llama_pid, lambda: self.settings)
             local.on_change = lambda: (self.publish("models.status", {"local": local.status()}), self.monitor.wake())
         self.local = local
-        self.lean = lean or LeanRunner(self.slots, paths.tmp)
+        self.lean = lean or LeanRunner(self.slots, paths.tmp, lambda: self.settings)
         self.brain = brain
         self.retriever = retriever
         self.brain_kind = "custom" if brain is not None else ""
@@ -225,7 +226,10 @@ class ServerContext:
         if errors:
             return asdict(self.settings), errors
         new = config._from_dict(config.Settings, cur)
+        warm_changed = new.lean_warm != self.settings.lean_warm
         self.settings = new
+        if warm_changed and getattr(self.lean, "warm", None) is not None:
+            self.lean.warm.reset()                  # D37: switched off -> stopped now; on -> past failures forgotten
         i18n.set_language(new.language)
         await self.save_settings()
         if self.brain is not None and hasattr(self.brain, "update_settings"):
@@ -245,6 +249,8 @@ class ServerContext:
         else:
             ws = await asyncio.to_thread(all_workspaces)
         self.workspaces = list(ws)
+        if getattr(self.lean, "warm", None) is not None:
+            self.lean.warm.forget_changed(self.workspaces)     # D37: a changed workspace never keeps its warm Lean
         if not self.settings.workspace or not self.workspace(self.settings.workspace):
             ready = [w for w in self.workspaces if not w.problems]
             pref = [w for w in ready if w.key == "lean-prover49"] or ready

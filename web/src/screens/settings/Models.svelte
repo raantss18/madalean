@@ -139,14 +139,14 @@
     <details class="panel">
       <summary><strong>{t('models.advanced')}</strong></summary>
       <div class="adv">
-        {#each [['prove_attempts', 1, 64], ['translate_attempts', 1, 10], ['compile_timeout_s', 10, 1800], ['agent_max_steps', 1, 200], ['agent_max_seconds', 30, 7200], ['tournament_contestants', 1, 6], ['tournament_max_rounds', 0, 10], ['tournament_max_minutes', 1, 240], ['tournament_attempts_per_model', 1, 16], ['plan_max_depth', 1, 5], ['plan_budget_minutes', 10, 1440]] as [k, min, max]}
+        {#each [['prove_attempts', 1, 64], ['translate_attempts', 1, 10], ['compile_timeout_s', 10, 1800], ['agent_max_steps', 1, 200], ['agent_max_seconds', 30, 7200], ['tournament_contestants', 1, 6], ['tournament_max_rounds', 0, 10], ['tournament_max_minutes', 1, 240], ['tournament_attempts_per_model', 1, 16], ['plan_max_depth', 1, 5], ['plan_budget_minutes', 10, 1440], ['lean_warm_idle_minutes', 1, 240]] as [k, min, max]}
           <div class="field">
             <label for="adv-{k}">{tk(`adv.${k}`, String(k))}</label>
             <input id="adv-{k}" class="input" type="number" min={min} max={max} value={s[k as string] as number}
               onchange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v >= (min as number) && v <= (max as number)) void saveSettings({ [k as string]: v }); else toast('error', t('settings.range', { min: Number(min), max: Number(max) })); }} />
           </div>
         {/each}
-        {#each ['statement_check', 'mathlib_first', 'tournament_enabled', 'hf_goedel', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model'] as k}
+        {#each ['statement_check', 'mathlib_first', 'tournament_enabled', 'hf_goedel', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model', 'lean_warm'] as k}
           <label class="switch"><input type="checkbox" checked={Boolean(s[k])} onchange={(e) => saveSettings({ [k]: (e.target as HTMLInputElement).checked })} />{tk(`adv.${k}`, k)}</label>
         {/each}
       </div>

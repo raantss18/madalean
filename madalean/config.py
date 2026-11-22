@@ -115,6 +115,9 @@ class Settings:
     browser_session_idle_minutes: int = 120  # browser (remote/LAN) session: closed after this idle time (host-only)
     local_idle_unload_minutes: int = 10     # S-N: stop llama-server after this idle time to give the GPU back (0 = never)
     calcul_idle_minutes: int = 30           # S-P: a Calcul notebook's kernel stops after this idle time (0 = never)
+    # S-AE (D37): a Lean kept running per workspace in use, Mathlib loaded, for intermediate attempts (~3.4 GB each)
+    lean_warm: bool = True
+    lean_warm_idle_minutes: int = 10        # stopped after this idle time
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 

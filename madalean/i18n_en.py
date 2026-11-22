@@ -1313,3 +1313,22 @@ EN.update({
         "Already found in Mathlib for this statement ({name}): proof checked again by Lean.",
     "{text}": "{text}",                 # S-AG: a message already written in the interface's language (intent.py)
 })
+
+# ---- warm Lean (S-AE, D37)
+EN.update({
+    "Lean prêt d'avance : désactivé ; chaque essai relance Lean et recharge Mathlib.":
+        "Lean ready in advance: off; every attempt starts Lean and loads Mathlib again.",
+    "Lean prêt d'avance mis de côté pour {ws} : un de ses résultats différait de la vérification complète. Les essais "
+    "sont vérifiés par un Lean relancé à chaque fois.":
+        "Lean ready in advance set aside for {ws}: one of its results differed from the full check. Attempts are "
+        "checked by a Lean started each time.",
+    "Lean prêt d'avance pour {ws} : chaque essai est vérifié en une fraction de seconde ({gb} Go de mémoire, arrêté "
+    "après {min} min sans essai). Une preuve trouvée est toujours revérifiée par un Lean neuf.":
+        "Lean ready in advance for {ws}: each attempt is checked in a fraction of a second ({gb} GB of memory, stopped "
+        "after {min} min without an attempt). A proof that is found is always checked again by a new Lean.",
+    "Lean prêt d'avance : chargement de Mathlib pour {ws}…": "Lean ready in advance: loading Mathlib for {ws}…",
+    "Lean prêt d'avance n'a pas pu démarrer ({why}) : les essais sont vérifiés par un Lean relancé à chaque fois.":
+        "Lean ready in advance could not start ({why}): attempts are checked by a Lean started each time.",
+    "Lean prêt d'avance : au repos ; il démarre avec la prochaine preuve et s'arrête après {min} min sans essai.":
+        "Lean ready in advance: at rest; it starts with the next proof and stops after {min} min without an attempt.",
+})
