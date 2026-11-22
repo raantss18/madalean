@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.0.0 — (date de publication)
+
+**Une nouvelle application.** « Lean AI Station » devient **Madalean** : un serveur sur l'ordinateur hôte, une
+interface web, une application Android et une AppImage qui s'y relient par Tailscale. Les données de la 1.x sont
+reprises au premier démarrage.
+
+**Preuves**
+- Modèles en ligne d'abord : tournoi des meilleurs modèles gratuits, Goedel-Prover-V2-32B (Hugging Face) en tête,
+  modèles payants en renfort avec plafonds par preuve et par mois ; modèles locaux hors connexion.
+- Vérification de l'énoncé avant la preuve (fidèle / douteux / faux, contre-exemple prouvé par Lean), correction en
+  un clic.
+- Recherche dans Mathlib d'abord : un résultat qui existe déjà est prouvé directement.
+- Plan de preuve en carte mentale : découpage en lemmes validé par vous, preuves automatiques, recombinaison.
+- Classement automatique des modèles par domaine (résultats ici, LMArena, nouveautés).
+
+**Recherche**
+- Calcul : vrai carnet SageMath partagé avec JupyterLab, demandes en langage naturel, courbes, géométrie dynamique.
+- Notes avec blocs Lean vérifiables, conjectures, sources (PDF, arXiv, questions sur un article), bibliographie.
+- Article : éditeur LaTeX visuel, aperçu PDF, assistant en suggestions, échange avec Overleaf.
+- Publier : site statique du projet (preuves revérifiables, calculs, article) sur GitHub Pages.
+- Bibliothèque filtrée par domaine, projet, étiquette et état ; glossaire par catégories et niveaux.
+
+**Appareils**
+- Application Android : scan du QR code dans l'application, adresses de secours (IP Tailscale, réseau local),
+  messages clairs quand Tailscale n'est pas connecté.
+- Écrans adaptés au téléphone et à la tablette.
+
+**Installation, mises à jour, sécurité**
+- Installation autonome en un dossier, sans `sudo` (Lean, Mathlib, SageMath à la demande, LaTeX, moteur des modèles,
+  nœud Tailscale).
+- Mises à jour signées de Madalean ; Lean, Mathlib, SageMath et LaTeX suivis et mis à jour avec revérification des
+  preuves.
+- Revue de sécurité indépendante ; Lean, LaTeX et calculs isolés ; appareils reliés par code ; clés gardées sur l'hôte.
+
 ## 1.1.4 — 2026-10-04
 
 **Corrections** (signalées : « il fait toujours la réciproque », « unknown constant qui se répète »)

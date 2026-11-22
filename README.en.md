@@ -1,105 +1,97 @@
-# Lean AI Station
+# Madalean
 
 *[Version française](README.md)*
 
-**Describe a mathematics problem in your own words. An AI writes it in Lean, searches for a proof, Lean checks it,
-and another AI explains it in plain language.**
+**Write a mathematical statement in your own words or in LaTeX. Madalean translates it into Lean, looks for a proof,
+and Lean checks it. Around the proof: notes, conjectures, Sage computations, sources, a LaTeX article and a published
+site.**
 
-![Home](docs/screenshots/18_en_home.png)
+![Home](docs/screenshots/v2/desktop-light-home.png)
 
 ## What is it for?
 
-* **Lean** is a program that checks mathematical proofs line by line. When Lean says “correct”, the proof is correct.
-  But statements and proofs must be written in a very precise language that takes months to learn.
-* **This tool hands the writing to three specialised AI models** and has Lean check the result. A proof is only shown
-  as successful when Lean accepts it, with no `sorry` (Lean's word for “unfinished”) and no extra axiom.
-* **Nothing is sent over the Internet.** No account, no subscription, no online service: the models are files of about
-  5 GB run by **your computer's NVIDIA graphics card** (or its processor, more slowly). Internet is only needed to install
-  the tool and, once a week if you let it, to look for updates.
-* **No Lean knowledge needed.** The **“❓ Help”** button explains Lean in two minutes.
+* **Lean** checks a proof line by line: when Lean says "correct", the proof is correct. But statements and proofs
+  must be written in a very precise language.
+* **Madalean hands that writing to AI models** and lets Lean judge the result. A proof is marked "verified" only if
+  Lean accepted it, without `sorry` (unfinished proof) and without added axioms.
+* **Before proving, Madalean checks the statement**: it says whether the translation is faithful, doubtful or wrong,
+  and can show a counterexample. It also looks first for the result in Mathlib.
+* **For a hard result**, Madalean proposes a split into lemmas as a map: you approve the plan, each lemma is proved,
+  then everything is combined.
 
-## How to use it
+![Proof](docs/screenshots/v2/desktop-light-proof-research.png)
 
-1. **Describe your problem** in English or French (LaTeX formulas such as `$a^2+b^2\ge 2ab$` are welcome), or **import a
-   `.tex` file**, then click **“✨ Prove a theorem”**.
-2. **Everything runs on its own**: one AI first rewrites your request as a precise mathematical statement (for example
-   “incomplete basis theorem” → “every linearly independent family extends to a basis”), another translates it into a Lean statement (Lean checks it is valid),
-   another searches for a proof (when Lean rejects it, it reads the error and fixes it), a third one explains it in plain
-   language. The right model is loaded automatically for each step.
-3. **Read the Lean statement** shown in the thread: Lean proves exactly that text, not necessarily what you meant.
-4. **Continue the conversation**: “add the hypothesis n > 0”, “a shorter proof”, “explain step 2”. The tool works out
-   which step to redo (you can choose it), and keeps every version (“Go back to this version”). Each problem is a
-   **dossier** you can reopen later.
-5. Export: copy, `.lean` file, or a **LaTeX** document for Overleaf (statement, Lean version, explanation, proof).
+## What 2.0 contains
 
-![English dossier](docs/screenshots/19_en_dossier.png)
+| Space | What for |
+|---|---|
+| **Proofs** | statement → Lean → verified proof → plain-language explanation; follow-ups ("add the hypothesis…", "shorter proof"); every version kept |
+| **Proof plan** | split into lemmas as a mind map, automatic proofs, recombination |
+| **Calcul** | SageMath notebook (cells, plots, dynamic geometry), natural-language requests, same notebook as JupyterLab |
+| **Notes and conjectures** | notes with checkable Lean blocks, conjectures linked to computations and proofs |
+| **Sources** | PDF and arXiv reading, questions about a paper, bibliography |
+| **Article** | visual LaTeX editor (formulas, theorems, figures, citations), source in one click, PDF preview, assistant as suggestions, Overleaf exchange |
+| **Publish** | static site of the project (re-checkable proofs, computations, article) on GitHub Pages |
+| **Library and glossary** | proved results filed by field and reused as lemmas; glossary by category and level |
 
-**The assistant's memory**
-* **Your profile** (System tab): audience, level, notations. Read before every translation and explanation.
-* **The dossier thread**: every correction builds on the previous versions.
-* **The library** (📚 tab): every proven result is stored and offered as a lemma for later proofs.
+## Models
 
-**Language**: the 🌐 button in the left bar (or the System tab) switches the interface and the explanations between
-English and French.
+* **Online first**: the best free models of the moment (Gemini, Mistral, Groq, Cerebras, NVIDIA, OpenRouter…)
+  compete in a tournament, led by **Goedel-Prover-V2-32B** through Hugging Face (your key). Paid models (e.g. Claude)
+  are only reinforcements, with per-proof and monthly caps you set.
+* **Automatic rankings**: Settings › Models shows, per field, the models that really succeeded here, the public
+  LMArena ranking and model news. It refreshes on its own.
+* **Offline**: local models (Goedel-Prover, Qwen) run on the computer's graphics card.
+* **Your keys stay with you**: they are kept on the host computer and sent only to their provider.
 
-### The three AI models (only one in graphics memory at a time)
+## One computer, all your devices
 
-| Task | Model | Why |
-|---|---|---|
-| Write and fix proofs | Goedel-Prover-V2-8B | specialised in Lean proofs |
-| Translate a problem into a Lean statement | Goedel-Formalizer-V2-8B | same team, built for this task |
-| Explain a proof in plain language | Qwen3-8B | general model: the prover answered in English and rewrote Lean |
+Madalean is installed on **one Linux computer** (the host), which does all the work. Your phone, tablet or another
+PC connect to it through your private **Tailscale** network:
+
+* **Android**: the Madalean app. On the host, open Settings › Devices › "Add a device", then in the app tap
+  "Scan the QR code".
+* **Another Linux PC**: the AppImage.
+* **iPhone, iPad, others**: a browser is enough.
+
+Screens adapt to phones and tablets.
+
+![Phone](docs/screenshots/v2/phone-light-proof-learn.png)
 
 ## Install
 
-Tested end to end on **EndeavourOS/Arch** with an NVIDIA RTX 4060 (8 GB of graphics memory). The installer is also tested
-(fresh clone, CPU engine, start-up and tests) in **Fedora 44, Ubuntu 24.04 and Ubuntu 22.04** containers, and written for
-**Debian and openSUSE** (not tested). Plan for ≈ 40 GB of disk space.
+Linux x86_64, about 40 GB of disk. An NVIDIA card is recommended for local models (without one, everything works
+online, and offline on the CPU, more slowly).
 
 ```bash
-git clone https://github.com/raantss18/lean-ai-station.git ~/lean-ai-station
-cd ~/lean-ai-station
-./install.sh --install-deps        # --install-deps: installs the build tools with sudo (once)
+git clone https://github.com/raantss18/madalean.git ~/madalean
+cd ~/madalean
+./install.sh
 ```
 
-**Install yourself first** (the script never touches drivers): the **NVIDIA driver** and the **CUDA Toolkit** (`nvcc`),
-unless you choose `--backend cpu`. See the table in the [French README](README.md#installer) for each distribution.
+The script installs everything into one folder (Lean and Mathlib, SageMath on demand, LaTeX, the model engine, a
+Tailscale node), without `sudo` or system packages. It can be re-run safely. Madalean then starts with the computer;
+open it from the applications menu or at `http://127.0.0.1:11500`. To uninstall: `./uninstall.sh` (your settings
+and projects are kept).
 
-`install.sh` (safe to run again) detects your distribution, installs the Lean manager *elan*, builds the *llama.cpp*
-engine for your card (pinned version), sets up Python and the interface, downloads the three models (≈ 5 GB each,
-SHA-256 checked), prepares the two Lean workspaces and adds **“Lean AI Station” to the applications menu**. The
-“Prover” workspace builds Mathlib from source (≈ 1.5 h of computation, once). Options: `./install.sh --help`.
+Details: [docs/INSTALL.md](docs/INSTALL.md) and the [manual](docs/manual/en/index.md).
 
-Launch: applications menu → **Lean AI Station** (or `~/lean-ai-station/bin/lean-ai-station`). On first launch an
-assistant checks everything and runs a one-minute self-test.
+## Updates
 
-**Updates** (System tab): every week the tool checks for a new Lean/Mathlib or Goedel model version (it only contacts
-GitHub and Hugging Face; can be turned off). If there is one, a notification appears and one click on **“Install”** is
-enough: the new version is installed next to the old one, verified, then the old one is deleted automatically. A Lean
-version still used by one of your projects is kept; if anything fails, nothing changes. From a terminal:
-`.venv/bin/python scripts/updater.py check`.
+Madalean updates itself from Settings › Updates. Every release is signed, and a badly signed update is refused.
+Lean, Mathlib, SageMath and LaTeX are tracked too: they are installed next to the old version, checked, then Madalean
+switches over. Your proofs are then re-checked.
 
-Offline copy to another computer: `./export_offline.sh /path/to/usb` then `bash /path/to/usb/import_offline.sh`.
-Uninstall: `./uninstall.sh` (lists exactly what will be deleted).
+## Security
 
-## Known limits
+* Nobody outside your Tailscale network can reach Madalean, and each device must be linked with a code.
+* Lean code, LaTeX and computations run isolated (no network, no access to your files).
+* Independent security review: [docs/SECURITY.md](docs/SECURITY.md).
 
-* The 8-billion-parameter models do well on high-school and undergraduate exercises; olympiad problems often fail.
-  “No proof found” does not mean the statement is false.
-* A translation can change the meaning of a statement while remaining valid for Lean: **always read it**.
-* The explanation is written by an AI; the Lean proof is the verified part.
-* **Without an NVIDIA card everything works, but slowly** (≈ 5 tokens/s instead of ≈ 44 on the RTX 4060). AMD/Intel
-  cards are not used yet.
-* Measurements, design decisions and acceptance evidence: `BENCH.md`, `DECISIONS.md`, `ACCEPTANCE.md` (in English).
+## Author
 
-## For developers
+RANIRIAMANJAKA Antsa — [antsa.raniriamanjaka@univ-antananarivo.mg](mailto:antsa.raniriamanjaka@univ-antananarivo.mg)
+— [github.com/raantss18](https://github.com/raantss18)
 
-* Tests: `./run_tests.sh` (fast) or `./run_tests.sh --all` (with models, Lean and GPU: several minutes).
-* Code: `app/lean_ai_station/` (PySide6). Translations: `i18n_en.py`, checked by `tests/test_i18n.py`.
-* No telemetry. Offline mode (on by default) blocks every non-local connection from the application, except the
-  weekly update check (can be turned off in System).
-
-## License
-
-Apache-2.0, like Lean 4 (see `LICENSE` and `NOTICE` for third-party components). Models and Mathlib are not included
-in this repository: `install.sh` downloads them.
+Apache 2.0 license. Lean, Mathlib, SageMath, the models and the other components keep their own licenses.
+The former 1.x application ("Lean AI Station") is described in [CHANGELOG.md](CHANGELOG.md).

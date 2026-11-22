@@ -50,7 +50,7 @@ T = {
                         "distribution beaucoup plus ancienne.",
         "ios": "iPhone, iPad, autres appareils",
         "ios_text": "Pas d'application : ouvrez l'adresse de l'hôte sur votre réseau Tailscale dans le navigateur "
-                    "(par exemple <code>https://nom-du-pc.tailXXXX.ts.net:10500</code>) et reliez l'appareil avec le "
+                    "(par exemple <code>https://madalean.tailXXXX.ts.net</code>) et reliez l'appareil avec le "
                     "code affiché par l'hôte.",
         "verify": "Vérifier un téléchargement",
         "verify_text": "Chaque version publie <code>SHA256SUMS</code> (empreintes de tous les fichiers) et "
@@ -88,7 +88,7 @@ T = {
                         "Built and tested on Arch Linux; it may not start on a much older distribution.",
         "ios": "iPhone, iPad, other devices",
         "ios_text": "No app: open the host's address on your Tailscale network in the browser (for example "
-                    "<code>https://pc-name.tailXXXX.ts.net:10500</code>) and link the device with the code shown by "
+                    "<code>https://madalean.tailXXXX.ts.net</code>) and link the device with the code shown by "
                     "the host.",
         "verify": "Verify a download",
         "verify_text": "Each release publishes <code>SHA256SUMS</code> (hashes of every file) and "
