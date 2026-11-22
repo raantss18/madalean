@@ -122,6 +122,31 @@ test('calcul notebook: ordered cells, exact/approx, NL cell to review, keyboard,
   await expect(firstCode.getByRole('region', { name: 'Explication ligne par ligne' }).locator('li').first()).toContainText('Cette ligne calcule');
   await axe(page, 'calcul line explanations');
   await firstCode.getByRole('button', { name: 'Fermer' }).click();
+  // S-AJ: « Expliquer les étapes du calcul » — facts marked « vérifié par Sage », the derivation ends on the result
+  await firstCode.getByRole('button', { name: /Plus d’actions/ }).click();
+  await page.getByRole('menuitem', { name: 'Expliquer les étapes du calcul' }).click();
+  const steps = firstCode.getByRole('region', { name: 'Étapes du calcul' });
+  await expect(steps.locator('li.fact')).toHaveCount(4);
+  await expect(steps.locator('.mark.verified')).toHaveCount(3);
+  await expect(steps.locator('.mark.verified').first()).toContainText('vérifié par Sage');
+  await expect(steps.locator('.steps-md ol li')).toHaveCount(4);
+  await expect(steps.locator('.steps-md .katex').first()).toBeVisible();
+  await expect(steps.getByRole('note')).toHaveCount(0);                     // verified: no « sans vérification »
+  await axe(page, 'calcul steps explanation');
+  await page.setViewportSize({ width: 375, height: 800 });
+  await noHorizontalScroll(page, 'calcul steps (phone)');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await steps.getByRole('button', { name: 'Replier les étapes' }).click();
+  await expect(steps.locator('li.fact')).toHaveCount(0);
+  await steps.getByRole('button', { name: 'Insérer dans l’article' }).click();
+  const artDlg = page.getByRole('dialog', { name: 'Insérer dans l’article' });
+  await expect(artDlg.getByLabel('Énoncé')).toHaveValue(/641 \\cdot 6700417/);
+  await artDlg.getByRole('button', { name: '✕' }).click();
+  await steps.getByRole('button', { name: 'Fermer' }).click();
+  // a cell without a successful result has no such entry (the model's pending cell)
+  await page.locator('li.cell.pending').first().getByRole('button', { name: /Plus d’actions/ }).click();
+  await expect(page.getByRole('menuitem', { name: 'Expliquer les étapes du calcul' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   // keyboard: Esc (command mode), B inserts below, D D deletes
   await ask.getByRole('textbox', { name: /Code de la cellule/ }).press('Escape');
   await expect(ask).toBeFocused();

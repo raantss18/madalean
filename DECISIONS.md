@@ -585,3 +585,23 @@
   (11 calls, 0.085 USD in total): plan 7.5–10.4 s (Haiku 0.001 $, Sonnet 0.009–0.015 $, Opus 0.029 $), correction
   2.9 s (0.005 $), final check 3–4 s (0.0002–0.006 $); stable prefix read from the cache on the next call (1 858 of
   2 108 tokens).
+
+## D42 — Calcul: « Expliquer les étapes du calcul », intermediate facts computed by Sage (user request, 2026-11-22, S-AJ)
+- Request: « une explication des étapes de calculs est nécessaire dans Sage » — how the result of a cell is
+  obtained, as a mathematician would do it by hand, ending on the cell's actual result.
+- Decision (docs/CALCUL.md §3.7): a third mode `steps` of the existing « Expliquer » service (`research/explain.py`,
+  fast short-text path of BRAIN.md §15, streamed as `calcul.steps`, cached in memory). Intermediate results are not
+  left to the model: deterministic step probes (`research/steps.py`) keyed by the recognized operation (S-AG intent,
+  else the code's last expression) — factor, integrate, roots, det, solve — compute and check the key quantities in
+  the cell's own kernel (product of irreducible factors == input, F' == f and F(b) − F(a), f(r) == 0 and minimal
+  polynomials, triangular form and det(P)·∏diag, substitution / A·x == b and kernel dimension); the model gets them
+  as facts to use as is, the UI shows each with « vérifié par Sage » / « calculé par Sage ». No probe → the
+  explanation is shown as « Explication sans vérification » with the reason.
+- Safety: the probe is Madalean's fixed program; the cell's code enters it only as a JSON string and runs only if
+  the cell itself may run (user code, or model code approved on this host, D35), from a device allowed to execute,
+  never while the notebook runs. Evaluated in a copy of the kernel's namespace, outside the history (`_`, names and
+  execution count unchanged). The recomputed value must equal the cell's output, else the facts are dropped.
+- Rejected: asking the model to write the verification code (model code would need its own approval each time and
+  could check the wrong thing); a probe for every operation (kept to the five with a clear by-hand derivation; the
+  others get the method, unverified); Sage's own step-by-step (none exists in Sage for these operations); a cache
+  on disk (the answer depends on the model and language; memory is enough for a session).

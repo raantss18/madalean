@@ -49,6 +49,11 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
    proposée) ; « Réécrire » redonne le même code, « Autre version » dans le menu ⋯ de la cellule. Mesuré : 31
    demandes typiques × 2 écritures → 31/31 codes identiques, 29/31 sans modèle, 31/31 exécutées dans Sage. Reste à
    l'essayer après installation (vrais modèles en ligne : modèle attitré non mesuré ici)
+10. ⚠️ « Expliquer les étapes du calcul » (S-AJ, D42) dans le menu ⋯ d'une cellule Sage qui a donné un résultat :
+   les étapes comme on les ferait à la main, jusqu'au résultat de la cellule ; les étapes intermédiaires sont
+   calculées et contrôlées par Sage lui-même (factorisation dans F_125[x], intégrales, racines, déterminant,
+   résolution) et marquées « vérifié par Sage » ; sinon « Explication sans vérification ». Repliable, copiable,
+   « Insérer dans l'article ». Reste à l'essayer après installation avec les vrais modèles en ligne
 
 ### B — Accélération de toute l'application (après A)
 9. ✅ **Mesurer d'abord** (22/11 : docs/PERFORMANCE.md « Proof time baseline », scripts/perf_report.py) : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de

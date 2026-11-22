@@ -226,6 +226,25 @@ class NotebookKernels:
             self.docs.pop(path, None)
         return res
 
+    async def probe(self, path: str, language: str, program: str, *, timeout: float) -> ExecResult:
+        """S-AJ (D42): run one of Madalean's fixed step probes (research/steps.py) in the document's kernel, outside
+        the history (no `_`, no execution count, no outputs recorded in the notebook). The caller holds the
+        document's run lock and checked that the cell may run."""
+        try:
+            kid = await self.ensure(path, language)
+        except KernelError as e:
+            return ExecResult("unavailable", error=f"{e.kind}: {e.detail}"[:1500], language=language,
+                              sandbox=self.bridge.sandbox_kind)
+        self.docs[path]["last"] = time.time()
+        res = await self.bridge.execute(kid, program, timeout=timeout, language=language, store_history=False,
+                                        kill_on_limit=False)
+        if res.status in ("timeout", "output_limit") and not await self.bridge.wait_ready(kid, timeout=15):
+            await self.shutdown(path)
+            res.killed = True
+        elif res.status == "died":
+            self.docs.pop(path, None)
+        return res
+
     async def variables(self, path: str, language: str) -> list | None:
         """Names defined in the running kernel (Madalean's own helper; never starts a kernel)."""
         d = self.docs.get(path)
