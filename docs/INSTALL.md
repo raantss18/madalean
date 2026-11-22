@@ -114,8 +114,11 @@ the pinned version is only re-checked.
 | `deps-state.json` | installed version, path, SHA-256 and *previous* version of each component (rollback) | |
 | `installed-files.txt` | files install.sh created outside the prefix (unit, menu entry) — read by uninstall.sh | |
 
-Outside the prefix: `~/.config/systemd/user/madalean.service`, the menu entry (`madalean.desktop`, through
-`scripts/install_desktop_entry.sh` when the desktop AppImage exists, else a small entry opening the local URL),
+Outside the prefix: `~/.config/systemd/user/madalean.service`, the menu entry **« Madalean Server »**
+(`madalean-server.desktop` + `madalean-server` icons in the user hicolor theme, by `scripts/install_host_app.sh`,
+D50: the host's own desktop app `<prefix>/current/dist/host-app/madalean-server --host`, shipped prebuilt in the server
+archive; without webkit2gtk-4.1 a Chromium-family `--app=` window, else `xdg-open`; it replaces the 2.0.1
+`madalean.desktop` xdg-open entry; the client AppImage is never installed on the host),
 `~/.config/madalean` (settings, projects, devices — kept by uninstall), `~/.cache/madalean`, `~/models` (existing
 models are **reused, never moved**; missing ones are downloaded by `scripts/download_model.sh` with SHA-256).
 

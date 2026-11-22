@@ -4,8 +4,9 @@
 #   ./uninstall.sh [--prefix DIR] [--unit-name NAME] [--cache-dir DIR] [--config-dir DIR] [--yes] [--purge]
 #
 # Removed: the prefix (MADALEAN_HOME: env, components, Lean workspaces of the prefix, TeX bundle, Tailscale node
-# state, Madalean versions), the systemd user unit, the desktop entry (files listed in <prefix>/installed-files.txt),
-# the cache directory. Every process of the unit is stopped first (the whole cgroup).
+# state, Madalean versions), the systemd user unit, the « Madalean Server » menu entry and icons (files listed in
+# <prefix>/installed-files.txt; the app itself is stopped with the other processes of the prefix), the cache directory.
+# Every process of the unit is stopped first (the whole cgroup).
 # Kept unless --purge (asked separately): the config directory (settings, projects, dossiers, devices, keys),
 # ~/models. Never touched: ~/.elan, ~/Documents/Madalean (notebooks), the old Lean AI Station, system packages,
 # the host's tailscaled.
@@ -54,6 +55,14 @@ for p in "${ITEMS[@]}"; do case "$p" in */) ;; *) rm -rf -- "$p" ;; esac; done
 for p in $(printf '%s\n' "${ITEMS[@]}" | grep '/$' | sort -r); do rmdir -- "$p" 2>/dev/null || true; done
 command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload 2>/dev/null
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" 2>/dev/null
+# the « Madalean Server » icons (D50) were in the recorded list: refresh the icon caches so the menu forgets them
+ICONS="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
+if [ -d "$ICONS" ]; then
+  touch "$ICONS" 2>/dev/null
+  command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t -f "$ICONS" 2>/dev/null
+  if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6 >/dev/null 2>&1
+  elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5 >/dev/null 2>&1; fi
+fi
 if [ $PURGE = 1 ]; then
   for p in "$CONFIG_DIR" "$HOME/models"; do
     [ -e "$p" ] || continue

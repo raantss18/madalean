@@ -308,10 +308,12 @@ def health_check(app_dir: Path, version: str, timeout: float = 60) -> None:
 # ---------------------------------------------------------------- manager
 class SelfUpdater:
     def __init__(self, root: Path | None = None, api: str = RELEASES_API, public_key: bytes = PUBLIC_KEY,
-                 current: str = __version__, restart_cmd: list[str] | None = None, manifest: str = MANIFEST_URL):
+                 current: str = __version__, restart_cmd: list[str] | None = None, manifest: str = MANIFEST_URL,
+                 refresh_desktop: bool = True):
         self.root = Path(root or (Path.home() / ".local" / "share" / "madalean"))
         self.api, self.public_key, self.current_version = api, public_key, current
         self.manifest = manifest
+        self.refresh_desktop = refresh_desktop
         self.restart_cmd = restart_cmd if restart_cmd is not None else ["systemctl", "--user", "restart",
                                                                         "madalean.service"]
         self.state_file = self.root / "selfupdate.json"
@@ -411,6 +413,7 @@ class SelfUpdater:
             self.state.update({"previous": prev, "pending_restart": True,
                                "last": {"ok": True, "version": ver, "t": time.time()}})
             self._prune(keep={Path(prev).name if prev else "", ver})
+            self.state["desktop"] = self.refresh_desktop_entry(target)
             self._save()
             return {"version": ver, "dir": str(target), "previous": prev}
         except UpdateError as e:
@@ -422,6 +425,25 @@ class SelfUpdater:
         finally:
             shutil.rmtree(stage, ignore_errors=True)
             self.busy = False
+
+    def refresh_desktop_entry(self, app_dir: Path) -> str:
+        """« Madalean Server » menu entry (D50) after a switch: the entry starts <root>/current/dist/host-app/madalean-server,
+        so the new version's app runs at its next start; this refreshes its icons and launcher choice (and replaces the
+        old xdg-open « Madalean » entry of 2.0.1) with the NEW version's scripts/install_host_app.sh --refresh, which acts
+        only on an entry of this root. Never fails the update: returns the launcher (native | browser | xdg-open), ""
+        when nothing was done, or "error: …"."""
+        script = Path(app_dir) / "scripts" / "install_host_app.sh"
+        if not self.refresh_desktop or not script.is_file():
+            return ""
+        try:
+            r = subprocess.run(["bash", str(script), "--refresh", "--prefix", str(self.root)], stdin=subprocess.DEVNULL,
+                               capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return f"error: {e}"[:300]
+        if r.returncode != 0:
+            return f"error: {(r.stderr or r.stdout).strip()[-300:]}"
+        launcher = [ln.split("=", 1)[1] for ln in r.stdout.splitlines() if ln.startswith("LAUNCHER=")]
+        return launcher[-1] if launcher else ""
 
     def _prune(self, keep: set[str]) -> None:
         for p in self.versions_dir.iterdir() if self.versions_dir.is_dir() else []:

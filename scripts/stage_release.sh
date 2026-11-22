@@ -3,7 +3,8 @@
 # scripts/sign_release.sh DIR and the GitHub release upload. The site never shows a version: it links to
 #   https://github.com/raantss18/madalean/releases/latest/download/<name>
 # so every release must publish exactly these names:
-#   madalean-server.tar.gz        the server (git archive HEAD, web UI build included)       ← host, from source
+#   madalean-server.tar.gz        the server (git archive HEAD, web UI build included, and the prebuilt
+#                                 « Madalean Server » host app dist/host-app/madalean-server, D50) ← host, from source
 #   Madalean-installer.run        graphical installer of the host (scripts/build_installer.sh) ← host, recommended
 #   Madalean-x86_64.AppImage      desktop client (scripts/build_appimage.sh)                  ← client, Linux PC
 #   Madalean-android.apk          Android client, universal (scripts/build_apk.sh)            ← client, phone/tablet
@@ -11,11 +12,16 @@
 # (The signed channel stable.json carries the version; updaters never rely on file names.)
 #
 #   scripts/stage_release.sh [DIR]     default dist/release; missing client builds are reported, not fatal
+#   MADALEAN_SKIP_HOST_APP_BUILD=1     reuse dist/host-app as it is (otherwise rebuilt with scripts/build_host_app.sh)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="${1:-$ROOT/dist/release}"
 mkdir -p "$DIR"
-"$ROOT/scripts/build_installer.sh" --out "$DIR"          # also writes madalean-server.tar.gz
+# « Madalean Server » (D50): built here so the server archive carries it — users never need cargo.
+if [ "${MADALEAN_SKIP_HOST_APP_BUILD:-0}" != 1 ]; then
+  "$ROOT/scripts/build_host_app.sh" || echo "warning: host app not built: the archive will fall back to a browser window" >&2
+fi
+"$ROOT/scripts/build_installer.sh" --out "$DIR"          # also writes madalean-server.tar.gz (+ the host app)
 APPIMG="$(ls -t "$ROOT"/shells/desktop/dist/Madalean-*x86_64.AppImage 2>/dev/null | grep -v '/Madalean-x86_64.AppImage$' | head -1 || true)"
 if [ -n "$APPIMG" ]; then cp "$APPIMG" "$DIR/Madalean-x86_64.AppImage"; else echo "note: no AppImage (scripts/build_appimage.sh)"; fi
 APKS="$ROOT/shells/android/dist"

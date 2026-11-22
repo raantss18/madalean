@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.2 — à venir
+
+**« Madalean Server », l'application de l'ordinateur hôte**
+- Sur l'ordinateur qui fait tourner Madalean, le menu des applications propose maintenant **une seule** entrée,
+  « Madalean Server » : Madalean dans sa propre fenêtre (plus besoin du navigateur), avec un menu « Serveur » pour
+  voir l'état du serveur, le démarrer, l'arrêter, le redémarrer, lire ses journaux ou l'ouvrir dans le navigateur, et
+  une icône près de l'horloge (KDE ; GNOME avec l'extension AppIndicator). Si le service n'est pas installé, la
+  fenêtre le dit et donne la commande pour le réinstaller.
+- Son icône est celle de Madalean avec un petit badge serveur dans le coin ; l'application « Madalean » des autres
+  ordinateurs (AppImage), du téléphone (APK) et du navigateur garde l'icône sans badge.
+- Installée par `install.sh`, l'installateur graphique et la mise à jour automatique, déjà construite (rien à
+  compiler). Sans la bibliothèque système webkit2gtk-4.1, l'entrée ouvre une fenêtre de Chromium (ou Chrome, Brave,
+  Edge, Vivaldi), sinon le navigateur ; l'installateur le dit. Elle remplace l'ancienne entrée « Madalean » qui
+  ouvrait le navigateur avec une icône générique, et l'icône s'affiche tout de suite dans le menu.
+
 ## 2.0.1 — 2026-11-22
 
 **Interface repensée**

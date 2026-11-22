@@ -49,3 +49,20 @@ input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid 
 .about-list dt { color: var(--muted); font-weight: 600; }
 .about-list dd { margin: 0; overflow-wrap: anywhere; }
 .about-list a { color: var(--ink); display: inline-block; padding: 2px 0; }
+/* Server panel of « Madalean Server » (host.html, D50) */
+.state-row { display: flex; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.state-row b { display: block; font-size: 1.05rem; }
+.state-row small { display: block; overflow-wrap: anywhere; margin: 2px 0 0; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+.dot.running { background: var(--ok); }
+.dot.starting, .dot.stopping, .dot.checking { background: var(--accent); }
+.dot.failed, .dot.not_installed { background: var(--err); }
+.actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.actions-row .btn[disabled] { opacity: .45; cursor: not-allowed; }
+.actions-row .btn.primary-s { font-weight: 600; }
+.fix pre, .logs pre { font: 12.5px/1.45 "DejaVu Sans Mono", ui-monospace, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
+.logs pre { max-height: 46vh; white-space: pre; overflow-wrap: normal; }
+.logs-head { align-items: center; }
+.logs-head h2 { margin: 18px 0 6px; }
+#hint { margin-top: 8px; }
+.card.wide { max-width: 760px; }

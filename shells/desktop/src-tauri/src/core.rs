@@ -199,6 +199,9 @@ pub struct Hello {
     pub local: bool,
     #[serde(default)]
     pub host_name: String,
+    /// The host's interface language ("fr" / "en"); the host app follows it until the user picks one.
+    #[serde(default)]
+    pub lang: String,
 }
 
 /// Failures the connect screen knows how to explain (codes shared with the UI's message table).

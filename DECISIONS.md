@@ -908,3 +908,64 @@
   essayé ? », reflection), conductor instruction (dropped when the run starts), Lean correction (its field reopens),
   notebook assistant, new conjecture (statement, motivation). Sending empties the field, which removes the draft.
   Rejected: server-side drafts (unsent text is not project data, and would sync half-typed text to other devices).
+
+## D50 — « Madalean Server »: the host's own desktop app (host mode of the Tauri shell), its icon with a server badge (user request, 2026-11-22, S-AR)
+- **Request** (French, summarised): « the app icons did not change and I have three Madalean in my apps; isn't there a
+  Madalean Server, not in the browser but as a desktop app? Design it, with a small difference on its icon from the
+  AppImages and APK. » Cause of the icon: install.sh ≤ 2.0.1 wrote `madalean.desktop` with `Exec=xdg-open
+  http://127.0.0.1:11500/` and `Icon=applications-science` (a generic theme icon); the duplicates were AppImageLauncher
+  copies (removed by the integrator).
+- **Same binary, host mode** (`--host`, or the program called `madalean-server`): the existing Tauri shell already
+  opened the trusted local listener directly; host mode adds the control panel (`ui/host.html`), a « Serveur » menu bar,
+  a tray icon, a poller (`/api/hello` + `systemctl --user show`, 2 s), own GTK program name / WM class
+  (`madalean-server`), own Tauri identifier (`mg.madalean.server`: own single-instance name and data dir, so the client
+  AppImage may run beside it), server window icon, no AppImage updater. Rejected: a second Cargo `[[bin]]` (tauri's
+  bundler would put both binaries into the AppImage, +7 MB), a new stack (Python + GTK bindings / Qt: not in the
+  prefix's env, a second UI toolkit), Electron (≈ 150 MB), a browser `--app` window only (no service control, no own
+  icon in the task bar on every desktop — kept as the fallback).
+- **Service control** through `systemctl --user` on `<unit>.service` only (start / stop / restart / show; journal =
+  `journalctl --user -u`), never sudo; the unit name is validated; actions run off the UI thread with a 40 s timeout;
+  the failing command's stderr is shown. Buttons are enabled only when they make sense; a server started by hand
+  outside the unit is shown but not stopped. The window follows the server: web UI while it answers, panel otherwise,
+  back to the web UI by itself when it returns unless the user pressed « Arrêter ». « Service non installé » gives the
+  exact `bash '<prefix>/current/install.sh'` fix.
+- **Tray icon only when an AppIndicator library is installed** (`libayatana-appindicator3.so.1` /
+  `libappindicator3.so.1` in the usual lib dirs): libappindicator-sys loads it with dlopen and aborts the program
+  otherwise. KDE shows it natively; GNOME needs the AppIndicator extension; the menu bar is always there. Closing the
+  window quits the app (the server is a service and keeps running) — no hidden background process.
+- **Shipping without cargo on the user's machine**: `scripts/build_host_app.sh` (release machine) →
+  `dist/host-app/madalean-server` (+ .sha256, git-ignored, like the AppImage) → `build_installer.sh` appends it to the
+  `git archive` tar as `madalean/dist/host-app/` (owner 0, commit date, `gzip -n`: byte-identical rebuilds; +2.7 MB
+  compressed, 6.9 MB on disk) → `install.sh` copies `dist/host-app` and `shells/branding` into the version →
+  `scripts/install_host_app.sh`. Not committed: a 7 MB binary per release in git history (madalean-net is committed
+  because its build is pinned and reproducible from Go sources; a Tauri build is not bit-reproducible across hosts).
+  The self-update extracts the same archive, and the entry starts `<prefix>/current/dist/host-app/madalean-server`, so
+  the app follows the server version; after the switch `selfupdate.py` runs the NEW version's `install_host_app.sh
+  --refresh` (icons, launcher choice; only for an entry of that prefix or the recorded 2.0.1 entry; never fails the
+  update).
+- **Fallbacks**, decided at install time: native when `ldd` resolves every library of the binary (webkit2gtk-4.1,
+  GTK 3, libsoup3); else a Chromium-family browser in `--app=` mode (own window, `--class=madalean-server`); else
+  `xdg-open`. The installer summary says which and why (`LAUNCHER=` line; `install.sh --dry-run` prints
+  `DRY-RUN hostapp=`). Rejected: bundling WebKitGTK (that is the AppImage: 80+ MB, and the host already has it in the
+  common case); Firefox `--kiosk` (full screen, no window controls).
+- **One entry on the host**: `madalean-server.desktop` « Madalean Server » (`Icon=madalean-server`,
+  `StartupWMClass=madalean-server`, `X-Madalean-Prefix/Port/Unit/Launcher`), icons in the user hicolor theme (svg +
+  16…512 px), caches refreshed (`update-desktop-database`, `gtk-update-icon-cache -t -f`, `kbuildsycoca6/5`) so the
+  menu shows the icon at once. The old xdg-open entry is replaced; the client AppImage entry (`madalean.desktop`) is
+  never installed on the host by install.sh any more (2.0.1 did when a built AppImage sat in the source tree) — a host
+  that wants it runs `scripts/install_desktop_entry.sh`. Uninstall removes the recorded files and refreshes the
+  caches. The graphical installer's « Ouvrir Madalean » runs the entry's Exec.
+- **Icon** (docs/BRAND.md « Client and server icons »): the client icon unchanged (AppImage, APK, PWA); the server
+  icon = the same navy square, ∃ and swoosh scaled × 0.84 towards the top-left, plus a white disc with a navy ring in the
+  bottom-right corner holding two navy rack units (orange LEDs from 48 px; ≤ 32 px variant: bigger badge, thicker
+  units, no LEDs). A white dot at 16 px, a readable server from 32 px, on light and dark panels. Rejected: a recoloured
+  swoosh or ∃ (too subtle under 32 px), an orange badge (merges with the swoosh), a letter « S » (language-bound,
+  illegible at 16 px). All generated by `build_brand.py`, which now also writes every Tauri PNG as RGBA (the 32×32
+  palette PNG made `cargo build` fail: « icon … is not RGBA »).
+- **Bridge**: `madaleanShell.kind = "host"` without `changeServer` (no « Changer de serveur » in the web UI of the
+  host app); Ctrl+Shift+K opens the panel. No web UI change was needed.
+- **Verified**: cargo test (27, +10), `shells/desktop/tests/host_e2e.sh` 12/12 in a private kwin session with a demo
+  server and a fake systemctl, a read-only run against the live host (real `systemctl --user show`: « En marche 2.0.1 »,
+  web UI, panel + real journal; screenshots), `tests/test_host_app_install.py` (fake PATH, temporary HOME). Not
+  verified: the menu, task-bar icon and tray in the user's real KDE session; Start/Stop on the real service (not
+  touched on purpose); GNOME; another distribution's webkit2gtk.

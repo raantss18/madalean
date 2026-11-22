@@ -18,7 +18,7 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-opener = "2"
@@ -31,6 +31,8 @@ gethostname = "0.5"
 ed25519-compact = { version = "2", default-features = false, features = ["std"] }
 sha2 = "0.10"
 base64 = "0.22"
+# Host mode (« Madalean Server »): program name / WM class set before GTK starts. Same version as tauri's own.
+gtk = "0.18"
 
 [dev-dependencies]
 tempfile = "3"

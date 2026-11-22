@@ -20,6 +20,8 @@ shells/android/android/local.properties
 *.jks
 *.keystore
 dist/madalean-net/
+# « Madalean Server » binary (scripts/build_host_app.sh): shipped inside the release archive, never committed
+dist/host-app/
 
 # signing material: never committed (copies: ~/Documents/madalean-cles, NAS Cles-Signature-Releases/madalean)
 release-keys/

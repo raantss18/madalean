@@ -7,6 +7,8 @@
 //! by navigating to `madalean://shell/…` URLs, which the navigation handler intercepts.
 
 pub mod core;
+pub mod host;
+mod hostapp;
 pub mod net;
 pub mod store;
 pub mod update;
@@ -47,6 +49,8 @@ pub struct Shell {
     test_log: Option<PathBuf>,
     upd: Mutex<UpdState>,
     unfocused_since: Mutex<Option<Instant>>,
+    /// Host mode (« Madalean Server », D50): the host's own app with service controls. None = the client shell.
+    host: Option<Arc<hostapp::HostCtx>>,
 }
 
 /// What the updater is doing, shown on the connect screen.
@@ -111,6 +115,14 @@ fn migrate_legacy_servers(shell: &Shell) {
     }
 }
 
+fn base_title(shell: &Shell) -> &'static str {
+    if shell.host.is_some() {
+        host::HOST_TITLE
+    } else {
+        "Madalean"
+    }
+}
+
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
 }
@@ -124,7 +136,7 @@ fn show_connect(app: &AppHandle, reason: &str) {
     if let (Some(w), Some(mut u)) = (main_window(app), base) {
         u.set_fragment(Some(&format!("reason={reason}")));
         let _ = w.navigate(u);
-        let _ = w.set_title("Madalean");
+        let _ = w.set_title(base_title(&shell));
     }
 }
 
@@ -175,7 +187,11 @@ async fn open_origin(app: &AppHandle, origin: Url) -> Result<(), ShellError> {
     *shell.last_check.lock().unwrap() = Instant::now();
     shell.log("open", serde_json::json!({ "origin": key, "local": hello.local, "host": hello.host_name }));
     let w = main_window(app).ok_or(ShellError::Internal { detail: "no window".into() })?;
-    let title = if hello.host_name.is_empty() { "Madalean".to_string() } else { format!("Madalean — {}", hello.host_name) };
+    let title = if shell.host.is_some() || hello.host_name.is_empty() {
+        base_title(&shell).to_string()
+    } else {
+        format!("Madalean — {}", hello.host_name)
+    };
     let _ = w.set_title(&title);
     w.navigate(target).map_err(|e| ShellError::Internal { detail: e.to_string() })
 }
@@ -558,10 +574,12 @@ async fn forget(app: AppHandle, origin: String) -> Result<(), ShellError> {
 }
 
 #[tauri::command]
-fn set_lang(shell: State<'_, Shared>, lang: String) {
+fn set_lang(app: AppHandle, lang: String) {
+    let shell = app.state::<Shared>();
     let lang = if lang == "en" { "en" } else { "fr" };
     shell.settings.lock().unwrap().lang = Some(lang.into());
     shell.save_settings();
+    hostapp::refresh_labels(&app);
 }
 
 // ---------------------------------------------------------------- navigation policy
@@ -584,6 +602,7 @@ fn handle_deep_link(app: &AppHandle, link: &str) {
 /// `madalean://shell/<action>` requests from the bridge in remote pages.
 fn handle_shell_url(app: &AppHandle, url: &Url) {
     match url.path().trim_start_matches('/') {
+        "change-server" if app.state::<Shared>().host.is_some() => hostapp::on_menu(app, "panel"),
         "change-server" => show_connect(app, "manual"),
         "check" => recheck(app.clone(), true),
         "restart" => restart(app),
@@ -729,10 +748,34 @@ fn toast_js(text: &str, action: Option<(&str, String)>) -> String {
 
 // ---------------------------------------------------------------- app
 
+/// The bridge script for the page's shell kind: "desktop" (client: « Changer de serveur ») or "host" (« Madalean
+/// Server »: no server to change; Ctrl+Shift+K opens the server panel).
+fn bridge_js(host: bool) -> String {
+    BRIDGE_JS
+        .replace("__MADALEAN_SHELL_KIND__", if host { "host" } else { "desktop" })
+        .replace("__MADALEAN_SHELL_VERSION__", env!("CARGO_PKG_VERSION"))
+}
+
 pub fn run() {
+    let args: Vec<String> = std::env::args().collect();
+    let host_args = host::parse_args(&args);
+    let is_host = host_args.is_some();
+    let mut context = tauri::generate_context!();
+    if is_host {
+        // Own program name (WM_CLASS / Wayland app_id → madalean-server.desktop and its icon), own identifier (own
+        // single-instance name and data directory: the client AppImage may run on the same machine), own icon.
+        gtk::glib::set_prgname(Some(host::HOST_PRGNAME));
+        gtk::glib::set_application_name(host::HOST_TITLE);
+        context.config_mut().identifier = host::HOST_IDENTIFIER.into();
+        context.config_mut().product_name = Some(host::HOST_TITLE.into());
+        if let Ok(icon) = tauri::image::Image::from_bytes(hostapp::SERVER_ICON_128) {
+            context.set_default_window_icon(Some(icon));
+        }
+    }
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            if let Some(link) = argv.iter().find(|a| a.to_lowercase().starts_with("madalean://")) {
+        .plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
+            let link = argv.iter().find(|a| a.to_lowercase().starts_with("madalean://"));
+            if let (Some(link), false) = (link, is_host) {
                 handle_deep_link(app, link);
             } else if let Some(w) = main_window(app) {
                 let _ = w.unminimize();
@@ -759,14 +802,27 @@ pub fn run() {
             update_status,
             set_auto_update,
             check_updates_now,
-            restart_now
+            restart_now,
+            hostapp::host_status,
+            hostapp::host_action,
+            hostapp::host_logs,
+            hostapp::host_open
         ])
-        .setup(|app| {
+        .on_menu_event(|app, ev| {
+            // Window menu (host mode). Tray items ("tray_…") have their own handler.
+            if !ev.id().as_ref().starts_with("tray_") {
+                hostapp::on_menu(app, ev.id().as_ref());
+            }
+        })
+        .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             let local_url = std::env::var("MADALEAN_LOCAL_URL")
                 .ok()
                 .and_then(|u| normalise_address(&u).ok())
-                .unwrap_or_else(|| Url::parse(DEFAULT_LOCAL_URL).expect("static url"));
+                .unwrap_or_else(|| match &host_args {
+                    Some(h) => Url::parse(&format!("http://127.0.0.1:{}", h.port)).expect("loopback url"),
+                    None => Url::parse(DEFAULT_LOCAL_URL).expect("static url"),
+                });
             let settings_path = data_dir.join("settings.json");
             let shell: Shared = Arc::new(Shell {
                 settings: Mutex::new(Settings::load(&settings_path)),
@@ -774,9 +830,11 @@ pub fn run() {
                 tokens: AutoStore::new(data_dir.join("tokens.json")),
                 current: Mutex::new(None),
                 last_check: Mutex::new(Instant::now()),
-                pending_link: Mutex::new(
-                    std::env::args().skip(1).find(|a| a.to_lowercase().starts_with("madalean://")).and_then(|a| parse_pair_link(&a)),
-                ),
+                pending_link: Mutex::new(if is_host {
+                    None
+                } else {
+                    std::env::args().skip(1).find(|a| a.to_lowercase().starts_with("madalean://")).and_then(|a| parse_pair_link(&a))
+                }),
                 app_url: Mutex::new(None),
                 local_url,
                 reauth_count: Mutex::new((Instant::now(), 0)),
@@ -784,11 +842,13 @@ pub fn run() {
                 test_log: std::env::var_os("MADALEAN_SHELL_TEST_LOG").map(PathBuf::from),
                 upd: Mutex::new(UpdState { state: "idle".into(), ..Default::default() }),
                 unfocused_since: Mutex::new(None),
+                host: host_args.clone().map(|a| Arc::new(hostapp::HostCtx::new(a))),
             });
             shell.log("start", serde_json::json!({
                 "token_backend": shell.tokens.backend(),
                 "version": env!("CARGO_PKG_VERSION"),
                 "update_key": update::embedded_pubkey().is_some(),
+                "host_mode": is_host,
             }));
             migrate_legacy_servers(&shell);
             app.manage(shell.clone());
@@ -797,7 +857,12 @@ pub fn run() {
             let h_new = app.handle().clone();
             let h_dl = app.handle().clone();
             let h_load = app.handle().clone();
-            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()));
+            // Host mode starts on the server panel (it moves to the web UI as soon as the server answers).
+            let start_page = if is_host { "host.html" } else { "index.html" };
+            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App(start_page.into()));
+            if is_host {
+                builder = builder.menu(hostapp::build_menu(app.handle())?);
+            }
             // Test hook (MADALEAN_SHELL_TEST_CLICK=id1,id2…): click elements of the server's start page, 2 s apart.
             if let Ok(ids) = std::env::var("MADALEAN_SHELL_TEST_CLICK") {
                 let ids: Vec<&str> = ids.split(',').filter(|s| !s.is_empty()).collect();
@@ -822,10 +887,10 @@ pub fn run() {
                 );
             }
             let window = builder
-                .title("Madalean")
+                .title(base_title(&shell))
                 .inner_size(1280.0, 840.0)
                 .min_inner_size(420.0, 520.0)
-                .initialization_script(BRIDGE_JS)
+                .initialization_script(bridge_js(is_host))
                 .on_navigation(move |url| on_navigate(&h_nav, url))
                 .on_new_window(move |url, _features| {
                     // target=_blank / window.open: same server → this window; anything else → browser.
@@ -906,9 +971,29 @@ pub fn run() {
                     }
                 }
             });
-            start_update_worker(app.handle().clone());
+            if is_host {
+                // The host app is updated with the server (self-update / install.sh), not by the AppImage updater.
+                hostapp::build_tray(app.handle());
+                hostapp::start_poller(app.handle().clone());
+            } else {
+                start_update_worker(app.handle().clone());
+            }
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running Madalean");
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn bridge_kind_and_version_filled_in() {
+        let client = super::bridge_js(false);
+        let host = super::bridge_js(true);
+        assert!(!client.contains("__MADALEAN_SHELL") && !host.contains("__MADALEAN_SHELL"));
+        assert!(client.contains("var kind = 'desktop';") && host.contains("var kind = 'host';"));
+        assert!(host.contains(&format!("version: '{}'", env!("CARGO_PKG_VERSION"))));
+        // changeServer only for the client (the web UI shows « Changer de serveur » when it exists)
+        assert!(client.contains("if (kind === 'desktop') bridge.changeServer"));
+    }
 }
