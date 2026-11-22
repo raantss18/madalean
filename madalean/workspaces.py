@@ -15,6 +15,9 @@ from .i18n import _
 
 SCAN_ROOTS = [Path.home() / "GitHub", Path.home() / "Documents", Path.home() / "lean", Path.home() / "Lean",
               Path.home() / "Projects", Path.home() / "projets"]
+# a folder holding this file (and everything below it) is never scanned for user Lean projects: the source checkout
+# of Madalean keeps its own workspaces under ~/GitHub/Madalean/, which must not show up as « projets existants »
+NOSCAN_MARKER = ".madalean-noscan"
 
 
 @dataclass
@@ -143,6 +146,9 @@ def discover_user_workspaces(max_depth: int = 5) -> list[Workspace]:
         base_depth = len(root.parts)
         for dirpath, dirnames, filenames in os.walk(root):
             d = Path(dirpath)
+            if NOSCAN_MARKER in filenames:       # e.g. Madalean's own source checkout and its test copies
+                dirnames[:] = []
+                continue
             if len(d.parts) - base_depth >= max_depth:
                 dirnames[:] = []
             dirnames[:] = [n for n in dirnames if not n.startswith(".") and n not in ("node_modules", "build")]
