@@ -7,14 +7,14 @@ test('parallel dossiers are visible at a glance and each can be cancelled', asyn
   for (const p of ['Pour tout entier n, n^2 + n est pair.', 'La somme de deux entiers pairs est paire.', 'Pour tout réel x, x^2 ≥ 0.']) {
     ids.push((await api<{ dossier: { id: string } }>('POST', '/dossiers', { problem: p, title: `Parallèle ${ids.length + 1}` })).dossier.id);
   }
-  await page.getByRole('button', { name: /Activité : \d+ en cours/ }).click();
-  const panel = page.locator('#activity-drawer');
+  // S-AK: the status button counts the running jobs; its panel lists them with « Arrêter » (it replaced the drawer)
+  await page.getByRole('button', { name: /\d+ en cours/ }).click();
+  const panel = page.locator('#status-panel');
   await expect(panel.getByRole('link', { name: /Parallèle/ })).toHaveCount(3, { timeout: 10_000 });
-  await expect(panel.getByText('Carte graphique')).toBeVisible();
-  // Cancel the second one from the activity centre.
+  await expect(panel.getByText(/Carte graphique \d\/\d/)).toBeVisible();
+  // Cancel the second one from the status panel.
   await panel.getByRole('button', { name: 'Arrêter « Parallèle 2 »' }).click();
   await expect.poll(async () => (await api<{ dossier: { status: string } }>('GET', `/dossiers/${ids[1]}`)).dossier.status, { timeout: 15_000 }).toMatch(/stopped|proved|draft/);
-  // The list in the rail shows each dossier with its own live line.
   for (const id of [ids[0], ids[2]]) await api('POST', `/dossiers/${id}/stop`, {});
 });
 

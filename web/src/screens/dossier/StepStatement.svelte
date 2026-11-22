@@ -6,24 +6,35 @@
   import CodeEditor from '../../components/CodeEditor.svelte';
   import Md from '../../components/Md.svelte';
   import StreamView from '../../components/StreamView.svelte';
-  import { patch, run } from './actions';
+  import { run } from './actions';
+  import { onDestroy, untrack } from 'svelte';
+  import { api } from '../../lib/api/client';
+  import { app } from '../../lib/store/app.svelte';
+  import { Autosave } from '../../lib/ui/autosave.svelte';
+  import SaveState from '../../components/SaveState.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
   import { navigate } from '../../lib/router.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
   let editing = $state(false);
   let text = $state('');
-  let saving = $state(false);
   const understoodEvent = $derived([...d.events].reverse().find((e) => e.kind === 'understood'));
   const translating = $derived(job && ['understand', 'route'].includes(job.stage));
+  // S-AK: the statement is saved automatically while it is edited (no « Enregistrer » button any more).
+  const saver = new Autosave(async () => {
+    const r = await api.patchDossier(d.id, { problem: text });
+    app.m.full[d.id] = r.dossier;
+  });
+  onDestroy(() => saver.destroy());
 
   function startEdit() { text = d.problem; editing = true; }
-  async function save(rerun: boolean) {
-    saving = true;
-    const ok = await patch(d.id, { problem: text });
-    saving = false;
-    if (!ok) return;
+  $effect(() => { if (editing && text !== d.problem) untrack(() => saver.touch()); });
+  async function done() { await saver.flush(); editing = false; }
+  async function retranslate() {
+    if (!text.trim()) return;
+    if (!(await saver.flush()) && saver.status !== 'saved') return;
     editing = false;
-    if (rerun && (await run(d.id, ['understand', 'statement']))) navigate(`/d/${encodeURIComponent(d.id)}/lean`);
+    if (await run(d.id, ['understand', 'statement'])) navigate(`/d/${encodeURIComponent(d.id)}/lean`);
   }
 </script>
 
@@ -33,13 +44,14 @@
       {#if !editing}<button class="btn small" onclick={startEdit} disabled={Boolean(job)}>{t('common.edit')}</button>{/if}
     </div>
     {#if editing}
-      <CodeEditor bind:value={text} language="natural" label={t('enonce.problem')} minLines={5} onSubmit={() => save(true)} />
+      <CodeEditor bind:value={text} language="natural" label={t('enonce.problem')} minLines={5} onSubmit={retranslate} describedby="enonce-enter" />
+      <EnterHint id="enonce-enter" />
       <div class="row" style="margin-top: var(--s-3)">
-        <button class="btn primary" onclick={() => save(true)} disabled={saving || !text.trim()}>{t('enonce.saveRetranslate')}</button>
-        <button class="btn" onclick={() => save(false)} disabled={saving}>{t('enonce.saveOnly')}</button>
-        <button class="btn quiet" onclick={() => (editing = false)}>{t('common.cancel')}</button>
+        <button class="btn primary" onclick={retranslate} disabled={!text.trim() || saver.status === 'saving'}>{t('enonce.retranslate')}</button>
+        <button class="btn" onclick={done}>{t('enonce.done')}</button>
+        <SaveState state={saver} />
       </div>
-      <p class="hint">{t('enonce.editHint')}</p>
+      <p class="hint">{t('enonce.autoHint')}</p>
     {:else if d.problem}
       <div class="theorem"><span class="th-head">{t('home.statementWord')}. </span><Md src={d.problem} cls="th-body" /></div>
     {:else}

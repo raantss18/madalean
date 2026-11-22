@@ -3,10 +3,11 @@ import { open, api, axe } from './util';
 
 test.use({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });
 
-test('phone layout: bottom navigation, no horizontal scroll, steps reachable, touch targets', async ({ page }) => {
+test('phone layout: no bottom bar, no horizontal scroll, steps reachable, touch targets', async ({ page }) => {
   await open(page, '/', { mode: 'learn' });
-  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-  await expect(nav).toBeVisible();
+  // S-AK: the logo menu and the project bar replace the bottom navigation
+  await expect(page.locator('.bottomnav')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Sections du projet' })).toBeVisible();
   for (const path of ['/', '/activite', '/bibliotheque', '/reglages']) {
     await page.goto(process.env['MADALEAN_URL'] + path);
     await page.waitForTimeout(300);
@@ -21,13 +22,16 @@ test('phone layout: bottom navigation, no horizontal scroll, steps reachable, to
   await page.locator('.cm-content').first().getByText('theorem').first().click();
   await expect(page.getByText(/Déclare un théorème/)).toBeVisible();
   await axe(page, 'phone lean step');
-  // Touch targets of the bottom navigation and the step tabs are ≥ 44 px.
-  for (const el of await page.locator('.bottomnav a, [role=tab]').all()) {
+  // Touch targets of the top bar, the project bar and the step tabs are ≥ 44 px.
+  for (const el of await page.locator('.topbar button, #project-bar a, [role=tab]').all()) {
     const b = (await el.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(44);
     expect(b.width).toBeGreaterThanOrEqual(44);
   }
-  // The dossier drawer opens from the menu button and closes on pick.
-  await page.getByRole('button', { name: 'Dossiers' }).click();
-  await expect(page.locator('#rail')).toBeVisible();
+  // The dossiers are one tap away in the context switcher; picking one closes it.
+  await page.locator('#context-switcher').click();
+  const panel = page.getByRole('dialog', { name: 'Projets et dossiers' });
+  await expect(panel).toBeVisible();
+  await panel.locator('a.item').first().click();
+  await expect(panel).toBeHidden();
 });

@@ -6,7 +6,8 @@
   import { t, tk } from '../../lib/i18n/index.svelte';
   import { phaseOf, modelLabel, jobModel, providerName, sideStages } from '../../lib/status';
   import { prefs } from '../../lib/prefs.svelte';
-  import { ApiError } from '../../lib/api/client';
+  import { ApiError, api } from '../../lib/api/client';
+  import InlineTitle from '../../components/InlineTitle.svelte';
   import StatusMark from '../../components/StatusMark.svelte';
   import Icon from '../../components/Icon.svelte';
   import StepStatement from './StepStatement.svelte';
@@ -92,7 +93,7 @@
       {#if parent}<p class="crumb small"><a href="/d/{encodeURIComponent(parent.id)}">{parent.title}</a> › {t('dossier.lemma')}</p>{/if}
       <div class="row title-row">
         <StatusMark {phase} size={18} />
-        <h1>{d.title || d.theorem}</h1>
+        <InlineTitle id="dossier-title" value={d.title || d.theorem} label={t('dossier.titleEdit')} save={async (v) => { const r = await api.patchDossier(d.id, { title: v }); app.m.full[d.id] = r.dossier; const s = app.m.dossiers[d.id]; if (s) s.title = r.dossier.title; }} />
       </div>
       <div class="row meta small">
         <span class="phase-txt">{tk(`phase.${phase}`, phase)}{#if job}&nbsp;— {tk(`stage.${job.stage}`, t('stage.starting'))}{#if sideStages(job).length} ({t('stage.alsoRunning', { list: sideStages(job).map((s) => tk(`stage.${s}`, s).toLowerCase()).join(', ') })}){/if}{#if job.waiting} · <span class="wait">{tk(`waiting.${job.waiting}`, '')}</span>{/if}{/if}</span>
@@ -138,7 +139,6 @@
   .dossier { max-width: 1500px; }
   .crumb { margin: 0 0 4px; color: var(--text-2); }
   .title-row { flex-wrap: nowrap; align-items: baseline; gap: 10px; }
-  .title-row h1 { margin: 0; overflow-wrap: anywhere; }
   .meta { margin: 6px 0 var(--s-4); color: var(--text-2); }
   .wait { color: var(--running); font-weight: 600; }
   .theorem-name { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

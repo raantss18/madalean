@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from './EnterHint.svelte';
+  import { enterSubmit } from '../lib/ui/enter';
   // « Consigne de recherche »: a source + an instruction in your words → Madalean plans bounded steps with the
   // existing tools (blueprint, Lean, Calcul, conjectures, literature) and PROPOSES changes; you accept each one in
   // Article → Suggestions. The plan is shown before anything runs; every step goes to the research journal (a note).
@@ -60,7 +62,8 @@
     <div class="field"><label for="cs-src">{t('consigne.source')}</label>
       <select id="cs-src" class="input" bind:value={sourceId}>{#each sources as s (s.id)}<option value={s.id}>@{s.key} — {s.title}</option>{/each}</select></div>
     <div class="field"><label for="cs-txt">{t('consigne.instruction')}</label>
-      <textarea id="cs-txt" class="input" rows="3" bind:value={instruction} placeholder={t('consigne.placeholder')} aria-describedby="cs-hint"></textarea>
+      <textarea id="cs-txt" class="input" rows="3" bind:value={instruction} use:enterSubmit={() => { if (!busy && instruction.trim() && sourceId) void plan(); }} placeholder={t('consigne.placeholder')} aria-describedby="cs-hint cs-e"></textarea>
+      <EnterHint id="cs-e" />
       <p class="hint" id="cs-hint">{t('consigne.understands')}</p></div>
     <details class="lim"><summary class="small">{t('consigne.limits')}</summary>
       <div class="row">

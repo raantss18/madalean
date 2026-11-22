@@ -605,3 +605,45 @@
   could check the wrong thing); a probe for every operation (kept to the five with a clear by-hand derivation; the
   others get the method, unverified); Sage's own step-by-step (none exists in Sage for these operations); a cache
   on disk (the answer depends on the model and language; memory is enough for a session).
+
+## D43 — One top bar: the logo is the menu, « Projet › Dossier » switcher, status panel; Enter sends; outside click closes; autosave everywhere (user request, 2026-11-22, S-AK)
+- Request: « le logo est à la fois le menu déroulant et le retour à l'accueil ; les boutons du dessous ne sont pas
+  nécessaires ; menu déroulant sur le nom de projet ou dossier, en texte complet ; le nuage de modèle affiche les
+  ressources matérielles et les tokens ; simple mais complet, sans redondance ; Entrée pour lancer, Maj+Entrée pour
+  aller à la ligne ; un volet se ferme en cliquant ailleurs ; enregistrement automatique de chaque modification ».
+- Audit first (docs/UI.md §14.1, 20 findings): the same destinations were reachable from up to four places (☰, rail,
+  rail bottom links, phone bottom bar, top bar), the mode switch and Réglages were duplicated, the project select
+  was duplicated and truncated, the activity drawer repeated the Activité screen, the dossier list hid behind ☰
+  below 1024 px, the « Qui reçoit quoi » pill was a cut sentence.
+- Decision — **one top bar** `[logo ▾] [Projet › Dossier ▾] … [Chercher] [état]` + a **project bar** of the
+  project's sections on project screens; no rail, no drawer, no bottom bar. The **logo menu** holds every other
+  destination (Accueil first; Activité, Bibliothèque, Glossaire, Carnet, Aide, Réglages; Apprendre / Recherche;
+  the bar toggle) and shows the project's sections only when the bar is not on screen. A second click on the logo
+  while the menu is open goes home (the user's « à la fois menu et retour à l'accueil ») — a single click must open
+  the menu, since home is also its first, pre-focused entry. The **context switcher** is the only project / dossier
+  chooser: full names (two lines, tooltip), projects beside the highlighted project's dossiers (search, status,
+  lemmas). The **status button** merges the privacy pill and the activity drawer: mode and model per running job,
+  CPU / RAM / GPU / VRAM, tokens and cost (this request, today, this month), running jobs with Stop, links.
+  Rejected: keeping the rail on desktop (it duplicated the bar and the switcher, and forced a different model on
+  tablets); a hamburger next to the logo (two buttons for one menu); a separate dossier crumb (two switchers).
+- **Tokens of every call** (`brain/usage.py`): the provider clients (and the demo's scripted brains) record tokens
+  per day / provider (persisted, `model-usage.json`, 62 days) and per request (`slots.CURRENT_JOB`, the 200 most
+  recent, in memory); USD comes from the spending ledger for paid calls (spend.py). `GET /api/usage` adds CPU (two
+  reads of /proc/stat), RAM (/proc/meminfo), GPU (the existing nvidia-smi monitor, polled only when its snapshot is
+  older than 4 s). The UI polls it every 3 s **only while the panel is open**. Rejected: pushing resources on the
+  WebSocket (every client would pay for it all the time); psutil (not in the installed env).
+- **Enter sends, Shift+Enter is a new line** in every field that sends / launches; Calcul code cells: Enter runs,
+  Shift+Enter keeps the indentation, Tab / Shift+Tab indent (Escape leaves the cell: no keyboard trap). Exceptions on
+  purpose: long-form editors (article, note body, text cells, profile, BibTeX paste, experiment code, plan node
+  fields) keep Enter = new line. Never while an IME composes. On touch-only screens Enter stays a new line and the
+  button sends (no Shift+Enter on on-screen keyboards). One rule in `lib/ui/enter.ts` + the CodeMirror keymap.
+- **Outside click / Escape** close every non-modal panel through one action (`lib/ui/dismiss.ts`): a stack so Escape
+  closes the innermost only, focus back on the opener, events inside a modal dialog opened from a panel ignored.
+  Native dialogs already close on backdrop click / Escape; their drafts live in the screen; the plan node editor
+  saves on close instead of discarding.
+- **Autosave** (`lib/ui/autosave.svelte.ts`): debounce, flush on blur / in-app navigation (router hook) / hidden or
+  closed page / unmount, retry with backoff up to 30 s, 409 = conflict (text kept, no retry). New: dossier title
+  in place, statement while editing, Calcul cells while typing, experiment code, project title / description,
+  profile; notes and article gained flush-on-leave. Removed: rename dialog, « Enregistrer seulement », Profile's
+  « Enregistrer », plan « Enregistrer ». Kept explicit: actions that are not saving (Retraduire, Exécuter, Publier,
+  Compiler…) and API keys (checked and tested, never autosaved).

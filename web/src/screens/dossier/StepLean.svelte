@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from '../../components/EnterHint.svelte';
+  import { enterSubmit } from '../../lib/ui/enter';
   // Step 2 « Traduction Lean »: what you meant (left) and what Lean will prove (right), side by side so the
   // translation can be checked; check with Lean, edit by hand, versions, « corriger l'énoncé »; learn panel with
   // the line-by-line gloss and the meaning of any token (hover or tap).
@@ -120,7 +122,8 @@
         {#if correcting}
           <div class="field correction">
             <label for="corr">{t('lean.fixLabel')}</label>
-            <textarea id="corr" class="input" rows="2" bind:value={correction} placeholder={t('lean.fixPlaceholder')}></textarea>
+            <textarea id="corr" class="input" rows="2" bind:value={correction} use:enterSubmit={() => void sendCorrection()} placeholder={t('lean.fixPlaceholder')} aria-describedby="corr-e"></textarea>
+            <EnterHint id="corr-e" />
             <div class="row"><button class="btn primary" onclick={sendCorrection} disabled={!correction.trim()}>{t('lean.fixSend')}</button></div>
           </div>
         {/if}

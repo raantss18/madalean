@@ -9,6 +9,7 @@
   import { t } from '../../lib/i18n/index.svelte';
   import { learnError } from '../../lib/learn/tutor';
   import CodeEditor from '../../components/CodeEditor.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
   import CheckResultView from '../../components/CheckResultView.svelte';
 
   let { dossier: d }: { dossier: Dossier } = $props();
@@ -88,7 +89,8 @@
         <p class="small"><strong>{t('exercise.leanSays')}</strong></p>
         <pre class="lean-err">{leanError}</pre>
         <label class="label" for="fix-ed">{t('exercise.fix')}</label>
-        <CodeEditor id="fix-ed" bind:value={fix} language="lean" label={t('exercise.fix')} minLines={6} />
+        <CodeEditor id="fix-ed" bind:value={fix} language="lean" label={t('exercise.fix')} minLines={6} onSubmit={() => { if (!busy) void submitFix(); }} describedby="fix-e" />
+        <EnterHint id="fix-e" action="check" />
         <button class="btn primary" onclick={submitFix} disabled={busy}>{busy ? t('lean.checking') : t('lean.checkProof')}</button>
       {/if}
     {/if}

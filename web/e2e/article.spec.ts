@@ -176,13 +176,12 @@ test('panels: project panel, preview, app navigation and focus mode collapse, wi
   await openOnce(page, pid, { preview: 'right', autoCompile: false });
   const side = page.getByRole('button', { name: 'Panneau du projet', exact: true });
   const prev = page.getByRole('button', { name: 'Aperçu PDF' });
-  const rail = page.getByRole('button', { name: 'Dossiers', exact: true });
-  // default at 1440: panel · text · preview; the app's navigation is hidden on the article (one click away)
+  const bar = page.locator('#project-bar');
+  // default at 1440: panel · text · preview; the project bar is hidden on the article (Ctrl+Shift+1 or the logo menu)
   await expect(side).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#ae-side')).toBeVisible();
   await expect(prev).toHaveAttribute('aria-expanded', 'true');
-  await expect(rail).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.locator('#rail')).toBeHidden();
+  await expect(bar).toHaveCount(0);
   const w0 = await page.locator('.writing').evaluate((e) => e.getBoundingClientRect().width);
   expect(w0).toBeGreaterThan(560);
   // one click hides the panel; remembered after a reload
@@ -199,21 +198,21 @@ test('panels: project panel, preview, app navigation and focus mode collapse, wi
   await expect(prev).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('#ae-preview')).toHaveCount(0);
   await page.keyboard.press('Control+Shift+Digit1');
-  await expect(page.locator('#rail')).toBeVisible();
-  await expect(rail).toHaveAttribute('aria-expanded', 'true');
+  await expect(bar).toBeVisible();
   await axe(page, 'article panels');
   // focus mode: every panel hidden, the text column widens; leaving it restores them
   await page.getByRole('button', { name: 'Concentration' }).click();
   await expect(page.getByRole('button', { name: 'Concentration' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#ae-side')).toHaveCount(0);
-  await expect(page.locator('#rail')).toBeHidden();
+  await expect(bar).toHaveCount(0);
   const w1 = await page.locator('.cm-content').evaluate((e) => e.getBoundingClientRect().width);
   expect(w1).toBeGreaterThan(700);
   await page.keyboard.press('Control+Shift+KeyF');
   await expect(page.locator('#ae-side')).toBeVisible();
-  await expect(page.locator('#rail')).toBeVisible();
-  // restore the defaults for the other tests (navigation hidden, preview on)
-  await rail.click();
+  await expect(bar).toBeVisible();
+  // restore the defaults for the other tests (project bar hidden, preview on)
+  await page.keyboard.press('Control+Shift+Digit1');
+  await expect(bar).toHaveCount(0);
   await prev.click();
   await expect(prev).toHaveAttribute('aria-expanded', 'true');
 });
@@ -244,13 +243,13 @@ test('panels on tablet and small laptop: drawers over the text, Escape closes an
   const [sw, w] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);
   expect(sw).toBeLessThanOrEqual(w!);
   await axe(page, 'article tablet drawer');
-  // phone: a bottom sheet above the bottom bar
+  // phone: a bottom sheet on the bottom edge (S-AK: no bottom bar any more)
   await page.setViewportSize({ width: 360, height: 780 });
   await side.click();
   await expect(page.locator('#ae-side.sheet')).toBeVisible();
   const box = await page.locator('#ae-side').boundingBox();
-  const bar = await page.locator('.bottomnav').boundingBox();
-  expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y + 1);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(780 + 1);
+  await expect(page.locator('.bottomnav')).toHaveCount(0);
   // contrast is only meaningful once the sheet has finished sliding in (under load axe could sample it half-opaque)
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
   await axe(page, 'article phone sheet');

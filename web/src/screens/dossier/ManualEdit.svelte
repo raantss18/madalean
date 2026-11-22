@@ -10,6 +10,7 @@
   import { loadJSON, saveJSON, removeKey } from '../../lib/prefs.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
   import CodeEditor from '../../components/CodeEditor.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
   import CheckResultView from '../../components/CheckResultView.svelte';
   import Md from '../../components/Md.svelte';
   import { reportError } from './actions';
@@ -29,7 +30,7 @@
   const stale = $derived(Boolean(draft && draft.base !== server));
 
   async function save() {
-    if (!draft) return;
+    if (!draft || saving || !draft.text.trim() || draft.text === server) return;   // Enter on an unchanged text does nothing
     saving = true; check = null;
     try {
       const r = await api.saveVersion(d.id, kind, draft.text, kind === 'proof');
@@ -61,14 +62,15 @@
       </p>
     {/if}
     {#if kind === 'proof'}
-      <CodeEditor bind:value={draft.text} language="lean" label={t('draft.editorProof')} minLines={8} onSubmit={save} />
+      <CodeEditor bind:value={draft.text} language="lean" label={t('draft.editorProof')} minLines={8} onSubmit={save} describedby="me-e-{kind}" />
+      <EnterHint id="me-e-{kind}" action="check" />
     {:else}
       <div class="seg" role="radiogroup" aria-label={t('draft.viewMode')}>
         <label><input type="radio" name="dm-{kind}" checked={!preview} onchange={() => (preview = false)} />{t('draft.edit')}</label>
         <label><input type="radio" name="dm-{kind}" checked={preview} onchange={() => (preview = true)} />{t('draft.preview')}</label>
       </div>
       {#if preview}<div class="pv"><Md src={draft.text} /></div>
-      {:else}<CodeEditor bind:value={draft.text} language="natural" label={t('draft.editorText')} minLines={8} onSubmit={save} />{/if}
+      {:else}<CodeEditor bind:value={draft.text} language="natural" label={t('draft.editorText')} minLines={8} onSubmit={save} enterSubmits={false} />{/if}
     {/if}
     <div class="row" style="margin-top: var(--s-2)">
       <button class="btn primary" onclick={save} disabled={saving || draft.text.trim() === '' || draft.text === server}>{saving ? (kind === 'proof' ? t('lean.checking') : t('common.loading')) : kind === 'proof' ? t('manual.saveProof') : t('manual.save')}</button>

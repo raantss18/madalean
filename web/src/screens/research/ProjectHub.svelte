@@ -1,13 +1,18 @@
 <script lang="ts">
-  // The current project at a glance: one door to its dossiers, sources, notes, graph, blueprint, article,
-  // conjectures and publication (the phone's « Projet » tab).
+  // The project page (S-AK, docs/UI.md §14): the project's title and description edited in place (autosaved), what it
+  // contains (counts, links to its sections), search across it, and the conductor's instruction. Switching project is
+  // done in the top bar's context switcher only.
+  import { onDestroy } from 'svelte';
   import { app } from '../../lib/store/app.svelte';
+  import { api } from '../../lib/api/client';
   import { routes } from '../../lib/router.svelte';
   import { t } from '../../lib/i18n/index.svelte';
   import { research } from '../../lib/api/research';
   import { currentProjectId } from '../../lib/project.svelte';
+  import { Autosave } from '../../lib/ui/autosave.svelte';
   import ProjectGate from '../../components/ProjectGate.svelte';
-  import ProjectSwitcher from '../../components/ProjectSwitcher.svelte';
+  import SaveState from '../../components/SaveState.svelte';
+  import InlineTitle from '../../components/InlineTitle.svelte';
   import Icon from '../../components/Icon.svelte';
   import ConsignePanel from '../../components/ConsignePanel.svelte';
   import ProjectSearch from '../../components/ProjectSearch.svelte';
@@ -26,20 +31,38 @@
     research.blueprints(pid).then((r) => (counts = { ...counts, blueprint: t('hub.count', { n: r.blueprints.length }) })).catch(() => {});
   });
   const sections = $derived([{ name: 'home', pattern: '/', nav: { label: 'nav.dossiers' as const, icon: 'list' } }, ...routes.filter((r) => r.nav?.group === 'project'), ...routes.filter((r) => r.name === 'library')]);
+
+  // Title (InlineTitle) and description: edited in place, saved automatically (PATCH /projects/{id}).
+  let description = $state('');
+  let loadedFor = '';
+  $effect(() => {
+    if (project && project.id !== loadedFor) { loadedFor = project.id; description = project.description ?? ''; }
+  });
+  const saver = new Autosave(async () => {
+    const id = loadedFor;
+    if (!id) return;
+    const r = await api.patchProject(id, { description: description.trim() });
+    app.m.projects[r.project.id] = r.project;
+  });
+  onDestroy(() => saver.destroy());
 </script>
 
 <ProjectGate>
   {#snippet children(_pid)}
     <div class="hub">
-      <h1>{project?.title ?? t('nav.project')}</h1>
-      {#if project?.description}<p class="lead">{project.description}</p>{/if}
-      <div class="row"><span class="small">{t('hub.change')}</span><ProjectSwitcher /></div>
+      <div class="row head">
+        <InlineTitle id="hub-title" value={project?.title ?? ''} label={t('hub.title')} save={async (v) => { const r = await api.patchProject(pid, { title: v }); app.m.projects[r.project.id] = r.project; }} />
+        {#if saver.status !== 'saved'}<SaveState state={saver} />{/if}
+      </div>
+      <label class="sr-only" for="hub-desc">{t('hub.desc')}</label>
+      <textarea id="hub-desc" class="desc" rows="2" placeholder={t('hub.descPh')} bind:value={description} oninput={() => saver.touch()} onblur={() => saver.flush()}></textarea>
+
+      <h2 class="h3">{t('hub.sections')}</h2>
       <ul class="cards">
         {#each sections as s (s.name)}
           <li><a href={s.pattern.replace(/\/:[^/]+\??/g, '') || '/'}>
-            <Icon name={s.nav!.icon} size={22} />
+            <Icon name={s.nav!.icon} size={18} />
             <span class="ct">{t(s.nav!.label)}</span>
-            <span class="cd xs">{t(`hub.desc.${s.name}` as 'hub.desc.home')}</span>
             {#if counts[s.name]}<span class="cc xs">{counts[s.name]}</span>{/if}
           </a></li>
         {/each}
@@ -52,11 +75,13 @@
 
 <style>
   .hub { max-width: 980px; }
-  .lead { color: var(--text-2); }
-  .cards { list-style: none; padding: 0; margin: var(--s-4) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); }
-  .cards a { display: grid; gap: 4px; padding: var(--s-3) var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); text-decoration: none; color: var(--text); min-height: 100%; }
+  .head { align-items: center; gap: var(--s-3); flex-wrap: nowrap; }
+  .desc { display: block; width: 100%; margin: var(--s-2) 0 var(--s-4) -7px; padding: 4px 6px; font: inherit; color: var(--text-2); background: transparent; border: 1px solid transparent; border-radius: var(--r-2); resize: vertical; }
+  .desc:hover { border-color: var(--line); }
+  .desc:focus { border-color: var(--line-strong); background: var(--surface); color: var(--text); }
+  .cards { list-style: none; padding: 0; margin: var(--s-2) 0 var(--s-5); display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--s-2); }
+  .cards a { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 var(--s-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); text-decoration: none; color: var(--text); }
   .cards a:hover { border-color: var(--accent); }
-  .ct { font: 600 1.0625rem var(--font-serif); }
-  .cd { color: var(--text-2); }
-  .cc { color: var(--accent); font-weight: 700; }
+  .ct { font-weight: 600; }
+  .cc { margin-left: auto; color: var(--accent); font-weight: 700; }
 </style>

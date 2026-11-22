@@ -8,11 +8,14 @@
   import { jobModel, modelLabel, phaseOf } from '../lib/status';
   import StatusMark from './StatusMark.svelte';
 
-  let { onpick }: { onpick?: () => void } = $props();
+  // S-AK: used by the context switcher (top bar) and the « Dossiers » page; `uid` keeps ids unique when both are
+  // on screen; `project` overrides the current project (the switcher previews another project's dossiers).
+  let { onpick, uid = 'dl', project }: { onpick?: () => void; uid?: string; project?: string } = $props();
+  const pid = $derived(project ?? prefs.lastProject);
   let q = $state('');
   let showArchived = $state(false);
 
-  const all = $derived(Object.values(app.m.dossiers).filter((d) => (prefs.lastProject ? d.project_id === prefs.lastProject : true) && (showArchived || !d.archived)));
+  const all = $derived(Object.values(app.m.dossiers).filter((d) => (pid ? d.project_id === pid : true) && (showArchived || !d.archived)));
   const filtered = $derived(q.trim() ? all.filter((d) => (d.title + ' ' + d.theorem).toLowerCase().includes(q.trim().toLowerCase())) : all);
   const tree = $derived.by(() => {
     const ids = new Set(filtered.map((d) => d.id));
@@ -33,8 +36,8 @@
 
 <div class="dl">
   <div class="search">
-    <label class="sr-only" for="dl-q">{t('list.search')}</label>
-    <input id="dl-q" class="input" type="search" placeholder={t('list.search')} bind:value={q} autocomplete="off" />
+    <label class="sr-only" for="{uid}-q">{t('list.search')}</label>
+    <input id="{uid}-q" class="input" type="search" placeholder={t('list.search')} bind:value={q} autocomplete="off" />
   </div>
   {#if tree.roots.length === 0}
     <div class="empty">
@@ -88,7 +91,7 @@
   .item:hover { background: var(--surface-2); }
   .item.current { background: var(--accent-soft); border-left-color: var(--accent); }
   .txt { display: grid; min-width: 0; flex: 1; }
-  .title { font-weight: 600; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title { font-weight: 600; font-size: var(--fs-sm); overflow-wrap: anywhere; }   /* full titles (S-AK) */
   .sub { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wait { color: var(--running); font-weight: 600; }
   .empty { padding: var(--s-4); }

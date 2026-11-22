@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import os
+import re
 import time
 from pathlib import Path
 
@@ -502,6 +504,76 @@ async def models_spend(request: web.Request) -> web.Response:
     out.update(enabled=s.claude_reinforce, key_set="anthropic" in set(ctx.keys.providers()), model=s.claude_model,
                models=[])
     return ok(out)
+
+
+_CPU_LAST: list[int] = []
+_REQ_ID = re.compile(r"[A-Za-z0-9_.:-]{1,80}")
+
+
+def _cpu_percent() -> float | None:
+    """Whole-machine CPU use since the previous call (two reads of /proc/stat); None on the first call or off Linux."""
+    try:
+        with open("/proc/stat", encoding="ascii") as f:
+            vals = [int(x) for x in f.readline().split()[1:]]
+    except (OSError, ValueError):
+        return None
+    idle, total = vals[3] + (vals[4] if len(vals) > 4 else 0), sum(vals)
+    prev = list(_CPU_LAST)
+    _CPU_LAST[:] = [idle, total]
+    if not prev or total <= prev[1]:
+        return None
+    return round(100.0 * (1 - (idle - prev[0]) / (total - prev[1])), 1)
+
+
+def _memory() -> dict | None:
+    try:
+        info = {}
+        with open("/proc/meminfo", encoding="ascii") as f:
+            for line in f:
+                k, v = line.split(":", 1)
+                info[k] = int(v.split()[0])
+        total, avail = info["MemTotal"], info.get("MemAvailable", info.get("MemFree", 0))
+        return {"total_mb": total // 1024, "used_mb": (total - avail) // 1024}
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+@routes.get("/api/usage")
+async def usage_status(request: web.Request) -> web.Response:
+    """Status panel of the web UI (S-AK, D43): machine resources now, tokens and spending (today / this month / the
+    requests named in `?requests=`). Read only when the panel is open (the UI polls it every few seconds then, never
+    otherwise)."""
+    ctx = ctx_of(request)
+    from ..brain import usage
+    from ..brain.spend import Ledger, day_of_rows
+    if time.time() - ctx.monitor.t > 4:
+        try:
+            await ctx.monitor.poll()
+        except Exception:  # noqa: BLE001
+            pass
+    gpu = ctx.monitor.gpu
+    cpu = await asyncio.to_thread(_cpu_percent)
+    try:
+        load = round(os.getloadavg()[0], 2)
+    except OSError:
+        load = None
+    wanted = [x for x in request.query.get("requests", "").split(",") if _REQ_ID.fullmatch(x)][:20]
+    tally = usage.TALLY.summary(wanted)
+    ledger = getattr(ctx.brain, "ledger", None)
+    if ledger is None:
+        ledger = await asyncio.to_thread(Ledger, ctx.paths.config / "brain-spend.json")
+    s = ctx.settings
+    paid_today, paid_month = day_of_rows(ledger)
+    return ok({
+        "mode": s.mode,
+        "resources": {"cpu_percent": cpu, "cpus": os.cpu_count(), "load": load, "memory": await asyncio.to_thread(_memory),
+                      "gpu": ({k: gpu[k] for k in ("name", "total", "used", "util", "temp")} if gpu else None),
+                      "t": time.time()},
+        "tokens": {"today": tally["today"], "month": tally["month"], "by_provider_today": tally["by_provider_today"]},
+        "spend": {"today_usd": paid_today, "month_usd": paid_month, "cap_month_usd": s.claude_cap_month_usd,
+                  "cap_request_usd": s.claude_cap_proof_usd},
+        "requests": tally["requests"],
+    })
 
 
 @routes.post("/api/models/refresh")

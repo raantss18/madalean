@@ -156,10 +156,11 @@ client holds no prompt any more (`web/src/lib/learn/tutor.ts` only calls the end
 ## 2. Information architecture
 
 ```
-Top bar:  [☰ dossiers] [Madalean] [Projet ▾]  ……  [Chercher Ctrl K] [Qui reçoit quoi] [Activité n] [Apprendre|Recherche] [⚙]
-Rail (≥1024 px, drawer below): project sections (Dossiers · Sources · Notes · Graphe · Blueprint · Article ·
-                                Conjectures · Calcul · Publier), dossiers of the project with live status, lemmas nested;
-                                Activité · Bibliothèque · Glossaire · Carnet · Aide · Réglages
+(S-AK, §14 — replaces the ☰ / rail / drawer / bottom bar of earlier versions)
+Top bar:      [Madal∃an ▾ = menu]  [Projet › Dossier ▾]  ……  [Chercher Ctrl K] [état: mode · n]
+Logo menu:    Accueil · (project sections when the bar is hidden) · Activité · Bibliothèque · Glossaire · Carnet ·
+              Aide · Réglages · Apprendre | Recherche · Barre du projet
+Project bar:  Dossiers · Sources · Notes · Graphe · Blueprint · Article · Conjectures · Calcul · Publier (project screens)
 Main:
   /                         Énoncé of a NEW dossier (natural language/LaTeX with live preview, or Lean), .tex import,
                             examples, recent dossiers
@@ -178,11 +179,10 @@ Main:
   /pair                     pairing screen (public; remote browsers)
   /__perf                   measurement page used by e2e/perf.spec.ts
 Ctrl+K searches everything: screens, actions, dossiers, notes (full text), sources of the project, the manual.
-Phone (<768 px): bottom navigation Accueil · Projet · Activité · Aide · Réglages; mode switch moves into the drawer;
-                 the privacy indicator becomes an icon when idle, shows the model while work runs.
-Tablet (768–1023 px): rail as a drawer, full top bar (labels become icons); ≥ 1024 px: permanent rail; ≥ 1280 px the
-                 dossier shows its thread beside the steps (tablet landscape 1366 px: rail + steps + thread).
-                 Details and adaptive patterns: §12.
+Phone (<768 px): same top bar (logo icon, switcher on two lines, search icon, status icon), the logo menu is a sheet
+                 from the left, panels are sheets under the top bar; the project bar scrolls sideways.
+Tablet / desktop: labels become icons below 1280 px; ≥ 1280 px the dossier shows its thread beside the steps.
+                 Details and adaptive patterns: §12 (bottom bar parts superseded by §14).
 ```
 
 **Data layer** (`web/src/lib/`): `api/types.ts` (types of docs/API.md §5), `api/client.ts` (typed client, errors as
@@ -552,3 +552,135 @@ Verified with Playwright screenshots at 360, 768, 1024, 1366 and 1440 px, light 
 `e2e/article.spec.ts` (collapse + shortcuts + reload, drawers at 1024/768, sheet at 360, item kinds with icon + label,
 Calcul cells, insertion, file tree toggle; axe on each state). Not verified: drag-and-drop of an item onto the text
 (only « Insérer » is tested), real touch devices.
+
+## 14. Refonte S-AK (2026-11-22, DECISIONS D43)
+
+User request (FR): « le logo est à la fois le menu déroulant et le retour à l'accueil, les boutons du dessous ne sont
+pas nécessaires ; le menu déroulant sur le nom de projet ou dossier, en texte complet ; le nuage de modèle affiche
+aussi les ressources matérielles et les tokens dépensés ; une interface simple mais complète, sans redondance ni
+superflu ; Entrée pour lancer, Maj+Entrée pour aller à la ligne ; un volet ouvert se ferme en cliquant ailleurs ;
+enregistrement automatique de chaque dossier et modification ».
+
+### 14.1 Audit (v2.0.0, before any change)
+
+Inventory of every navigation element, measured on a demo server at 1440, 820 and 390 px, light and dark.
+
+| # | Element | Where (width) | Problem found | Decision |
+|---|---|---|---|---|
+| 1 | ☰ button | top bar, all widths | a 4th way to reach the same places (rail ≥ 1024, drawer < 1024); does not say what it opens | **removed**: the logo opens the menu |
+| 2 | Logo / wordmark | top bar | only a link to `/`; Home is also in the rail (« Dossiers »), the bottom bar (« Accueil ») and Ctrl K | **logo = menu button** whose first entry is « Accueil »; a second click on the logo while the menu is open goes home |
+| 3 | Project `<select>` | top bar (max 240 px, « Tous les pr… » at 390 px) and again on the project hub | names truncated; two switchers; « Nouveau projet » hidden as an option of a select; no way to switch dossier there | **one context switcher** « Projet › Dossier », full names (two lines when needed, tooltip), panel with the projects *and* the dossiers of the chosen project; the hub's copy removed |
+| 4 | « Qui reçoit quoi » pill | top bar (280 px: « Auto : en ligne (local seulement sans I… ») | a long sentence always visible and cut; nothing about cost or the machine | **status button** (icon + two words + running count); panel: mode and model of each running job, CPU / RAM / GPU, tokens and cost (today, this month, this request), running jobs with Stop, link to Réglages › Modèles |
+| 5 | Activity button + floating drawer | top bar ≥ 768 | same list as the Activité screen and the bottom-bar tab; a third panel in the top bar | **merged** into the status panel (running jobs + « Toute l'activité ») |
+| 6 | Apprendre / Recherche switch | top bar ≥ 768 **and** in the drawer < 768 | duplicated; 210 px of top bar for a rarely changed setting | **moved** into the logo menu (one radio pair) |
+| 7 | ⚙ Réglages | top bar ≥ 768, rail bottom, bottom bar | three entries | **logo menu** only (+ Ctrl K) |
+| 8 | Search (Ctrl K) | top bar ≥ 768 only | absent on phones | **kept** at every width (icon only below 1280 px) |
+| 9 | Rail: project sections (9 links, 2 columns) | rail ≥ 1024, drawer below | the project's sections hidden behind ☰ on tablets and phones | **project bar**: one row of sections under the top bar on project screens, every width (scrolls on phones); not shown on global screens |
+| 10 | Rail: dossier list | rail ≥ 1024, drawer below | the only full dossier list; behind ☰ below 1024 | **moved** into the context switcher (search, status, lemmas) and the « Dossiers » page (Home: the full list instead of the 6 most recent) |
+| 11 | Rail bottom links: Activité · Bibliothèque · Glossaire · Carnet · Aide · Réglages | rail ≥ 1024, drawer | duplicate the top bar (Activité, Réglages) and the bottom bar (Activité, Aide, Réglages) | **removed**: in the logo menu |
+| 12 | Phone bottom bar: Accueil · Projet · Activité · Aide · Réglages | < 768 | duplicates the drawer; takes 56 px of every phone screen; menus had to become sheets « above the bar » | **removed**: logo menu + project bar |
+| 13 | Project hub `/projet` | phone tab « Projet », palette | 9 cards repeating the rail, a second project switcher; the project's title / description editable nowhere | **project page**: title and description edited in place (autosaved), counts as links, project search, conductor instruction; opened from the context switcher |
+| 14 | Dossier « Renommer » (« ⋯ » → dialog → « Enregistrer ») | dossier header | three steps and a save button for a title | **title edited in place** (click the title), autosaved |
+| 15 | Statement « Enregistrer et retraduire » / « Enregistrer seulement » / « Annuler » | step 1 | « Enregistrer seulement » is a save button | **autosaved while typing**; « Retraduire » kept (an action), « Terminer » closes the editor |
+| 16 | Profile « Enregistrer » | Réglages › Profil | the only setting with a save button | **autosaved** |
+| 17 | Calcul cells | Calcul | saved on blur only; Maj+Entrée = run, Entrée = new line | **autosaved while typing**; Entrée runs, Maj+Entrée new line (the user's wish), Tab indents |
+| 18 | Conjecture experiment code | Conjectures | saved only by « Enregistrer le code » | **autosaved** (the edit still drops the approval: the run button asks again) |
+| 19 | Sending inputs (follow-up, Q&A, explain-back, hints, conductor, Lean correction, Calcul request, notebook assistant, new problem) | everywhere | mixed rules (Ctrl+Entrée in most, Entrée in two), no hint in several | **Entrée sends, Maj+Entrée new line**, one discreet hint under each |
+| 20 | Menus, popovers, status pill, activity drawer | everywhere | outside click closed `Menu` only; the pill and the activity drawer stayed open | **one `dismiss` action**: outside click / tap and Escape close every non-modal panel, focus back on its button |
+
+Kept as they are (checked, not redundant): the dossier steps (Énoncé · Traduction Lean · Preuve · Plan), the Help
+link next to each title (contextual), the article editor's own panels (§13, already outside click / Escape), native
+dialogs (backdrop click and Escape close them; what was typed lives in the screen that opened them and is shown
+again), the first-run tour, the demo band and the connection banner.
+
+### 14.2 The new model
+
+```
+Top bar:      [Madal∃an ▾]  [📁 Projet › Dossier ▾] ……………… [🔍 Chercher Ctrl K] [☁ Auto · 2]
+Project bar:  Dossiers · Sources · Notes · Graphe · Blueprint · Article · Conjectures · Calcul · Publier   (project screens)
+Main:         full width — no rail, no drawer, no bottom bar
+```
+
+- **Logo menu** (`components/AppMenu.svelte`, ARIA menu button: `aria-haspopup`, `aria-expanded`, arrows / Home /
+  End, Escape and outside click close it, focus back on the logo): Accueil · the project's sections (only when the
+  project bar is not on screen) · Activité (count) · Bibliothèque · Glossaire · Carnet · Aide · Réglages · Apprendre /
+  Recherche (`menuitemradio`) · Barre du projet (`menuitemcheckbox`, Ctrl+Maj+1). A popover under the logo; a sheet
+  from the left edge on phones. A second click on the logo while the menu is open goes home.
+- **Context switcher** (`components/ContextSwitcher.svelte`): the project name and, in a dossier, the dossier title,
+  in full — wrapping on two lines when needed, each part with a tooltip. Panel: projects (full names, « Tous les
+  projets », « Nouveau projet… », « Vue d'ensemble ») beside the dossiers of the highlighted project (search, live
+  status, lemmas nested). Picking a project makes it current; picking a dossier opens it.
+- **Status button** (`components/StatusPanel.svelte`): cloud (online) / chip (local) icon, the mode in two words, the
+  number of running jobs. Its panel is sampled every 3 s *only while open* (`GET /api/usage`); nothing is polled when
+  it is closed.
+- **Project bar** (`components/ProjectBar.svelte`): the current project's sections; Ctrl+Maj+1 hides / shows it
+  (remembered per device; hidden by default in the article editor, as the rail was; hidden in its focus mode).
+
+### 14.3 Keyboard rules
+
+| Input | Entrée | Maj+Entrée | Other |
+|---|---|---|---|
+| New problem (words or Lean), follow-up request, Q&A, explain-back, hints, conductor instruction, Lean correction, Calcul « Demande », notebook assistant, new conjecture | sends | new line | Ctrl+Entrée sends too; Entrée is ignored while an IME composes (`isComposing`) |
+| Calcul code cell | runs the cell | new line | Tab / Maj+Tab indent / dedent; Ctrl+Entrée runs too; Échap → command mode |
+| Lean proof editors (manual proof, exercise fix) | checks with Lean | new line | — |
+| Long-form editors: article (visual and LaTeX source), notes body, Calcul text cells, profile, BibTeX paste, experiment code, merge result, plan node fields | new line / paragraph | new line | **exception on purpose**: writing several lines is the job there; Ctrl+Entrée keeps its own meaning (compile the article) |
+| Single-line fields (titles, search) | validates / nothing (results are live) | — | — |
+
+On touch-only screens (no mouse or trackpad: on-screen keyboards have no Shift+Enter) Enter stays a new line and the
+field's button sends; the hint is hidden there. The hint « Entrée pour envoyer · Maj+Entrée pour aller à la ligne »
+(`components/EnterHint.svelte`) sits under each sending field, small and muted (in Calcul it sits in the cell's
+button row and shows while the cell has the focus, always laid out so nothing moves under the pointer). Shared code: `lib/ui/enter.ts` (`enterIntent`, `enterSubmit` action) and the
+CodeMirror keymap in `lib/lean/editor.ts` (`enterSubmits`).
+
+### 14.4 Panels close on an outside click
+
+`lib/ui/dismiss.ts` (`dismiss` action): a `pointerdown` outside the panel and outside its button, or Escape, calls the
+panel's close; when the focus was inside the panel it goes back to the button. Used by the logo menu, the context
+switcher, the status panel, every `Menu` (« ⋯ », « Insérer », exports) and the article's suggestions panel. Native
+`Dialog`s close on a backdrop click and Escape; their fields are bound to the screen that opened them, so reopening
+shows what was typed; the plan's node editor saves when it closes instead of discarding.
+
+### 14.5 Autosave
+
+`lib/ui/autosave.svelte.ts` (`Autosave`): debounced (≈ 1 s after the last key), flushed on blur, before an in-app
+navigation (router `beforeNavigate` hooks), on `pagehide` / hidden tab and on unmount; failures retried with backoff
+(2, 4, 8… s, at most 30 s); a 409 keeps the user's text and says so. Indicator `components/SaveState.svelte`:
+« Enregistré » / « Enregistrement… » / « Non enregistré — réessai » / « Modifié ailleurs » (polite live region).
+
+| What | Endpoint | Before | Now |
+|---|---|---|---|
+| New problem draft (words, Lean, title) | localStorage `draft.new` | words and Lean | + title |
+| Dossier title | `PATCH /dossiers/{id}` | dialog + Enregistrer | in place, autosaved |
+| Dossier statement | `PATCH /dossiers/{id}` (`problem`) | « Enregistrer seulement » | autosaved while editing |
+| Follow-up request draft | localStorage per dossier | lost when leaving | kept until sent |
+| Notes (title, body) | `PATCH /research/notes/{id}` (`base_rev`, merge) | debounced, nothing on leave | + flush on leave / unload, retry, shared indicator |
+| Article | article files (`hash`) | own autosave | + flush on leave / unload |
+| Calcul cells (code, text) | `PATCH /calcul/…/cells/{id}` | on blur | debounced while typing + blur + leave |
+| Conjecture experiment code | `PATCH /research/conjectures/{id}/experiments/{x}` | button | autosaved |
+| Plan node | `PATCH …/plan/nodes/{id}` (`base_rev`) | « Enregistrer » | saved when the editor closes |
+| Project title / description | `PATCH /projects/{id}` | not editable | edited on the project page, autosaved |
+| Settings | `PATCH /settings` | immediate except Profile | Profile autosaved too |
+| Library domain / tags | `PATCH /library/…` | immediate | unchanged |
+| Glossary | — | read-only (built in) | unchanged |
+
+Explicit buttons kept because they are not « save »: Traduire et prouver, Retraduire, Vérifier avec Lean, Exécuter,
+Approuver et lancer, Publier, Compiler, Accepter une suggestion, the merge view's choice, and API keys (« Enregistrer
+la clé » checks and tests the key, then empties the field: a secret is never autosaved).
+
+### 14.6 Tests and screenshots
+
+- `web/tests/unit/sak-ui.test.ts`: Enter intent (IME, Alt, Shift, Ctrl), newline-with-indent and Tab indent / dedent,
+  outside test, Autosave (debounce, flush, change during a save, backoff retry, 409 conflict).
+- `web/e2e/sak.spec.ts`: logo menu (Accueil first and focused, every destination, arrows / End / Escape → focus back,
+  mode radio, second click → home, sections only when the bar is hidden, Ctrl+Shift+1); outside click and Escape on
+  the logo menu, the switcher, the status panel and a « ⋯ » menu; context switcher (projects beside their dossiers,
+  full title + tooltip); status panel (content, polled only while open, stops when closed); Enter / Shift+Enter on
+  the new problem and the follow-up request; Calcul cell (Shift+Enter indentation, Shift+Tab, autosave without blur
+  + reload, Enter runs); autosave + reload of dossier title, statement, project description, profile; a failing save
+  shows « Non enregistré — réessai » and recovers; axe with each panel open at 1440 and 820 px, light and dark, and at
+  390 px (sheets, 44 px targets, no bottom bar). Older specs updated (phone, responsive, article, parallel, sync,
+  research, screens).
+- `tests/test_usage_status.py` (tally, persistence, `GET /api/usage` after a real request) and
+  `tests/test_autosave_persist.py` (every autosaved field read back after a server restart).
+- Screenshots: `docs/screenshots/v2/{phone,tablet,desktop}-{light,dark}-{home,menu,switcher,status}.png` (+ the
+  existing sets, regenerated); the manual's images copied from them.

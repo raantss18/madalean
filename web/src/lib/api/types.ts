@@ -217,3 +217,18 @@ export type ServerEvent =
     ));
 export type TokenKind = 'text' | 'thinking' | 'tool_call' | 'tool_result' | 'info';
 export type SeqEvent = Extract<ServerEvent, { seq: number; ts: number }>;
+
+/** GET /api/usage (S-AK status panel). */
+export interface UsageTotals { tokens_in: number; tokens_out: number; calls: number; usd: number }
+export interface UsageStatus {
+  mode: Mode;
+  resources: {
+    cpu_percent: number | null; cpus: number | null; load: number | null;
+    memory: { total_mb: number; used_mb: number } | null;
+    gpu: { name: string; total: number; used: number; util: number; temp: number } | null;
+    t: number;
+  };
+  tokens: { today: UsageTotals; month: UsageTotals; by_provider_today: Record<string, UsageTotals> };
+  spend: { today_usd: number; month_usd: number; cap_month_usd: number; cap_request_usd: number };
+  requests: Record<string, UsageTotals & { models: string[] }>;
+}

@@ -5,32 +5,32 @@
   import { api } from '../lib/api/client';
   import type { Mode, Strategy } from '../lib/api/types';
   import { navigate } from '../lib/router.svelte';
-  import { t, i18n, fmtTime } from '../lib/i18n/index.svelte';
+  import { t, i18n } from '../lib/i18n/index.svelte';
   import { prefs, loadJSON, saveJSON, removeKey } from '../lib/prefs.svelte';
   import { EXAMPLES, type Example } from '../lib/examples';
-  import { phaseOf } from '../lib/status';
   import { toast } from '../lib/ui/toasts.svelte';
   import { errorText } from '../lib/ui/errors';
   import CodeEditor from '../components/CodeEditor.svelte';
   import Md from '../components/LazyMd.svelte';
   import TexImport from '../components/TexImport.svelte';
-  import StatusMark from '../components/StatusMark.svelte';
   import Icon from '../components/Icon.svelte';
   import HelpLink from '../components/HelpLink.svelte';
+  import EnterHint from '../components/EnterHint.svelte';
+  import DossierList from '../components/DossierList.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
-  const draft = loadJSON<{ text: string; lean: string; asLean: boolean }>('draft.new', { text: '', lean: '', asLean: false });
+  const draft = loadJSON<{ text: string; lean: string; asLean: boolean; title?: string }>('draft.new', { text: '', lean: '', asLean: false });
   let text = $state(draft.text);
   let lean = $state(draft.lean);
   let asLean = $state(draft.asLean);
-  let title = $state('');
+  let title = $state(draft.title ?? '');
   let mode = $state<Mode | ''>('');
   let strategy = $state<Strategy | ''>('');
   let busy = $state(false);
   let err = $state('');
   let showOptions = $state(false);
 
-  $effect(() => { saveJSON('draft.new', { text, lean, asLean }); });
+  $effect(() => { saveJSON('draft.new', { text, lean, asLean, title }); });   // the unsent problem survives a reload
   // One source for examples: the server's list (GET /examples); the built-in copy only if the server lacks it.
   let examples = $state<Example[]>(EXAMPLES);
   $effect(() => {
@@ -40,7 +40,7 @@
     }).catch(() => {});
   });
 
-  const recent = $derived(Object.values(app.m.dossiers).filter((d) => !d.archived && (!prefs.lastProject || d.project_id === prefs.lastProject)).sort((a, b) => b.updated - a.updated).slice(0, 6));
+  const hasDossiers = $derived(Object.values(app.m.dossiers).some((d) => !prefs.lastProject || d.project_id === prefs.lastProject));
   const project = $derived(prefs.lastProject ? app.m.projects[prefs.lastProject] : undefined);
   const canSend = $derived(asLean ? lean.trim().length > 0 : text.trim().length > 2);
 
@@ -86,8 +86,9 @@
       <div class="editor-grid">
         <div>
           <label class="label" for="statement-input">{t('home.statementLabel')}</label>
-          <CodeEditor id="statement-input" bind:value={text} language="natural" label={t('home.statementLabel')} placeholder={t('home.placeholder')} minLines={5} onSubmit={send} describedby="home-hint" />
+          <CodeEditor id="statement-input" bind:value={text} language="natural" label={t('home.statementLabel')} placeholder={t('home.placeholder')} minLines={5} onSubmit={send} describedby="home-hint home-enter" />
           <p class="hint" id="home-hint">{t('home.hint')}</p>
+          <EnterHint id="home-enter" />
         </div>
         <div class="preview" aria-live="off">
           <p class="label" id="pv-h">{t('home.preview')}</p>
@@ -98,8 +99,9 @@
       </div>
     {:else}
       <label class="label" for="statement-input">{t('home.leanLabel')}</label>
-      <CodeEditor id="statement-input" bind:value={lean} language="lean" label={t('home.leanLabel')} placeholder="theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry" minLines={4} onSubmit={send} gloss={prefs.mode === 'learn'} describedby="home-lean-hint" />
+      <CodeEditor id="statement-input" bind:value={lean} language="lean" label={t('home.leanLabel')} placeholder="theorem t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry" minLines={4} onSubmit={send} gloss={prefs.mode === 'learn'} describedby="home-lean-hint home-enter" />
       <p class="hint" id="home-lean-hint">{t('home.leanHint')}</p>
+      <EnterHint id="home-enter" />
       <div class="field" style="margin-top: var(--s-3)">
         <label for="nl-opt">{t('home.leanProblemLabel')}</label>
         <input id="nl-opt" class="input" bind:value={text} placeholder={t('home.leanProblemPlaceholder')} />
@@ -133,13 +135,21 @@
 
     {#if err}<p class="error-text" role="alert">{err}</p>{/if}
     <div class="row actions">
-      <button class="btn primary big" onclick={send} disabled={!canSend || busy} aria-keyshortcuts="Control+Enter">
+      <button class="btn primary big" onclick={send} disabled={!canSend || busy} aria-keyshortcuts="Enter">
         <Icon name="send" />{busy ? t('home.sending') : asLean ? t('home.sendLean') : t('home.send')}
       </button>
       <TexImport onpick={(body, ttl) => { asLean = false; text = body; title = ttl; }} />
     </div>
     <p class="hint">{t('home.after')}</p>
   </section>
+
+  {#if hasDossiers}
+    <!-- S-AK: the project's full dossier list (it was in the rail / drawer), with search, status and lemmas -->
+    <section class="recent" aria-labelledby="rec-h">
+      <h2 id="rec-h">{prefs.lastProject ? t('home.dossiers') : t('home.allDossiers')}</h2>
+      <DossierList uid="home" />
+    </section>
+  {/if}
 
   <section class="examples" aria-labelledby="ex-h">
     <h2 id="ex-h">{t('home.examples')}</h2>
@@ -156,16 +166,6 @@
     </ul>
   </section>
 
-  {#if recent.length}
-    <section class="recent" aria-labelledby="rec-h">
-      <h2 id="rec-h">{t('home.recent')}</h2>
-      <ul>
-        {#each recent as d (d.id)}
-          <li><a href="/d/{encodeURIComponent(d.id)}"><StatusMark phase={phaseOf(d.status, app.activeJob(d.id))} showLabel /><span class="rt">{d.title || d.theorem}</span><span class="xs muted">{fmtTime(d.updated)}</span></a></li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
 </div>
 
 <style>
@@ -185,14 +185,13 @@
   .opts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 280px)); gap: var(--s-4); }
   .actions { gap: var(--s-3); }
   .big { min-height: 48px; padding: 0 var(--s-5); font-size: var(--fs-md); }
-  .examples ul, .recent ul { list-style: none; padding: 0; margin: 0; }
+  .examples ul { list-style: none; padding: 0; margin: 0; }
+  .recent { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-3); padding-bottom: var(--s-2); }
+  .recent h2 { margin: var(--s-3) var(--s-4) 0; }
   .examples ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--s-3); }
   .ex { display: grid; gap: 4px; width: 100%; height: 100%; text-align: left; padding: var(--s-3) var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); color: var(--text); cursor: pointer; font: inherit; }
   .ex:hover { border-color: var(--accent); }
   .lvl { color: var(--text-3); font-weight: 600; }
   .ex-title { font-family: var(--font-serif); font-weight: 600; }
   .ex-body { color: var(--text-2); }
-  .recent li a { display: flex; align-items: center; gap: var(--s-3); min-height: var(--touch); padding: 0 var(--s-2); color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
-  .recent li a:hover { background: var(--surface-2); }
-  .rt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 </style>

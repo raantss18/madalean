@@ -102,6 +102,15 @@ def cost(model_id: str, tokens_in: int, tokens_out: int, cache_read: int = 0, ca
     return (fresh * p[0] + tokens_out * p[1] + cache_read * p[2] + cache_write * p[3]) / 1e6
 
 
+def day_of_rows(ledger: "Ledger", now: float | None = None) -> tuple[float, float]:
+    """Paid USD spent today and this month (local time), from the ledger's rows (S-AK status panel)."""
+    now = now if now is not None else time.time()
+    d, m = time.strftime("%Y-%m-%d", time.localtime(now)), month_of(now)
+    today = sum(r.usd for r in ledger.rows if time.strftime("%Y-%m-%d", time.localtime(r.ts)) == d)
+    month = sum(r.usd for r in ledger.rows if month_of(r.ts) == m)
+    return round(today, 6), round(month, 6)
+
+
 def month_of(ts: float) -> str:
     return time.strftime("%Y-%m", time.localtime(ts))
 

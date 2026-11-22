@@ -19,11 +19,10 @@ test('two browser contexts stay in sync live (dossier, status, settings, deletio
   await expect(b.getByRole('heading', { level: 1, name: 'Synchronisé' })).toBeVisible();
   await expect(b.locator('.phase-txt')).toContainText('Prouvé', { timeout: 45_000 });
   await expect(a.getByRole('heading', { name: /Preuve vérifiée par Lean/ })).toBeVisible();
-  // Rename on B → A's heading follows.
-  await b.getByRole('button', { name: 'Autres actions' }).click();
-  await b.getByRole('menuitem', { name: 'Renommer' }).click();
-  await b.getByLabel('Titre').fill('Synchronisé bis');
-  await b.getByRole('button', { name: 'Enregistrer' }).click();
+  // Rename on B (the title edits in place, autosaved — S-AK) → A's heading follows.
+  await b.getByRole('heading', { level: 1 }).getByRole('button').click();
+  await b.locator('#dossier-title').fill('Synchronisé bis');
+  await b.keyboard.press('Enter');
   await expect(a.getByRole('heading', { level: 1, name: 'Synchronisé bis' })).toBeVisible();
   // Settings change on A (mode) → B's privacy indicator follows.
   await api('PATCH', '/settings', { mode: 'local' });
@@ -51,7 +50,9 @@ test('reconnect: a dropped WebSocket resumes without losing events', async ({ pa
   await api('POST', '/projects', { title: 'Créé pendant la coupure' });
   await page.context().setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await expect(page.getByRole('combobox', { name: 'Projet' }).locator('option', { hasText: 'Créé pendant la coupure' })).toHaveCount(1, { timeout: 15_000 });
+  // S-AK: projects are listed in the context switcher
+  await page.locator('#context-switcher').click();
+  await expect(page.getByRole('dialog', { name: 'Projets et dossiers' }).getByRole('button', { name: 'Créé pendant la coupure' })).toHaveCount(1, { timeout: 15_000 });
   const after = await page.evaluate(() => (window as unknown as { __madalean: { seqStats: { last: number } } }).__madalean.seqStats.last);
   expect(after).toBeGreaterThan(before);
 });

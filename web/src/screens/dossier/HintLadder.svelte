@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from '../../components/EnterHint.svelte';
+  import { enterSubmit } from '../../lib/ui/enter';
   // Progressive hint ladder (Learn mode), served by POST /dossiers/{id}/hint (docs/RESEARCH_WORKSHOP.md §4):
   //   attempt first (what did you try?) → nudge → strategy → key lemma → next step → full proof (the Lean-verified
   //   proof, never model text). From level 3 the server requires a sentence on what the previous hint told you.
@@ -71,7 +73,8 @@
   {#if !started && !attempted}
     <div class="field">
       <label for="hl-tried">{t('hints.triedLabel')}</label>
-      <textarea id="hl-tried" class="input" rows="3" bind:value={tried} placeholder={t('hints.triedPlaceholder')}></textarea>
+      <textarea id="hl-tried" class="input" rows="3" bind:value={tried} use:enterSubmit={() => void ask()} placeholder={t('hints.triedPlaceholder')} aria-describedby="hl-tried-e"></textarea>
+      <EnterHint id="hl-tried-e" />
     </div>
     <fieldset class="field help">
       <legend class="label">{t('hints.helpLabel')}</legend>
@@ -96,7 +99,8 @@
     {#if needsReflection && !busy}
       <div class="field">
         <label for="hl-refl">{t('hints.reflectLabel')}</label>
-        <textarea id="hl-refl" class="input" rows="2" bind:value={reflection} aria-describedby="hl-refl-h"></textarea>
+        <textarea id="hl-refl" class="input" rows="2" bind:value={reflection} use:enterSubmit={() => void ask()} aria-describedby="hl-refl-h hl-refl-e"></textarea>
+        <EnterHint id="hl-refl-e" />
         <p class="hint" id="hl-refl-h">{t('hints.reflectHint')}</p>
       </div>
     {/if}

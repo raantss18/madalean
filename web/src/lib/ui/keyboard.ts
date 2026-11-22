@@ -1,7 +1,7 @@
 // On-screen keyboard on phones and tablets (Android app, remote browsers).
 // The Android shell resizes the web view (adjustResize) and the viewport asks browsers to do the same
 // (interactive-widget=resizes-content), so the page height shrinks while the keyboard is up. We detect that,
-// set html[data-kb="open"] (fixed bars marked .kb-hide disappear: the bottom navigation, floating panels) and
+// set html[data-kb="open"] (fixed bars marked .kb-hide disappear: floating panels) and
 // keep the caret of the field being typed in visible above the keyboard. Inspired by Mahay's single bottom inset
 // (max of system bar and keyboard) — here the shell already applies the inset, the page only has to react.
 
