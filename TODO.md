@@ -2,6 +2,33 @@
 
 État : ⬜ à faire · 🔄 en cours · ✅ fait et vérifié · ⚠️ fait, non vérifié en réel
 
+## 🧭 Stratégie 2.1 — l'atelier vérifié (demande du 22/11 au soir), par ordre de priorité
+
+Règle : on n'enlève rien de ce qui marche. Chaque ajout est un module à part, activable, testé, et « vérifiée »
+reste le verdict d'un Lean neuf et strict. Madalean ne concurrence pas les grands modèles : il les utilise tous, et
+gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par dollar) et l'atelier complet.
+
+1. 🔄 **Certificats : Sage calcule, Lean vérifie** (S-AT) — factorisations, primalité, bases de Gröbner / identités
+   polynomiales, intervalles certifiés, programmation linéaire et sommes de carrés, recherches exhaustives (SAT) :
+   le calcul produit un témoin, Lean ne fait que le vérifier ; ouvre nombres, algèbre, combinatoire, analyse,
+   optimisation, géométrie
+2. 🔄 **Mesurer** (S-AU) — miniF2F et PutnamBench dans Madalean, score, temps et coût par preuve vérifiée, par
+   modèle et par stratégie ; publié sur le site, refait à chaque version
+3. 🔄 **Veille mathématique permanente** (S-AV) — écran « Actualités » : nouveautés arXiv par domaine, problèmes
+   ouverts et nouveaux problèmes (listes publiques), nouveautés Lean / Mathlib et IA pour les maths ; résumé, tri par
+   tes domaines, « envoyer vers un projet / une conjecture / Sources », mise à jour automatique, lisible hors ligne
+4. 🔄 **Moteur de conjectures** (S-AW) — expérience Sage → recherche OEIS / LMFDB → conjecture en Lean → chasse au
+   contre-exemple → tentative de preuve ; journal de ce qui a été essayé
+5. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
+   le reste marqué honnêtement
+6. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
+   demande
+7. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
+   olympiades), parcours « Apprendre »
+8. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
+   preuves vérifiées
+9. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
+
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 
 Publié : 2.0.0, 2.0.1, 2.0.2 (GitHub, signées ; site https://raantss18.github.io/madalean/ et canal de mises à jour
