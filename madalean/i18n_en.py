@@ -1094,6 +1094,19 @@ EN.update({
     'Composant {name} : la version {pinned} est prête à être installée.':
         'Component {name}: version {pinned} is ready to be installed.',
     'Composant {name} absent ou incomplet : réparez-le.': 'Component {name} missing or incomplete: repair it.',
+    # conductor (S-AI, D41)
+    'Dirigé par {name} : plan en {n} étapes.': 'Directed by {name}: plan in {n} steps.',
+    '{name} a corrigé l\'erreur Lean : {what}': '{name} fixed the Lean error: {what}',
+    'Plafond atteint : continuer avec Claude (+{step} $) ?': 'Cap reached: continue with Claude (+{step} $)?',
+    'Plafond de la demande relevé à {cap} $.': 'Request cap raised to {cap} $.',
+    'Suite sans Claude : la chaîne gratuite habituelle continue.':
+        'Continuing without Claude: the usual free chain goes on.',
+    'Plafond mensuel atteint : suite sans Claude.': 'Monthly cap reached: continuing without Claude.',
+    'Claude indisponible : {name} dirige à sa place.': 'Claude unavailable: {name} directs instead.',
+    'Vérification finale ({name}) : énoncé, preuve et explication concordent.':
+        'Final check ({name}): statement, proof and explanation agree.',
+    'Vérification finale ({name}) : à revoir — {issues}': 'Final check ({name}): to review — {issues}',
+    'Preuve vérifiée par Lean': 'Proof verified by Lean',
     # proof tournament (S-J)
     'Tournoi, round {k} : {models}.': 'Tournament, round {k}: {models}.',
     'Essai arrêté : la course est terminée.': 'Attempt stopped: the race is over.',

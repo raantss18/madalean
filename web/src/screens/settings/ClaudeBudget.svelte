@@ -15,7 +15,7 @@
 
   const usd = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: n < 0.1 && n > 0 ? 4 : 2 }).format(n);
   const pct = $derived(sp && sp.cap_month > 0 ? Math.min(100, (sp.spent_month / sp.cap_month) * 100) : 0);
-  function setCap(k: 'claude_cap_proof_usd' | 'claude_cap_month_usd', max: number, e: Event) {
+  function setCap(k: 'claude_cap_proof_usd' | 'claude_cap_month_usd' | 'conductor_cap_usd', max: number, e: Event) {
     const v = Number((e.target as HTMLInputElement).value);
     if (!Number.isFinite(v) || v < 0 || v > max) { toast('error', t('settings.range', { min: 0, max })); return; }
     void saveSettings({ [k]: Math.round(v * 100) / 100 });
@@ -47,6 +47,16 @@
         </select>
       </div>
     </div>
+    <div class="conductor" role="group" aria-labelledby="conductor-h">
+      <h4 id="conductor-h">{t('conductor.title')}</h4>
+      <p class="hint">{t('conductor.lead')}</p>
+      <label class="switch"><input type="checkbox" checked={Boolean(s['conductor'] ?? true)} onchange={(e) => saveSettings({ conductor: (e.target as HTMLInputElement).checked })} />{t('conductor.enable')}</label>
+      <div class="field">
+        <label for="cap-request">{t('conductor.cap')}</label>
+        <div class="money"><span aria-hidden="true">$</span><input id="cap-request" class="input" type="number" inputmode="decimal" min="0" max="100" step="0.05" value={Number(s['conductor_cap_usd'] ?? 1)} onchange={(e) => setCap('conductor_cap_usd', 100, e)} aria-describedby="cap-request-h" /></div>
+        <p class="xs muted" id="cap-request-h">{t('conductor.capHint')}</p>
+      </div>
+    </div>
     {#if sp}
       <div class="spend" role="group" aria-labelledby="spend-h">
         <p id="spend-h" class="label">{t('claude.spentMonth', { m: sp.month })}</p>
@@ -75,6 +85,8 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 var(--s-4); margin-top: var(--s-3); }
   .money { display: flex; align-items: center; gap: 6px; }
   .money .input { max-width: 9rem; }
+  .conductor { margin-top: var(--s-3); border-top: 1px solid var(--line); padding-top: var(--s-3); }
+  .conductor h4 { margin: 0 0 var(--s-1); }
   .spend { margin-top: var(--s-3); border-top: 1px solid var(--line); padding-top: var(--s-3); }
   .big { margin: 0; font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
   .bar { height: 8px; background: var(--surface-3); border-radius: 999px; overflow: hidden; max-width: 28rem; margin: var(--s-2) 0; }

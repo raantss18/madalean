@@ -183,3 +183,75 @@ Reading:
   found no disagreement.
 - Cost: one resident Lean of 4–6.5 GB per workspace in use (≤ 2), stopped after 10 min without an attempt (setting),
   recycled above 8 GB. Switch: « Garder Lean prêt d'avance ».
+
+## Chef d'orchestre (S-AI, DECISIONS D41)
+
+**Demo replay** (`scripts/dev/conductor_bench.py --root . --runs 3 --scale 20`): one `madalean serve --demo` per
+scenario × variant on ports 12100+, throw-away config / cache directories; the scripted workers answer after the
+real median of their stage / 20 (as above), the scripted conductor after the latency measured on the real API /
+20, the simulated Lean in 0.1 s; times multiplied back by 20 (≈ real seconds). `off` = conductor setting false (the
+current pipeline), `claude` = Claude directs (scripted, priced at list prices from estimated tokens), `free` = no
+Anthropic key, the best free model directs. Medians of 3 runs, `prove_attempts` 2, local Goedel prover (demo).
+
+| scenario | variant | proved | job (≈ s) | worker calls | conductor calls | cost (USD) |
+|---|---|---|---|---|---|---|
+| everything succeeds | off | 3/3 | 90.6 | 6 | 0 | 0 |
+| | claude | 3/3 | 92.9 | 6 | 2 (plan Haiku, final Haiku) | 0.0002 |
+| | free | 3/3 | 98.4 | 6 | 2 | 0 |
+| Lean rejects the translation (3×) | off | **0/3** | 116.2 | 4 | 0 | 0 |
+| | claude | **3/3** | 174.1 | 8 | 3 (+ statement fixed) | 0.0013 |
+| | free | 3/3 | 180.0 | 8 | 3 | 0 |
+| provers fail without a hint | off | **0/3** | 90.3 | 5 | 0 | 0 |
+| | claude | **3/3** | 91.9 | 6 | 2 (the plan's hint did it) | 0.0002 |
+| | free | 3/3 | 98.3 | 6 | 2 | 0 |
+| provers fail, plan without hint | off | **0/3** | 90.9 | 5 | 0 | 0 |
+| | claude | **3/3** | 105.7 | 7 | 3 (+ proof fixed) | 0.0024 |
+| | free | 3/3 | 113.8 | 7 | 3 | 0 |
+
+Reading: on a request that already works, the conductor adds 2 calls and ≈ 2 s (the plan is written beside the
+first stage; only the final check runs after the explanation); the worker calls are the same. When something fails,
+one correction (≈ 3–8 s on the real API) replaces a failed job. The demo problem is « easy », so Haiku directs; the
+demo's costs are estimates (3.5 characters per token) — see the real numbers below.
+
+**Real API** (`scripts/dev/conductor_real_check.py`, the user's key read through the app's key store, throw-away
+config, 2026-11-22; total spent **0.0851 USD** over 11 calls):
+
+| decision (difficulty) | model chosen | wall | tokens in / out | cache read / write | cost |
+|---|---|---|---|---|---|
+| plan (medium) | Sonnet 5.5 | 10.4 s | 2 108 / 1 007 | 0 / 2 104 | 0.0153 $ |
+| plan (medium), before the latency prior | Opus 5.5 | 9.7 s | 2 109 / 901 | 0 / 2 105 | 0.0286 $ |
+| correction of a rejected statement | Sonnet 5.5 (thinking, effort medium) | 2.9 s | 1 323 / 158 | 0 / 1 319 | 0.0049 $ |
+| final check (medium) | Sonnet 5.5 | 3.1–4.0 s | 1 180 / ≈ 300 | 960 / 0 (2nd run) | 0.0035–0.0060 $ |
+| plan (medium), stable prefix only cached | Sonnet 5.5 | 8.1–10.3 s | 2 108 / 862–1 182 | **1 858** / 0 | 0.0093–0.0125 $ |
+| plan (easy) | Haiku 5.5 | 7.5 s | 2 109 / 1 439 | 0 / 1 859 | 0.0010 $ |
+| final check (easy) | Haiku 5.5 | 3.3–4.1 s | 1 181 / 261–339 | 961 / 0 (2nd) | 0.0002–0.0003 $ |
+
+Two fixes came from these runs: (1) the top-level automatic cache breakpoint wrote the volatile request too (2 104
+of 2 108 tokens written at 1.25×): with explicit stable blocks only the stable prefix is now cached (1 858 tokens
+read at 0.1× on the next plan); (2) an unmeasured Opus beat a measured Sonnet on latency (unknown latency counted
+as 0): every tier now has a latency prior from these measurements until it is measured here.
+
+**Cost per request type** (real prices, measured tokens, stable prefix warm):
+- simple request, easy (plan + final check on Haiku): ≈ **0.001 $**;
+- typical request, medium (plan + final check on Sonnet): ≈ **0.013 $** warm, 0.021 $ cold;
+- hard request (plan on Opus, final on Sonnet): ≈ **0.03 $**;
+- + one correction (Sonnet): ≈ 0.005–0.03 $ each (≤ 3 per failure, the 3rd on Opus ≈ 0.05 $);
+- workers assigned to Claude: only when clearly better than the free ones (penalty 0.10 + 3 × cost / budget left;
+  never for proofs, where Claude stays the tournament's final reinforcement, S-M) — an explanation on Sonnet would
+  cost ≈ 0.04 $.
+A request stays far under the 1 USD cap unless the tournament's Claude reinforcement runs (bounded by the same cap).
+
+**Prompt compaction** (`brain/toolcards.py`, estimates at 3.5 characters per token; the real tokenizer counts about
+twice as many on these French / Lean texts — the plan's stable prefix is 915 estimated, 1 858 real):
+
+| role | every card, every tool | the role's cards, unselected | sent (stable + this request) |
+|---|---|---|---|
+| formalize (Lean + conventions) | 2 055 | 671 | 438–538 (stable 377) |
+| explain | 2 055 | 170 | 124–153 |
+| conductor plan (+ role text 429) | 2 055 | 840 | 547–647 (stable 486) |
+| conductor proof correction | 2 055 | 671 | 438–538 |
+| conductor final check | 2 055 | 381 | 343–365 |
+
+The stable block (role text + core rules, versioned) is byte-identical for every request of a role on the same tool
+versions (tested); measured cache hit on the real API: 1 858 of 2 108 prompt tokens of a plan, 960 of 1 180 of a
+final check — read at 0.1× the input price.

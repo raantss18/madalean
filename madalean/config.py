@@ -97,6 +97,10 @@ class Settings:
     claude_model: str = "auto"
     claude_cap_proof_usd: float = 1.0
     claude_cap_month_usd: float = 20.0
+    # S-AI (D41): the conductor (Claude, else the best measured free model) plans each request, assigns a model per
+    # task, corrects what Lean rejects and checks the final coherence — within a cap per request (USD)
+    conductor: bool = True
+    conductor_cap_usd: float = 1.0
     # Hugging Face Inference Providers (S-T, user decision 2026-11-22): with a token, Goedel-Prover-V2-32B served online
     # leads the proof (tournament round 0, Goedel's own prompts), paid within the caps above
     hf_goedel: bool = True

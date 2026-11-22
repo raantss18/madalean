@@ -550,3 +550,38 @@
   not strictly after the header: the worker's prefix includes the first character after the header); trusting a
   warm acceptance; early abort of streamed answers (B11: designed in docs/BRAIN.md §17, not built — a cut is
   rarely certain and a wrong cut loses a proof).
+
+## D41 — The conductor: Claude directs each request within 1 USD, the next best model otherwise (user request, 2026-11-22, S-AI)
+- Request: « Claude orchestre tout de façon optimale » — reads the problem, splits it into tasks, picks the model of
+  each task from the ranking, receives the outputs, corrects and optimises the errors, Madalean executes; under
+  1 USD per request; the second best model when Claude is unavailable; each model reads the rules of the tools it
+  uses; prompt compaction; costs, durations and slowness measured, not fixed; « tu ne casses rien ».
+- User's answers: conductor chosen per decision among Haiku / Sonnet / Opus 5.5 from difficulty, budget left and
+  measured data; 1 USD per request, then « Plafond atteint : continuer avec Claude (+0,50 $) ? » (yes: +0.50; no:
+  without Claude); Claude reviews plans, failures and the final coherence only; on by default with a Claude key,
+  switch in Réglages › Modèles, cost shown on each request; without Claude the best measured model directs, and with
+  no capable one the pipeline runs unchanged.
+- Decision (docs/BRAIN.md §18): a contained hook of the pipeline (`pipeline/conductor_hook.py`, ≈ 25 lines in
+  `runner.py`) — plan written beside the first stage (the stages wait ≤ 25 s for it), structured JSON validated by
+  code; model per task chosen by the conductor AMONG candidates the code ranks (router score − measured latency −
+  cost penalty for paid models); corrections only when Lean rejects a statement or no proof is found (≤ 3 each, the
+  3rd on Opus), each judged by Lean like any other; final coherence check reported, never overwriting. Conductor
+  choice by a utility (posterior success per decision kind, difficulty, cost vs budget left, measured latency),
+  fallback chain Claude → Claude → free → none on 429 / timeout / refusal / invalid JSON. Request cap = the job's
+  spend scope cap (replaces the per-proof cap for that job; the monthly cap always wins). Tool rule cards (Lean card
+  verified by S-AB's syntax catalogue, Madalean conventions, Sage/Python, LaTeX, explanation) compacted per role and
+  request: a stable versioned block before the cache breakpoint, the request's rules after it.
+- Rejected: Claude reviewing every output (cost × 5, slower; Lean already judges proofs); letting the conductor
+  write proofs itself before the tournament (the free provers and the S-M reinforcement already do it; Claude
+  corrects the closest failed attempt instead); assigning paid models to proofs from the plan (unbounded agent
+  tokens: Claude stays the tournament's final reinforcement within the same cap); the `anthropic` SDK (not a
+  dependency; every request keeps going through `brain.net.Http`: local-mode enforcement, key-host binding); a
+  fixed conductor model (measured: an unmeasured Opus otherwise beat a measured Sonnet on latency); caching the
+  whole request with the top-level breakpoint (measured: 2 104 of 2 108 tokens written at 1.25×, never read again);
+  automatic splits into lemmas (D31: the user decides — the plan only suggests them); a free-model plan skipped
+  when Claude is declined (the user's answer lists « cap declined » among the cases where the next best directs).
+- Measured (docs/PERFORMANCE.md « Chef d'orchestre »): demo replay — same worker calls, +2 conductor calls, ≈ +2 s
+  when everything works; a rejected statement or a failed proof is corrected instead of a failed job. Real API
+  (11 calls, 0.085 USD in total): plan 7.5–10.4 s (Haiku 0.001 $, Sonnet 0.009–0.015 $, Opus 0.029 $), correction
+  2.9 s (0.005 $), final check 3–4 s (0.0002–0.006 $); stable prefix read from the cache on the next call (1 858 of
+  2 108 tokens).

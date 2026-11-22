@@ -16,6 +16,7 @@
   import Thread from './Thread.svelte';
   import DossierMenu from './DossierMenu.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
+  import ConductorLine from '../../components/ConductorLine.svelte';
   import { stop } from './actions';
 
   let { params }: { params: Record<string, string> } = $props();
@@ -104,6 +105,7 @@
         <HelpLink page={step === 'plan' ? 'proof-plans' : step === 'lean' ? 'reading-lean' : 'workflow'} />
         <DossierMenu dossier={d} busy={Boolean(job)} />
       </div>
+      <ConductorLine job={job ?? last} />
     </header>
 
     <div class="tabs" role="tablist" aria-label={t('dossier.steps')}>

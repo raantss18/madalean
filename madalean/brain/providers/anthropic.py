@@ -33,36 +33,76 @@ def to_anthropic_tools(tools: list[dict]) -> list[dict]:
              "eager_input_streaming": True} for t in tools]
 
 
-def split_system(messages: list[dict]) -> tuple[str, list[dict]]:
-    """OpenAI-style messages -> (system text, Anthropic messages) — for plain completions."""
-    system, out = [], []
+def split_system(messages: list[dict]) -> tuple[str | list[tuple[str, bool]], list[dict]]:
+    """OpenAI-style messages -> (system, Anthropic messages) — for plain completions.
+
+    S-AI (prompt compaction): a system message marked `"stable": True` is a versioned block identical across requests
+    (role + tool rule cards); when there is one, `system` is returned as blocks [(text, cache_breakpoint)] — the stable
+    blocks first, each with a cache breakpoint after the last of them, then the variable ones. Without a marker the
+    single joined text is returned as before."""
+    system, stable, out = [], [], []
     for m in messages:
         role, content = m.get("role"), m.get("content")
         if role == "system":
-            system.append(content if isinstance(content, str) else json.dumps(content))
+            text = content if isinstance(content, str) else json.dumps(content)
+            (stable if m.get("stable") else system).append(text)
             continue
         role = "assistant" if role == "assistant" else "user"
         if out and out[-1]["role"] == role and isinstance(out[-1]["content"], str) and isinstance(content, str):
             out[-1]["content"] += "\n\n" + content          # the API wants alternating turns
         else:
             out.append({"role": role, "content": content if content is not None else ""})
+    if stable:
+        blocks = [(t, i == len(stable) - 1) for i, t in enumerate(stable)]
+        return blocks + ([("\n\n".join(system), False)] if system else []), out
     return "\n\n".join(system), out
 
 
-def build_body(model: str, system: str, messages: list[dict], *, max_tokens: int, tools: list[dict] | None,
-               effort: str | None, thinking: bool, fallbacks: bool, cache: bool) -> tuple[dict, dict]:
+# Models on which thinking cannot be disabled (`{type: "disabled"}` is a 400): « no thinking » means omitting the
+# parameter with a low effort (Opus 5.5, Haiku 5.5: adaptive at low effort) — except Sonnet 5.5, whose lowest setting
+# is `{type: "between_tools"}` (accepted at effort high or below, no other field). claude-api skill, 2026-11-03.
+BETWEEN_TOOLS_MODELS = ("claude-sonnet-5-5",)
+
+
+def build_body(model: str, system: str | list[tuple[str, bool]], messages: list[dict], *, max_tokens: int,
+               tools: list[dict] | None, effort: str | None, thinking: bool, fallbacks: bool, cache: bool,
+               output_format: dict | None = None, thinking_off: bool = False) -> tuple[dict, dict]:
+    """`output_format`: structured output (`output_config.format`, a JSON schema); `thinking_off`: the lowest
+    thinking the model accepts (S-AI conductor: short decisions)."""
     body: dict = {"model": model, "max_tokens": max_tokens, "stream": True, "messages": messages}
-    if system:
+    if isinstance(system, list):
+        blocks = []
+        for text, brk in system:
+            if not text:
+                continue
+            blk = {"type": "text", "text": text}
+            if cache and brk:
+                blk["cache_control"] = {"type": "ephemeral"}
+            blocks.append(blk)
+        if blocks:
+            body["system"] = blocks
+    elif system:
         blk: dict = {"type": "text", "text": system}
         if cache:
             blk["cache_control"] = {"type": "ephemeral"}
         body["system"] = [blk]
-    if cache:
-        body["cache_control"] = {"type": "ephemeral"}       # automatic breakpoint on the growing conversation
-    if thinking:
+    if cache and not isinstance(system, list):
+        # automatic breakpoint on the growing conversation (agents). With explicit stable blocks (S-AI: one-shot
+        # calls whose user part is volatile) only the stable prefix is cached: a cache write costs 1.25× and the
+        # request part would never be read again (measured on the real API: 2 104 of 2 108 tokens written).
+        body["cache_control"] = {"type": "ephemeral"}
+    if thinking_off:
+        if model in BETWEEN_TOOLS_MODELS and effort not in ("xhigh", "max"):
+            body["thinking"] = {"type": "between_tools"}
+    elif thinking:
         body["thinking"] = {"type": "adaptive", "display": "summarized"}
+    oc: dict = {}
     if effort:
-        body["output_config"] = {"effort": effort}
+        oc["effort"] = effort
+    if output_format:
+        oc["format"] = output_format
+    if oc:
+        body["output_config"] = oc
     if tools:
         body["tools"] = to_anthropic_tools(tools)
         body["tool_choice"] = {"type": "auto"}
@@ -73,13 +113,16 @@ def build_body(model: str, system: str, messages: list[dict], *, max_tokens: int
     return body, headers
 
 
-async def stream_messages(http: Http, *, base_url: str, model: str, system: str, messages: list[dict], mode: str,
+async def stream_messages(http: Http, *, base_url: str, model: str, system: str | list[tuple[str, bool]],
+                          messages: list[dict], mode: str,
                           key: str | None, max_tokens: int = 16000, tools: list[dict] | None = None,
                           effort: str | None = None, thinking: bool = True, fallbacks: bool = True,
                           cache: bool = True, on_chunk=None, stall: float = 90.0,
-                          first_byte: float = 120.0) -> StreamResult:
+                          first_byte: float = 120.0, output_format: dict | None = None,
+                          thinking_off: bool = False) -> StreamResult:
     body, headers = build_body(model, system, messages, max_tokens=max_tokens, tools=tools, effort=effort,
-                               thinking=thinking, fallbacks=fallbacks, cache=cache)
+                               thinking=thinking, fallbacks=fallbacks, cache=cache, output_format=output_format,
+                               thinking_off=thinking_off)
     url = base_url.rstrip("/") + "/messages"
     for _attempt in range(4):
         try:
@@ -92,9 +135,18 @@ async def stream_messages(http: Http, *, base_url: str, model: str, system: str,
                     body.pop("fallbacks")
                     headers.pop("anthropic-beta", None)
                     continue
-                if "output_config" in low or "effort" in low:
+                if "output_config" in low or "effort" in low or "format" in low:
+                    oc = body.get("output_config") or {}
+                    if "format" in oc and ("format" in low or "schema" in low):
+                        oc.pop("format")                # the caller validates the JSON itself
+                        if not oc:
+                            body.pop("output_config")
+                        continue
                     if body.pop("output_config", None) is not None:
                         continue
+                if "between_tools" in low and (body.get("thinking") or {}).get("type") == "between_tools":
+                    body.pop("thinking")                # omitted = adaptive; the low effort keeps it short
+                    continue
                 if "thinking" in low and "signature" not in low and "thinking" in body:
                     body.pop("thinking")
                     continue

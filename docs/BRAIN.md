@@ -594,3 +594,76 @@ stop the model at the first certain error.
   a wrong cut loses a proof the model was about to fix.
 - Decision: not built. The expected gain is the tail of one answer per failing attempt (seconds of generation),
   the risk is a lost proof; reliability first. Re-open if measurements show long code blocks that fail early.
+
+## 18. The conductor (« chef d'orchestre », session S-AI, DECISIONS D41)
+
+Files: `brain/conductor.py` (choice, prompts, schemas, fallback chain, measurements), `brain/toolcards.py` (tool rule
+cards, compaction), `pipeline/conductor_hook.py` (the job integration, a contained hook of `runner.py`),
+`brain/fake_conductor.py` (scripted brain for tests and `scripts/dev/conductor_bench.py`). Settings: `conductor`
+(on), `conductor_cap_usd` (1.0). API: `POST /api/jobs/{id}/conductor {approve}`; `job.conductor` in every job.
+
+**What it does per request** (only when a conductor can run: setting on, mode not `local`, a brain with the
+interface below, and either a Claude key or a capable free model — otherwise `NullHook`, the pipeline is unchanged):
+1. *Plan* (beside the first stage; statement / proof / explanation wait ≤ 25 s for it, never longer): the code ranks
+   candidates per kind (`worker_candidates`: the router's score — quality, measured reliability, leaderboard for the
+   domain, public signals — minus measured latency, minus for a paid model 0.10 + 3 × its estimated cost / budget
+   left; paid provers never: Claude stays the tournament's final reinforcement). The conductor answers a JSON plan
+   (`PLAN_SCHEMA`: difficulty, summary, 3–8 tasks with `depends_on`, `model` among the candidates or `auto`, `why`,
+   `hint`); `validate_plan` drops unknown kinds, duplicate ids, unknown dependencies and cycles, models outside the
+   candidates, computes parallel waves. Effects: `prefer` per role in `JobIO.complete` (understand / formalize /
+   explain; the user's own choice always wins), the prover that leads tournament round 0 (`lead`), hints appended to
+   the formalizer's text and the provers' hint. Advisory kinds (`lemmas`, `compute`, `latex`) are shown, never run
+   (D31: splits are the user's). Madalean's stages keep running as before (S-AF's parallel machinery).
+2. *Corrections* (only on failure): Lean rejected the translation → `fix_statement` (≤ 3, each compiled by Lean,
+   trivial statements refused); no proof → `fix_proof` from the two closest attempts and their Lean errors (≤ 3,
+   assembled with the pinned statement, strict verdict + axiom probe like every proof). Attempts are visible
+   (`kind: correction`), events « Claude a corrigé l'erreur Lean : … ».
+3. *Final check* (after the explanation): statement ↔ problem ↔ proof ↔ explanation, issues listed in the thread;
+   nothing is overwritten. Lean stays the only judge of a proof.
+
+**Who directs** — `Conductor.choose`, recomputed for every decision:
+`utility = min(q, need) + 0.02·(q − need)⁺ − est/room − 0.004·latency`, where `q` = posterior success of that model
+on that decision kind (`brain-conductor.json`, prior per tier worth 4 decisions: plan Haiku 0.55 / Sonnet 0.80 /
+Opus 0.90; fix 0.40 / 0.75 / 0.88; final 0.70 / 0.85 / 0.90; a correction's success = Lean's verdict), `need` by
+difficulty (easy 0.5, medium 0.8, hard 1.0; corrections 1.0), `est` = estimated cost (prompt tokens, stable prefix
+at the cache-read price when used < 280 s ago, expected output), `room` = what the request's cap and the month's cap
+leave, `latency` = measured seconds of that decision here, else a prior from the real runs. Example (room 1 $):
+medium plan (2 100 prompt tokens, 1 850 of them a cold stable prefix) — Sonnet 0.80 − 0.014 − 0.038 = 0.748, Opus
+0.802 − 0.028 − 0.040 = 0.734, Haiku 0.519 → **Sonnet**; easy plan → **Haiku** (0.470 vs Sonnet 0.454); hard plan →
+**Opus** (0.832 vs 0.748); medium final check → Sonnet (0.779 vs Opus 0.767, Haiku 0.685); a correction Sonnet failed
+twice → **Opus** first; 2 cents left → Haiku; Sonnet's plans failing here 8 times → another model.
+After Claude: the free models with reasoning quality ≥ 0.6 (catalogue), ranked by quality, measured reliability and
+latency (`free_conductors`); unfit models never.
+
+**Fallback chain** for every decision: chosen Claude → next Claude → best free → second free → none (the decision is
+skipped; the pipeline goes on). A model is skipped at once when paused (429 with `retry-after`, quota, refused key),
+its provider is down, or it is not affordable; a call ends on HTTP error, 60–180 s timeout, `stop_reason: refusal`,
+or an answer that is not the schema's JSON — and the next one is called. Calls: `MadaleanBrain.call_model` (one
+pinned model, raw stop reason, usage with cache reads, failures recorded in `brain-state.json` like any call).
+
+**Claude request** (`providers/anthropic.py`, raw HTTP as before — no SDK dependency): `output_config: {effort,
+format: {type: json_schema, schema}}` (structured output; dropped and retried if refused, the JSON is validated
+anyway); thinking off = Sonnet 5.5 `{type: between_tools}` (effort ≤ high), Opus / Haiku 5.5 thinking omitted with
+`low` effort (`disabled` is a 400 on these models); corrections keep adaptive thinking at `medium`; no
+`temperature`/`top_p`/`top_k`, no forced `tool_choice`, no prefill; refusal fallback beta as before.
+
+**Budget**: the request's scope is its proof scope `dossier:job` with its own cap (`Ledger.scope_caps`, default
+1 USD) replacing the per-proof cap for that job; the monthly cap always applies on top; every paid call (conductor,
+Claude workers, tournament reinforcement, Goedel online) counts. When a Claude decision does not fit: the job asks
+« Plafond atteint : continuer avec Claude (+0,50 $) ? » (`job.conductor.ask`, dialog in the dossier, 10 min); yes →
++0.50 $; no / no answer → Claude off for this request, the next best (free) conductor continues; month room < 0.50 $
+→ no question, Claude off.
+
+**Tool rule cards and compaction** (`toolcards.py`): cards `lean` (the VERIFIED syntax card of the workspace —
+`syntaxcards`, S-AB — else the same entries marked unchecked), `madalean` (conventions: fixed name and header,
+forbidden constructs, faithful statements, Lean decides), `sage` / `python`, `latex`, `explain`. Role → tools:
+formalize / prove / corrections → madalean + lean; explain / understand → explain; final → madalean + explain;
+sage → sage + python; latex → latex + explain. Core rules go into a **stable block** (role text + cards, versioned,
+byte-identical across requests, cache breakpoint after it: Anthropic `cache_control` on that system block only;
+merged into one identical system prefix for OpenAI-compatible providers); feature rules (`sum`, `induction`,
+`real`, `cast`, `analysis`…, detected in the request) go after it, deduplicated across cards, within a token
+budget per role (formalize 450, explain 200, plan 350…). Workers (understand, formalize, explain) get their cards in
+front of their messages when the conductor directs (never pinned Goedel calls, which keep their verbatim prompts).
+
+**Not done**: Sage / LaTeX corrections are not wired into Calcul or the article editor (owned by S-AG / S-R) — the
+cards and `Conductor.ask` are ready for it; the plan does not reorder or skip stages (it assigns models and hints).

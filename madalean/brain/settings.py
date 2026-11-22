@@ -27,6 +27,10 @@ DEFAULTS: dict[str, Any] = {
     "claude_model": "auto",         # which Claude for that round ("auto" = best for the role)
     "claude_cap_proof_usd": 1.0,    # spending cap per proof (USD, list prices, real usage) — every paid Claude call
     "claude_cap_month_usd": 20.0,   # spending cap per calendar month (USD)
+    # S-AI (D41): Claude directs each request (plan, model per task, corrections, final check) when its key is set,
+    # within a cap per request; without Claude the next best measured model directs, else the pipeline runs as before
+    "conductor": True,
+    "conductor_cap_usd": 1.0,       # cap per request directed by the conductor (USD); « continue? » adds 0.50
     "hf_goedel": True,              # with a Hugging Face token: Goedel-Prover-V2-32B online leads the proof (S-T)
     "embeddings": True,             # semantic re-ranking with an Ollama embedding model when installed
     "providers_disabled": [],       # S-U: provider ids turned off in Réglages → Fournisseurs (« keyless » = all keyless)
