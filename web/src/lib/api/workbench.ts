@@ -79,6 +79,9 @@ export interface NbRunResult { runs: Record<string, CalcRun & { outputs: NbOutpu
 
 export interface NbExplainError { explanation: string; fix: string; fix_valid: boolean; model: string }
 export interface NbExplainLine { line: number; code: string; text: string }
+// S-AJ (D42): the steps of a computation; facts computed by Sage (verified = a check passed, computed = a value)
+export interface NbStepFact { key: string; text: string; status: 'verified' | 'computed' | 'failed' }
+export interface NbExplainSteps { text: string; facts: NbStepFact[]; verified: boolean; reason: string; op: string; model: string; cached: boolean }
 
 const D = (pid: string, doc: string) => `/calcul/${enc(pid)}/docs/${enc(doc)}`;
 export const nb = {
@@ -104,6 +107,7 @@ export const nb = {
   detect: (pid: string, doc: string, text: string) => request<{ kind: 'code' | 'ask'; why: string }>('POST', `${D(pid, doc)}/detect`, { text }),
   explainError: (pid: string, doc: string, cid: string) => request<NbExplainError>('POST', `${D(pid, doc)}/cells/${enc(cid)}/explain`, { mode: 'error' }),
   explainLines: (pid: string, doc: string, cid: string) => request<{ lines: NbExplainLine[]; model: string }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/explain`, { mode: 'lines' }),
+  explainSteps: (pid: string, doc: string, cid: string) => request<NbExplainSteps>('POST', `${D(pid, doc)}/cells/${enc(cid)}/explain`, { mode: 'steps' }),
   suggestion: (pid: string, doc: string, cid: string, code: string, model: string) => request<{ cell: NbCell; approval_required: boolean }>('POST', `${D(pid, doc)}/cells/${enc(cid)}/suggestion`, { code, model }),
   sendTo: (pid: string, doc: string, cid: string, body: { target: CalcTarget; text?: string; title?: string; png?: string; asset?: string }) =>
     request<Record<string, unknown>>('POST', `${D(pid, doc)}/cells/${enc(cid)}/to`, body),

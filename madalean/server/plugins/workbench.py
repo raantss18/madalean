@@ -19,7 +19,9 @@ Calcul (S-P: notebooks — a document is a standard .ipynb sharing one kernel wi
                                                           fast role, streamed as `calcul.draft`, a new request
                                                           replaces the running one (409 `replaced` for the old)
 - `POST   …/docs/{doc}/detect {text}`                     {kind: code|ask, why} — what a new cell's text is
-- `POST   …/cells/{cid}/explain {mode: error|lines}`      « Expliquer l'erreur » (explanation + proposed fix) / lines
+- `POST   …/cells/{cid}/explain {mode: error|lines|steps}` « Expliquer l'erreur » (explanation + proposed fix) /
+                                                          lines / S-AJ: steps of the computation (facts checked by
+                                                          Sage, streamed as `calcul.steps`)
 - `POST   …/cells/{cid}/suggestion {code, model?}`        apply a proposed fix (model code: approval needed)
 - `POST   /api/code/explain {language: sage|python|lean, code, error?, mode}`   the same, generic (Lean screens)
 - `GET    /api/calcul/recipes` · `DELETE /api/calcul/recipes/{id}`   learned recipes (docs/CALCUL.md §3.5)
@@ -82,6 +84,7 @@ class Workbench:
         self.models = codegen.ModelStats(ctx.paths.config / "research" / "codegen-models.json")   # S-AG: pinned
         self._bridge = None
         self._kernels = None
+        self.steps_cache: dict[str, dict] = {}   # S-AJ: « étapes du calcul » per (code, output, language, UI lang)
 
     def bridge(self):
         rs = getattr(self.ctx, "research", None)          # the research workshop's bridge (one kernel manager)
@@ -1047,10 +1050,140 @@ async def _explain(request, language: str, code: str, err: str, mode: str, owner
 
 
 async def code_explain(request):
-    """Generic (Calcul now, Lean proofs later): {language: sage|python|lean, code, error?, mode: error|lines}."""
+    """Generic (Calcul now, Lean proofs later): {language: sage|python|lean, code, error?, mode: error|lines}.
+    S-AJ: `mode: steps` with {output, request?}: the mathematical steps, model only (no kernel here: unverified)."""
     data = await body(request)
+    mode = str(data.get("mode", "error"))
+    if mode == "steps":
+        return await _steps_answer(request, str(data.get("language", "")), str(data.get("code", "")),
+                                   str(data.get("output", ""))[:20000], str(data.get("request", ""))[:4000],
+                                   None, "explain")
     return await _explain(request, str(data.get("language", "")), str(data.get("code", "")),
-                          str(data.get("error", "")), str(data.get("mode", "error")), "explain")
+                          str(data.get("error", "")), mode, "explain")
+
+
+# ---------------------------------------------------------------- S-AJ (D42): « Expliquer les étapes du calcul »
+STEPS_CACHE_MAX = 200
+STEPS_PROBE_TIMEOUT = 60.0
+# the demo has no kernel: the seeded F5 cell gets the facts the real probe computes (docs/CALCUL.md §3.7)
+DEMO_STEPS_FACTS = [{"k": "integer", "ok": None, "v": {"n": "4294967297"}},
+                    {"k": "prime", "ok": True, "v": {"p": "641", "e": "1"}},
+                    {"k": "prime", "ok": True, "v": {"p": "6700417", "e": "1"}},
+                    {"k": "product_int", "ok": True, "v": {"prod": "641 \\cdot 6700417", "n": "4294967297"}}]
+
+
+def _ok_output(cell: dict) -> str:
+    """The text of a successful output ('' when the cell failed or shows nothing)."""
+    outs = cell.get("outputs") or []
+    if not outs or any(o["type"] == "error" for o in outs):
+        return ""
+    return _cell_text(cell)
+
+
+def _shown_plain(cell: dict) -> str:
+    """What the cell shows as plain text (printed text and text/plain results): the probe's recomputed value must
+    be found in it."""
+    parts = []
+    for o in cell.get("outputs") or []:
+        if o["type"] == "stream":
+            parts.append(o.get("text", ""))
+        elif o["type"] in ("result", "display"):
+            parts.append(str((o.get("data") or {}).get("text/plain", "")))
+    return "\n".join(parts)
+
+
+async def _steps_facts(request, wb: Workbench, ctx, pid: str, doc: str, c: dict, op: str) -> tuple[list[dict], str]:
+    """(raw facts computed by Sage, reason when there are none). Runs ONLY Madalean's fixed probe around the cell's
+    own code, and only when that code may run here (the approval rule of every run, D35) and the device may
+    execute; never while the notebook is running."""
+    from ...research import steps
+    if c["language"] != "sage":
+        return [], "language"
+    if not op:
+        return [], "no_probe"
+    if ctx.demo:
+        return (DEMO_STEPS_FACTS, "") if op == "factor" and "2^32" in c["code"] else ([], "no_kernel")
+    if _exec_allowed(request) is not None:
+        return [], "host_only"
+    if not wb.calc.may_run(c, bool(ctx.settings.experiments_auto)):
+        return [], "not_approved"
+    if c.get("stale"):
+        return [], "stale"
+    km = wb.kernels()
+    if not hasattr(km, "probe"):
+        return [], "no_kernel"
+    key = f"{pid}/{doc}"
+    if wb.lock(key).locked():
+        return [], "busy"
+    async with wb.lock(key):
+        res = await km.probe(wb.calc.rel_path(pid, doc), c["language"], steps.program(c["code"], c["language"], op),
+                             timeout=STEPS_PROBE_TIMEOUT)
+    if res.status != "ok":
+        return [], "probe_failed"
+    d = steps.parse(res.stdout)
+    if d.get("error") or not d.get("facts"):
+        log.info("steps probe (%s): %s", op, d.get("error") or "no fact")
+        return [], "probe_failed"
+    if not steps.matches_output(d.get("result", ""), _shown_plain(c)):
+        return [], "differs"
+    return d["facts"], ""
+
+
+async def _steps_answer(request, language: str, code: str, output: str, req_text: str, cell: tuple | None,
+                        owner: str):
+    """The explanation of the steps; `cell` = (wb, pid, doc, cell view) when it comes from a notebook cell (probes,
+    streaming as `calcul.steps`), None for the generic endpoint (model only)."""
+    import hashlib
+    from ...research import explain as ex, intent as I, steps
+    ctx = ctx_of(request)
+    lang = language_ui()
+    it = I.analyze(req_text) if req_text.strip() else None
+    op = steps.probe_op(it.op if it is not None else "", code)
+    ck = hashlib.sha256(json.dumps([language, code, output, req_text, lang, cell is not None]).encode()).hexdigest()
+    wb = cell[0] if cell else W(request)
+    hit = wb.steps_cache.get(ck)
+    if hit is not None:
+        return ok({**hit, "cached": True})
+    if cell:
+        _wb, pid, doc, c = cell
+        raw, reason = await _steps_facts(request, wb, ctx, pid, doc, c, op)
+    else:
+        raw, reason = [], "no_kernel"
+    facts = steps.facts_view(raw, lang)
+    trusted = [f["text"] for f in facts if f["status"] != "failed"]
+    last = [0.0]
+
+    def publish(text: str, state: str) -> None:
+        if cell:
+            ctx.publish("calcul.steps", {"project_id": cell[1], "doc": cell[2], "cell_id": cell[3]["id"],
+                                         "text": text[:20000], "state": state})
+
+    def on_text(text: str) -> None:
+        now = time.monotonic()
+        if now - last[0] > 0.12:
+            last[0] = now
+            publish(text, "writing")
+    publish("", "start")
+    try:
+        r = await ex.explain_steps(ctx, language=language, code=code, output=output, lang=lang, request=req_text,
+                                   intent=I.summary(it, lang) if it is not None and it.recognized else "",
+                                   facts=trusted, owner=owner, on_text=on_text)
+    except ex.ExplainError as e:
+        publish("", "error")
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields=str(e))
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        publish("", "error")
+        return error(503, "no_model", "Aucun modèle disponible ({err}).", err=str(e)[:200])
+    publish("", "done")
+    out = {"text": r["text"], "facts": facts, "verified": bool(trusted), "reason": reason, "op": op,
+           "model": r["model"]}
+    if r["text"] and reason in ("", "language", "no_probe", "no_kernel"):     # never cache a passing state (busy…)
+        wb.steps_cache[ck] = out
+        while len(wb.steps_cache) > STEPS_CACHE_MAX:
+            wb.steps_cache.pop(next(iter(wb.steps_cache)))
+    return ok({**out, "cached": False})
 
 
 def _cell_error(cell: dict) -> str:
@@ -1072,6 +1205,17 @@ async def cell_explain(request):
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields="type")
     mode = str(data.get("mode", "error"))
     key = f"{pid}/{doc}/{c['id']}:explain:{mode}"
+    if mode == "steps":
+        # S-AJ (D42): only a cell whose current code ran successfully (its output is the code's result)
+        output = _ok_output(c)
+        if not output or not c.get("last") or (c["last"].get("code_hash") and c["last"]["code_hash"] != c["code_hash"]):
+            return error(409, "no_result", "Exécutez d'abord la cellule : il faut un résultat à expliquer.")
+        req_text = c.get("prompt", "") if c["type"] == "ask" else ""
+        try:
+            return await wb.gens.run(key, _steps_answer(request, c["language"], c["code"], output, req_text,
+                                                        (wb, pid, doc, c), f"calcul-{pid}"))
+        except codegen.Replaced:
+            return error(409, "replaced", "Une demande plus récente a remplacé celle-ci.")
     try:
         return await wb.gens.run(key, _explain(request, c["language"], c["code"], _cell_error(c), mode,
                                                f"calcul-{pid}"))
@@ -1365,6 +1509,16 @@ def demo_answer(first: str) -> str | None:
     if "This cell failed" in first or "Cette cellule a échoué" in first:
         return ("Le nom utilisé n'existe pas dans Sage : la fonction s'appelle « factor ».\n\n"
                 "```sage\nprint(factor(2^32 + 1))\n```")
+    if "ÉTAPES MATHÉMATIQUES" in first or "MATHEMATICAL STEPS" in first:
+        if "MATHEMATICAL STEPS" in first:
+            return ("1. We look for the prime factors of $F_5 = 2^{32} + 1 = 4294967297$.\n"
+                    "2. Euler's remark: every prime factor has the form $64k + 1$; $k = 10$ gives $641$, which "
+                    "divides $F_5$.\n3. The quotient $6700417$ is prime.\n"
+                    "4. Result: $F_5 = 641 \\cdot 6700417$.")
+        return ("1. On cherche les facteurs premiers de $F_5 = 2^{32} + 1 = 4294967297$.\n"
+                "2. Remarque d'Euler : tout facteur premier est de la forme $64k + 1$ ; $k = 10$ donne $641$, qui "
+                "divise $F_5$.\n3. Le quotient $6700417$ est premier.\n"
+                "4. Résultat : $F_5 = 641 \\cdot 6700417$.")
     nums = re.findall(r"^(\d+): (.*)$", first, re.M)
     if ("ligne par ligne" in first or "line by line" in first) and nums:
         # (numbered lines only: the guided reading of a Lean statement also says « ligne par ligne » and got an

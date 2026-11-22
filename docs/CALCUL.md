@@ -144,7 +144,7 @@ Texte, Figure) is a small menu in the cell's head; the head keeps only « ⋯ »
 right below it, the code (filling live while the model writes), « Approuver et exécuter » right below the code.
 
 « Expliquer » on demand (`research/explain.py`, generic: `POST /api/code/explain {language: sage|python|lean, code,
-error?, mode: error|lines}`, reusable by the Lean screens): on an error, « Expliquer l'erreur » (plain French, a
+error?, mode: error|lines|steps}`, reusable by the Lean screens; `steps`: §3.7): on an error, « Expliquer l'erreur » (plain French, a
 proposed fix shown as a suggestion; « Appliquer la correction » makes it model code, approval needed); « Expliquer
 ligne par ligne » (« ⋯ »): one sentence under each line. Same fast role and syntax card.
 
@@ -210,6 +210,46 @@ notations; Sage: 29 fully from the catalogue, 2 partial (model with the canonica
 (the second asks of those two are the stored best), **31/31 cells ran** in the installed Sage; analysis + assembly
 median **2 ms** (max 44 ms), best-version answer 37 ms (preparser check). Python: 22/31 from the catalogue, 31/31
 identical.
+
+### 3.7 « Expliquer les étapes du calcul » (S-AJ, DECISIONS D42) — `research/steps.py`
+
+« ⋯ » of a code or request cell whose current code ran successfully → « Expliquer les étapes du calcul »: how the
+result is obtained, as a mathematician would do it by hand — 3 to 7 numbered steps in French or English (UI
+language), formulas rendered by KaTeX, the last step being the cell's actual result; for what cannot be done by
+hand (huge numbers, large systems), the method and its key facts.
+
+**Facts computed by Sage first.** A small table of deterministic *step probes*, keyed by the operation recognized in
+the request (§3.6) or else written in the code's last expression (`f.factor()`, `integrate(…)`, `M.det()`, …):
+
+| Operation | Computed / checked by Sage in the cell's kernel |
+|---|---|
+| factor (polynomial) | degree and ring, base field order and characteristic, each factor's degree and irreducibility, product of the factors == the polynomial |
+| factor (integer) | each factor is prime, product == n |
+| integrate | an antiderivative F and F' == f; definite: F(b) − F(a) (limits at ±∞) == the result |
+| roots | f(r) == 0 for each root, multiplicity, minimal polynomial; number of roots vs degree |
+| det | triangular form U (Gaussian elimination with permutation P), det(P) · ∏ diag(U) == det; rank |
+| solve | each solution substituted into every equation (== 0); `solve_right/left`: A·x == b and the kernel's dimension (unique or not) |
+
+The probe is Madalean's fixed program (`steps.PROBE`); the cell's code reaches it only as a JSON string, and it
+re-evaluates that code in a **copy** of the kernel's namespace (the user's names, `_` and the execution counter are
+untouched: run outside the history, `NotebookKernels.probe`). It runs only when the cell itself may run (user code,
+or model code approved on this host — the rule of every run, D35), from a device allowed to execute, when the
+result is not stale and the notebook is not running; its recomputed value must equal what the cell shows, otherwise
+its facts are dropped. The facts are given to the model with the instruction to use them as is and invent no other
+intermediate value; they are shown above the derivation with a mark: « vérifié par Sage » (a check passed),
+« calculé par Sage » (a value), « non confirmé par Sage » (a check failed: not given to the model). Without facts
+(no probe for the operation, Python notebook, model code not approved, another device…) the answer is shown with
+« Explication sans vérification » and the reason.
+
+**Fast**: the latency-first short-text path (BRAIN.md §15, `classify.task("transcribe")`, no job slot), streamed into
+the cell (`calcul.steps` events), cached per (language, code, output, request, UI language) in memory (200 entries;
+a state that may pass — busy, not approved — is not cached). Collapsible, « Copier » (Markdown with the facts),
+« Insérer dans l'article » (the send dialog, prefilled). Inline maths starting with a digit is written `${}641$`
+(the Markdown renderer reads `$641$` as money).
+
+Limits: probes for Sage cells only (a Python/sympy cell gets the model-only explanation); one probe per cell, on its
+last expression; the re-evaluation re-runs the cell's code (≤ 60 s) — a cell with side effects (files, randomness)
+may differ and then loses its facts.
 
 ## 4. Outputs
 

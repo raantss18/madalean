@@ -652,6 +652,14 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 `DELETE /api/calcul/recipes/{id}`. `ask` answers `{cell, model, approval_required, timing, checked, recipe, uses}`,
 409 `replaced` when a newer request for the same cell replaced it; runs answer 409 `calcul_busy` while cells run.
 Event `calcul.draft {project_id, doc, cell_id, code, state: start|writing|done|error}`.
+**S-AJ (D42)**: `…/cells/{cid}/explain {mode: "steps"}` — the mathematical steps of a cell whose current code ran
+successfully (409 `no_result` otherwise) → `{text (Markdown, numbered steps, LaTeX in $…$), facts: [{key, text,
+status: verified|computed|failed}], verified, reason: ""|no_probe|language|not_approved|host_only|stale|busy|
+probe_failed|differs|no_kernel, op: factor|integrate|roots|det|solve|"", model, cached}`; 409 `replaced` when a newer
+explanation of the same cell replaced it. Facts come from Madalean's fixed Sage probe run in the document's kernel
+(only when the cell may run, [CALCUL.md §3.7](CALCUL.md)); streamed as `calcul.steps {project_id, doc, cell_id,
+text, state: start|writing|done|error}`. Generic: `POST /api/code/explain {language: sage|python, code, output,
+request?, mode: "steps"}` → the same shape, model only (`reason: no_kernel`, never runs code); 400 without `output`.
 
 | Method | Path | Body → answer |
 |---|---|---|

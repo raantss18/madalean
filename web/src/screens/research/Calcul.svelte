@@ -6,7 +6,7 @@
   import { tick, untrack } from 'svelte';
   import type { Component } from 'svelte';
   import { ApiError } from '../../lib/api/client';
-  import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget, type NbExplainError, type NbExplainLine } from '../../lib/api/workbench';
+  import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget, type NbExplainError, type NbExplainLine, type NbExplainSteps } from '../../lib/api/workbench';
   import { request } from '../../lib/api/client';
   import { guessKind, type Guess } from '../../lib/calcul/detect';
   import { breakable } from '../../lib/calcul/texwrap';
@@ -64,6 +64,10 @@
   let drafting = $state<Record<string, string>>({});
   let expErr = $state<Record<string, NbExplainError | 'loading'>>({});
   let expLines = $state<Record<string, NbExplainLine[] | 'loading'>>({});
+  // S-AJ (D42): « Expliquer les étapes du calcul » — facts computed by Sage + the derivation, streamed while written
+  let expSteps = $state<Record<string, NbExplainSteps | 'loading'>>({});
+  let stepsLive = $state<Record<string, string>>({});
+  let stepsFolded = $state<Record<string, boolean>>({});
   let recipesOpen = $state(false);
   let recipes = $state<{ id: string; request: string; code: string; version: string; hits?: number }[]>([]);
   const asking: Record<string, number> = {};
@@ -115,6 +119,12 @@
     if (e.doc && e.doc !== docId) return;
     if (e.state === 'writing') drafting[e.cell_id] = e.code;
     else if (e.state === 'done' || e.state === 'error') delete drafting[e.cell_id];
+  }));
+  $effect(() => app.on('calcul.steps', (ev) => {
+    const e = ev as unknown as { doc?: string; cell_id: string; text: string; state: string };
+    if (e.doc && e.doc !== docId) return;
+    if (e.state === 'writing') stepsLive[e.cell_id] = e.text;
+    else if (e.state !== 'start') delete stepsLive[e.cell_id];
   }));
   $effect(() => app.on('calcul.running', (ev) => {
     const e = ev as unknown as { doc?: string; cell_id: string };
@@ -224,6 +234,26 @@
     expLines[c.id] = 'loading';
     try { expLines[c.id] = (await nb.explainLines(loadedFor, docId, c.id)).lines; }
     catch (e) { delete expLines[c.id]; if (!(e instanceof ApiError && e.kind === 'replaced')) toast('error', errorText(e)); }
+  }
+  // a cell whose current code ran successfully (the output is its result): its steps can be explained
+  const hasResult = (c: NbCell) => isCode(c) && !dirty(c) && (c.outputs?.length ?? 0) > 0 && !(c.outputs ?? []).some((o) => o.type === 'error');
+  async function explainSteps(c: NbCell) {
+    expSteps[c.id] = 'loading'; stepsFolded[c.id] = false; delete stepsLive[c.id];
+    try { expSteps[c.id] = await nb.explainSteps(loadedFor, docId, c.id); }
+    catch (e) { delete expSteps[c.id]; if (!(e instanceof ApiError && e.kind === 'replaced')) toast('error', errorText(e)); }
+    finally { delete stepsLive[c.id]; }
+  }
+  function stepsMarkdown(x: NbExplainSteps): string {
+    const facts = x.facts.filter((f) => f.status !== 'failed').map((f) => `- ${f.text} (${ct(`fact.${f.status}`)})`);
+    return (facts.length ? `${ct('stepsFacts')} :\n\n${facts.join('\n')}\n\n` : '') + x.text;
+  }
+  async function copySteps(x: NbExplainSteps) {
+    const md = stepsMarkdown(x);
+    try { await navigator.clipboard.writeText(md); toast('ok', ct('stepsCopied')); } catch { toast('info', md); }
+  }
+  function stepsToArticle(c: NbCell, x: NbExplainSteps) {
+    send = { cell: c, target: 'article', title: ct('stepsTitle'), text: stepsMarkdown(x) };
+    sendOpen = true;
   }
   async function applyFix(c: NbCell, x: NbExplainError) {
     try {
@@ -406,6 +436,7 @@
       if ((c.versions?.length ?? 0) > 1) items.push({ label: ct('history'), run: () => (history = history === c.id ? null : c.id) });
     }
     if (isCode(c) && (drafts[c.id] ?? c.source).trim()) items.push({ label: ct('explainLines'), run: () => explainLines(c) });
+    if (hasResult(c)) items.push({ label: ct('explainSteps'), run: () => explainSteps(c) });
     if (c.type === 'ask' && (prompts[c.id] ?? c.prompt ?? '').trim() && c.source.trim()) items.push({ label: ct('otherVersion'), run: () => write(c, true), disabled: writing === c.id });
     items.push({ label: ct('moveUp'), run: () => move(c, idx(c.id) - 1), disabled: idx(c.id) === 0 });
     items.push({ label: ct('moveDown'), run: () => move(c, idx(c.id) + 1), disabled: idx(c.id) === cells.length - 1 });
@@ -645,6 +676,31 @@
                     </div>
                   {/if}
                   {#if explain[c.id]}<div class="explain"><Md src={explain[c.id]} /></div>{/if}
+                  {#if expSteps[c.id]}
+                    {@const x = expSteps[c.id]!}
+                    <div class="explain steps" role="region" aria-label={ct('stepsTitle')}>
+                      <div class="row"><strong class="xs">{ct('stepsTitle')}</strong><span class="spacer"></span>
+                        {#if x !== 'loading'}
+                          <button class="btn xsmall quiet" aria-expanded={!stepsFolded[c.id]} onclick={() => (stepsFolded[c.id] = !stepsFolded[c.id])}>{stepsFolded[c.id] ? ct('stepsShow') : ct('stepsHide')}</button>
+                          <button class="btn xsmall quiet" onclick={() => copySteps(x)}><Icon name="copy" size={12} />{ct('stepsCopy')}</button>
+                          <button class="btn xsmall quiet" onclick={() => stepsToArticle(c, x)}>{ct('to.article')}</button>
+                        {/if}
+                        <button class="btn xsmall quiet" onclick={() => delete expSteps[c.id]}>{ct('closeExplain')}</button></div>
+                      {#if x === 'loading'}
+                        {#if stepsLive[c.id]}<div aria-live="polite"><Md src={stepsLive[c.id]} /></div>
+                        {:else}<p class="xs muted" role="status">{ct('stepsChecking')}</p>{/if}
+                      {:else if !stepsFolded[c.id]}
+                        {#if x.facts.length}
+                          <h3 class="xs facts-h">{ct('stepsFacts')}</h3>
+                          <ul class="facts">
+                            {#each x.facts as f, k (k)}<li class="fact {f.status}"><Md inline src={f.text} /> <span class="mark {f.status}">{#if f.status === 'verified'}<Icon name="check" size={11} />{/if}{ct(`fact.${f.status}`)}</span></li>{/each}
+                          </ul>
+                        {/if}
+                        {#if !x.verified}<p class="xs unverified" role="note">{ct('stepsUnverified', { why: ct(`stepsWhy.${x.reason}`).startsWith('stepsWhy.') ? '' : ct(`stepsWhy.${x.reason}`) })}</p>{/if}
+                        <Md src={x.text} cls="steps-md" />
+                      {/if}
+                    </div>
+                  {/if}
                   {#if expErr[c.id]}
                     {@const x = expErr[c.id]!}
                     <div class="explain" role="region" aria-label={ct('explainError')}>
@@ -845,6 +901,17 @@
   .recognized { margin: 0 0 var(--s-1); overflow-wrap: anywhere; }
   .req-err { margin: 0 0 var(--s-1); color: var(--failed); overflow-wrap: anywhere; }
   .explain-btn { margin-bottom: var(--s-2); }
+  .explain.steps .row { flex-wrap: wrap; gap: 4px; }
+  .facts-h { margin: var(--s-2) 0 4px; font-weight: 600; }
+  .facts { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: 4px; }
+  .fact { font-size: var(--fs-sm); overflow-wrap: anywhere; overflow-x: auto; overflow-y: hidden; }
+  .fact :global(.katex) { white-space: normal; }
+  .mark { display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-xs); font-weight: 600; padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+  .mark.verified { background: var(--proved-soft); color: var(--proved); }
+  .mark.computed { background: var(--surface); color: var(--text-2); border: 1px solid var(--line); }
+  .mark.failed { background: var(--running-soft); color: var(--running); }
+  .unverified { color: var(--text-2); border-left: 3px solid var(--running); padding-left: var(--s-2); margin: var(--s-2) 0; }
+  .explain.steps :global(.katex-display), .fact :global(.katex-display) { overflow-x: auto; overflow-y: hidden; }
   .line-list { list-style: none; padding: 0; margin: var(--s-1) 0 0; display: grid; gap: 4px; }
   .line-list li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--s-2); align-items: baseline; }
   .lc { font: 0.8125rem/1.4 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); }

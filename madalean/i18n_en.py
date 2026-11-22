@@ -1313,6 +1313,9 @@ EN.update({
     "Des cellules sont en cours d'exécution : attendez la fin ou interrompez-les.":
         "Cells are running: wait for them to finish or interrupt them.",
     "Une demande plus récente a remplacé celle-ci.": "A newer request replaced this one.",
+    # S-AJ (D42): « Expliquer les étapes du calcul »
+    "Exécutez d'abord la cellule : il faut un résultat à expliquer.":
+        "Run the cell first: there must be a result to explain.",
 })
 # S-AF (D38): stages in parallel, nothing redone twice
 EN.update({
