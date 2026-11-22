@@ -711,3 +711,41 @@
 - **Contacts** (README's): RANIRIAMANJAKA Antsa, antsa.raniriamanjaka@univ-antananarivo.mg, github.com/raantss18,
   Apache-2.0, version — web About (licence sentence added; phone kept, the user had added it), Android (new About
   screen from the connect screens), desktop shell (About block on the connect screen), site footer + About, README.
+
+## D46 — The conductor corrects Calcul and LaTeX errors; a proof found before « douteux » is kept aside (TODO B16 ter, 2026-11-22, S-AN)
+- Request (conductor follow-ups): the conductor of D41 also corrects a Sage / Python cell that fails at run time and
+  a LaTeX compilation that fails; a proof the search found while the statement check was still running must not be
+  thrown away when the check says « douteux » (or « faux » if the user forces).
+- **Calcul** (`research/conductorfix.fix_code`, inside `codegen.transcribe`): order deterministic fixer (S-AG) →
+  conductor → the usual pinned Calcul model (D39). The conductor is a new decision `codefix` of `Conductor.ask`
+  (Claude tier by utility, free models after, the same cap rules), with the Sage / Python cards and the catalogue's
+  canonical constructions as a mandatory prefix. Its code is validated by the installed Sage's preparser before it
+  is shown (invalid → counted as its failure, usual model instead), stays model code (approval by hash, D28 / D35,
+  same sandboxed kernel, ≤ 3 per request), and a run OK ranks it in the recipes as for any version (origin
+  `conductor`). « Corrigé par Claude Sonnet · 0,004 $ » under the cell and in its history. Rejected: the conductor
+  BEFORE the deterministic fixer (cost and seconds for a missing `import numpy`); letting a run OK of Claude's code
+  count for the pinned Calcul model (it would pin a paid model for every transcription; its success is measured in
+  the conductor's own statistics instead); one approval for the request (D35's rule stays exact).
+- **Article** (`conductorfix.fix_compile`, `texbuild.trial_compile`): only for a compilation that ran and failed on an
+  error without a one-click fix, once per source hash; ONE local find → replace, checked by compiling the project with
+  it in a separate sandboxed build (same engine and confinement, nothing kept), ≤ 3 proposals; offered as a
+  `compile_fix` suggestion of the existing panel (accept / refuse) with the conductor and the cost. Rejected: applying
+  a fix that compiles (« nothing an AI writes enters the source silently », ARTICLE §3); rewriting whole files (a
+  diff the author cannot review); offering an unchecked change; a model for errors that already have a deterministic
+  fix (packages, fetch, guard).
+- **Budget outside a job**: one spending scope per user request (`calcul:…:<hash of the request>`,
+  `article:<pid>:<source hash>`) with the request cap `conductor_cap_usd`; the cap question is a global dialog
+  (`conductor.ask` event, `POST /api/conductor/asks/{id}`), 5 min then « no » because a run / compile request is
+  waiting (10 min in a job). Closing the dialog answers « sans Claude ». Rejected: reusing the job question
+  (`/jobs/{id}/conductor`): Calcul and the article editor have no job.
+- **Proof kept aside** (`runner._keep_pending` / `_use_pending`): when the check stops the proof after a proof was
+  found (or in the same batch), the proof goes to `dossier.pending_proof` with its statement and index — not
+  « vérifiée », not in the library, the job still ends `statement_doubtful|false` exactly as before (D38). « Prouver
+  quand même » (`force`) first re-checks it with a FRESH strict Lean (never the warm Lean of D37; axiom probe) and
+  records it at once when accepted (library included); refused → the usual search. Any new statement drops it (by
+  hand, by the model, by the conductor; a stale one is never used). Rejected: recording it as verified with a
+  warning (the user decides on the statement first, D38); re-running the search after « Prouver quand même » (minutes
+  for a proof already found); trusting the earlier acceptance without a new check (the workspace or the Lean
+  version may have changed).
+- Tests: fake brains / kernels / Lean (no paid call), the installed Sage's preparser and Sage itself for a corrected
+  cell, the system XeLaTeX for the recompilation check (tests/test_conductor_fixes.py).

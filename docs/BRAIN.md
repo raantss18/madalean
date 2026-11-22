@@ -665,5 +665,36 @@ merged into one identical system prefix for OpenAI-compatible providers); featur
 budget per role (formalize 450, explain 200, plan 350…). Workers (understand, formalize, explain) get their cards in
 front of their messages when the conductor directs (never pinned Goedel calls, which keep their verbatim prompts).
 
-**Not done**: Sage / LaTeX corrections are not wired into Calcul or the article editor (owned by S-AG / S-R) — the
-cards and `Conductor.ask` are ready for it; the plan does not reorder or skip stages (it assigns models and hints).
+**Corrections outside a job** (session S-AN, DECISIONS D46, `research/conductorfix.py`): two more decisions,
+`codefix` (a Calcul cell, prompt `fix_sage` / `fix_python`, cards sage + python / python, schema `{code, what}`) and
+`texfix` (an article compilation, prompt `fix_latex`, card latex, schema `{find, replace, what}`), with their own
+priors (Haiku 0.55 / 0.60, Sonnet 0.82, Opus 0.88), expected output (700 / 500 tokens), low effort, thinking off;
+like `fix`, the 3rd try goes to Opus first and the success is the checker's verdict, recorded by the caller (the cell
+ran OK — at its first run after the correction; the project compiled with the change). Same choice, fallback chain
+and caps as in a job: each user request has its own scope (`calcul:<pid>:<doc>:<cell>:<hash of the request>`,
+`article:<pid>:<source hash>`) with the cap `conductor_cap_usd` in `Ledger.scope_caps` (≤ 200 scopes kept, oldest
+dropped); the cap question is the event `conductor.ask {id, kind: calcul|article, spent, cap, step, estimate…}`,
+answered by `POST /api/conductor/asks/{id} {approve}` (dialog shown wherever the user is; closing it = « sans
+Claude »; no answer within 5 min = no; month room < 0.50 $ = never asked, Claude off). `NoConductor` → `None`: the
+caller keeps its usual path (Calcul: the pinned Calcul model of D39). Never in `local` mode, never with a brain
+without the interface, never when the setting is off.
+
+- *Calcul*: in `codegen.transcribe(fix_code=…, conductor={scope, where, attempt})`, AFTER the deterministic
+  fixer (`codefix`) and BEFORE the usual model. The prompt carries the request, the failing code, the end of the
+  traceback, the notebook's names, S-AG's recognized intent and the catalogue's canonical constructions (a mandatory
+  prefix, re-enforced by `codefix.enforce_prefix`). The answer is canonicalized and validated like any code (installed
+  Sage's preparser); an invalid answer counts as a failure of that conductor and the usual model repairs instead.
+  The version is model code (`by: assistant`, approval by hash unchanged, same sandboxed kernel), shown « Corrigé
+  par Claude Sonnet · 0,004 $ » under the cell and in its history (`versions[].fix`, `autofix.by = conductor`); a run
+  OK records it in the recipes (origin `conductor`) so the ranking makes it the « meilleure version »; it never
+  counts for the pinned Calcul model (Claude is not pinned for transcription).
+- *Article*: `POST …/texproject/compile` answers at once with `fixing: true` when a compilation that ran failed on
+  an error without a one-click fix (`diagnostics[].fix` null) and a conductor can run; once per source hash. The
+  conductor gets the file excerpt (±20 lines, numbered) and Madalean's reading of the error; its `find` must be an
+  exact substring of the excerpt near the error and its `replace` must pass `texbuild.guard_ai`; the project is then
+  compiled with the change in a separate sandboxed build (`texbuild.trial_compile`, same engine, guard, offline,
+  nothing kept). Only a change that compiles becomes a suggestion (`kind: compile_fix`, `meta: {conductor, usd,
+  verified: recompiled}`) of the suggestions panel — accept / refuse, never applied silently; a failure goes back to
+  the conductor with the new error (≤ 3 tries). Events `article.fix {state: working|proposed|none}`.
+
+**Not done**: the plan does not reorder or skip stages (it assigns models and hints).

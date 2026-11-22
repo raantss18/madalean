@@ -1,6 +1,6 @@
 // Typed HTTP client for docs/API.md. One place for: JSON, errors, 401 handling, aborts, downloads.
 import type {
-  CheckResult, Device, Dossier, DossierSummary, FollowStage, Hello, Job, JupyterStatus, LibEntry, Mode,
+  CheckResult, ConductorAsk, Device, Dossier, DossierSummary, FollowStage, Hello, Job, JupyterStatus, LibEntry, Mode,
   LeaderboardRow, ModelsInfo, Rankings, Project, Settings, Stage, StateSnapshot, Strategy, SystemInfo, UpdatesStatus, UsageStatus, VersionKind,
 } from './types';
 
@@ -132,6 +132,9 @@ export const api = {
   cancelJob: (id: string) => request<{ cancelled: boolean }>('POST', `/jobs/${enc(id)}/cancel`, {}),
   /** S-AI (D41): answer « Plafond atteint : continuer avec Claude (+0,50 $) ? ». */
   answerConductor: (id: string, approve: boolean) => request<{ answered: boolean }>('POST', `/jobs/${enc(id)}/conductor`, { approve }),
+  /** S-AN (D46): the same question for a request outside a job (a Calcul correction, an article compilation fix). */
+  conductorAsks: () => request<{ asks: ConductorAsk[] }>('GET', '/conductor/asks'),
+  answerConductorAsk: (id: string, approve: boolean) => request<{ answered: boolean }>('POST', `/conductor/asks/${enc(id)}`, { approve }),
 
   library: () => request<{ entries: LibEntry[] }>('GET', '/library'),
   deleteLibrary: (name: string) => request<{ removed: LibEntry }>('DELETE', `/library/${enc(name)}`),

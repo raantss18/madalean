@@ -89,6 +89,9 @@ export interface Conductor { by: string; name: string; tier: '' | 'haiku' | 'son
   ask: { spent: number; cap: number; step: number; estimate: number; t: number } | null;
   state: 'planning' | 'running' | 'asking' | 'off' | 'done'; decisions?: number; claude?: boolean;
   final?: { consistent: boolean; issues: { part: string; text: string }[]; summary: string } }
+/** S-AN (D46): a cap question outside a job (Calcul correction, article compilation fix). */
+export interface ConductorAsk { id: string; kind: 'calcul' | 'article'; spent: number; cap: number; step: number;
+  estimate: number; t: number; project_id?: string; project?: string; doc?: string; cell_id?: string; done?: boolean }
 export interface Tournament { round: number; models: string[]; names: string[]; state: string; domain: string;
   winner?: string; tried?: string[]; rounds?: number; minutes?: number }
 export interface LeaderboardRow { model: string; task: string; domain: string; tasks: number; solved: number;

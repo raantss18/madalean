@@ -578,7 +578,8 @@ class NotebookStore:
     def edit(self, pid: str, cid: str, *, code: str | None = None, language: str | None = None, by: str = "user",
              model: str = "", note: str | None = None, doc: str = DEFAULT_DOC, prompt: str | None = None,
              figure: dict | None = None, svg: str = "", kind: str | None = None,
-             collapsed: bool | None = None, outputs_hidden: bool | None = None) -> dict:
+             collapsed: bool | None = None, outputs_hidden: bool | None = None, vinfo: dict | None = None) -> dict:
+        """`vinfo`: shown with the new version in the cell's history (S-AN: who corrected it and what it cost)."""
         with self.lock(pid, doc):
             nb = self.read(pid, doc)
             c = self._find(nb, cid)
@@ -622,7 +623,7 @@ class NotebookStore:
                     # a model's code stays « assistant » after a user edit; any approval was for the old code
                     s["approved"] = None
                     s["versions"] = (s.get("versions") or [])[-(MAX_VERSIONS - 1):] + [
-                        {"code": code, "t": _now(), "origin": by}]
+                        {"code": code, "t": _now(), "origin": by, **({"fix": dict(vinfo)} if vinfo else {})}]
             if prompt is not None and cur == "ask":
                 m["prompt"] = prompt[:4000]
                 s["autofix"] = None

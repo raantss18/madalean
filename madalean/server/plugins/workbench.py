@@ -442,7 +442,7 @@ async def _run_cells(wb: Workbench, ctx, device: str, live: bool, pid: str, doc:
             _ev(ctx, pid, doc, cell_id=cid, run=run)
             if c["type"] == "ask" and c.get("origin") == "assistant" and c.get("prompt") and \
                     res.status in ("ok", "error"):
-                await _learn(wb, pid, doc, c, res.status == "ok", run)   # S-AG: ran OK / failed → ranking
+                await _learn(wb, pid, doc, c, res.status == "ok", run, ctx)   # S-AG: ran OK / failed → ranking
             if res.status != "ok":
                 stopped = {"cell_id": cid, "reason": res.status}
                 if (c["type"] == "ask" and autofix and res.status == "error"
@@ -470,7 +470,8 @@ async def _run_cells(wb: Workbench, ctx, device: str, live: bool, pid: str, doc:
 AUTOFIX_MAX = 3
 
 
-async def _learn(wb: Workbench, pid: str, doc: str, c: dict, ok_: bool = True, run: dict | None = None) -> None:
+async def _learn(wb: Workbench, pid: str, doc: str, c: dict, ok_: bool = True, run: dict | None = None,
+                 ctx=None) -> None:
     """S-AG (D39): the run of a request cell ranks its code version (ran OK > approved > faster; a version that only
     failed is never preferred again) and the model that wrote it (pinned model per language)."""
     try:
@@ -478,12 +479,22 @@ async def _learn(wb: Workbench, pid: str, doc: str, c: dict, ok_: bool = True, r
         key = c.get("intent_key") or request_key(c["prompt"], set(c.get("uses") or []))
         secs = (run or {}).get("seconds")
         model = c.get("model") or ""
+        af = c.get("autofix") or {}
+        by_conductor = af.get("by") == "conductor" and af.get("code_hash") == c.get("code_hash")
         await asyncio.to_thread(wb.recipes.outcome, key, c["code"], c["language"], v, ok=ok_,
                                 seconds=float(secs) if isinstance(secs, (int, float)) else None,
                                 error=((run or {}).get("error") or "")[-300:], request=c["prompt"],
                                 uses=c.get("uses") or [], model=model,
-                                origin=model if model in ("catalogue", "fix", "recipe") else (c.get("gen") or "model"))
-        if model:
+                                origin="conductor" if by_conductor else
+                                model if model in ("catalogue", "fix", "recipe") else (c.get("gen") or "model"))
+        if by_conductor:
+            # S-AN (D46): a conductor's correction succeeds when it runs; it never pins Claude as the Calcul model
+            from ...research import conductorfix
+            if not af.get("measured") and ctx is not None:
+                conductorfix.record(ctx, model, "codefix", ok_, float(af.get("seconds") or 0),
+                                    float(af.get("usd") or 0))
+                await asyncio.to_thread(wb.calc.set_autofix, pid, doc, c["id"], {**af, "measured": True})
+        elif model:
             await asyncio.to_thread(wb.models.ran, "sage" if c["language"] == "sage" else "python", model, ok_)
     except Exception:  # noqa: BLE001 (learning never breaks a run)
         log.exception("recipe not recorded")
@@ -498,15 +509,21 @@ async def _autofix(wb: Workbench, ctx, live: bool, pid: str, doc: str, c: dict, 
     """An « ask » cell failed: the error goes back to the model for a corrected proposal (AUTOFIX_MAX per request;
     each correction is a version of the cell, « corrigé automatiquement », the user can go back)."""
     names = await _names(wb, live, pid, doc, c["id"], c["language"])
+    n = (c.get("autofix") or {}).get("n", 0) + 1
+    # S-AN (D46): the conductor corrects after the deterministic fixer, within this request's budget
+    from ...research import conductorfix
+    cond = {"scope": conductorfix.calcul_scope(pid, doc, c["id"], c.get("prompt", "")), "attempt": n - 1,
+            "where": {"kind": "calcul", "project_id": pid, "doc": doc, "cell_id": c["id"]}}
     try:
         prev = await _prev_defs(wb, pid, doc, c["id"])
         r = await codegen.transcribe(ctx, language=c["language"], prompt=c.get("prompt", ""), names=names,
                                      context="", owner=f"calcul-{pid}", lang=language(), fix_code=c["code"],
                                      fix_error=(run.get("error") or run.get("stderr") or "")[-3000:],
-                                     stats=wb.models, prev=prev)
+                                     stats=wb.models, prev=prev, conductor=cond)
     except Exception:  # noqa: BLE001
         return None
     code, model = r["code"], r["model"]
+    cf = r.get("conductor") or None
     if not code or code == c["code"]:
         return None
     try:
@@ -517,10 +534,14 @@ async def _autofix(wb: Workbench, ctx, live: bool, pid: str, doc: str, c: dict, 
         return None                     # the cell changed meanwhile (rewritten, edited): never overwrite it
     for att in r.get("attempts") or []:           # versions that did not even compile: kept in the history
         await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=att["code"], by="assistant", model=model)
-    new = await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=code, by="assistant", model=model)
-    n = (c.get("autofix") or {}).get("n", 0) + 1
+    vinfo = {"by": "conductor", "name": cf["name"], "usd": cf["usd"], "what": cf["what"]} if cf else None
+    new = await asyncio.to_thread(wb.calc.edit, pid, c["id"], doc=doc, code=code, by="assistant", model=model,
+                                  vinfo=vinfo)
     fix = {"t": time.time(), "model": model, "n": n, "max": AUTOFIX_MAX,
            "error": (run.get("error") or "").strip().splitlines()[-1:][0][:200] if run.get("error") else ""}
+    if cf:                               # « Corrigé par Claude Sonnet · 0,004 $ » (its run outcome is measured)
+        fix.update(by="conductor", name=cf["name"], tier=cf["tier"], usd=cf["usd"], what=cf["what"],
+                   seconds=cf["seconds"], request_usd=cf["request_usd"], code_hash=new.get("code_hash", ""))
     await asyncio.to_thread(wb.calc.set_autofix, pid, doc, c["id"], fix)
     await asyncio.to_thread(wb.calc.set_side, pid, doc, c["id"], uses=r.get("uses") or [])
     new["autofix"] = fix

@@ -1987,6 +1987,8 @@ const en: Record<keyof typeof fr, string> = {
   'conductor.askBody': 'This request has already cost {spent} (cap {cap}). Continue with Claude (+{step})?',
   'conductor.askYes': 'Continue with Claude (+{step})',
   'conductor.askNo': 'Continue without Claude',
+  'conductor.askCalcul': 'Claude is correcting a Calcul cell that failed.',
+  'conductor.askArticle': 'Claude is looking for a fix to the article’s compilation.',
   'conductor.finalOk': 'Final check: everything agrees',
   'conductor.finalIssues': 'Final check: to review',
   'plan.inPlan': 'This lemma belongs to the proof plan of a theorem: split it from that plan, so that it stays within the limits (depth, number of nodes).',
@@ -2355,6 +2357,12 @@ const en: Record<keyof typeof fr, string> = {
   'ae.sug.kind.figure': 'figure',
   'ae.sug.kind.generalisation': 'generalisation',
   'ae.sug.kind.verification': 'verification',
+  'ae.sug.kind.compile_fix': 'compilation fix',
+  'ae.sug.fixedBy': 'Proposed by {name} · {cost} · checked: the article compiles with this change',
+  'ae.sug.free': 'free',
+  'ae.fixing': 'Looking for a fix to this error (checked by compiling before it is offered)…',
+  'ae.fixProposed': 'A fix that compiles is proposed in Suggestions.',
+  'ae.fixNone': 'No safe fix found for this error.',
   // ---- end article editor (S-R)
   // ---- providers hub (S-U)
   'settings.sec.providers': 'Providers',

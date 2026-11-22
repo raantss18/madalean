@@ -18,6 +18,7 @@
   import { navigate } from '../../lib/router.svelte';
   import { fmtTime, i18n } from '../../lib/i18n/index.svelte';
   import { ct } from '../../lib/calcul/strings';
+  import { costText } from '../../lib/conductor';
   import { kernelProblem } from '../../lib/calcul/kernel';
   import { renderMath } from '../../lib/md';
   import { toast } from '../../lib/ui/toasts.svelte';
@@ -663,6 +664,7 @@
                     </div>
                     {#if c.autofix}
                       <p class="xs note-fix" role="status">{ct((c.autofix as { reran?: boolean }).reran ? 'autofixedRan' : 'autofixed', { n: c.autofix.n ?? 1, max: c.autofix.max ?? 3 })}
+                        {#if c.autofix.by === 'conductor'}<span class="muted" title={c.autofix.what}>{ct('fixedBy', { name: c.autofix.name ?? '', cost: costText(c.autofix.usd, i18n.lang, ct('free')) })}</span>{/if}
                         {#if (c.versions?.length ?? 0) > 1}<button class="btn xsmall quiet" onclick={() => backVersion(c)}>{ct('backVersion')}</button>{/if}</p>
                     {/if}
                     {#if expLines[c.id]}
@@ -748,7 +750,7 @@
                   {/if}
                   {#if history === c.id && c.versions}
                     <div class="history"><h3 class="xs">{ct('versions')}</h3>
-                      <ol class="vers">{#each [...c.versions].reverse() as ver, k (k)}<li><span class="xs muted">{fmtTime(ver.t)} · {ver.origin === 'assistant' ? ct('byAssistant') : ct('byYou')}</span>
+                      <ol class="vers">{#each [...c.versions].reverse() as ver, k (k)}<li><span class="xs muted">{fmtTime(ver.t)} · {ver.origin === 'assistant' ? ct('byAssistant') : ct('byYou')}{#if ver.fix} · {ct('fixedBy', { name: ver.fix.name, cost: costText(ver.fix.usd, i18n.lang, ct('free')) })}{/if}</span>
                         <pre class="out small-code">{ver.code}</pre>{#if ver.code !== (drafts[c.id] ?? c.source)}<button class="btn xsmall quiet" onclick={() => { drafts[c.id] = ver.code; void save(c); }}>{ct('useVersion')}</button>{/if}</li>{/each}</ol></div>
                   {/if}
                 </div>

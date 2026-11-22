@@ -1348,3 +1348,16 @@ EN.update({
     "Lean prêt d'avance : au repos ; il démarre avec la prochaine preuve et s'arrête après {min} min sans essai.":
         "Lean ready in advance: at rest; it starts with the next proof and stops after {min} min without an attempt.",
 })
+
+# ---- a proof kept aside before a « douteux » / « faux » verdict (S-AN, D46)
+EN.update({
+    "Une preuve a été trouvée pendant la vérification de l'énoncé. Elle est mise de côté, sans être enregistrée comme "
+    "vérifiée : « Prouver quand même » la revérifie avec Lean au lieu de relancer la recherche ; corriger l'énoncé "
+    "l'abandonne.":
+        "A proof was found while the statement was being checked. It is kept aside, not recorded as verified: “Prove "
+        "anyway” checks it again with Lean instead of searching again; correcting the statement discards it.",
+    "La preuve mise de côté n'est pas acceptée par Lean : nouvelle recherche.":
+        "Lean does not accept the proof kept aside: searching again.",
+    "Preuve mise de côté revérifiée par Lean et enregistrée ({s:.0f} s).":
+        "Proof kept aside checked again by Lean and recorded ({s:.0f} s).",
+})

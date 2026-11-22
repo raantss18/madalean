@@ -203,9 +203,12 @@ ROLE_TOOLS: dict[str, tuple[str, ...]] = {
     # the conductor's own decisions
     "plan": ("madalean", "lean", "explain"), "fix_statement": ("madalean", "lean"),
     "fix_proof": ("madalean", "lean"), "final": ("madalean", "explain"),
+    # S-AN (D46): corrections outside a job — a failed Calcul cell, a failed article compilation
+    "fix_sage": ("sage", "python"), "fix_python": ("python",), "fix_latex": ("latex",),
 }
 ROLE_BUDGET = {"formalize": 450, "prove": 450, "explain": 200, "understand": 120, "route": 0, "sage": 450,
-               "python": 150, "latex": 250, "plan": 350, "fix_statement": 450, "fix_proof": 500, "final": 200}
+               "python": 150, "latex": 250, "plan": 350, "fix_statement": 450, "fix_proof": 500, "final": 200,
+               "fix_sage": 450, "fix_python": 150, "fix_latex": 250}
 
 
 def _norm(text: str) -> str:

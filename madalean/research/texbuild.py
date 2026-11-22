@@ -19,6 +19,7 @@ import shutil
 import signal
 import subprocess
 import time
+import uuid
 from pathlib import Path
 
 from .. import config, deps, export
@@ -602,9 +603,11 @@ def last_result(ctx, pid: str) -> dict | None:
         return None
 
 
-def prepare(ctx, pid: str, for_export: bool = False) -> tuple[dict, dict, dict, str]:
-    """(files for the build {path: text|bytes}, settings, analysis, input hash). Raises nothing."""
-    files = tp.read_files(ctx, pid)
+def prepare(ctx, pid: str, for_export: bool = False,
+            overrides: dict[str, str] | None = None) -> tuple[dict, dict, dict, str]:
+    """(files for the build {path: text|bytes}, settings, analysis, input hash). Raises nothing.
+    `overrides`: source files replaced for this build only (a proposed fix checked before it is offered)."""
+    files = {**tp.read_files(ctx, pid), **(overrides or {})}
     s = tp.read_settings(ctx, pid)
     main = files.get("main.tex", "")
     order = tp.section_paths(main)
@@ -743,7 +746,7 @@ async def _compile(ctx, pid: str, *, online: bool, force: bool, timeout: float) 
     else:
         diags += [x for x in parse_log(out, log, files, s, b) if pdf_ok is False or x["severity"] != "error"]
     res = {**base, "ok": pdf_ok, "engine": engine, "cached": False, "seconds": round(time.time() - t0, 2),
-           "diagnostics": diags, "pdf": None, "t": time.time()}
+           "diagnostics": diags, "pdf": None, "t": time.time(), "ran": rc is not None}
     if online:
         a2 = await asyncio.to_thread(analyse, src, s)       # files now cached
         await asyncio.to_thread(write_lock, ctx, pid, a2)
@@ -769,6 +772,57 @@ async def _compile(ctx, pid: str, *, online: bool, force: bool, timeout: float) 
                                          (work / "main.log").is_file() and shutil.copyfile(work / "main.log",
                                                                                            out_dir / "main.log")))
     return res
+
+
+async def trial_compile(ctx, pid: str, overrides: dict[str, str], timeout: float = 150.0) -> dict:
+    """Compile the project with some source files replaced, in its own build directory, by the same engine and
+    sandbox as `compile_project` (guard first, offline, no shell escape); nothing is kept: the author's PDF, log and
+    cache stay as they are. → {ok, diagnostics, seconds, engine}. Session S-AN (D46): a fix proposed by the
+    conductor is offered only when this compiles."""
+    t0 = time.time()
+    build, s, a, _h = await asyncio.to_thread(prepare, ctx, pid, False, overrides)
+    files = {k: v for k, v in build.items() if isinstance(v, str)}
+    diags = []
+    for path, text in overrides.items():
+        for g in guard(text):
+            diags.append(_d("error", path, g["line"], g["what"], "Construction refusée pour la sécurité ({what}) : "
+                             "Madalean ne compile pas ce qui lit ou écrit des fichiers hors du projet, lance des "
+                             "commandes ou reconstruit des noms de commandes.", None, what=g["what"]))
+    eng = engine_cmd(False)
+    if diags or eng is None:
+        return {"ok": False, "diagnostics": diags, "seconds": round(time.time() - t0, 2),
+                "engine": eng[1] if eng else "none"}
+    cmd, engine = eng
+    work = build_dir(ctx, pid) / f"trial-{uuid.uuid4().hex[:10]}"
+
+    def write_all():
+        work.mkdir(parents=True, exist_ok=True)
+        for rel, v in build.items():
+            p = work / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(v, Path):
+                try:
+                    os.link(v, p)
+                except OSError:
+                    shutil.copyfile(v, p)
+            else:
+                p.write_text(v, encoding="utf-8")
+    try:
+        await asyncio.to_thread(write_all)
+        rc, out = await run_tex(cmd + ["main.tex"], work, timeout)
+        log = ""
+        try:
+            log = (work / "main.log").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
+        ok = rc == 0 and (work / "main.pdf").is_file()
+        if rc is None:
+            diags.append(_d("error", "main.tex", 0, "timeout", "La compilation a dépassé {s} s.", None, s=int(timeout)))
+        elif not ok:
+            diags += parse_log(out, log, files, s, bundle())
+        return {"ok": ok, "diagnostics": diags, "seconds": round(time.time() - t0, 2), "engine": engine}
+    finally:
+        await asyncio.to_thread(shutil.rmtree, work, True)
 
 
 def pdf_path(ctx, pid: str) -> Path | None:
