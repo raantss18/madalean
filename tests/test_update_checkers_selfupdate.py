@@ -6,6 +6,7 @@ import asyncio
 import base64
 import hashlib
 import io
+import re
 import json
 import os
 import shutil
@@ -49,7 +50,7 @@ def build_release(tmp: Path, version: str) -> bytes:
                 continue
             arc = f"madalean-{version}/" + str(p.relative_to(ROOT))
             if p == ROOT / "madalean" / "__init__.py":
-                data = p.read_bytes().replace(b'__version__ = "2.0.0.dev0"', f'__version__ = "{version}"'.encode())
+                data = re.sub(rb'__version__ = "[^"]+"', f'__version__ = "{version}"'.encode(), p.read_bytes())
                 ti = tarfile.TarInfo(arc)
                 ti.size = len(data)
                 t.addfile(ti, io.BytesIO(data))

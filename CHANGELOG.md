@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 — (date de publication)
+## 2.0.0 — 2026-11-22
 
 **Une nouvelle application.** « Lean AI Station » devient **Madalean** : un serveur sur l'ordinateur hôte, une
 interface web, une application Android et une AppImage qui s'y relient par Tailscale. Les données de la 1.x sont
@@ -14,9 +14,18 @@ reprises au premier démarrage.
 - Recherche dans Mathlib d'abord : un résultat qui existe déjà est prouvé directement.
 - Plan de preuve en carte mentale : découpage en lemmes validé par vous, preuves automatiques, recombinaison.
 - Classement automatique des modèles par domaine (résultats ici, LMArena, nouveautés).
+- Plus rapide : les étapes (lecture guidée, vérification de l'énoncé, recherche Mathlib, essais de preuve) partent
+  ensemble ; Lean reste prêt d'avance (un essai refusé est jugé en 0,01 s au lieu de 2 à 3 s), le verdict « vérifiée »
+  restant donné par un Lean neuf et strict ; rien n'est recalculé pour un énoncé déjà vérifié.
+- Chef d'orchestre Claude (avec une clé Claude) : découpe la demande, choisit pour chaque tâche le modèle mesuré le
+  plus adapté, corrige les échecs et vérifie la cohérence finale ; plafond de 1 $ par demande, sur votre accord au-delà ;
+  sans Claude, le meilleur modèle gratuit dirige.
 
 **Recherche**
 - Calcul : vrai carnet SageMath partagé avec JupyterLab, demandes en langage naturel, courbes, géométrie dynamique.
+- Code de calcul reproductible : la demande est analysée (F_125, GF(5^3), 𝔽₁₂₅… reconnus comme le même corps), un
+  catalogue vérifié donne une écriture unique en Sage, Python et Lean, le meilleur code qui a marché est retenu ;
+  explication de l'erreur, du code ligne par ligne et des étapes du calcul.
 - Notes avec blocs Lean vérifiables, conjectures, sources (PDF, arXiv, questions sur un article), bibliographie.
 - Article : éditeur LaTeX visuel, aperçu PDF, assistant en suggestions, échange avec Overleaf.
 - Publier : site statique du projet (preuves revérifiables, calculs, article) sur GitHub Pages.
@@ -25,7 +34,7 @@ reprises au premier démarrage.
 **Appareils**
 - Application Android : scan du QR code dans l'application, adresses de secours (IP Tailscale, réseau local),
   messages clairs quand Tailscale n'est pas connecté.
-- Écrans adaptés au téléphone et à la tablette.
+- Écrans adaptés au téléphone et à la tablette ; nouvelle identité visuelle « Madal∃an ».
 
 **Installation, mises à jour, sécurité**
 - Installation autonome en un dossier, sans `sudo` (Lean, Mathlib, SageMath à la demande, LaTeX, moteur des modèles,
