@@ -56,11 +56,12 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     Mathlib), lemmes de la bibliothèque proposés d'abord
 15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
     (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)
+16 bis. ⬜ **Dossiers relancés des centaines de fois** : historique compacté (versions vérifiées et tes messages gardés, essais ratés résumés) et écriture plus légère — vu à l'essai prolongé (≈ 1,7 Mo par dossier après 550 relances)
 16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
     tant qu'on ne l'ouvre pas
 
 ### C — Avant la publication 2.0.0 (sur ton accord)
-17. 🔄 Essai continu de 2 h (en cours) ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version
+17. ✅ Essai continu de 2 h (0 erreur) + 1 h sur les mêmes dossiers ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version
 18. ⬜ Tes essais : APK 2.0.1 (scan dans l'app), Calcul, une vraie preuve (coût Hugging Face), GitHub « Tester la connexion »
 19. ⬜ Publication : fusion v2 → main, tag v2.0.0, release signée, site GitHub Pages — **seulement sur ton accord**
 

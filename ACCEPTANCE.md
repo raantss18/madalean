@@ -227,3 +227,12 @@ Not verified / limits:
 - SyncTeX inverse search is approximate (nearest box); equation numbers are not shown in the visual mode; TikZ is not
   rendered in the editor (raw block, drawn in the PDF).
 - `tests/test_i18n.py` reports 3 untranslated strings from the Calcul notebook (S-P), not from this session.
+
+## 2.0 — integrator soak (2026-11-22, scripts/soak_server.py, demo server)
+| Run | Load | Result |
+|---|---|---|
+| 2 h, new dossiers | ~6 parallel jobs (full plan), 5 WebSockets reconnecting every 60 s, PATCH bursts, UI reads | 4 232 jobs, 2.8 M WS events, 603 reconnects, **0 errors**; fds 14–20, threads 4–5 flat; RSS 64 → 165 MB linear (≈ 24 KB per dossier: every dossier stays in `repo.cache`) — `bench/soak_v2.json` |
+| 1 h, the same 6 dossiers re-run | same | 3 297 jobs, 1.36 M events, 303 reconnects, **0 errors**; fds/threads flat; RSS 64 → 130 MB: each dossier's history grew to ≈ 1.7 MB on disk after ~550 runs (all events and versions kept), held in memory — data growth, no leak in the server itself — `bench/soak_v2_reuse.json` |
+
+Follow-up (TODO B): compact the history of a dossier re-run hundreds of times (keep every verified version and the
+user's messages, summarise failed attempts), and rewrite large dossier files incrementally.
