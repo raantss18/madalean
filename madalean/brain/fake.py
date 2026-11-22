@@ -267,7 +267,7 @@ class FakeLean:
     async def problems(self, ws) -> list[str]:
         return []
 
-    async def check(self, code, ws, timeout_s=180, strict_name=None, owner=None):
+    async def check(self, code, ws, timeout_s=180, strict_name=None, owner=None, warm=False):
         from ..runtime.lean import CompileResult
         from ..slots import current_owner
         async with self.slots.hold("lean", owner or current_owner()):

@@ -669,6 +669,8 @@ const fr = {
   'adv.statement_notes': 'Expliquer chaque énoncé ligne par ligne',
   'adv.informal_proof': 'Rédiger chaque preuve en langage courant',
   'adv.autoload_model': 'Charger le modèle local au démarrage',
+  'adv.lean_warm': 'Garder Lean prêt d’avance pendant une preuve (essais vérifiés en une fraction de seconde ; environ 3,5 Go de mémoire)',
+  'adv.lean_warm_idle_minutes': 'Arrêter Lean prêt d’avance après (min sans essai)',
 
   'keys.lead': 'Madalean marche sans aucune clé (modèles gratuits et locaux). Une clé ajoute les modèles d’un fournisseur. Elle est gardée dans le trousseau de l’ordinateur hôte et ne s’affiche plus jamais.',
   'keys.paid': 'payant à l’usage',
@@ -808,6 +810,7 @@ const fr = {
   'system.repairHost': 'Les réparations se lancent depuis l’ordinateur hôte.',
   'system.fakeBrain': 'Moteur simulé (démo) : aucun vrai modèle.',
   'check.workspace': 'Espace Lean',
+  'check.lean_warm': 'Lean prêt d’avance',
   'check.llama': 'Serveur de modèles local',
   'check.model_prover': 'Modèle prouveur',
   'check.model_formalizer': 'Modèle traducteur',

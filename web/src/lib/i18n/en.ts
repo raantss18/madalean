@@ -670,6 +670,8 @@ const en: Record<keyof typeof fr, string> = {
   'adv.statement_notes': 'Explain each statement line by line',
   'adv.informal_proof': 'Write each proof in plain language',
   'adv.autoload_model': 'Load the local model at start',
+  'adv.lean_warm': 'Keep Lean ready in advance during a proof (attempts checked in a fraction of a second; about 3.5 GB of memory)',
+  'adv.lean_warm_idle_minutes': 'Stop Lean ready in advance after (min without an attempt)',
 
   'keys.lead': 'Madalean works without any key (free and local models). A key adds a provider’s models. It is kept in the host computer’s keyring and is never shown again.',
   'keys.paid': 'pay per use',
@@ -809,6 +811,7 @@ const en: Record<keyof typeof fr, string> = {
   'system.repairHost': 'Repairs are started from the host computer.',
   'system.fakeBrain': 'Simulated engine (demo): no real model.',
   'check.workspace': 'Lean workspace',
+  'check.lean_warm': 'Lean ready in advance',
   'check.llama': 'Local model server',
   'check.model_prover': 'Prover model',
   'check.model_formalizer': 'Translator model',

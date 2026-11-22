@@ -160,6 +160,13 @@ A boundary is crossed in four places, and each place must hold:
     - `HOME` (and every XDG directory) is `/tmp/home`, created empty on that tmpfs at each run (S-AC): writable,
       private, gone at exit; without bubblewrap a 0700 temporary directory of the server process, never `~`;
     - the environment is rebuilt from an allow-list (no API keys).
+  - **Warm Lean (S-AE, D37).** The long-lived `lean --server` that answers intermediate attempts is wrapped by the
+    same `leansandbox.wrap` (same mounts, minus any checked file: the attempt text goes through stdin as an LSP
+    `untitled:` document, so Lean never runs `lake setup-file`; `LAKE` points nowhere; `dependencyBuildMode: never`)
+    and receives only text that passed the same `exec_risks` gate in `LeanRunner.check`. Difference with a fresh
+    run: the sandbox's tmpfs (`/tmp`, `/tmp/home`) lives as long as the worker (≤ 10 min idle) instead of one check;
+    gated code cannot write there. A warm verdict never makes a proof « vérifiée »: acceptances are re-checked by a
+    fresh `lean --json`, and the warm process is killed on timeout, cancel, workspace change and at shutdown.
 - **TeX (F5).**
   - `sanitize_math` refuses `^^` and `\csname`, and BibTeX URLs are percent-encoded.
   - Every engine run (tectonic `--untrusted --only-cached`, or the xelatex/lualatex fallback with

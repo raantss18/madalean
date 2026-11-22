@@ -611,6 +611,9 @@ async def health(ctx) -> list[dict]:
     add("sandbox", bool(sbx), "Bac à sable actif (bubblewrap) : Lean, LaTeX et les expériences tournent sans réseau "
         "ni accès à vos fichiers." if sbx else "Bac à sable indisponible (bubblewrap absent ou espaces de noms "
         "utilisateur désactivés) : Lean, LaTeX et les expériences tournent sans isolation.")
+    warm = getattr(ctx.lean, "warm", None)          # S-AE (D37): Lean kept ready with Mathlib loaded
+    if warm is not None and not ctx.demo:
+        checks.append(_warm_check(warm.status()))
     st = getattr(ctx, "selftest", None)          # S-AC: smoke tests of the sandboxed tools, after each update
     if st is not None:
         for c in st.health():
@@ -641,6 +644,35 @@ async def health(ctx) -> list[dict]:
     return checks
 
 
+def _warm_check(st: dict) -> dict:
+    """Health row of the warm Lean (D37), in plain words."""
+    live = [w for w in st["workers"] if w["state"] in ("ready", "busy")]
+    loading = [w for w in st["workers"] if w["state"] == "loading"]
+    row = {"id": "lean_warm", "ok": True, "level": "ok", "repair": "", "rerun": False}
+    if not st["enabled"]:
+        m = msg("Lean prêt d'avance : désactivé ; chaque essai relance Lean et recharge Mathlib.")
+    elif st["distrusted"]:
+        m = msg("Lean prêt d'avance mis de côté pour {ws} : un de ses résultats différait de la vérification "
+                "complète. Les essais sont vérifiés par un Lean relancé à chaque fois.", ws=", ".join(st["distrusted"]))
+        row.update(ok=False, level="warn", repair="lean_warm")
+    elif live:
+        m = msg("Lean prêt d'avance pour {ws} : chaque essai est vérifié en une fraction de seconde ({gb} Go de "
+                "mémoire, arrêté après {min} min sans essai). Une preuve trouvée est toujours revérifiée par un "
+                "Lean neuf.", ws=", ".join(w["workspace"] for w in live),
+                gb=f"{sum(w['rss_mb'] for w in live) / 1024:.1f}", min=st["idle_minutes"])
+    elif loading:
+        m = msg("Lean prêt d'avance : chargement de Mathlib pour {ws}…", ws=", ".join(w["workspace"] for w in loading))
+    elif st["failures"]:
+        m = msg("Lean prêt d'avance n'a pas pu démarrer ({why}) : les essais sont vérifiés par un Lean relancé à "
+                "chaque fois.", why=next(iter(st["failures"].values()))[:200])
+        row.update(ok=False, level="warn", repair="lean_warm")
+    else:
+        m = msg("Lean prêt d'avance : au repos ; il démarre avec la prochaine preuve et s'arrête après {min} min "
+                "sans essai.", min=st["idle_minutes"])
+    row["message"] = m
+    return row
+
+
 @routes.get("/api/system")
 async def system(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
@@ -648,10 +680,11 @@ async def system(request: web.Request) -> web.Response:
         await ctx.monitor.poll()
     return ok({**ctx.system_light(), "workspaces": ctx.workspaces_public(), "checks": await health(ctx),
                "local": ctx.local.status() if hasattr(ctx.local, "status") else {}, "brain": ctx.brain_kind,
-               "lean_running": list((getattr(ctx.lean, "running", {}) or {}).values())})
+               "lean_running": list((getattr(ctx.lean, "running", {}) or {}).values()),
+               "lean_warm": ctx.lean.warm.status() if getattr(ctx.lean, "warm", None) is not None else None})
 
 
-REPAIRS = ("workspaces", "models", "local_model", "names_index", "selftest", "selftest_run")
+REPAIRS = ("workspaces", "models", "local_model", "names_index", "selftest", "selftest_run", "lean_warm")
 
 
 @routes.post("/api/system/repair/{id}")
@@ -694,6 +727,9 @@ async def system_repair(request: web.Request) -> web.Response:
         rep = await (st.repair() if rid == "selftest" else st.run("manual"))
         bad = [p for p, r in rep["parts"].items() if r.get("state") == "failed"]
         return ok({"repair": rid, "ok": not bad, "failed": bad, "checks": await health(ctx)})
+    elif rid == "lean_warm":                       # D37: forget failures / disagreements, start again when needed
+        if getattr(ctx.lean, "warm", None) is not None:
+            ctx.lean.warm.reset()
     elif rid == "names_index":
         ws = ctx.workspace()
         if ws is None:

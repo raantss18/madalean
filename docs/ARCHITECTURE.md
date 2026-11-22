@@ -107,6 +107,14 @@ slots its current stage needs; queue order is FIFO per resource, user-started jo
 active job. Sub-dossiers (`parent_id`): « split into lemmas » creates child dossiers that run in parallel; when
 proven they enter the library and the parent is retried with them.
 
+**Lean checks** (`runtime/lean.py`, D28 + D37): every check passes the `exec_risks` gate, then runs in the
+`leansandbox` with a `lean` slot. By default it is a fresh `lean --json` (the only verdict that can make a proof
+« vérifiée », with the `#print axioms` probe). A job's intermediate attempts (`RunnerIO.check` → `warm=True`) may
+be answered by the warm Lean of the workspace (`runtime/leanwarm.py`: one `lean --server` with Mathlib loaded,
+started lazily, stopped after 10 min idle) in a fraction of a second; a warm acceptance of a proof is always
+re-checked fresh, one warm verdict in 20 is audited fresh, and any disagreement sets the warm Lean aside.
+docs/BRAIN.md §17.
+
 ## 7. Brain (model engine) — interface in `madalean/brain/api.py`
 
 - Catalogue + classifier + router + quotas ported from L Katta (seed catalogue, keyless free providers, pause on

@@ -482,3 +482,29 @@
 - Header: the wordmark (white-script file in dark themes, switched by CSS on `data-theme` / `prefers-color-scheme`)
   from 1024 px up, the icon below. Pairing screen: the wordmark. « À propos »: icon + wordmark. Text alternative is
   always « Madalean ». Added a PWA manifest (with a maskable icon), `favicon.ico`, a full-bleed apple-touch icon.
+
+
+## D37 — Lean kept warm for intermediate attempts; a fresh strict Lean still decides (user request, 2026-11-22, S-AE)
+- Request (TODO B10): every check restarted Lean and reloaded Mathlib (2–3.5 s warm cache, 10–34 s cold, ~3.4 GB);
+  « plus rapide sans perdre la fiabilité ».
+- Decision: Lean's own language server (`lean --server`, shipped with every toolchain, measured on v4.9.0-rc1 and
+  v4.36.0) kept per workspace in use, Mathlib loaded once, in the same `leansandbox` as every Lean (D28; `untitled:`
+  document, no `lake`, gate before anything is sent). Opt-in per caller: only a job's intermediate checks
+  (`RunnerIO.check`) use it; everything else stays fresh by default.
+- Reliability rules: a warm acceptance of a strict check is re-checked by a fresh `lean --json`, whose verdict and
+  axioms are returned (the warm Lean can only make attempts fail faster); the first warm verdict of each worker and
+  one in 20 afterwards are audited fresh; any verdict disagreement keeps the fresh verdict and sets the warm Lean
+  aside for that workspace (health row, « Réparer »); each attempt runs after a reset of the document to the header
+  (no snapshot of a previous attempt reusable); timeout / cancel / crash kill the worker; other headers, busy or
+  loading worker → fresh. Messages are mapped to `lean --json` lines: identical messages, positions, verdicts and
+  model feedback on the 21 test attempts, both Lean versions (real-Lean test).
+- Resources: lazily started (the first check of a job runs fresh meanwhile), ≤ 1 per workspace, ≤ 2 workspaces,
+  stopped after 10 min idle (setting), on workspace change, when switched off, at shutdown; a warm check holds a
+  `lean` slot. Setting « Garder Lean prêt d'avance » (default on), health row « Lean prêt d'avance ».
+- Rejected: leanprover-community/repl (not shipped with the toolchains, would need a build per Lean version and
+  a network download; the LSP route works on both versions); a new document per attempt (each document is a new
+  file worker that reloads Mathlib); `textDocument/waitForDiagnostics` (spins forever on v4.9 when the request
+  overtakes the edit); a header-only reset document (v4.9 re-imports Mathlib whenever the first edit position is
+  not strictly after the header: the worker's prefix includes the first character after the header); trusting a
+  warm acceptance; early abort of streamed answers (B11: designed in docs/BRAIN.md §17, not built — a cut is
+  rarely certain and a wrong cut loses a proof).

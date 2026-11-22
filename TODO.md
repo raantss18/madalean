@@ -42,11 +42,13 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 9. ✅ **Mesurer d'abord** (22/11 : docs/PERFORMANCE.md « Proof time baseline », scripts/perf_report.py) : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de
    l'énoncé, recherche Mathlib, traduction, chaque essai, chaque vérification Lean, explication) et de chaque écran ;
    tableau des temps dans docs/PERFORMANCE.md, refait à chaque version
-10. 🔄 **Lean toujours chaud** (le plus gros gain attendu) : aujourd'hui chaque vérification relance Lean et recharge
-    Mathlib (≈ 4,5 s et 3,4 Go à chaque fois). Un Lean resté ouvert avec Mathlib déjà chargé (mode REPL, en-tête
-    préchargé) vérifierait un essai en une fraction de seconde. Le verdict final reste fait par un Lean neuf et strict
-11. 🔄 **Arrêt précoce des essais** : vérifier la preuve pendant qu'elle s'écrit (Lean chaud, par blocs) et couper
-    un modèle dès la première erreur sûre, au lieu d'attendre la fin de la réponse
+10. ✅ **Lean toujours chaud** (22/11, S-AE, DECISIONS D37, docs/BRAIN.md §17, docs/PERFORMANCE.md « Lean chaud ») :
+    un `lean --server` par espace utilisé garde Mathlib chargé ; un essai refusé est vérifié en 0,01–0,2 s au lieu de
+    2–3 s (10–34 s à froid). Toute preuve acceptée est revérifiée par un Lean neuf et strict ; un verdict sur 20 est
+    contrôlé ; au moindre désaccord, le Lean chaud est mis de côté. Réglage « Garder Lean prêt d'avance », ligne
+    « Lean prêt d'avance » dans l'état du système
+11. ⏸ **Arrêt précoce des essais** : conçu, pas construit (docs/BRAIN.md §17 : une coupure n'est presque jamais
+    sûre — le modèle corrige souvent son bloc avant la fin — et une coupure fausse perdrait une preuve)
 12. 🔄 **Course des modèles plus intelligente** (S-AF, D38 : les étapes courtes — compréhension, lecture guidée,
     vérification, explication, preuve rédigée — prennent le modèle en ligne le plus rapide mesuré, réflexion
     minimale, jamais le modèle local de la carte graphique tant qu'un modèle en ligne répond ; reste : les preuves) : choix selon le temps mesuré ici et le taux de réussite par domaine,

@@ -521,3 +521,76 @@ model, which then waited for the GPU.
 
 French: no data marks a model as bad at French yet (`brain-leaderboard.json` has no `explain` rows on this host);
 the `explain` leaderboard bonus (per language) still applies when such rows exist.
+
+## 17. Lean kept warm for intermediate attempts (session S-AE, DECISIONS D37)
+
+Every check used to start `lean --json` and reload Mathlib (2–3.5 s with the page cache warm, 10–34 s cold,
+~3.4 GB). `runtime/leanwarm.py` keeps **one `lean --server` per workspace in use** with the header already
+loaded; `LeanRunner.check(…, warm=True)` uses it. Only the pipeline's `RunnerIO.check` passes `warm=True` (Goedel
+loop, agent `lean_check`, tournament, statement probes, Mathlib-first batches); every other caller (manual checks,
+library and update re-checks, notes, proof plans, self-tests, the brain's `leanrun`) stays fresh by default.
+
+**Protocol** (identical on Lean v4.9.0-rc1 and v4.36.0, both measured):
+- `lean --server -Dserver.reportDelayMs=0` under `leansandbox.wrap` (same boundary as every Lean, D28), document URI
+  `untitled:/madalean/Attempt.lean` (Lean then never runs `lake setup-file`), `LAKE=/nonexistent/lake`,
+  `dependencyBuildMode: never`; no file of the attempt is written to disk.
+- The worker's key is its **prefix**: the exact header text (imports, whitespace and comments up to the first
+  command) **plus the first character after it**. Lean keeps the loaded imports across an edit only when the first
+  difference between the two versions lies strictly after the header's trailing whitespace (`isBeforeEditPos`);
+  with a header-only document v4.9 re-imported Mathlib at every switch (3 s, measured). Goedel-format files all
+  start `import Mathlib\nimport Aesop\n\ns` (`set_option maxHeartbeats …`).
+- Per attempt: reset the document to the prefix alone, then send the whole attempt text. Nothing of a previous
+  attempt can be reused (no command or tactic snapshot exists in the prefix-only version), so every command after
+  the header is elaborated from the header's environment, as in a fresh file.
+- A version is complete when Lean has sent its « nothing in progress » `$/lean/fileProgress` **and** at least one
+  `publishDiagnostics` for that version (`reportSnapshots`: diagnostics are published from the first wait on, else
+  once right after « done »). `textDocument/waitForDiagnostics` is not used: on v4.9 its handler spins forever on a
+  task-pool thread when the request reaches the worker before the new version (seen on the first edit).
+- LSP diagnostics → `LeanMessage`: `fullRange`, 0-based lines + 1, UTF-16 columns → code points (𝓝, 𝕜…), a
+  zero-width range → no end position (as `lean --json` prints parse errors), silent messages dropped; rendered as
+  `lean --json` lines in `CompileResult.stdout` so `parse_lean_json`, `judge`, `errors_for_feedback` and the probe
+  batches read exactly what a fresh run prints. Measured identical on the 21 attempts of
+  `tests/data/warm_attempts.json` (errors, warnings, axiom lines, positions, feedback text) on both versions.
+
+**Policy** (`LeanRunner._check_warm`; « plus rapide sans perdre la fiabilité »):
+- D28 gate and workspace check first, as before. No worker yet → this check runs fresh and the worker starts in the
+  background (the statement check of a job usually pays it, the proof attempts find it ready).
+- Worker busy for more than 2 s, loading, other prefix, crashed, lost answer, error on a header line → fresh.
+  Three checks in a row with another prefix restart the worker on that prefix.
+- **A warm acceptance of a strict check is never returned**: the same file is checked again by a fresh `lean --json`
+  whose verdict (and axioms) is returned (`via = "warm+fresh"`). Only rejections and non-strict results come from the
+  warm Lean (`via = "warm"`).
+- **Audit**: the first warm result after each start and then one in 20 are also checked fresh. Any verdict
+  disagreement (warm accept / fresh reject, or the reverse) returns the fresh verdict, logs both, stops the worker
+  and sets the warm Lean aside for that workspace until « Réparer » on the health page or a settings toggle.
+- Timeout: the attempt is reported as timed out (partial messages, same wording as a fresh timeout; the warm budget
+  never includes the Mathlib load, so a fresh run would have timed out too) and the worker is killed — the next
+  attempt never meets a Lean still busy with the previous one. Cancel → the worker is killed; the lock and the `lean`
+  slot are released.
+- Resources: a warm check holds a `lean` slot while Lean works (a worker's start does not); at most one worker per
+  workspace and 2 workspaces (least recently used stopped first); stopped after `lean_warm_idle_minutes` (10) without
+  an attempt, when the workspace's toolchain / manifest / `Mathlib.olean` change (checked at every use, by the reaper
+  and after `refresh_workspaces`), when `lean_warm` is switched off, and at server shutdown. bwrap
+  `--die-with-parent` + PDEATHSIG: never orphaned.
+- Memory (PSS, measured): ~3.9 GB once Mathlib is loaded (v4.9: worker 3.4 GB, mostly the shared `.olean` pages,
+  + language-server process 0.45 GB); up to ~6 GB after an `exact?` (Lean caches its library index for the
+  process). A worker above 8 GB is recycled by the reaper when idle. While it lives, Mathlib's files stay in the page
+  cache, so the fresh confirmations never pay a cold load (10–34 s) either.
+- Mathlib first (§12) now runs the template batch first (warm: 0.2–1.1 s) and `exact?` (3–9 s of library search on
+  any Lean) only when no template passes the strict check.
+- Health page: row « Lean prêt d'avance » (loading / ready with its memory / at rest / set aside / could not start).
+
+**Early abort (TODO B11) — designed, not built.** Idea: check a streamed answer by blocks with the warm Lean and
+stop the model at the first certain error.
+- Where code appears: Goedel-style models write a plan, then ONE ```lean4 block at the end (the last ~10–20 % of
+  the tokens); a model may also write a block, criticise it and write another one; only the last block counts
+  (`extract_code`). Agents already get Lean's verdict at each `lean_check` tool call — now in a fraction of a second.
+- Cut points: inside the last open block, after each complete top-level declaration (a helper `lemma … := by …`
+  whose next line returns to column 0) and after each complete `have … := by …` of the main proof.
+- Check: assemble the prefix (user's statement kept, as `assemble_proof` does) with `sorry` for everything not yet
+  written, check it warm. A cut is **certain** only for an error inside a complete helper declaration that the main
+  theorem uses — and even then the model may still close the block, criticise it and write a corrected one, which
+  is exactly what the correction rounds rely on. Errors before the end of the text are therefore not certain, and
+  a wrong cut loses a proof the model was about to fix.
+- Decision: not built. The expected gain is the tail of one answer per failing attempt (seconds of generation),
+  the risk is a lost proof; reliability first. Re-open if measurements show long code blocks that fail early.
