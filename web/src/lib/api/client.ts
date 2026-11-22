@@ -148,8 +148,10 @@ export const api = {
   },
 
   models: () => request<ModelsInfo>('GET', '/models'),
-  setKey: (provider: string, key: string) =>
-    request<{ provider: string; set: boolean; backend: string }>('POST', '/models/keys', { provider, key }),
+  // S-AO (D47): saving a key lifts the provider's pauses; `test` (default true) also runs the quick key test on the
+  // server (event `models.key_test`) — the key form passes false and runs the test itself to show the result
+  setKey: (provider: string, key: string, test = true) =>
+    request<{ provider: string; set: boolean; backend: string; unpaused?: number; testing?: boolean }>('POST', '/models/keys', { provider, key, test }),
   deleteKey: (provider: string) => request<{ provider: string; set: boolean; existed: boolean }>('DELETE', `/models/keys/${enc(provider)}`),
   testKey: (provider: string) => request<{ provider: string; ok: boolean | null; reason?: string; model?: string; models?: number; latency_s?: number }>('POST', '/models/test', { provider }),
   refreshModels: () => request<ModelsInfo>('POST', '/models/refresh', {}),

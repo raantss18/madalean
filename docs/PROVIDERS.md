@@ -101,7 +101,12 @@ Chutes, Novita, OpenRouter.
 
 Rate limits: every provider goes through the existing failure rules (docs/BRAIN.md §3): 429 → pause for
 `Retry-After` / `x-ratelimit-reset*`, daily quota → until midnight UTC, 401/403 → provider paused (`key_refused`),
-402 → 12 h. Router order: free online models first (quality × reliability), paid only when chosen / `paid_first` /
+402 → 12 h. **A new key lifts the pause** (S-AO, DECISIONS D47): saving or replacing a key (`POST /api/models/keys`)
+clears, for that provider only, every model pause and backoff whatever its reason, the consecutive-failure counters,
+the « provider down » mark and the last error (`States.clear_provider`, `Engine.key_saved`; reliability and latency
+statistics are kept), then a quick key test runs (server side, event `models.key_test`; the key form passes
+`test: false` and runs the same test itself to show the result). Internet search providers have no pause to lift.
+Router order: free online models first (quality × reliability), paid only when chosen / `paid_first` /
 Claude reinforcement; the spend ledger covers every paid model with a price (Claude; Hugging Face per S-T).
 OpenAI and DeepSeek keys are « paid, only when chosen »: their calls are not priced by the ledger (prices not
 verified this session) — they are never picked automatically.

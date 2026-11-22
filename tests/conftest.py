@@ -18,6 +18,7 @@ os.environ["MADALEAN_HOME"] = str(_TMP / "madalean-home")
 os.environ["MADALEAN_NO_UPDATE_CHECK"] = "1"
 os.environ["MADALEAN_NO_SELFTEST"] = "1"          # S-AC: the health self-test never starts by itself
 os.environ["MADALEAN_NO_SYNTAX_BUILD"] = "1"      # S-AB: no background syntax-card build in test servers
+os.environ["MADALEAN_NO_CALCUL_WARM"] = "1"       # S-AO: opening a Calcul document starts no kernel in tests
 os.environ["MADALEAN_NO_KEYRING"] = "1"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))

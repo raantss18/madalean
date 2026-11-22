@@ -360,8 +360,26 @@ async def models_key_set(request: web.Request) -> web.Response:
         backend = await asyncio.to_thread(ctx.keys.set, provider, key)
     except ValueError:
         return error(400, "bad_provider")
+    cleared: dict = {}
+    fn = getattr(ctx.brain, "key_saved", None)      # S-AO (D47): a new key lifts the provider's pauses at once
+    if fn is not None:
+        try:
+            cleared = fn(provider) or {}
+        except Exception:  # noqa: BLE001
+            cleared = {}
     _notify_keys(ctx)
-    return ok({"provider": provider, "set": True, "backend": backend})
+    testing = data.get("test", True) is not False
+    if testing:                                     # the quick key test (the web UI runs its own: `test: false`)
+        async def run_test() -> None:
+            try:
+                res = await asyncio.wait_for(key_test(ctx, provider), 90)
+            except Exception as e:  # noqa: BLE001
+                from ..logs import redact
+                res = {"provider": provider, "ok": False, "reason": redact(str(e))[:300]}
+            ctx.publish("models.key_test", res)
+        ctx.spawn(run_test())
+    return ok({"provider": provider, "set": True, "backend": backend, "unpaused": int(cleared.get("unpaused", 0)),
+               "testing": testing})
 
 
 @routes.delete("/api/models/keys/{provider}")
@@ -386,36 +404,40 @@ async def models_test(request: web.Request) -> web.Response:
     """A real call: one tiny completion restricted to `provider` (its best model for role explain, online).
     → {provider, ok, reason, model, models (models of this provider the router can use), latency_s}. The key is never
     echoed (errors are redacted)."""
-    from ..logs import redact
-    from ..pipeline.runner import model_key
     ctx = ctx_of(request)
     data = await body(request)
-    provider = str(data.get("provider", ""))[:41]
+    return ok(await key_test(ctx, str(data.get("provider", ""))[:41]))
+
+
+async def key_test(ctx, provider: str) -> dict:
+    """The quick key test of `provider` (POST /api/models/test; S-AO: also right after a key is saved)."""
+    from ..logs import redact
+    from ..pipeline.runner import model_key
     if provider == "github":
         # not a model provider: the GitHub token is tested by a read-only identity check (« Publier »), never by an LLM
         # call (which reported « no model, is the key valid? » for a perfectly good token) nor a catalogue refresh
         from ..research import publish
         res = await publish.check(ctx)
         first_bad = next((c for c in res["checks"] if c["ok"] is False), None)
-        return ok({"provider": provider, "ok": bool(res.get("ok")), "login": res.get("login", ""),
-                   "token_kind": res.get("token_kind", ""), "github": res, "models": 0,
-                   "reason": "" if res.get("ok") else ("github:" + (first_bad or {}).get("code", "unknown"))})
+        return {"provider": provider, "ok": bool(res.get("ok")), "login": res.get("login", ""),
+                "token_kind": res.get("token_kind", ""), "github": res, "models": 0,
+                "reason": "" if res.get("ok") else ("github:" + (first_bad or {}).get("code", "unknown"))}
     if provider == "huggingface" and hasattr(ctx.brain, "hf_check"):
         # S-T: a read-only identity check on the Hub (no inference, nothing billed), then the live Goedel models
         try:
             res = await asyncio.wait_for(ctx.brain.hf_check(), 60)
         except Exception as e:  # noqa: BLE001
-            return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": 0})
-        return ok({"provider": provider, **res})
+            return {"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": 0}
+        return {"provider": provider, **res}
     fn = getattr(ctx.brain, "test", None)
     if fn is not None:
         try:
             res = await asyncio.wait_for(fn(provider), 60)
         except Exception as e:  # noqa: BLE001
-            return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300]})
-        return ok({"provider": provider, **(res if isinstance(res, dict) else {"ok": bool(res)})})
+            return {"provider": provider, "ok": False, "reason": redact(str(e))[:300]}
+        return {"provider": provider, **(res if isinstance(res, dict) else {"ok": bool(res)})}
     if ctx.settings.mode == "local":
-        return ok({"provider": provider, "ok": None, "reason": "local_mode", "models": 0})
+        return {"provider": provider, "ok": None, "reason": "local_mode", "models": 0}
 
     def mine(role: str) -> list:
         try:
@@ -445,7 +467,7 @@ async def models_test(request: web.Request) -> web.Response:
     else:
         n_models = len(unlocked)
     if not cands and chosen is None:
-        return ok({"provider": provider, "ok": False, "reason": "no_model", "models": 0})
+        return {"provider": provider, "ok": False, "reason": "no_model", "models": 0}
     test_key = chosen["key"] if chosen is not None else cands[0].key
     t0 = time.monotonic()
     try:
@@ -454,16 +476,16 @@ async def models_test(request: web.Request) -> web.Response:
                                                       mode="online", prefer=test_key, max_tokens=256 if chosen else 16,
                                                       temperature=0.0), 60)
     except asyncio.TimeoutError:
-        return ok({"provider": provider, "ok": False, "reason": "timeout", "models": n_models, "tested": test_key})
+        return {"provider": provider, "ok": False, "reason": "timeout", "models": n_models, "tested": test_key}
     except Exception as e:  # noqa: BLE001
-        return ok({"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": n_models,
-                   "tested": test_key})
+        return {"provider": provider, "ok": False, "reason": redact(str(e))[:300], "models": n_models,
+                "tested": test_key}
     latency = round(time.monotonic() - t0, 2)
     used = model_key(c.model)
     good = getattr(c.model, "provider", "") == provider
-    return ok({"provider": provider, "ok": good, "model": used, "models": n_models, "latency_s": latency,
-               "tested": test_key, "why": (chosen or {}).get("why", ""),
-               "reason": "" if good else "fallback: " + redact("; ".join(c.fallbacks or []))[:300]})
+    return {"provider": provider, "ok": good, "model": used, "models": n_models, "latency_s": latency,
+            "tested": test_key, "why": (chosen or {}).get("why", ""),
+            "reason": "" if good else "fallback: " + redact("; ".join(c.fallbacks or []))[:300]}
 
 
 @routes.get("/api/models/leaderboard")
@@ -686,6 +708,9 @@ async def health(ctx) -> list[dict]:
     warm = getattr(ctx.lean, "warm", None)          # S-AE (D37): Lean kept ready with Mathlib loaded
     if warm is not None and not ctx.demo:
         checks.append(_warm_check(warm.status()))
+    wb = getattr(ctx, "workbench", None)            # S-AO (D47): Calcul kernels ready in advance
+    if wb is not None and not ctx.demo:
+        checks.append(_calcul_warm_check(ctx, wb))
     st = getattr(ctx, "selftest", None)          # S-AC: smoke tests of the sandboxed tools, after each update
     if st is not None:
         for c in st.health():
@@ -741,6 +766,36 @@ def _warm_check(st: dict) -> dict:
     else:
         m = msg("Lean prêt d'avance : au repos ; il démarre avec la prochaine preuve et s'arrête après {min} min "
                 "sans essai.", min=st["idle_minutes"])
+    row["message"] = m
+    return row
+
+
+def _calcul_warm_check(ctx, wb) -> dict:
+    """Health row of « Calcul prêt d'avance » (S-AO, D47), in plain words."""
+    row = {"id": "calcul_warm", "ok": True, "level": "ok", "repair": "", "rerun": False}
+    idle = int(getattr(ctx.settings, "calcul_idle_minutes", 30) or 0)
+    k = wb._kernels
+    st = k.warm_summary() if k is not None and hasattr(k, "warm_summary") else {"live": 0, "loading": 0, "failed": [],
+                                                                                 "skipped": [], "last": []}
+    last = st["last"][-1] if st["last"] else None
+    from .plugins.workbench import _warm_on
+    if not _warm_on(ctx):
+        m = msg("Calcul prêt d'avance : désactivé ; le noyau d'un document démarre à sa première exécution.")
+    elif st["failed"]:
+        m = msg("Calcul prêt d'avance n'a pas pu préparer un noyau ({why}) : il démarrera à la première exécution.",
+                why=st["failed"][-1][:200])
+        row.update(ok=False, level="warn")
+    elif st["loading"]:
+        m = msg("Calcul prêt d'avance : préparation de {n} noyau(x) en arrière-plan…", n=st["loading"])
+    elif st["live"]:
+        m = msg("Calcul prêt d'avance : {n} noyau(x) prêt(s) ; dernière préparation en {s} s. Arrêt après {min} min "
+                "sans activité.", n=st["live"], s=last["seconds"] if last else 0, min=idle)
+    elif st["skipped"]:
+        m = msg("Calcul prêt d'avance : noyau non préparé, mémoire disponible insuffisante ({why}).",
+                why=st["skipped"][-1][:100])
+    else:
+        m = msg("Calcul prêt d'avance : au repos ; le noyau d'un document démarre dès son ouverture et s'arrête "
+                "après {min} min sans activité.", min=idle)
     row["message"] = m
     return row
 

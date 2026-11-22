@@ -88,6 +88,9 @@ Failures (same rules as L Katta): 429 → pause for `Retry-After` / `x-ratelimit
 provider → whole provider paused 12 h (`key_refused`), on a keyless one → that model only (`needs_key`); 404 /
 « does not exist » → model paused 6 h; context too long → next model, no penalty; empty answer (nothing after
 removing `<think>`) → failure; refusal → next model. Reliability = (ok+4)/(total+5), decayed ×0.97.
+Saving or replacing a provider's key lifts all of that provider's pauses, backoffs and failure counters, its « down »
+mark and last error at once, then a quick key test runs (S-AO, DECISIONS D47; `States.clear_provider`,
+`Engine.key_saved`, docs/PROVIDERS.md §3).
 
 ## 4. Providers
 

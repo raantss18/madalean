@@ -176,6 +176,13 @@ class Orchestrator:
                 self.ctx.slots.release_all(owner)
             if self.by_dossier.get(job.dossier_id) == job.id:
                 del self.by_dossier[job.dossier_id]
+            # S-AO (D47): a dossier re-run many times gets its history compacted here, when no job holds an index
+            dd = self.ctx.repo.get(job.dossier_id)
+            if dd is not None and self.active_for(job.dossier_id) is None and hasattr(self.ctx.repo, "compact"):
+                try:
+                    await asyncio.shield(self.ctx.repo.compact(dd))
+                except Exception:  # noqa: BLE001
+                    log.exception("history compaction of %s failed", job.dossier_id)
             self.ctx.publish_job(job)
             try:
                 await asyncio.shield(asyncio.to_thread(self.history.append, job))

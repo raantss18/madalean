@@ -78,9 +78,15 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     et version de Mathlib, preuve Mathlib revérifiée par Lean ; lemmes de la bibliothèque déjà proposés d'abord ;
     reste : réponses identiques des modèles) : résultats déjà prouvés et réponses identiques gardés (par version de
     Mathlib), lemmes de la bibliothèque proposés d'abord
-15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
-    (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)
-16 bis. ⬜ **Dossiers relancés des centaines de fois** : historique compacté (versions vérifiées et tes messages gardés, essais ratés résumés) et écriture plus légère — vu à l'essai prolongé (≈ 1,7 Mo par dossier après 550 relances)
+15. ✅ **Noyau Sage prêt d'avance** (S-AO, D47, docs/CALCUL.md §11) : à l'ouverture d'un document de Calcul (ou de
+    son projet) le noyau démarre en arrière-plan et prépare Maxima, les graphiques et les corps finis ; Maxima est
+    préparé une fois par version de Sage pour tous les projets. Première intégrale d'un nouveau projet : 8,3 s → 0,1 s
+    (premier calcul 4,2 s → 0,1 s) ; réglage « Calcul prêt d'avance » (Réglages › Carnet), ligne d'état de santé
+16 bis. ✅ **Dossiers relancés des centaines de fois** (S-AO, D47) : historique compacté à la fin de chaque travail
+    et au démarrage pour les gros dossiers existants (versions vérifiées, tes versions et tes messages, versions
+    actuelles et derniers essais gardés en entier ; doublons exacts fusionnés ; anciens événements résumés ; tout ce
+    qui est retiré est archivé à part, rien n'est perdu) et écritures regroupées. Essai prolongé de 20 min : plus
+    gros dossier 662 Ko et en croissance → 70–176 Ko stable ; 2,2 Go → 0,9 Go écrits
 16 ter. 🔄 **Chef d'orchestre** (S-AI, D41) : Claude (Haiku / Sonnet / Opus choisi à chaque décision selon la
     difficulté, le budget restant et les mesures) lit chaque demande, fait le plan et choisit le modèle de chaque
     étape parmi ceux que Madalean classe (réussite mesurée, rapidité, prix), corrige ce que Lean refuse (≤ 3 fois)
@@ -105,7 +111,8 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 19. ⬜ Publication : fusion v2 → main, tag v2.0.0, release signée, site GitHub Pages — **seulement sur ton accord**
 
 ### D — Plus tard
-- Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (aujourd'hui seulement pour Hugging Face)
+- ✅ Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (S-AO, D47 : tous les fournisseurs ; pauses,
+  attentes et compteurs d'échecs effacés, puis test rapide de la clé)
 - Partage de la carte graphique avec Ollama ; fitantanana (doublons, sur ton accord)
 
 ## ⭐ Priorités avant la release 2.0.0 (mis à jour le 21/11/2026)

@@ -1348,3 +1348,28 @@ EN.update({
     "Lean prêt d'avance : au repos ; il démarre avec la prochaine preuve et s'arrête après {min} min sans essai.":
         "Lean ready in advance: at rest; it starts with the next proof and stops after {min} min without an attempt.",
 })
+
+# ---- Calcul ready in advance (S-AO, D47)
+EN.update({
+    "Calcul prêt d'avance : désactivé ; le noyau d'un document démarre à sa première exécution.":
+        "Calcul ready in advance: off; a document's kernel starts at its first run.",
+    "Calcul prêt d'avance n'a pas pu préparer un noyau ({why}) : il démarrera à la première exécution.":
+        "Calcul ready in advance could not prepare a kernel ({why}): it will start at the first run.",
+    "Calcul prêt d'avance : préparation de {n} noyau(x) en arrière-plan…":
+        "Calcul ready in advance: preparing {n} kernel(s) in the background…",
+    "Calcul prêt d'avance : {n} noyau(x) prêt(s) ; dernière préparation en {s} s. Arrêt après {min} min sans activité.":
+        "Calcul ready in advance: {n} kernel(s) ready; last preparation took {s} s. Stopped after {min} min without "
+        "activity.",
+    "Calcul prêt d'avance : noyau non préparé, mémoire disponible insuffisante ({why}).":
+        "Calcul ready in advance: kernel not prepared, not enough memory available ({why}).",
+    "Calcul prêt d'avance : au repos ; le noyau d'un document démarre dès son ouverture et s'arrête après {min} min "
+    "sans activité.":
+        "Calcul ready in advance: at rest; a document's kernel starts as soon as it is opened and stops after {min} "
+        "min without activity.",
+})
+
+# ---- dossier history compaction (S-AO, D47)
+EN.update({
+    "Historique compacté : {events} événements plus anciens ({jobs} travaux) résumés ; le détail est conservé à part.":
+        "History compacted: {events} older events ({jobs} jobs) summarised; the details are kept aside.",
+})

@@ -2,12 +2,13 @@
   // The project page (S-AK, docs/UI.md §14): the project's title and description edited in place (autosaved), what it
   // contains (counts, links to its sections), search across it, and the conductor's instruction. Switching project is
   // done in the top bar's context switcher only.
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { app } from '../../lib/store/app.svelte';
   import { api } from '../../lib/api/client';
   import { routes } from '../../lib/router.svelte';
   import { t } from '../../lib/i18n/index.svelte';
   import { research } from '../../lib/api/research';
+  import { nb } from '../../lib/api/workbench';
   import { currentProjectId } from '../../lib/project.svelte';
   import { Autosave } from '../../lib/ui/autosave.svelte';
   import ProjectGate from '../../components/ProjectGate.svelte';
@@ -29,6 +30,11 @@
     research.notes(pid).then((r) => (counts = { ...counts, notes: t('hub.count', { n: r.notes.length }) })).catch(() => {});
     research.conjectures(pid).then((r) => (counts = { ...counts, conjectures: t('hub.count', { n: r.conjectures.length }) })).catch(() => {});
     research.blueprints(pid).then((r) => (counts = { ...counts, blueprint: t('hub.count', { n: r.blueprints.length }) })).catch(() => {});
+  });
+  // S-AO (D47): a project with Calcul documents gets its kernel ready in advance (setting; nothing is created)
+  $effect(() => {
+    const p = pid;
+    if (p) untrack(() => { if (app.m.settings?.calcul_warm !== false) nb.warm(p).catch(() => {}); });
   });
   const sections = $derived([{ name: 'home', pattern: '/', nav: { label: 'nav.dossiers' as const, icon: 'list' } }, ...routes.filter((r) => r.nav?.group === 'project'), ...routes.filter((r) => r.name === 'library')]);
 

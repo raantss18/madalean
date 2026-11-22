@@ -24,6 +24,53 @@ from .sagebridge import ExecResult
 
 SANDBOXED = {v[0] for v in SPECS.values()}
 
+# S-AO (TODO B15, DECISIONS D47): « Calcul prêt d'avance ». Opening a document (or its project) starts its kernel in
+# the background and runs these fixed first-use initialisations, outside the history (no `_`, no execution count, no
+# output in the notebook, no user-visible name), each as its own execution so that a user's run waits at most for the
+# current step: the warm-up stops as soon as the user runs something. Measured on Sage 10.10 (docs/PERFORMANCE.md):
+# Maxima's first integral ≈ 7 s in a new home (compiles its linear-algebra share package), the first plot ≈ 0.7 s
+# (matplotlib's font cache, backend), the first finite field ≈ 0.1 s.
+SAGE_WARMUP = (
+    ("integral", "def _madalean_w():\n"
+                 "    t = SR.var('_madalean_t')\n"
+                 "    integrate(t * sin(t), t); integrate(t ** 2 * cos(t), t, 0, 1); limit(sin(t) / t, t=0)\n"
+                 "    latex(sqrt(2) * pi)\n"
+                 "_madalean_w(); del _madalean_w"),
+    ("plot", "def _madalean_w():\n"
+             "    from io import BytesIO\n"
+             "    from matplotlib.backends.backend_agg import FigureCanvasAgg\n"
+             "    FigureCanvasAgg(plot(sin, (0, 1)).matplotlib()).print_png(BytesIO())\n"
+             "_madalean_w(); del _madalean_w"),
+    ("finite_field", "def _madalean_w():\n"
+                     "    K = GF(3 ** 4, 'madalean_a'); R = PolynomialRing(K, 'madalean_y'); y = R.gen()\n"
+                     "    (y ** 12 + K.gen() * y + 1).factor(); factor(2 ** 64 + 1)\n"
+                     "_madalean_w(); del _madalean_w"),
+)
+PYTHON_WARMUP = (
+    ("plot", "def _madalean_w():\n"
+             "    try:\n"
+             "        import matplotlib.font_manager  # noqa: F401  (builds the font cache once)\n"
+             "    except ImportError:\n"
+             "        pass\n"
+             "_madalean_w(); del _madalean_w"),
+)
+WARM_MAX_UNUSED = 2          # kernels started in advance and not used yet (the oldest is stopped beyond that)
+WARM_MIN_FREE_MB = 1500      # never start a kernel in advance when the machine has less memory available
+WARM_STEP_TIMEOUT_S = 120.0
+SEED_PATH = "calcul/.seed/seed.ipynb"   # the seed kernel's session (hidden directory, never a document; home
+                                        # `warm-seed`, sagebridge.home_key)
+
+
+def mem_available_mb(meminfo: str = "/proc/meminfo") -> int | None:
+    try:
+        with open(meminfo, encoding="ascii") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) // 1024
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
 
 class KernelError(Exception):
     def __init__(self, kind: str, status: int = 409, detail: str = ""):
@@ -45,6 +92,14 @@ class NotebookKernels:
         self.preamble = preamble                  # sagebridge.PREAMBLE + calcul.CALC_PREAMBLE (report, tex)
         self.docs: dict[str, dict] = {}           # path -> {kid, sid, language, last, ready: kid, engine}
         self._locks: dict[str, asyncio.Lock] = {}
+        # S-AO: kernels prepared in advance, per path: {state: starting|warming|ready|failed, language, t0, t1,
+        # start_s, steps: {name: seconds | "error"}, used: bool, error, seeded}
+        self.warm: dict[str, dict] = {}
+        self._warm_tasks: dict[str, asyncio.Task] = {}
+        self.warm_log: list[dict] = []            # the last warm-ups (health row, PERFORMANCE.md)
+        self._seed_task: asyncio.Task | None = None
+        self._seed_tried: set[str] = set()
+        self.seed_log: dict = {}
 
     def lock(self, path: str) -> asyncio.Lock:
         return self._locks.setdefault(path, asyncio.Lock())
@@ -123,6 +178,163 @@ class NotebookKernels:
                 d["ready"] = kid
             return kid
 
+    # ------------------------------------------------------------ S-AO: ready in advance
+    def warm_status(self, path: str) -> dict:
+        w = self.warm.get(path)
+        if w is None:
+            return {"state": "none"}
+        return {k: w[k] for k in ("state", "start_s", "steps", "used", "error", "seconds", "seeded") if k in w}
+
+    def warm_summary(self) -> dict:
+        """For the health row: kernels prepared in advance now, and the last warm-ups."""
+        live = {p: w for p, w in self.warm.items()
+                if w["state"] in ("starting", "warming", "ready") and p in self.docs and p != SEED_PATH}
+        return {"live": len(live), "loading": sum(1 for w in live.values() if w["state"] != "ready"),
+                "unused": sum(1 for w in live.values() if not w.get("used")),
+                # the latest warm-up decides (a failed step of an older one is not shown forever)
+                "failed": [self.warm_log[-1]["error"]] if self.warm_log and self.warm_log[-1].get("error") else [],
+                "skipped": [w.get("error", "") for w in self.warm.values() if w["state"] == "skipped"],
+                "last": self.warm_log[-5:], "seed": dict(self.seed_log),
+                "seeding": self._seed_task is not None and not self._seed_task.done()}
+
+    def prewarm(self, path: str, language: str) -> dict:
+        """Start (or attach to) the document's kernel in the background and run the first-use initialisations.
+        Idempotent; returns the current warm status. Never blocks the caller."""
+        w = self.warm.get(path)
+        t = self._warm_tasks.get(path)
+        if t is not None and not t.done():
+            return self.warm_status(path)
+        d = self.docs.get(path)
+        if w is not None and w["state"] == "ready" and d is not None and d.get("ready") == d.get("kid"):
+            return self.warm_status(path)
+        if d is not None and d.get("ready") == d.get("kid") and d.get("kid"):
+            return self.warm_status(path)                 # already running (a run started it): nothing to prepare
+        self.warm[path] = {"state": "starting", "language": language, "t0": time.time(), "steps": {},
+                           "used": False}
+        self._warm_tasks[path] = asyncio.ensure_future(self._prewarm(path, language))
+        return self.warm_status(path)
+
+    async def _make_room(self, path: str) -> None:
+        unused = sorted((w["t0"], p) for p, w in self.warm.items()
+                        if p not in (path, SEED_PATH) and p in self.docs and not w.get("used")
+                        and w["state"] in ("starting", "warming", "ready"))
+        while len(unused) >= WARM_MAX_UNUSED:
+            _t, p = unused.pop(0)
+            await self.shutdown(p)
+
+    async def _steps(self, path: str, language: str, w: dict) -> None:
+        """Run the warm-up steps in the document's kernel; stop at the user's first run."""
+        for name, code in (SAGE_WARMUP if language == "sage" else PYTHON_WARMUP):
+            if w["used"] or path not in self.docs:
+                break
+            t1 = time.monotonic()
+            res = await self.bridge.execute(self.docs[path]["kid"], code, timeout=WARM_STEP_TIMEOUT_S,
+                                            language=language, store_history=False, kill_on_limit=False)
+            w["steps"][name] = round(time.monotonic() - t1, 2) if res.status == "ok" else "error"
+            if res.status != "ok":
+                w.setdefault("error", f"{name}: {res.status} {(res.error or res.stderr)[-300:]}".strip())
+                if res.status in ("died", "timeout", "output_limit"):
+                    break
+
+    def _home(self, path: str) -> str:
+        from . import sagebridge
+        return sagebridge.home_dir({"workdir": str(self.bridge.workroot.resolve())}, {"JPY_SESSION_NAME": path})
+
+    def _seed_marker(self, path: str) -> str:
+        """`<experiments>/.home/.seed/.done-<Sage version>`: the seed holds this version's first-use caches."""
+        import os
+        import re
+        from . import sagebridge
+        ver = str(((self.docs.get(path) or {}).get("engine") or {}).get("version") or "")
+        ver = re.sub(r"[^\w.+-]", "_", ver)[:40]
+        return os.path.join(sagebridge.seed_dir(self._home(path)), f".done-{ver}") if ver else ""
+
+    async def _harvest(self, path: str, since: float) -> int:
+        """Copy what an undisturbed warm-up created into the seed, and mark the seed done for this Sage version."""
+        from . import sagebridge
+        marker = self._seed_marker(path)
+        try:
+            n = await asyncio.to_thread(sagebridge.harvest_seed, self._home(path), since)
+            if marker and n:
+                await asyncio.to_thread(lambda: open(marker, "w", encoding="utf-8").write(str(n)))
+            return n
+        except OSError:
+            return 0
+
+    async def _prewarm(self, path: str, language: str) -> None:
+        import os
+        w = self.warm[path]
+        try:
+            free = mem_available_mb()
+            if free is not None and free < WARM_MIN_FREE_MB:
+                w.update(state="skipped", error=f"memory: {free} MB available")
+                return
+            await self._make_room(path)
+            fresh = await self.session_for(path) is None   # a session JupyterLab opened may have run user code
+            t0 = time.monotonic()
+            await self.ensure(path, language)
+            w["start_s"] = round(time.monotonic() - t0, 2)
+            w["state"] = "warming"
+            if fresh:
+                await self._steps(path, language, w)
+            marker = self._seed_marker(path) if language == "sage" else ""
+            if fresh and not w["used"] and path in self.docs and "error" not in w:
+                w["seeded"] = await self._harvest(path, w["t0"])
+            if marker and marker not in self._seed_tried and not w.get("error") \
+                    and not await asyncio.to_thread(os.path.exists, marker):
+                # the user ran a cell first, or this home already had its caches: the first-use caches of this Sage
+                # version are prepared once, aside (≈ 12 s, one kernel), for the next new projects
+                self._seed_tried.add(marker)
+                if self._seed_task is None or self._seed_task.done():
+                    self._seed_task = asyncio.ensure_future(self._prepare_seed())
+            w["state"] = "ready" if path in self.docs else "none"
+        except KernelError as e:
+            w.update(state="failed", error=f"{e.kind}: {e.detail}"[:300])
+        except asyncio.CancelledError:
+            w["state"] = "none"
+            raise
+        except Exception as e:  # noqa: BLE001
+            w.update(state="failed", error=str(e)[:300])
+        finally:
+            w["seconds"] = round(time.time() - w["t0"], 2)
+            if w["state"] in ("ready", "failed", "skipped"):
+                self.warm_log.append({"path": path, "language": language, "state": w["state"],
+                                      "start_s": w.get("start_s"), "steps": dict(w["steps"]),
+                                      "seconds": w["seconds"], "used": w["used"], "t": time.time(),
+                                      "error": w.get("error", ""), "seeded": w.get("seeded", 0)})
+                del self.warm_log[:-20]
+
+    async def _prepare_seed(self) -> None:
+        """Once per Sage version: a kernel that only ever runs Madalean's warm-up (its own home `warm-seed`) fills
+        the seed, then stops."""
+        path = SEED_PATH
+        free = mem_available_mb()
+        if free is not None and free < WARM_MIN_FREE_MB:
+            return
+        try:            # Jupyter derives the kernel's JPY_SESSION_NAME (hence its home) from an existing directory
+            (self.ctx.jupyter.root_dir / "calcul" / ".seed").mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return
+        w = {"state": "starting", "language": "sage", "t0": time.time(), "steps": {}, "used": False}
+        self.warm[path] = w
+        try:
+            await self.ensure(path, "sage")
+            w["state"] = "warming"
+            await self._steps(path, "sage", w)
+            if path in self.docs and "error" not in w and not w["used"]:
+                w["seeded"] = await self._harvest(path, w["t0"])
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            self.seed_log = {k: w.get(k) for k in ("steps", "seeded", "error")} | {
+                "seconds": round(time.time() - w["t0"], 2)}
+            await self.shutdown(path)
+
+    def _mark_used(self, path: str) -> None:
+        w = self.warm.get(path)
+        if w is not None:
+            w["used"] = True
+
     async def status(self, path: str) -> dict:
         """Kernel state without starting anything."""
         d = self.docs.get(path)
@@ -154,6 +366,7 @@ class NotebookKernels:
         if s is None:
             return await self.ensure(path, language)
         kid = s["kernel"]["id"]
+        self._mark_used(path)                     # a restart is the user's: no warm-up step runs after it
         await self._req("POST", f"api/kernels/{kid}/restart")
         if path in self.docs:
             self.docs[path]["ready"] = ""
@@ -164,6 +377,10 @@ class NotebookKernels:
 
     async def shutdown(self, path: str) -> None:
         d = self.docs.pop(path, None)
+        self.warm.pop(path, None)
+        t = self._warm_tasks.pop(path, None)
+        if t is not None and not t.done() and t is not asyncio.current_task():
+            t.cancel()
         try:
             s = await self.session_for(path)
         except Exception:  # noqa: BLE001
@@ -194,6 +411,9 @@ class NotebookKernels:
         return out
 
     async def close(self) -> None:
+        for t in [*self._warm_tasks.values(), self._seed_task]:
+            if t is not None:
+                t.cancel()
         for path in list(self.docs):
             await self.shutdown(path)
 
@@ -205,6 +425,7 @@ class NotebookKernels:
     # ------------------------------------------------------------ execution
     async def execute(self, path: str, language: str, code: str, *, timeout: float, on_output=None,
                       approx: bool = True) -> ExecResult:
+        self._mark_used(path)                     # S-AO: a warm-up in progress stops at its current step
         try:
             kid = await self.ensure(path, language)
         except KernelError as e:
@@ -230,6 +451,7 @@ class NotebookKernels:
         """S-AJ (D42): run one of Madalean's fixed step probes (research/steps.py) in the document's kernel, outside
         the history (no `_`, no execution count, no outputs recorded in the notebook). The caller holds the
         document's run lock and checked that the cell may run."""
+        self._mark_used(path)
         try:
             kid = await self.ensure(path, language)
         except KernelError as e:

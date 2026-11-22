@@ -263,6 +263,14 @@ class MadaleanBrain:
             return False
         return await self.http.online()
 
+    def key_saved(self, provider: str) -> dict:
+        """S-AO (D47): a key was saved or replaced for `provider` — its pauses, backoffs, failure counters, « down »
+        mark and last error are forgotten at once (for every provider; was only Hugging Face, after its key test)."""
+        n = self.states.clear_provider(provider)
+        down = self.down.pop(provider, None) is not None
+        err = self.last_error.pop(provider, "")
+        return {"unpaused": n, "was_down": down, "last_error": err}
+
     async def hf_check(self) -> dict:
         """Key test of the Hugging Face token (Réglages → Clés): a read-only identity check on the Hub
         (GET /api/whoami-v2 — no inference, nothing billed), then the live Goedel specialists. Never echoes the token."""

@@ -28,6 +28,9 @@ Calcul (S-P: notebooks — a document is a standard .ipynb sharing one kernel wi
 - `GET    /api/calcul/catalogue`                       canonical code structures + verification (S-AG, §3.6)
 - `POST   /api/calcul/analyze {text, language?}`       what a request is recognized as (S-AG), no model
 - `POST   …/docs/{doc}/interrupt | restart | shutdown | clear`
+- `POST   /api/calcul/{pid}/warm {doc?}`              S-AO: prepare the kernel in advance (project opened); the
+                                                       `GET …/docs/{doc}` of a stopped kernel does the same
+                                                       (setting `calcul_warm`; `status.warm` = its state)
 - `GET    …/docs/{doc}/variables`                         names defined in the kernel (or read from the code)
 - `POST   …/docs/{doc}/assist {action: explain|fix, cell_id, prompt?}`
 - `POST   …/cells/{cid}/to {target: conjecture|note|dossier|article, text?, title?, png?, tikz?}`
@@ -177,10 +180,34 @@ async def _calc_status(request, wb: Workbench, pid: str, doc: str, path: str) ->
         kernel = await wb.kernels().status(path)
     except Exception:  # noqa: BLE001
         kernel = {"kernel": "", "state": "none"}
+    ws = getattr(wb.kernels(), "warm_status", None)
     return {"available": avail, "sandbox": br.sandbox_kind, "auto": bool(ctx.settings.experiments_auto),
             "remote_allowed": bool(ctx.settings.experiments_remote), "local": bool(request["local"]),
             "running": wb.lock(f"{pid}/{doc}").locked(), "kernel": kernel,
-            "idle_minutes": int(getattr(ctx.settings, "calcul_idle_minutes", 30))}
+            "idle_minutes": int(getattr(ctx.settings, "calcul_idle_minutes", 30)),
+            "warm": ws(path) if ws is not None and _warm_on(ctx) else {"state": "off"}}
+
+
+def _warm_on(ctx) -> bool:
+    import os
+    return bool(getattr(ctx.settings, "calcul_warm", True)) and os.environ.get("MADALEAN_NO_CALCUL_WARM") != "1"
+
+
+async def _maybe_warm(request, wb: Workbench, path: str, language: str) -> dict | None:
+    """S-AO (D47): « Calcul prêt d'avance » — opening a document starts its kernel in the background (setting
+    `calcul_warm`, not in the demo, only for a device allowed to run cells, only when the kernel is installed)."""
+    ctx = ctx_of(request)
+    k = wb.kernels()
+    if ctx.demo or not _warm_on(ctx) or _exec_allowed(request) is not None \
+            or not hasattr(k, "prewarm") or language not in ("sage", "python"):
+        return None
+    try:
+        avail = await asyncio.to_thread(wb.bridge().available)
+    except Exception:  # noqa: BLE001
+        return None
+    if not avail.get(language):
+        return None
+    return k.prewarm(path, language)
 
 
 # ================================================================ Calcul: documents
@@ -246,7 +273,35 @@ async def doc_get(request):
                                     else "")
     except CalcError as e:
         return _calc_fail(e)
+    if not st["kernel"].get("kernel"):
+        w = await _maybe_warm(request, wb, path, str((v.get("doc") or {}).get("language") or "sage"))
+        if w is not None:
+            st["warm"] = w
     return ok({**v, "status": st})
+
+
+async def calc_warm(request):
+    """`POST /api/calcul/{pid}/warm {doc?}` (S-AO): the project was opened — prepare the kernel of the given document,
+    else of the project's most recently changed one. Never creates a document."""
+    wb = W(request)
+    pid = _project(request)
+    data = await body(request)
+    d = wb.calc.nb_root / "calcul" / pid
+    if not d.is_dir() or not any(d.glob("*.ipynb")):
+        return ok({"warm": {"state": "none"}, "doc": None})         # no Calcul in this project: nothing created
+    try:
+        docs = await asyncio.to_thread(wb.calc.docs, pid)
+    except CalcError as e:
+        return _calc_fail(e)
+    want = str(data.get("doc") or "")
+    pick = next((d for d in docs if d["id"] == want), None) if want else None
+    if pick is None and docs:
+        pick = max(docs, key=lambda d: float(d.get("updated") or 0))
+    if pick is None:
+        return ok({"warm": {"state": "none"}, "doc": None})
+    path = wb.calc.rel_path(pid, pick["id"])
+    w = await _maybe_warm(request, wb, path, str(pick.get("language") or "sage"))
+    return ok({"warm": w or {"state": "off"}, "doc": pick["id"]}, status=202 if w else 200)
 
 
 async def doc_ipynb(request):
@@ -1328,6 +1383,7 @@ def _register_calcul(a) -> None:
         a.add_post(base + "/cells/{cid}/to", cell_to)
     a.add_get("/api/calcul/{pid}", calc_get)
     a.add_post("/api/calcul/{pid}/interrupt", calc_interrupt)
+    a.add_post("/api/calcul/{pid}/warm", calc_warm)
     a.add_post("/api/calcul/{pid}/assist", calc_assist)
 
 
@@ -1621,6 +1677,7 @@ def _demo_brain(ctx) -> None:
 
 def register(app: web.Application, ctx) -> None:
     app[WB] = Workbench(ctx)
+    ctx.workbench = app[WB]                      # S-AO: the health row « Calcul prêt d'avance »
     if ctx.demo:
         async def startup(_app):
             _demo_brain(ctx)

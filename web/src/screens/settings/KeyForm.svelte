@@ -34,7 +34,7 @@
     const oddShape = !!(p.prefix && !p.prefix.test(key));
     status = { level: 'busy', text: t('keys.saving') };
     try {
-      await api.setKey(p.id, key);
+      await api.setKey(p.id, key, false);   // the test below runs here (S-AO: the server unpaused the provider)
       if (app.m.models) app.m.models.keys = { ...app.m.models.keys, [p.id]: true };
       onchange?.();
       status = { level: 'busy', text: t('keys.testing') };

@@ -11,7 +11,7 @@
 {#if s}
   {#if locked}<HostLock />{/if}
   <p class="small">{t('nbset.status', { s: tk(`jupyter.${app.m.jupyter?.state ?? 'stopped'}`, '') })} · <a href="/carnet">{t('nbset.open')}</a></p>
-  {#each ['remote_jupyter', 'agent_exec', 'experiments_remote', 'experiments_auto', 'lan_listener'] as k}
+  {#each ['remote_jupyter', 'agent_exec', 'experiments_remote', 'experiments_auto', 'calcul_warm', 'lan_listener'] as k}
     <div class="opt">
       <label class="switch"><input type="checkbox" checked={Boolean(s[k])} disabled={locked} aria-describedby="h-{k}" onchange={(e) => saveSettings({ [k]: (e.target as HTMLInputElement).checked })} />{tk(`nbset.${k}`, k)}</label>
       <p class="hint" id="h-{k}">{tk(`nbset.${k}.hint`, '')}</p>

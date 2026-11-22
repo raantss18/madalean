@@ -6,7 +6,11 @@ reconnect every 60 s, a PATCH burst on dossier titles every 30 s, and the read r
 Samples every 30 s: server RSS, open fds, threads, jobs known, WS events received, errors.
 Writes the samples and a verdict (memory slope over the second hour) to --out.
 
-Usage: soak_server.py --minutes 120 --out bench/soak_v2.json"""
+With --reuse (S-AO, TODO B16 bis) the same 6 dossiers are re-run all the time; each sample then also records the
+size of the dossier files (largest, total) and the bytes the server wrote (/proc/<pid>/io).
+
+Usage: soak_server.py --minutes 120 --out bench/soak_v2.json [--port 12800] [--src DIR]
+(test ports 12800–12899; `--src`: run the server from another checkout, e.g. a copy of the code before a change)"""
 from __future__ import annotations
 
 import argparse
@@ -25,9 +29,10 @@ import aiohttp
 import psutil
 
 ROOT = Path(__file__).resolve().parent.parent
-PORT, RPORT = 11600, 11601
+PORT, RPORT = 12800, 12801
 BASE = f"http://127.0.0.1:{PORT}"
 HDRS = {"Origin": BASE, "Sec-Fetch-Site": "same-origin"}
+DOSSIERS: Path | None = None
 PROBLEMS = ["Montrer que la somme de deux entiers pairs est paire.",
             "Montrer que le produit de deux entiers impairs est impair.",
             "Montrer que pour tout entier n, n² + n est pair.",
@@ -142,13 +147,24 @@ async def ws_client(s, stop, n: int) -> None:
             await asyncio.sleep(2)
 
 
+def files() -> dict:
+    sizes = [f.stat().st_size for f in DOSSIERS.glob("*.json")] if DOSSIERS is not None and DOSSIERS.is_dir() else []
+    return {"dossiers": len(sizes), "dossier_max_kb": round(max(sizes, default=0) / 1024, 1),
+            "dossiers_total_kb": round(sum(sizes) / 1024, 1)}
+
+
 def sample(proc: psutil.Process, t0: float) -> dict:
     with proc.oneshot():
         procs = [proc] + proc.children(recursive=True)
         rss = sum(p.memory_info().rss for p in procs if p.is_running())
+        try:
+            io = proc.io_counters()
+            wrote = round(io.write_chars / 2**20, 1)
+        except (psutil.Error, AttributeError):
+            wrote = None
         return {"t_min": round((time.time() - t0) / 60, 2), "rss_mb": round(proc.memory_info().rss / 2**20, 1),
                 "tree_rss_mb": round(rss / 2**20, 1), "fds": proc.num_fds(), "threads": proc.num_threads(),
-                "children": len(procs) - 1, **STATS}
+                "children": len(procs) - 1, "written_mb": wrote, **files(), **STATS}
 
 
 def slope(xs, ys) -> float:
@@ -165,16 +181,22 @@ async def main() -> None:
     ap.add_argument("--minutes", type=float, default=120)
     ap.add_argument("--reuse", action="store_true", help="6 dossiers re-run forever (no new dossier)")
     ap.add_argument("--out", default=str(ROOT / "bench" / "soak_v2.json"))
+    ap.add_argument("--port", type=int, default=12800)
+    ap.add_argument("--src", default=str(ROOT), help="checkout to run the server from")
     a = ap.parse_args()
-    global REUSE
+    global REUSE, PORT, RPORT, BASE, HDRS, DOSSIERS
     REUSE = a.reuse
+    PORT, RPORT = a.port, a.port + 1
+    BASE = f"http://127.0.0.1:{PORT}"
+    HDRS.update({"Origin": BASE})
     tmp = Path(tempfile.mkdtemp(prefix="madalean-soak-"))
+    DOSSIERS = tmp / "config" / "dossiers"
     env = {**os.environ, "MADALEAN_CONFIG_DIR": str(tmp / "config"), "MADALEAN_CACHE_DIR": str(tmp / "cache"),
            "MADALEAN_DATA_DIR": str(tmp / "data")}
     log = open(tmp / "server.log", "w")
     srv = subprocess.Popen([sys.executable, "-m", "madalean", "serve", "--demo", "--no-migrate", "--port", str(PORT),
                             "--remote-port", str(RPORT), "--config-dir", str(tmp / "config"),
-                            "--cache-dir", str(tmp / "cache")], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
+                            "--cache-dir", str(tmp / "cache")], cwd=a.src, env=env, stdout=log, stderr=subprocess.STDOUT)
     proc = psutil.Process(srv.pid)
     t0 = time.time()
     samples: list[dict] = []
@@ -210,6 +232,8 @@ async def main() -> None:
         "rss_slope_second_half_mb_per_h": round(60 * slope([x["t_min"] for x in half], [x["rss_mb"] for x in half]), 2),
         "fds_range": [min((x["fds"] for x in samples), default=0), max((x["fds"] for x in samples), default=0)],
         "threads_range": [min((x["threads"] for x in samples), default=0), max((x["threads"] for x in samples), default=0)],
+        **({k: samples[-1].get(k) for k in ("dossiers", "dossier_max_kb", "dossiers_total_kb", "written_mb")}
+           if samples else {}),
     }
     out.write_text(json.dumps({"running": False, "verdict": verdict, "samples": samples, "errors": ERRS}, indent=1))
     print(json.dumps(verdict, indent=1))
