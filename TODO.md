@@ -2,6 +2,63 @@
 
 État : ⬜ à faire · 🔄 en cours · ✅ fait et vérifié · ⚠️ fait, non vérifié en réel
 
+## 🚀 Ordre de travail à partir du 22/11/2026 (demandes du 22/11)
+
+Règle commune : **plus rapide sans perdre la fiabilité**. Une preuve n'est « vérifiée » que par un Lean neuf et
+strict ; les accélérations servent aux essais intermédiaires, jamais au verdict final. Chaque gain est mesuré
+(avant/après, consigné dans docs/PERFORMANCE.md).
+
+### A — Calcul fiable et rapide (en cours)
+1. ✅ Intégrales Sage en panne dans l'espace protégé (Maxima écrivait dans un dossier personnel absent) — corrigé et installé
+2. 🔄 Correction de fond de l'espace protégé (S-AC) : vrai dossier personnel privé et court pour chaque projet, tous
+   les caches dedans (Sage, Maxima, GAP, PARI, matplotlib…), suite d'essais de tous les sous-systèmes de Sage dans le
+   vrai noyau, même contrôle pour Lean et LaTeX ; essai rapide dans « État de santé » après chaque mise à jour, pour
+   attraper une régression avant toi
+3. 🔄 Transcription en code beaucoup plus rapide (S-AB) : rôle « code » vers les modèles mesurés les plus rapides,
+   réflexion coupée pour cette tâche, code affiché au fil de l'écriture, jamais d'attente derrière une preuve.
+   Objectif : premier code visible en 2 à 5 s
+4. 🔄 « Réécrire » toujours possible (S-AB) : plus de « le dossier travaille », la nouvelle demande remplace l'ancienne
+5. 🔄 Catalogue de syntaxe permanent selon les versions installées (S-AB) : fiche Sage et fiche Lean/Mathlib testées
+   sur les vraies versions, gardées en consigne permanente du modèle, signatures exactes des fonctions Sage lues dans
+   la version installée, contrôle du code avant affichage (une correction automatique si erreur), fiches refaites à
+   chaque mise à jour de Sage, Lean ou Mathlib
+6. 🔄 Cellules plus simples (S-AB) : « Réécrire » sous le texte de la demande, « Approuver et exécuter » sous le code
+   produit, un seul « + » en bas et une nouvelle cellule ajoutée après l'exécution ; la cellule reconnaît seule
+   code ou demande (choix corrigeable d'un clic) ; Texte et Figure dans une petite liste
+7. 🔄 « Expliquer l'erreur » et « Expliquer ligne par ligne » à la demande sur les cellules Sage (S-AB)
+8. ⬜ Même chose pour Lean : « Expliquer l'erreur » (avec correction proposée) et « Expliquer ligne par ligne » sur un
+   énoncé ou une preuve Lean, dans les dossiers et les notes (réutilise le service d'explication de l'étape 7)
+
+### B — Accélération de toute l'application (après A)
+9. ⬜ **Mesurer d'abord** : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de
+   l'énoncé, recherche Mathlib, traduction, chaque essai, chaque vérification Lean, explication) et de chaque écran ;
+   tableau des temps dans docs/PERFORMANCE.md, refait à chaque version
+10. ⬜ **Lean toujours chaud** (le plus gros gain attendu) : aujourd'hui chaque vérification relance Lean et recharge
+    Mathlib (≈ 4,5 s et 3,4 Go à chaque fois). Un Lean resté ouvert avec Mathlib déjà chargé (mode REPL, en-tête
+    préchargé) vérifierait un essai en une fraction de seconde. Le verdict final reste fait par un Lean neuf et strict
+11. ⬜ **Arrêt précoce des essais** : vérifier la preuve pendant qu'elle s'écrit (Lean chaud, par blocs) et couper
+    un modèle dès la première erreur sûre, au lieu d'attendre la fin de la réponse
+12. ⬜ **Course des modèles plus intelligente** : choix selon le temps mesuré ici et le taux de réussite par domaine,
+    la première preuve vérifiée arrête les autres ; réflexion réglée selon la difficulté ; mise en cache des
+    consignes chez les fournisseurs qui le permettent
+13. ⬜ **Travail en parallèle** : vérification de l'énoncé, recherche Mathlib et premiers essais lancés ensemble
+    au lieu de l'un après l'autre (on annule ce qui devient inutile)
+14. ⬜ **Ne jamais refaire deux fois** : résultats déjà prouvés et réponses identiques gardés (par version de
+    Mathlib), lemmes de la bibliothèque proposés d'abord
+15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
+    (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)
+16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
+    tant qu'on ne l'ouvre pas
+
+### C — Avant la publication 2.0.0 (sur ton accord)
+17. 🔄 Essai continu de 2 h (en cours) ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version
+18. ⬜ Tes essais : APK 2.0.1 (scan dans l'app), Calcul, une vraie preuve (coût Hugging Face), GitHub « Tester la connexion »
+19. ⬜ Publication : fusion v2 → main, tag v2.0.0, release signée, site GitHub Pages — **seulement sur ton accord**
+
+### D — Plus tard
+- Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (aujourd'hui seulement pour Hugging Face)
+- Partage de la carte graphique avec Ollama ; fitantanana (doublons, sur ton accord)
+
 ## ⭐ Priorités avant la release 2.0.0 (mis à jour le 21/11/2026)
 
 ### P0 — bloquant
