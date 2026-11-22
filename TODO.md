@@ -4,33 +4,35 @@
 
 ## 🚀 Ordre de travail à partir du 22/11/2026 (demandes du 22/11)
 
+⚠️ = installé le 22/11, à essayer par toi.
+
 Règle commune : **plus rapide sans perdre la fiabilité**. Une preuve n'est « vérifiée » que par un Lean neuf et
 strict ; les accélérations servent aux essais intermédiaires, jamais au verdict final. Chaque gain est mesuré
 (avant/après, consigné dans docs/PERFORMANCE.md).
 
 ### A — Calcul fiable et rapide (en cours)
 1. ✅ Intégrales Sage en panne dans l'espace protégé (Maxima écrivait dans un dossier personnel absent) — corrigé et installé
-2. 🔄 Correction de fond de l'espace protégé (S-AC) : vrai dossier personnel privé et court pour chaque projet, tous
+2. ⚠️ Correction de fond de l'espace protégé (S-AC) : vrai dossier personnel privé et court pour chaque projet, tous
    les caches dedans (Sage, Maxima, GAP, PARI, matplotlib…), suite d'essais de tous les sous-systèmes de Sage dans le
    vrai noyau, même contrôle pour Lean et LaTeX ; essai rapide dans « État de santé » après chaque mise à jour, pour
    attraper une régression avant toi
-3. 🔄 Transcription en code beaucoup plus rapide (S-AB) : rôle « code » vers les modèles mesurés les plus rapides,
+3. ⚠️ Transcription en code beaucoup plus rapide (S-AB) : rôle « code » vers les modèles mesurés les plus rapides,
    réflexion coupée pour cette tâche, code affiché au fil de l'écriture, jamais d'attente derrière une preuve.
    Objectif : premier code visible en 2 à 5 s
-4. 🔄 « Réécrire » toujours possible (S-AB) : plus de « le dossier travaille », la nouvelle demande remplace l'ancienne
-5. 🔄 Catalogue de syntaxe permanent selon les versions installées (S-AB) : fiche Sage et fiche Lean/Mathlib testées
+4. ⚠️ « Réécrire » toujours possible (S-AB) : plus de « le dossier travaille », la nouvelle demande remplace l'ancienne
+5. ⚠️ Catalogue de syntaxe permanent selon les versions installées (S-AB) : fiche Sage et fiche Lean/Mathlib testées
    sur les vraies versions, gardées en consigne permanente du modèle, signatures exactes des fonctions Sage lues dans
    la version installée, contrôle du code avant affichage (une correction automatique si erreur), fiches refaites à
    chaque mise à jour de Sage, Lean ou Mathlib
-6. 🔄 Cellules plus simples (S-AB) : « Réécrire » sous le texte de la demande, « Approuver et exécuter » sous le code
+6. ⚠️ Cellules plus simples (S-AB) : « Réécrire » sous le texte de la demande, « Approuver et exécuter » sous le code
    produit, un seul « + » en bas et une nouvelle cellule ajoutée après l'exécution ; la cellule reconnaît seule
    code ou demande (choix corrigeable d'un clic) ; Texte et Figure dans une petite liste
-6 bis. 🔄 Correction automatique du code qui échoue (quelques essais, versions gardées, retour arrière possible) et
+6 bis. ⚠️ Correction automatique du code qui échoue (quelques essais, versions gardées, retour arrière possible) et
    **recettes apprises** : chaque demande dont le code a marché est retenue (code, version de Sage/Lean) et resservie
    comme raccourci pour une demande semblable ; recettes revérifiées à chaque mise à jour, visibles et supprimables (S-AB)
-6 ter. 🔄 Résultat mathématique coupé à droite sur téléphone : retour à la ligne ou défilement dans la case (S-AB)
-7. 🔄 « Expliquer l'erreur » et « Expliquer ligne par ligne » à la demande sur les cellules Sage (S-AB)
-7 bis. 🔄 Éditeur d'article plus aéré (S-AD) : panneaux latéraux repliables (mode « pleine largeur »,
+6 ter. ⚠️ Résultat mathématique coupé à droite sur téléphone : retour à la ligne ou défilement dans la case (S-AB)
+7. ⚠️ « Expliquer l'erreur » et « Expliquer ligne par ligne » à la demande sur les cellules Sage (S-AB)
+7 bis. ⚠️ Éditeur d'article plus aéré (S-AD) : panneaux latéraux repliables (mode « pleine largeur »,
    choix retenu), calculs Sage et autres éléments du projet dans la liste avec chacun son logo et son nom bien
    distincts, arborescence des fichiers de l'article affichable au choix
 8. ⬜ Même chose pour Lean : « Expliquer l'erreur » (avec correction proposée) et « Expliquer ligne par ligne » sur un
