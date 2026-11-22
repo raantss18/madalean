@@ -13,8 +13,7 @@ import { StreamLanguage, HighlightStyle, syntaxHighlighting, bracketMatching, ty
 import { tags } from '@lezer/highlight';
 import { autocompletion, type CompletionContext, type CompletionResult, type Completion } from '@codemirror/autocomplete';
 import { search, searchKeymap } from '@codemirror/search';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { katexNow, loadKatex } from '../katex.svelte';
 import '../../styles/article.css';
 import { scan, managedRegions, parseMarker, linkedDossier, plain, MATH_ENVS, type Scan } from './latex';
 
@@ -84,7 +83,10 @@ const texHighlight = HighlightStyle.define([
 ]);
 
 // ---------------------------------------------------------------- widgets
+// KaTeX is not in this chunk (S-AP): the editor shows the TeX source until it has loaded, then refreshes.
 function renderTex(src: string, display: boolean, macros: Record<string, string>): string {
+  const katex = katexNow();
+  if (!katex) return '';
   try {
     return katex.renderToString(src, { displayMode: display, throwOnError: false, trust: false, strict: 'ignore',
       output: 'htmlAndMathml', maxExpand: 500, maxSize: 20, macros: { ...macros } });
@@ -92,8 +94,9 @@ function renderTex(src: string, display: boolean, macros: Record<string, string>
 }
 
 class MathWidget extends WidgetType {
+  readonly ready = katexNow() !== null;
   constructor(readonly src: string, readonly display: boolean, readonly macros: Record<string, string>, readonly label: string) { super(); }
-  override eq(o: MathWidget) { return o.src === this.src && o.display === this.display; }
+  override eq(o: MathWidget) { return o.src === this.src && o.display === this.display && o.ready === this.ready; }
   override toDOM() {
     const el = document.createElement('span');
     el.className = this.display ? 'cm-mathw cm-mathw-display' : 'cm-mathw';
@@ -662,6 +665,8 @@ export function createArticleEditor(o: EditorOptions): ArticleEditor {
   function makeState(doc: string): EditorState { return EditorState.create({ doc, extensions: baseExt() }); }
 
   const view = new EditorView({ parent: o.parent, state: makeState(o.doc) });
+  // formulas show their source until KaTeX is in, then render (MathWidget.eq compares `ready`)
+  if (!katexNow()) void loadKatex().then(() => { if (view.dom.isConnected) view.dispatch({ effects: refresh.of(null) }); }).catch(() => { /* source stays */ });
 
   function wrapSel(v: EditorView, before: string, after: string, ph: string) {
     const s = v.state.selection.main;

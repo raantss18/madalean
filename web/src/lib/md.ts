@@ -1,14 +1,22 @@
 // Safe Markdown + maths renderer for UNTRUSTED model output.
 // - markdown-it with html:false (raw HTML is shown as text), no images (alt text only), links open outside
 //   with rel=noopener noreferrer; javascript:/data: links are refused by markdown-it's validateLink;
-// - maths: $…$, $$…$$, \(…\), \[…\] through KaTeX (trust:false, errors rendered as text);
+// - maths: $…$, $$…$$, \(…\), \[…\] through KaTeX (trust:false, errors rendered as text). KaTeX is loaded on the
+//   first formula (lib/katex.svelte.ts, S-AP): until then the TeX source is shown in a `.math-pending` span, and
+//   reactive callers (Md.svelte's $derived, templates) render again when it arrives;
 // - the final HTML goes through DOMPurify (defence in depth).
 import MarkdownIt, { type StateInline, type StateBlock } from 'markdown-it';
-import katex from 'katex';
 import DOMPurify from 'dompurify';
-import 'katex/dist/katex.min.css';
+import { katexNow, preloadKatex } from './katex.svelte';
+
+const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 export function renderMath(src: string, display: boolean): string {
+  const katex = katexNow();
+  if (!katex) {
+    preloadKatex();
+    return `<span class="math-pending${display ? ' display' : ''}">${src.replace(/[&<>"']/g, (c) => ESC[c]!)}</span>`;
+  }
   return katex.renderToString(src, { displayMode: display, throwOnError: false, trust: false, strict: 'ignore', output: 'htmlAndMathml', maxExpand: 500, maxSize: 20 });
 }
 

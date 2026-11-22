@@ -1,6 +1,7 @@
 <script lang="ts">
   import EnterHint from '../components/EnterHint.svelte';
   import { enterSubmit } from '../lib/ui/enter';
+  import { keepDraft } from '../lib/ui/drafts.svelte';
   // Notebook: JupyterLab (Python, SageMath) embedded, with the assistant beside it. The assistant reads the open
   // notebook through the contents API and can append a cell. Remote devices: only when the host allows it.
   import { api } from '../lib/api/client';
@@ -21,6 +22,7 @@
   let msgs = $state<{ role: 'user' | 'assistant'; content: string }[]>([]);
   let input = $state('');
   let busy = $state(false);
+  keepDraft(() => 'notebook.ask', () => input, (v) => (input = v));   // the unsent question is kept until sent (S-AP)
   let streaming = $state('');
   let reqId = '';
 

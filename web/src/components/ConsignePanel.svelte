@@ -1,6 +1,7 @@
 <script lang="ts">
   import EnterHint from './EnterHint.svelte';
   import { enterSubmit } from '../lib/ui/enter';
+  import { keepDraft, clearDraft } from '../lib/ui/drafts.svelte';
   // « Consigne de recherche »: a source + an instruction in your words → Madalean plans bounded steps with the
   // existing tools (blueprint, Lean, Calcul, conjectures, literature) and PROPOSES changes; you accept each one in
   // Article → Suggestions. The plan is shown before anything runs; every step goes to the research journal (a note).
@@ -20,6 +21,8 @@
   let runs = $state<ConsigneRun[]>([]);
   let busy = $state('');
   let err = $state('');
+  // the instruction not yet launched is kept on this device (S-AP); launching the run drops the draft
+  keepDraft(() => (pid ? `consigne.${pid}` : ''), () => instruction, (v) => (instruction = v));
 
   async function load() {
     if (!pid) return;
@@ -41,7 +44,7 @@
   }
   async function start() {
     busy = 'start'; err = '';
-    try { const r = (await consigne.start(pid, payload())).run; runs = [r, ...runs.filter((x) => x.id !== r.id)]; preview = null; }
+    try { const r = (await consigne.start(pid, payload())).run; runs = [r, ...runs.filter((x) => x.id !== r.id)]; preview = null; clearDraft(`consigne.${pid}`); }
     catch (e) { err = errorText(e); } finally { busy = ''; }
   }
   async function act(r: ConsigneRun, what: 'cancel' | 'resume') {

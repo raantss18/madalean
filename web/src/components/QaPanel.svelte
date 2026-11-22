@@ -1,6 +1,7 @@
 <script lang="ts">
   import EnterHint from './EnterHint.svelte';
   import { enterSubmit } from '../lib/ui/enter';
+  import { keepDraft } from '../lib/ui/drafts.svelte';
   // Grounded answers (NotebookLM-like): every sentence carries the passages it rests on; a click on a citation opens
   // the source at that passage. Sentences without a verified citation are shown struck as « non étayé »; the optional
   // general-knowledge part is labelled as such. POST /research/ask|summarize|compare → qa.token… qa.done.
@@ -23,6 +24,8 @@
   let question = $state('');
   let general = $state(false);
   let busy = $state(false);
+  // the unsent question survives leaving the screen (S-AP); sending empties the field, which drops the draft
+  keepDraft(() => `qa.${project}.${scope?.sources?.join(',') || scope?.shelves?.join(',') || 'all'}`, () => question, (v) => (question = v));
 
   async function run(kind: 'ask' | 'summary' | 'compare', q: string) {
     if (busy) return;

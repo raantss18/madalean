@@ -1,6 +1,7 @@
 <script lang="ts">
   import EnterHint from '../../components/EnterHint.svelte';
   import { enterSubmit } from '../../lib/ui/enter';
+  import { keepDraft } from '../../lib/ui/drafts.svelte';
   // Step 2 « Traduction Lean »: what you meant (left) and what Lean will prove (right), side by side so the
   // translation can be checked; check with Lean, edit by hand, versions, « corriger l'énoncé »; learn panel with
   // the line-by-line gloss and the meaning of any token (hover or tap).
@@ -29,6 +30,8 @@
   let checking = $state(false);
   let correcting = $state(false);
   let correction = $state('');
+  // an unsent correction is kept on this device and its field reopened (S-AP)
+  keepDraft(() => `lean.correction.${d.id}`, () => correction, (v) => { correction = v; if (v) correcting = true; });
   let tapped = $state<{ token: string; entry: GlossEntry | null; server?: { title: string; body: string } | null; loading?: boolean } | null>(null);
   async function tap(token: string, entry: GlossEntry | null) {
     tapped = { token, entry, loading: !entry };

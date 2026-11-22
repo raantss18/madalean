@@ -1,6 +1,9 @@
 // S-H review: Markdown / KaTeX rendering of untrusted text (model output, notes, sources, titles).
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { renderMarkdown, renderInline } from '../../src/lib/md';
+import { loadKatex } from '../../src/lib/katex.svelte';
+
+beforeAll(async () => { await loadKatex(); });          // KaTeX is lazy (S-AP): load it as a formula on screen would
 
 describe('untrusted Markdown', () => {
   it('neutralises script URLs and off-site protocol-relative links', () => {

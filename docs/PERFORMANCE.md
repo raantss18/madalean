@@ -255,3 +255,68 @@ twice as many on these French / Lean texts — the plan's stable prefix is 915 e
 The stable block (role text + core rules, versioned) is byte-identical for every request of a role on the same tool
 versions (tested); measured cache hit on the real API: 1 858 of 2 108 prompt tokens of a plan, 960 of 1 180 of a
 final check — read at 0.1× the input price.
+
+# Interface sur téléphone (S-AP, 2026-11-22, TODO B16, DECISIONS D48)
+
+« Temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé tant qu'on ne l'ouvre
+pas. » Measured with `node scripts/dev/phone_perf.mjs` (committed): a **production build** (`vite build` + brotli /
+gzip, as installed) served by `madalean serve --demo` with throw-away config / cache / home directories on a port in
+12900–12999; headless Chromium with **phone emulation** (360×780, DPR 3, touch, mobile UA), **CPU throttled 4×** and a
+**slow network** (150 ms RTT, 1.6 Mbit/s down, 750 kbit/s up); each screen opened by its URL, cold (empty cache)
+then warm (reload); **medians of 5 runs**. Times in ms after navigation start.
+
+- *useful*: first frame where the screen's own content is on screen (Home / Réglages: the title; dossier: the
+  proof's code field; Calcul: a cell's output; Article: the editor; Notes: the note's text field);
+- *interactive*: the end of the last long task (> 50 ms) before one second without any;
+- *complete*: the last part that may arrive after the first paint is in (formulas rendered by KaTeX, code fields
+  turned into CodeMirror);
+- *JS before paint*: bytes on the wire (compressed) that arrived before the useful paint.
+
+## Numbers (cold cache)
+
+| Screen | useful | interactive | complete | JS before paint | CSS before paint | JS once complete |
+|---|---|---|---|---|---|---|
+| Home `/` | 2 434 → **1 604** | 2 434 → **1 653** | 3 721 → 3 273 | 232 → **95 kB** | 14.1 → 10.3 kB | 355 → 301 kB¹ |
+| Dossier `/d/…/preuve` | 2 910 → **2 492** | 2 959 → **2 544** | 4 207 → 3 895 | 262 → **188 kB** | 22.0 → 24.1 kB | 384 → 375 kB |
+| Calcul | 3 112 → **2 508** | 3 524 → **3 065** | 3 112 → 3 121 | 249 → **169 kB** | 16.5 → 17.0 kB | 278 → 261 kB |
+| Article | 3 675 → **3 463** | 3 681 → **3 468** | 3 675 → 3 463 | 368 → **350 kB** | 20.2 → 20.6 kB | 368 → 350 kB |
+| Notes | 2 788 → **2 178** | 2 798 → **2 178** | 3 830 → 3 360 | 237 → **155 kB** | 15.3 → 12.2 kB | 360 → 342 kB |
+| Réglages | 1 633 → **1 287** | 1 633 → **1 287** | 1 633 → 1 287 | 115 → **89 kB** | 9.1 → 8.9 kB | 115 → 95 kB |
+
+First contentful paint (the loading skeleton): 1 150–1 170 → 1 050–1 110 ms on every screen. ¹ Home's total now
+includes the idle prefetch of the dossier screen and the palette (the likely next steps), fetched after the paint.
+
+Warm cache (assets hashed, immutable): unchanged within noise — Home 713 → 673, dossier 878 → 853, Calcul 1 171 →
+1 085, Article 1 018 → 1 027, Notes 846 → 841, Réglages 623 → 610 ms; no script is downloaded again (≈ 300 bytes of
+headers in all).
+
+| Live updates | before | after |
+|---|---|---|
+| WebSocket while idle (Home, 30 s) | 1 frame (`pong`), 2 / min, 36 bytes | same — nothing to remove |
+| Demo job watched from its dossier (12 s, ≈ 57 frames: 25 `job.updated`, 5 `dossier.updated`, ≈ 27 `job.token`) | main thread 2 264 ms, script 710 ms, 307 style recalcs | 2 251 ms, 733 ms, 286 — a sparse stream (≤ 7 events per frame), within noise (± 10 %) |
+| Replay burst: 300 `job.updated` for 20 running jobs, one task each (as after a reconnection), on Home | 587 ms until settled, script 280 ms, main thread 1 077 ms, 137 style recalcs | **68 ms**, script **30 ms**, 701 ms, 108 — 7 batches (largest 200 events) |
+
+Bundle (minified): the entry went from 394 kB (Svelte runtime, store, both catalogues, palette…) to **269 kB**;
+the Markdown chunk from 391 kB (markdown-it + DOMPurify + KaTeX) to 129 kB, KaTeX (≈ 260 kB + CSS) being its own
+chunk; the dossier chunk from 110 to 77 kB (plan 32 kB apart).
+
+## What was changed
+
+- **KaTeX on the first formula** (`web/src/lib/katex.svelte.ts`): `renderMath` shows the TeX source in a
+  `.math-pending` span until it is in; the version counter is reactive, so `Md` and templates render again. Calcul,
+  the dossier screen and the article editor start it at once (they always show formulas), in parallel with their
+  own chunks; the article editor refreshes its math widgets when it arrives.
+- **Only the French catalogue in the entry**; English is a chunk awaited before mounting on an English device.
+- **The screen's chunk is requested together with `GET /state`** instead of after it (one round trip less).
+- **CodeMirror built when idle** (≤ 1.5 s) or when its plain field is focused; the plain field shows the text
+  meanwhile — the first interactions are not blocked by its build.
+- **Own chunks**: proof plan (on the « Plan » step), command palette (first opening), first-run tour; Home uses
+  `LazyMd` in the .tex import too, so its first paint needs no Markdown renderer.
+- **Idle prefetch** of the likely next screen and the palette (`lib/ui/idle.ts`), never on Save-Data / 2G.
+- **Socket bursts applied once per frame** (`lib/store/coalesce.ts`), streamed text flushed in that frame;
+  **one job index** shared by every reader instead of one scan of all jobs per dossier row.
+
+Checked and left as is: no polling while idle (the status panel samples only while open, S-AK; the GPU monitor is
+slow without an audience, S-Q); fonts are `font-display: swap` and only the used subsets download; pdf.js, the
+figure engine, the manual and the glossary data were already loaded only by the screens that use them.
+Not verified: a real phone (the emulation throttles the CPU of this PC 4×, which is not a given phone's profile).

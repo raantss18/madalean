@@ -1,10 +1,11 @@
 <script lang="ts">
   // CodeMirror editor (lazy chunk). Until it is loaded, a plain textarea keeps the page usable (no blank box).
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import type { EditorHandle } from '../lib/lean/editor';
   import type { GlossEntry } from '../lib/lean/glossary';
   import { i18n } from '../lib/i18n/index.svelte';
   import { enterIntent, touchOnly } from '../lib/ui/enter';
+  import { whenIdle } from '../lib/ui/idle';
 
   let {
     value = $bindable(''), language = 'lean', readonly = false, label, placeholder = '', errors = [], gloss = false,
@@ -24,8 +25,15 @@
   let ready = $state(false);
   let ta: HTMLTextAreaElement | undefined = $state();
 
+  // S-AP: CodeMirror is fetched and built once the screen is painted and the browser idle, or at once when the plain
+  // field is focused — never in the way of the first paint.
+  let want = $state(false);
   $effect(() => {
-    if (!host || ed) return;
+    if (want || !host) return;
+    return whenIdle(() => { want = true; }, 1500);
+  });
+  $effect(() => {
+    if (!host || ed || !want) return;
     let cancelled = false;
     void import('../lib/lean/editor').then(({ createEditor }) => {
       if (cancelled || !host) return;
@@ -42,8 +50,15 @@
       ed.view.dom.classList.toggle('natural', language === 'natural');
       ed.view.dom.classList.toggle('readonly', readonly);
       ed.view.dom.style.setProperty('--min-lines', String(minLines));
+      const atEnd = caret >= value.length;
       ready = true;
-      if (hadFocus) { ed.focus(); ed.view.dispatch({ selection: { anchor: Math.min(caret, value.length) } }); }
+      // the editor is shown at the next DOM update: move the focus (and the caret) once it is visible (S-AP: it may be
+      // built while the user is already typing in the plain field)
+      if (hadFocus) void tick().then(() => {
+        if (!ed) return;
+        ed.focus();
+        ed.view.dispatch({ selection: { anchor: atEnd ? ed.view.state.doc.length : Math.min(caret, ed.view.state.doc.length) } });
+      });
     });
     return () => { cancelled = true; };
   });
@@ -58,7 +73,7 @@
   <div bind:this={host} class="host" hidden={!ready}></div>
   {#if !ready}
     <textarea bind:this={ta} {id} class="input fallback" class:mono={language === 'lean'} aria-label={label} aria-describedby={describedby || undefined}
-      {placeholder} readonly={readonly} bind:value rows={minLines} spellcheck={language === 'natural'}
+      {placeholder} readonly={readonly} bind:value rows={minLines} spellcheck={language === 'natural'} onfocus={() => { want = true; }}
       onkeydown={(e) => { const k = enterIntent(e); if (onSubmit && k === 'submit' && (e.ctrlKey || e.metaKey || (enterSubmits && !touchOnly()))) { e.preventDefault(); onSubmit(); } }}></textarea>
   {/if}
 </div>

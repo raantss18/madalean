@@ -13,8 +13,7 @@
   import StatusPanel from './components/StatusPanel.svelte';
   import ProjectBar from './components/ProjectBar.svelte';
   import ConnectionBanner from './components/ConnectionBanner.svelte';
-  import CommandPalette from './components/CommandPalette.svelte';
-  import Tour from './components/Tour.svelte';
+  import { prefetch } from './lib/ui/idle';
 
   type Screen = Component<{ params: Record<string, string> }>;
   const cache = new Map<string, Promise<Screen>>();
@@ -28,7 +27,30 @@
     return p;
   }
 
+  // S-AP (docs/PERFORMANCE.md « Interface sur téléphone »): the command palette and the first-run tour are their own
+  // chunks — the palette loads on its first opening (Ctrl K, /, the search button) or when the browser is idle.
+  let Palette = $state<Component<{ open?: boolean }> | null>(null);
+  let paletteLoading: Promise<void> | null = null;
+  function loadPalette(): Promise<void> {
+    paletteLoading ??= import('./components/CommandPalette.svelte').then((m) => { Palette = m.default as Component<{ open?: boolean }>; })
+      .catch(() => { paletteLoading = null; });
+    return paletteLoading;
+  }
+  $effect(() => { if (palette && !Palette) void loadPalette(); });
+  // The screen most likely opened next, fetched once the current one is on screen and the browser is idle.
+  const NEXT: Record<string, string[]> = { home: ['dossier'], dossier: ['home'], sources: ['reader'], project: ['home'] };
+  $effect(() => {
+    if (!app.m.loaded || gate !== 'ready') return;
+    prefetch('palette', loadPalette);
+    for (const n of NEXT[route.name] ?? []) {
+      const r = routes.find((x) => x.name === n);
+      if (r) prefetch(`route.${n}`, () => load(r));
+    }
+  });
+
   const def = $derived(routes.find((r) => r.name === route.name));
+  // The screen's chunk downloads alongside GET /state, not after it (S-AP: one round trip less on a cold load).
+  $effect.pre(() => { if (def) void load(def).catch(() => { /* shown by the {#await} below */ }); });
   const isPublic = $derived(Boolean(def?.public));
   let gate = $state<'checking' | 'ready' | 'unpaired'>('checking');
   let palette = $state(false);
@@ -96,7 +118,7 @@
         <div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span><div class="skel"></div><div class="skel short"></div></div>
       {:else if def}
         <!-- First-run tour: in the page flow below 1024 px (above the statement, never over it), floating card above. -->
-        {#if !prefs.tourDone && prefs.mode === 'learn' && route.name === 'home'}<Tour />{/if}
+        {#if !prefs.tourDone && prefs.mode === 'learn' && route.name === 'home'}{#await import('./components/Tour.svelte') then Tour}<Tour.default />{/await}{/if}
         {#await load(def)}
           <div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span></div>
         {:then Screen}
@@ -109,7 +131,7 @@
       {/if}
     </main>
   </div>
-  <CommandPalette bind:open={palette} />
+  {#if Palette}<Palette bind:open={palette} />{/if}
 {/if}
 <Toasts />
 

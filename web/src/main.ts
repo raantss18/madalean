@@ -12,8 +12,11 @@ import './routes';
 import { applyPrefs } from './lib/prefs.svelte';
 import { startRouter } from './lib/router.svelte';
 import { watchKeyboard } from './lib/ui/keyboard';
+import { i18n } from './lib/i18n/index.svelte';
 
 applyPrefs();
 startRouter();
 watchKeyboard();
-mount(App, { target: document.getElementById('app')! });
+// The English catalogue is its own chunk (S-AP): an English device waits for it (one request) rather than flashing
+// French; a French device mounts at once.
+void i18n.ready().finally(() => mount(App, { target: document.getElementById('app')! }));

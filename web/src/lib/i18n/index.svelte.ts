@@ -1,13 +1,32 @@
 // Interface language. French by default, English switch. Catalogues: ./fr.ts (source) and ./en.ts (complete,
 // type-checked against fr; tests/unit/i18n.test.ts checks placeholders and emptiness).
+// S-AP: only French (the source and the fallback) is in the first chunk; English is its own chunk, loaded before the
+// app mounts when it is the device's language (main.ts awaits `i18n.ready()`), or when the user switches to it.
 import fr from './fr';
-import en from './en';
 
 export type Lang = 'fr' | 'en';
 export type Key = keyof typeof fr;
 export type Params = Record<string, string | number>;
 
-const catalogues: Record<Lang, Record<Key, string>> = { fr, en };
+const catalogues: Partial<Record<Lang, Record<Key, string>>> & { fr: Record<Key, string> } = { fr };
+const loaders: Record<Lang, () => Promise<Record<Key, string>>> = {
+  fr: async () => fr,
+  en: () => import('./en').then((m) => m.default),
+};
+const loading = new Map<Lang, Promise<Record<Key, string>>>();
+
+/** Loads a catalogue once (retried after a failure). */
+export function loadCatalogue(l: Lang): Promise<Record<Key, string>> {
+  const have = catalogues[l];
+  if (have) return Promise.resolve(have);
+  let p = loading.get(l);
+  if (!p) {
+    p = loaders[l]().then((c) => { catalogues[l] = c; return c; });
+    p.catch(() => loading.delete(l));
+    loading.set(l, p);
+  }
+  return p;
+}
 
 function initial(): Lang {
   try {
@@ -18,17 +37,32 @@ function initial(): Lang {
   return 'fr';
 }
 
-let current = $state<Lang>(typeof window === 'undefined' ? 'fr' : initial());
+// The language shown: always one whose catalogue is loaded. `wanted` is the last one asked for (a switch back while
+// the English chunk is still downloading wins).
+const asked: Lang = typeof window === 'undefined' ? 'fr' : initial();
+let current = $state<Lang>(catalogues[asked] ? asked : 'fr');
+let wanted: Lang = asked;
+
+function apply(l: Lang): void {
+  current = l;
+  if (typeof document !== 'undefined') document.documentElement.lang = l;
+}
 
 export const i18n = {
   get lang(): Lang {
     return current;
   },
-  set(l: Lang): void {
-    if (l !== 'fr' && l !== 'en') return;
-    current = l;
+  /** Switches the language (at once when its catalogue is loaded, else as soon as it is). */
+  set(l: Lang): Promise<void> {
+    if (l !== 'fr' && l !== 'en') return Promise.resolve();
+    wanted = l;
     try { localStorage.setItem('madalean.lang', l); } catch { /* ignore */ }
-    if (typeof document !== 'undefined') document.documentElement.lang = l;
+    if (catalogues[l]) { apply(l); return Promise.resolve(); }
+    return loadCatalogue(l).then(() => { if (wanted === l) apply(l); }, () => { /* offline: stay in the current language */ });
+  },
+  /** Before mounting: the catalogue of the device's language is loaded and shown. */
+  ready(): Promise<void> {
+    return wanted === current ? Promise.resolve() : i18n.set(wanted);
   },
 };
 
@@ -39,7 +73,7 @@ export function format(s: string, params?: Params): string {
 
 /** Translate. Plural forms: keys `x.one` / `x.other` with `n` in params → use `tn`. */
 export function t(key: Key, params?: Params): string {
-  return format(catalogues[current][key] ?? catalogues.fr[key] ?? key, params);
+  return format(catalogues[current]?.[key] ?? catalogues.fr[key] ?? key, params);
 }
 
 export function tn(base: string, n: number, params: Params = {}): string {
@@ -49,7 +83,7 @@ export function tn(base: string, n: number, params: Params = {}): string {
 
 /** For keys built at runtime (e.g. `status.${s}`); falls back to `fallback` when absent. */
 export function tk(key: string, fallback = '', params?: Params): string {
-  const s = (catalogues[current] as Record<string, string>)[key];
+  const s = ((catalogues[current] ?? catalogues.fr) as Record<string, string>)[key];
   return s === undefined ? fallback : format(s, params);
 }
 

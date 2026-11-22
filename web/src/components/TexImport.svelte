@@ -4,7 +4,7 @@
   import { t } from '../lib/i18n/index.svelte';
   import { errorText } from '../lib/ui/errors';
   import Dialog from './Dialog.svelte';
-  import Md from './Md.svelte';
+  import Md from './LazyMd.svelte';               // keeps the Markdown renderer off Home's first load (S-AP)
 
   let { onpick }: { onpick: (text: string, title: string) => void } = $props();
   let open = $state(false);
