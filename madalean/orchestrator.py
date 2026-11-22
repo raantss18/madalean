@@ -34,6 +34,7 @@ class Orchestrator:
         self.jobs: dict[str, Job] = {}
         self.tasks: dict[str, asyncio.Task] = {}
         self.by_dossier: dict[str, str] = {}
+        self._waits: dict[str, dict[str, list[str]]] = {}     # job id → owner → resources it waits for (D38)
         self.pipeline = DossierPipeline(ctx)
         ctx.slots.on_wait = self._on_wait
 
@@ -93,12 +94,30 @@ class Orchestrator:
 
     # ------------------------------------------------------------ internals
     def _on_wait(self, owner: str, resource: str, waiting: bool) -> None:
-        job = self.jobs.get(owner)
+        # a stage running in parallel inside a job owns « <job id>#<stage> » (pipeline/runner.py, D38): the job waits
+        # only while ALL its running stages wait (one stage waiting for the GPU while the proof search works is not
+        # « en attente »)
+        jid = owner.split("#", 1)[0]
+        job = self.jobs.get(jid)
         if job is None or not job.active:
             return
-        job.waiting = resource if waiting else ""
-        job.state = "queued" if waiting else "running"
+        waits = self._waits.setdefault(jid, {})
+        stack = waits.setdefault(owner, [])
+        if waiting:
+            stack.append(resource)
+        elif resource in stack:
+            stack.remove(resource)
+        if not stack:
+            del waits[owner]
+        live = getattr(job, "live", None) or {jid}           # owners working right now (pipeline, D38)
+        blocked = bool(waits) and len(waits) >= max(1, len(live))
+        job.waiting = next(iter(waits.values()))[-1] if blocked else ""
+        job.state = "queued" if blocked else "running"
         self.ctx.publish_job(job)
+
+    def wait_recheck(self, job: Job) -> None:
+        """Called by the pipeline when its set of running stages changes (D38)."""
+        self._on_wait(job.id, "", False)
 
     def _trim(self) -> None:
         done = [j for j in self.jobs.values() if not j.active]
@@ -142,15 +161,19 @@ class Orchestrator:
                     pass
         finally:
             job.ended = time.time()
-            job.stage, job.waiting = "", ""
+            job.stage, job.waiting, job.stages = "", "", []
+            self._waits.pop(job.id, None)
             streams = getattr(self.ctx, "streams", None)
             if streams is not None:
                 streams.finish(job.id)
-            self.ctx.slots.release_all(job.id)
-            try:
-                self.ctx.local.release_owner(job.id)
-            except Exception:  # noqa: BLE001
-                pass
+            # the job's parallel stages own « <job id>#<stage> » (D38): give back whatever any of them still holds
+            subs = {h for hs in self.ctx.slots.holders.values() for h in hs if h.startswith(job.id + "#")}
+            for owner in [job.id, *sorted(subs)]:
+                try:
+                    self.ctx.local.release_owner(owner)
+                except Exception:  # noqa: BLE001
+                    pass
+                self.ctx.slots.release_all(owner)
             if self.by_dossier.get(job.dossier_id) == job.id:
                 del self.by_dossier[job.dossier_id]
             self.ctx.publish_job(job)

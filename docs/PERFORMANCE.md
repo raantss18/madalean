@@ -93,3 +93,38 @@ Findings:
 3. Short text stages sometimes land on a slow local model while fast online ones are available.
 
 Work started: S-AE (warm Lean, D37), S-AF (parallel stages, fast model choice for short stages, no recompute, D38).
+
+# Étapes en parallèle (S-AF)
+
+DECISIONS D38. Once Lean accepts the statement, guided reading, statement check, Mathlib-first search and proof
+search run together; explanation and informal proof are written together; short text stages use the fastest
+measured online model; the check verdict and the Mathlib-first result are kept per statement and Mathlib version.
+
+**Real jobs before the change** (`scripts/perf_report.py`, the user's 2026-11-21/22 jobs, read-only): first proof
+attempt **151.7 s** (median, max 194.4 s, n = 5) after the statement was accepted.
+
+**Demo replay** (`scripts/dev/perf_stages_demo.py --realistic 10`): `madalean serve --demo` on spare ports with
+throw-away config / cache directories; the scripted models answer after the real median of each stage divided by 10
+(understanding 4.7 s, translation 34.7 s, guided reading 48.8 s, statement check 39.6 s, one proof attempt 15 s,
+explanation 21 s, informal proof 2.8 s) and the simulated Lean takes 0.2 s per check; same problem, 3 runs each. « ×10 »
+= the same timeline at the real medians.
+
+| from the accepted statement | before (v2 `706d382`) | after (S-AF) | after, `parallel_stages: false` |
+|---|---|---|---|
+| first proof attempt | 9.98 s (≈ 100 s ×10) | **0.00 s** | 10.15 s, then 5.8 s (check reused) |
+| proof verified | 19.6 s (≈ 196 s ×10) | **9.5 s** (≈ 95 s ×10) | 19.8 s, then 15.3 s |
+| whole job (from its start) | 28.1 s (≈ 281 s ×10) | **17.2 s** (≈ 172 s ×10) | 28.3 s, then 23.8 s |
+| stages running at once (max) | 1 | 3–4 | 1 (+ the check inside the proof) |
+
+Reading: the first attempt no longer waits for the guided reading and the check (≈ 88 s of real medians); the proof
+is recorded as soon as the check has let it through (here the check, 39.6 s, ends before the 4th attempt). With the
+option off the order is the old one, and the second and third runs show B14: the check verdict of the same
+statement and Mathlib is reused (« Énoncé déjà vérifié … »), −4.3 s (≈ −40 s real).
+
+Not in this replay: the demo's Mathlib-first returns at once (simulated Lean); on a real Lean the Mathlib search
+(33–56 s for `exact <lemma>` proofs) now runs beside the provers instead of before them, and a statement found in
+Mathlib before is re-checked by one strict Lean run (2–3.5 s warm) instead of searched again. The model choice of
+the short stages (BRAIN.md §16) is not visible with scripted models; it removes the 265–395 s local-model cases.
+
+From now on, `scripts/perf_report.py` reads the exact stage durations: `seconds` in the result events and `timings`
+(start / end of every stage) in the job history, plus « premier essai de preuve après l'énoncé accepté ».

@@ -422,3 +422,40 @@
 - Cells: one « + », a new cell recognises code vs request (installed Sage's preparser + language markers) with a
   one-click « Code / Demande » chip; type menu in the cell head; actions right below what they act on.
 - « Expliquer » is generic over sage | python | lean (`POST /api/code/explain`) for the Lean screens later.
+
+## D38 — Stages in parallel, fast models for the short stages, nothing redone twice (TODO B12–B14, 2026-11-22, S-AF)
+- Measured (B9): the first proof attempt started about 2.5 minutes after Lean accepted the statement (median 152 s
+  on the user's jobs): guided reading (median 49 s) and statement check (40 s) ran first although only a « faux » /
+  « douteux » verdict may stop the proof. Short stages sometimes landed on the local GPU model (265–395 s).
+- **Parallel stages** (`pipeline/runner.py`, setting `parallel_stages`, on by default): after the statement, guided
+  reading, statement check, Mathlib-first and the proof search run as asyncio tasks of the same job; explanation and
+  informal proof are written together (the informal proof is recorded after the explanation, so the thread keeps its
+  order). The first Lean-verified proof (Mathlib-first, a quick proof found by the check, or the search) cancels the
+  other proof work; it is recorded only after the check, so a « faux » / « douteux » verdict still means « preuve
+  non lancée » (same events, same `statement_false|doubtful` error, « Prouver quand même » unchanged) — even when the
+  search had already found a proof (rejected: keeping that proof as verified; the user decides on the statement first).
+  Mathlib-first's candidates reach the provers as soon as known (`job.mathlib_hint` is read at each new agent attempt).
+- Safety: each stage task has its own resource owner `<job id>#<stage>` (the local GPU holder is per owner: two stages
+  of one job never share or switch a loaded model under each other); « Arrêter » cancels the job task, whose
+  `finally` cancels and awaits every stage task; leftover slots of the sub-owners are released by the orchestrator.
+  Dossier writes stay safe: mutations happen on the event loop between awaits and `repo.save` serializes the whole
+  dossier under its lock (the last writer always carries every earlier event / version). Stage results check that
+  the statement / proof they were made for is still current before recording.
+- Never parallel in `local` mode or when the role has no online model (one GPU model at a time: parallel stages
+  would swap models on the GPU and be slower). Rejected: a set-valued `job.stage` (breaks every client); kept the
+  main stage in `stage`, added `stages` and `timings`.
+- **Short stages** (understand, route, notes, check reading, explanation, informal): the latency-first path of D35
+  with the role's own categories, half latency weight for writing, local models only when every online model failed
+  (BRAIN.md §16). Rejected: a separate « fast » role list (roles are a fixed interface); excluding local models
+  entirely (offline must keep working).
+- **Never redo twice** (`pipeline/stagecache.py`, `<cache>/stage-cache.json`, 400 entries per kind, LRU): key =
+  normalized statement (comments, spaces and the theorem's own name removed) + workspace + Lean + Mathlib versions
+  (+ the user's words, learning flag and language for the check: fidelity is judged against the words). Reused: the
+  check verdict (not « unknown »), a Mathlib-first success (tactic + lemma, re-assembled for the current theorem and
+  judged by a fresh strict Lean check; dropped when Lean refuses it), a Mathlib-first failure with candidates (hint
+  for the provers, no new search). Rejected: caching proofs as « vérifiée » without Lean; caching the adaptation by
+  a model as a negative forever (it is only skipped for the same Mathlib version). Library lemmas offered first:
+  unchanged (`lib.relevant`).
+- Measured: job `timings` (start / end per stage, kept in the job history) and `seconds` in the result events;
+  `scripts/perf_report.py` reads them; `scripts/dev/perf_stages_demo.py` replays the real medians on the demo
+  server (docs/PERFORMANCE.md « Étapes en parallèle (S-AF) »).

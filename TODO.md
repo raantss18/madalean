@@ -47,12 +47,17 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     préchargé) vérifierait un essai en une fraction de seconde. Le verdict final reste fait par un Lean neuf et strict
 11. 🔄 **Arrêt précoce des essais** : vérifier la preuve pendant qu'elle s'écrit (Lean chaud, par blocs) et couper
     un modèle dès la première erreur sûre, au lieu d'attendre la fin de la réponse
-12. 🔄 **Course des modèles plus intelligente** : choix selon le temps mesuré ici et le taux de réussite par domaine,
+12. 🔄 **Course des modèles plus intelligente** (S-AF, D38 : les étapes courtes — compréhension, lecture guidée,
+    vérification, explication, preuve rédigée — prennent le modèle en ligne le plus rapide mesuré, réflexion
+    minimale, jamais le modèle local de la carte graphique tant qu'un modèle en ligne répond ; reste : les preuves) : choix selon le temps mesuré ici et le taux de réussite par domaine,
     la première preuve vérifiée arrête les autres ; réflexion réglée selon la difficulté ; mise en cache des
     consignes chez les fournisseurs qui le permettent
-13. 🔄 **Travail en parallèle** : vérification de l'énoncé, recherche Mathlib et premiers essais lancés ensemble
-    au lieu de l'un après l'autre (on annule ce qui devient inutile)
-14. 🔄 **Ne jamais refaire deux fois** : résultats déjà prouvés et réponses identiques gardés (par version de
+13. ✅ **Travail en parallèle** (S-AF, D38) : lecture guidée, vérification de l'énoncé, recherche Mathlib et premiers
+    essais lancés ensemble au lieu de l'un après l'autre (on annule ce qui devient inutile) ; explication et preuve
+    rédigée ensemble ; « faux » / « douteux » arrête la preuve comme avant — à essayer sur tes dossiers
+14. 🔄 **Ne jamais refaire deux fois** (S-AF, D38 : vérification de l'énoncé et recherche Mathlib gardées par énoncé
+    et version de Mathlib, preuve Mathlib revérifiée par Lean ; lemmes de la bibliothèque déjà proposés d'abord ;
+    reste : réponses identiques des modèles) : résultats déjà prouvés et réponses identiques gardés (par version de
     Mathlib), lemmes de la bibliothèque proposés d'abord
 15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
     (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)

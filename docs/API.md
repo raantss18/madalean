@@ -295,6 +295,17 @@ cancelled`. Slots: `gpu` 1 (the local llama-server, model swap per role, reentra
 call when mode ≠ local), `lean` 2 (compilations). A job holds a slot only during the step that needs it; waiters
 are served user-started jobs first, then FIFO.
 
+Parallel stages (D38, S-AF, setting `parallel_stages`): once Lean accepts the statement, the guided reading
+(`notes`), the statement check (`verify`), the Mathlib-first search (`mathlib`) and the proof search (`proof`) run
+together; explanation and informal proof are written together after the proof. Each stage owns the slots as
+`<job id>#<stage>`; the job is `queued` only while all its running stages wait. A « faux » / « douteux » verdict of
+the check cancels the proof work and stops the plan exactly as before (`error: statement_false|statement_doubtful`,
+« Prouver quand même » = plan `[{"stage":"proof","force":true}]`); a proof found by Mathlib-first, by a quick proof
+of the check or by the search cancels the other proof work (their running attempts end `cancelled`) and is recorded
+once the check has not stopped it. `POST /jobs/{id}/cancel` stops every stage. Never parallel in `local` mode (one
+GPU model at a time). Same statement + same workspace / Lean / Mathlib: the check verdict and the Mathlib-first
+result are reused (event « déjà vérifié … »; a reused Mathlib proof is checked again by Lean).
+
 ### 3.7 Library
 
 `GET /library` → `{"entries":[LibEntry]}`. `DELETE /library/{name}` → `{"removed":LibEntry}` (undo: `POST
@@ -446,7 +457,7 @@ A client too slow to read (10 000 queued events) is disconnected with close code
 
 | type | payload |
 |---|---|
-| `job.updated` | `{job: Job}` — on submit, state/stage/waiting changes, every attempt change, end |
+| `job.updated` | `{job: Job}` — on submit, state/stage/stages/waiting changes, every attempt change, end |
 | `job.token` | `{job_id, stage, attempt, kind, text}` — streamed model text, coalesced every 100 ms; `attempt` = index in `job.attempts` (−1 for single calls: understand, route, notes, explanation, informal); `kind` = `text`, `thinking`, or for agents `tool_call`/`tool_result`/`info` |
 | `job.info` | `{job_id, stage, text, data}` — engine notices (model switch, fallback) |
 | `dossier.updated` | `{dossier: Dossier}` — full dossier after each change |
@@ -471,7 +482,7 @@ Plugins may publish other types (ignore unknown types).
 type Message = { key: string; params: Record<string, unknown>; text: string };
 type Mode = "local" | "auto" | "online";
 type Strategy = "goedel" | "agent" | "auto";
-type Stage = "understand" | "route" | "statement" | "notes" | "proof" | "explanation" | "informal";
+type Stage = "understand" | "route" | "statement" | "notes" | "verify" | "proof" | "mathlib" | "explanation" | "informal";   // "mathlib": job stage only (D38)
 
 interface Device {
   id: string;              // "d-…" app device, "b-…" browser session
@@ -499,7 +510,10 @@ interface Version {
 }
 
 type EventKind = "user" | "understood" | "statement" | "notes" | "check" | "proof" | "explanation" | "informal" | "info" | "error";
-// "check" (S-K): ref = statement index; params = {verdict, fix, issues, evidence, proved, seconds, detail}
+// "check" (S-K): ref = statement index; params = {verdict, fix, issues, evidence, proved, seconds, detail, cached?}
+//   cached: true = verdict reused for the same statement, words and Mathlib version (D38), preceded by an "info"
+// Result events understood / statement / notes / proof / explanation / informal carry params.seconds = duration of
+// their stage (D38, read by scripts/perf_report.py).
 interface DossierEvent {
   kind: EventKind; text: string; t: number;
   ref: number | null;      // index of the version it produced (statements / proofs / explanations / statement_notes / informal_proofs by kind)
@@ -550,6 +564,11 @@ interface Job {
   tournament: {} | { round: number; models: string[]; names: string[]; domain: string;
     state: "running" | "won" | "exhausted" | "rounds" | "time" | "attempts" | "tokens";
     winner?: string; tried?: string[]; rounds?: number; minutes?: number };   // proof tournament (BRAIN.md §11)
+  // D38 (S-AF): stages run in parallel once Lean accepts the statement. `stage` stays the MAIN running stage
+  // (order: route, understand, statement, proof, mathlib, verify, explanation, informal, notes) — older clients keep
+  // working; `stages` lists every stage running now; `timings` one row per stage run (unix seconds).
+  stages: Stage[];
+  timings: { stage: Stage; start: number; end: number | null; seconds: number | null }[];
 }
 
 interface CheckResult {
@@ -573,6 +592,8 @@ interface Settings {
   pause_after_translation: boolean; profile: string; statement_notes: boolean; informal_proof: boolean;
   statement_check: boolean;  // (true) « Vérifier l'énoncé » before the first proof search of a statement (S-K)
   mathlib_first: boolean;    // (true) look for the theorem in Mathlib before the prover models; Mathlib reference for the translator
+  parallel_stages: boolean;  // (true) D38: guided reading, statement check, Mathlib search and proof search together;
+                             // false = one stage after the other (1.x order). Never parallel in « local » mode.
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;   // host-only

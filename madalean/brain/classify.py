@@ -85,6 +85,27 @@ def role_categories(role: str, messages: list[dict] | None = None) -> tuple[str,
     return (cat, "chat", False)
 
 
+# S-AF (DECISIONS D38): the short text stages of a dossier job (understand, route, guided reading, statement check,
+# explanation, informal proof) take the same latency-first path as the transcription — measured latency in the
+# ranking, staggered race, minimal thinking, short timeouts, local models only when no online model could answer —
+# but keep their role's quality categories (an explanation is still ranked as French mathematical writing).
+SHORT_STAGE: contextvars.ContextVar[bool] = contextvars.ContextVar("madalean_brain_short_stage", default=False)
+
+
+@contextmanager
+def short_stage(on: bool = True):
+    token = SHORT_STAGE.set(bool(on))
+    try:
+        yield
+    finally:
+        SHORT_STAGE.reset(token)
+
+
+def short_stage_active() -> bool:
+    return SHORT_STAGE.get()
+
+
 def fast_task() -> bool:
-    """The current call is a short interactive one (Calcul transcription): latency first (DECISIONS D35)."""
-    return TASK_HINT.get() in FAST_TASKS
+    """The current call is a short interactive one (Calcul transcription, D35) or a short text stage of a dossier
+    (D38): latency first."""
+    return TASK_HINT.get() in FAST_TASKS or SHORT_STAGE.get()

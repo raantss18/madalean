@@ -58,6 +58,11 @@ class Job:
     summary: dict = field(default_factory=dict)      # i18n message {key, params, text}
     error: str = ""                  # error kind (no_model, workspace, infra, cancelled…)
     tournament: dict = field(default_factory=dict)   # proof tournament: {round, models, state, winner, …} (S-J)
+    # D38 (S-AF): stages running right now (several at once: guided reading, statement check, Mathlib search and proof
+    # search run together); `stage` stays the main one. `timings`: one row per stage run
+    # {stage, start, end, seconds} (unix seconds; end/seconds None while it runs) — read by scripts/perf_report.py
+    stages: list[str] = field(default_factory=list)
+    timings: list[dict] = field(default_factory=list)
 
     @classmethod
     def new(cls, dossier_id: str, plan: list[dict], mode: str, strategy: str, user: bool = True) -> "Job":

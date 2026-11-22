@@ -43,6 +43,16 @@ export function providerName(p: string): string {
   return PROVIDER_NAMES[p] ?? p;
 }
 
+/** Is `stage` running in this job (main stage or one running beside it, D38)? */
+export function jobRuns(job: { stage: string; stages?: string[] } | null | undefined, stage: string): boolean {
+  return Boolean(job) && (job!.stage === stage || (job!.stages ?? []).includes(stage));
+}
+
+/** The stages running beside the main one (D38), for « en même temps : … ». */
+export function sideStages(job: { stage: string; stages?: string[] } | null | undefined): string[] {
+  return job ? (job.stages ?? []).filter((s, i, a) => s !== job.stage && a.indexOf(s) === i) : [];
+}
+
 /** Role that the current stage uses (for the « who receives what » indicator). */
 export function roleOfStage(stage: string): string {
   switch (stage) {
@@ -50,7 +60,8 @@ export function roleOfStage(stage: string): string {
     case 'route': return 'route';
     case 'verify': return 'understand';
     case 'statement': return 'formalize';
-    case 'proof': return 'prove';
+    case 'proof':
+    case 'mathlib': return 'prove';
     case 'notes':
     case 'explanation':
     case 'informal': return 'explain';

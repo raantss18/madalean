@@ -146,3 +146,59 @@ def test_race_streams_the_leader_and_replaces_it_when_it_fails(tmp_path, monkeyp
         after = seen[[i for i, x in enumerate(seen) if x.data.get("event") == "restart"][-1]:]
         assert "".join(x.text for x in after if x.kind == "text") == "```sage\nwhole\n```"
     run(main())
+
+
+# ---------------------------------------------------------------- S-AF (D38): short text stages of a dossier
+class _Local:
+    """A local GPU model for every role (stands for Qwen3-8B on the user's GPU)."""
+    def model_for(self, role):
+        from madalean.brain.api import ModelRef
+        return ModelRef("local", "Qwen3-8B-Q4_K_M.gguf", "Qwen3 8B", local=True)
+
+    async def ensure(self, role):
+        raise AssertionError("the local GPU model must not be used while an online model answers")
+
+    def release(self):
+        pass
+
+
+def test_short_stages_rank_by_measured_latency_keep_quality_and_put_the_gpu_model_last(tmp_path):
+    write_catalogue(tmp_path, [free_provider("a", "http://127.0.0.1:9/v1"), free_provider("b", "http://127.0.0.1:9/v1")],
+                    [model("a", "big", 0.95), model("b", "quick", 0.5)])
+    b = make_brain(tmp_path, local=_Local())
+    try:
+        for _ in range(3):
+            b.states.record_latency("a:big", 9.0)
+            b.states.record_latency("b:quick", 0.8)
+        assert b.ranking("understand", "auto")[0].model.key == "a:big"        # outside a short stage: as before
+        with classify.short_stage():
+            order = [c.model.key for c in b.ranking("understand", "auto")]
+            assert order[:2] == ["b:quick", "a:big"] and order[-1] == "local:Qwen3-8B-Q4_K_M.gguf"
+            # writing (explanation, informal proof): the latency counts half, a much better writer stays first
+            ex = b.ranking("explain", "auto")
+            assert ex[0].model.key == "a:big" and "measured" in ex[0].why
+            assert ex[-1].model.local
+            assert classify.fast_task()
+        assert not classify.fast_task()
+    finally:
+        run(b.close())
+
+
+def test_short_stage_falls_to_the_next_online_model_never_the_gpu(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "HEDGE_AFTER", 5.0)
+
+    async def main():
+        s1 = await FakeServer([{"status": 503, "body": {"error": {"message": "overloaded"}}}]).start()
+        s2 = await FakeServer([oa_stream("Une explication en français.")]).start()
+        write_catalogue(tmp_path, [free_provider("f1", s1.url), free_provider("f2", s2.url)],
+                        [model("f1", "m-best", 0.9), model("f2", "m-second", 0.5)])
+        b = make_brain(tmp_path, local=_Local())
+        try:
+            with classify.short_stage():
+                c = await b.complete("explain", [{"role": "user", "content": "Explique"}], mode="auto")
+        finally:
+            await b.close()
+            await s1.stop()
+            await s2.stop()
+        assert c.model.key == "f2:m-second" and c.text == "Une explication en français."
+    run(main())

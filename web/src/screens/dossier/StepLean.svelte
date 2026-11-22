@@ -7,7 +7,7 @@
   import { app } from '../../lib/store/app.svelte';
   import { t, tk, i18n } from '../../lib/i18n/index.svelte';
   import { prefs } from '../../lib/prefs.svelte';
-  import { modelLabel } from '../../lib/status';
+  import { modelLabel, jobRuns } from '../../lib/status';
   import type { GlossEntry } from '../../lib/lean/glossary';
   import CodeEditor from '../../components/CodeEditor.svelte';
   import Md from '../../components/Md.svelte';
@@ -113,7 +113,7 @@
             {#if checking}<button class="btn quiet" onclick={() => ctl?.abort()}>{t('common.cancel')}</button>{/if}
             <button class="btn" onclick={startEdit} disabled={Boolean(job)}>{t('lean.editByHand')}</button>
             <button class="btn" aria-expanded={correcting} onclick={() => (correcting = !correcting)} disabled={Boolean(job)}>{t('lean.fix')}</button>
-            {#if v?.ok}<button class="btn" onclick={() => verifyStatement(d.id, prefs.mode === 'learn')} disabled={Boolean(job)} title={t('check.buttonHint')}>{job?.stage === 'verify' ? t('check.running') : t('check.button')}</button>{/if}
+            {#if v?.ok}<button class="btn" onclick={() => verifyStatement(d.id, prefs.mode === 'learn')} disabled={Boolean(job)} title={t('check.buttonHint')}>{jobRuns(job, 'verify') ? t('check.running') : t('check.button')}</button>{/if}
             <Versions dossier={d} kind="statement" busy={Boolean(job)} />
           {/if}
         </div>
@@ -150,7 +150,7 @@
         <div class="learn-grid">
           <div>
             <h3>{t('learn.gloss')}</h3>
-            {#if running && job?.stage === 'notes'}<StreamView jobId={job.id} stage="notes" maxHeight="220px" />
+            {#if job && jobRuns(job, 'notes')}<StreamView jobId={job.id} stage="notes" maxHeight="220px" />
             {:else if notes}<Md src={notes} cls="gloss" />
             {:else}<p class="muted small">{t('learn.noGloss')}</p>{#if !job}<button class="btn small" onclick={makeNotes}>{t('learn.makeGloss')}</button>{/if}{/if}
           </div>

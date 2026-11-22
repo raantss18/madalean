@@ -81,6 +81,9 @@ class Settings:
     # statement check and Mathlib-first search (S-K): before any proof search, bounded (≈ 1–3 min each)
     statement_check: bool = True            # « Vérifier l'énoncé »: fidelity (model) + truth probes (Lean)
     mathlib_first: bool = True              # look for the theorem in Mathlib before the prover models
+    # S-AF (D38): once Lean accepts the statement, guided reading, statement check, Mathlib search and proof search
+    # run together (explanation and informal proof too); off = the 1.x order, one stage after the other
+    parallel_stages: bool = True
     tournament_enabled: bool = True
     tournament_contestants: int = 3         # models raced in parallel per exploration round (≤ online slots)
     tournament_max_rounds: int = 3          # exploration rounds after round 0

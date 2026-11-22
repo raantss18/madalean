@@ -1301,3 +1301,14 @@ EN.update({
         "Cells are running: wait for them to finish or interrupt them.",
     "Une demande plus récente a remplacé celle-ci.": "A newer request replaced this one.",
 })
+# S-AF (D38): stages in parallel, nothing redone twice
+EN.update({
+    "Essai arrêté : la preuve a été trouvée autrement.": "Attempt stopped: the proof was found another way.",
+    "Énoncé déjà vérifié avec cette version de Mathlib : le résultat est repris sans refaire la vérification.":
+        "Statement already checked with this Mathlib version: the result is reused without checking again.",
+    "Déjà cherché dans Mathlib pour cet énoncé : rien de directement applicable, la recherche de preuve commence tout "
+    "de suite.": "Already searched in Mathlib for this statement: nothing directly applicable, the proof search starts "
+                 "at once.",
+    "Déjà trouvé dans Mathlib pour cet énoncé ({name}) : preuve vérifiée à nouveau par Lean.":
+        "Already found in Mathlib for this statement ({name}): proof checked again by Lean.",
+})

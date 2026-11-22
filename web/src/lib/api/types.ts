@@ -3,7 +3,7 @@
 export type Message = { key: string; params: Record<string, unknown>; text: string };
 export type Mode = 'local' | 'auto' | 'online';
 export type Strategy = 'goedel' | 'agent' | 'auto';
-export type Stage = 'understand' | 'route' | 'statement' | 'notes' | 'verify' | 'proof' | 'explanation' | 'informal';
+export type Stage = 'understand' | 'route' | 'statement' | 'notes' | 'verify' | 'proof' | 'explanation' | 'informal' | 'mathlib';
 export type FollowStage = 'auto' | 'statement' | 'proof' | 'explanation';
 export type Role = 'understand' | 'route' | 'formalize' | 'prove' | 'explain' | 'assistant';
 export const ROLES: Role[] = ['prove', 'formalize', 'understand', 'explain', 'route', 'assistant'];
@@ -75,6 +75,10 @@ export interface Job {
   created: number; started: number | null; ended: number | null; attempts: Attempt[]; done_stages: Stage[];
   summary: Message | Record<string, never>; error: string;
   tournament?: Tournament | Record<string, never>;
+  /** D38: every stage running now (several at once after the statement); `stage` is the main one. */
+  stages?: Stage[];
+  /** D38: one row per stage run (unix seconds; end/seconds null while it runs). */
+  timings?: { stage: Stage; start: number; end: number | null; seconds: number | null }[];
 }
 export interface Tournament { round: number; models: string[]; names: string[]; state: string; domain: string;
   winner?: string; tried?: string[]; rounds?: number; minutes?: number }

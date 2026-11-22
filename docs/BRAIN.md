@@ -497,3 +497,27 @@ Sage cell, automatic corrections, « Expliquer »). Categories `code` + `math`, 
 Measured 2026-11-22 (real keys, free models): before (role `assistant`) 5.5–6.1 s at best, 128 s when the first
 models failed (503, 404, a 120 s stall, 402); after 0.6–1.7 s to the first code, 3.9 s with a hedge, 6.7 s with
 two providers out (503 + 429).
+
+## 16. Short text stages of a dossier: latency first, never the GPU model while online works (session S-AF, D38)
+
+`with classify.short_stage(): brain.complete(role, msgs, …)` — used by the pipeline for understand, route, guided
+reading (`notes`), the statement check's fidelity reading, explanation and informal proof (`pipeline/runner.py`).
+`classify.fast_task()` is true inside, so these calls take the transcription path of §15: measured latency in the
+ranking, chain of up to 10 online models, staggered race (`_race`), Gemini `reasoning_effort: minimal`, Claude
+effort `low` without thinking, 20 s first byte / stall, their own pool of 4 requests. Differences from §15:
+
+- the role keeps its own quality categories (an explanation is ranked as `writing` + `math`, a reading as `math`);
+- for writing roles the latency bonus counts half (≤ +0.10 / ≥ −0.15): a clearly better writer stays first, a
+  faster one of similar quality goes ahead;
+- local models stay at the end of the chain and the race starts them only when no online model is left running
+  (all failed or skipped). `local` mode or a local model chosen by the user (`prefer`) are unchanged.
+- formal roles (`prove`, `formalize`) are never affected.
+
+Seen on the user's dossiers (2026-11-21, 4 jobs at once): explanation / informal proof written by local Qwen3-8B
+in 265–395 s while online models were up; the server log shows llama-server swapping Goedel ↔ Qwen3 between the
+jobs. Probable cause (the log keeps no fallback details): the online explain models waited on the shared request
+pool held by the tournaments and failed or stalled one after the other (90 s each), so the chain reached the local
+model, which then waited for the GPU.
+
+French: no data marks a model as bad at French yet (`brain-leaderboard.json` has no `explain` rows on this host);
+the `explain` leaderboard bonus (per language) still applies when such rows exist.

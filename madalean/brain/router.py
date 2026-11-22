@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 
 from .catalogue import Catalogue, Model, lean_bonus, unfit_reason
-from .classify import fast_task, role_categories
+from .classify import fast_task, role_categories, short_stage_active
 from .guards import reasoning_model
 from .leaderboard import ROLE_TASK, Leaderboard
 from .state import States
@@ -47,7 +47,9 @@ class Candidate:
 
 
 def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_first: bool,
-                transcribe: bool = False) -> tuple[float, str]:
+                transcribe: bool = False, lat_weight: float = 1.0) -> tuple[float, str]:
+    """`transcribe`: latency first (D35 transcription, D38 short dossier stages); `lat_weight` scales the latency
+    bonus (½ for the writing stages, whose quality matters more than one second)."""
     q1, q2 = m.score(cat), m.score(cat2)
     q = 0.7 * q1 + 0.3 * q2
     rel = states.reliability(m.key)
@@ -61,9 +63,12 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
             parts.append(f"(+{b:.2f}: {why})")
     parts.append(f"{cat2} {q2:.2f}, reliability {rel:.2f}")
     name = f"{m.model_id} {m.name}"
-    if fast and transcribe and not m.local:
+    if transcribe and not m.local:
         b, bwhy = latency_bonus(states.latency(m.key), m)
         if bwhy:
+            if lat_weight != 1.0:
+                b *= lat_weight
+                bwhy = bwhy.rsplit(" ", 1)[0] + f" {b:+.2f}"
             s += b
             parts.append(bwhy)
     elif fast:
@@ -97,6 +102,9 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
     LMArena percentile."""
     cat, cat2, fast = role_categories(role, messages)
     transcribe = fast and fast_task() and role not in FORMAL_ROLES
+    short = short_stage_active() and role not in ("prove", "formalize")     # D38: short dossier stages
+    lat_weight = 0.5 if short and not transcribe and cat == "writing" else 1.0
+    transcribe = transcribe or short
     task = ROLE_TASK.get(role)
 
     def chosen(m: Model) -> bool:
@@ -115,7 +123,7 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             continue
         if m.provider == "huggingface" and not (chosen(m) and role in ("prove", "formalize")):
             continue                          # Goedel specialists (S-T): only pinned, with Goedel's own prompts
-        s, why = score_model(m, cat, cat2, fast, states, paid_first, transcribe)
+        s, why = score_model(m, cat, cat2, fast, states, paid_first, transcribe, lat_weight)
         if role in FORMAL_ROLES and not chosen(m):
             unfit = unfit_reason(m)
             if unfit and role != "route":

@@ -132,6 +132,8 @@ const en: Record<keyof typeof fr, string> = {
   'stage.proof': 'Searching for a proof',
   'stage.explanation': 'Explaining',
   'stage.informal': 'Writing the proof',
+  'stage.mathlib': 'Searching Mathlib',
+  'stage.alsoRunning': 'at the same time: {list}',
   'waiting.gpu': 'waits for the graphics card',
   'waiting.online': 'waits for an online model',
   'waiting.lean': 'waits for Lean',

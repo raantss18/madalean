@@ -131,6 +131,8 @@ const fr = {
   'stage.proof': 'Recherche de preuve',
   'stage.explanation': 'Explication',
   'stage.informal': 'Preuve rédigée',
+  'stage.mathlib': 'Recherche dans Mathlib',
+  'stage.alsoRunning': 'en même temps : {list}',
   'waiting.gpu': 'attend la carte graphique',
   'waiting.online': 'attend un modèle en ligne',
   'waiting.lean': 'attend Lean',

@@ -1274,8 +1274,10 @@ def demo_answer(first: str) -> str | None:
     if "This cell failed" in first or "Cette cellule a échoué" in first:
         return ("Le nom utilisé n'existe pas dans Sage : la fonction s'appelle « factor ».\n\n"
                 "```sage\nprint(factor(2^32 + 1))\n```")
-    if "ligne par ligne" in first or "line by line" in first:
-        nums = re.findall(r"^(\d+): (.*)$", first, re.M)
+    nums = re.findall(r"^(\d+): (.*)$", first, re.M)
+    if ("ligne par ligne" in first or "line by line" in first) and nums:
+        # (numbered lines only: the guided reading of a Lean statement also says « ligne par ligne » and got an
+        # empty answer in the demo, so no reading was ever shown there — S-AF)
         return "\n".join(f"{n}: Cette ligne calcule « {code.strip()[:40]} »." for n, code in nums if code.strip())
     if "Explain what this cell computes" in first:
         return ("The cell factors $2^{32}+1$, the fifth Fermat number $F_5$: $F_5 = 641 \\times 6700417$, so $F_5$ "

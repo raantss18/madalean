@@ -5,12 +5,14 @@ rewrites the rest of the plan (D26). Every event written to the thread records t
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 import re
 import time
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from .. import leancheck, prompts
+from ..brain import classify
 from ..brain.api import BrainError, Chunk, Completion, ModelRef
 from ..dossiers import Dossier, closure, route, route_scores, with_lemmas
 from ..errors import friendly
@@ -18,14 +20,22 @@ from ..i18n import language, msg
 from ..jobs import Attempt, Job
 from ..logs import get
 from ..runtime.lean import workspace_info
+from ..slots import CURRENT_JOB
 from .goedel import Formalizer, GoedelProver, ProveResult
 from .mathlib_first import MathlibFirst, MathlibResult
 from .verify import CheckResult, StatementChecker
 from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
+from .stagecache import StageCache, make_key, normalize_text
 
 log = get("pipeline")
 STAGES = ("understand", "route", "statement", "notes", "verify", "proof", "explanation", "informal")
+# D38 (S-AF): the stage a coroutine works for (streamed text and engine notices are labelled with it even when several
+# stages of one job run at once); `job.stage` is the main running stage, in this order of importance
+CURRENT_STAGE: contextvars.ContextVar[str] = contextvars.ContextVar("madalean_stage", default="")
+MAIN_ORDER = ("route", "understand", "statement", "proof", "mathlib", "verify", "explanation", "informal", "notes")
+SIDE_STAGES = ("notes", "informal")     # optional text stages that run beside the next ones
+RACE_CANCELLED = "Essai arrêté : la preuve a été trouvée autrement."
 NO_THINK = {"chat_template_kwargs": {"enable_thinking": False}}
 RAW_CAP = 200_000
 
@@ -54,6 +64,29 @@ def plan_for_message(d: Dossier, text: str, stage: str, route_available: bool) -
     if stage == "auto":
         stage = route(text, d.proof_is_current, bool(d.explanation))
     return stage_plan(d, stage, text), stage
+
+
+def job_owner(job: Job) -> str:
+    """The resource owner of the running coroutine: the job, or « <job id>#<stage> » for a stage running in parallel
+    (D38) — so the orchestrator knows which of the job's stages waits."""
+    o = CURRENT_JOB.get()
+    return o if o.startswith(job.id + "#") else job.id
+
+
+def stage_seconds(job, stage: str) -> float:
+    """Seconds since the stage started (its latest row in `job.timings`), for the `seconds` param of its result
+    event (D38); 0 when the stage is not tracked."""
+    for row in reversed(getattr(job, "timings", None) or []):
+        if row["stage"] == stage:
+            return round((row["end"] or time.time()) - row["start"], 1)
+    return 0.0
+
+
+def live(job: Job) -> set:
+    s = getattr(job, "live", None)
+    if s is None:
+        s = job.live = {job.id}
+    return s
 
 
 class JobIO:
@@ -98,7 +131,7 @@ class JobIO:
         mode = mode or job.mode
         guard = LoopGuard()
         idx = attempt.index if attempt is not None else -1
-        stage = stage or job.stage
+        stage = stage or CURRENT_STAGE.get() or job.stage
         inner: asyncio.Task | None = None
         streamed = {"pieces": 0, "model": "", "t0": time.monotonic()}
 
@@ -129,11 +162,10 @@ class JobIO:
 
         need_online = mode != "local"
         if need_online:
-            job.waiting = "online"
-            ctx.publish_job(job)
-            await ctx.slots.acquire("online", job.id)
-            job.waiting = ""
-            ctx.publish_job(job)
+            # a real wait is shown by the slots' on_wait (orchestrator): with stages running in parallel a flag set
+            # here by one stage would be cleared by another (D38)
+            owner = job_owner(job)
+            await ctx.slots.acquire("online", owner)
         try:
             inner = asyncio.create_task(ctx.brain.complete(
                 role, messages, mode=mode, temperature=temperature, max_tokens=max_tokens, on_chunk=on_chunk,
@@ -157,20 +189,34 @@ class JobIO:
                 raise
         finally:
             if need_online:
-                ctx.slots.release("online", job.id)
+                ctx.slots.release("online", owner)
             try:
                 ctx.local.release()
             except Exception:  # noqa: BLE001
                 pass
 
     async def check(self, code: str, ws, timeout_s: int, strict_name: str | None):
-        return await self.ctx.lean.check(code, ws, timeout_s, strict_name, owner=self.job.id)
+        return await self.ctx.lean.check(code, ws, timeout_s, strict_name, owner=job_owner(self.job))
 
 
 class Failed(Exception):
     def __init__(self, key: str, error: str = "failed", **params: Any):
         super().__init__(key)
         self.key, self.error, self.params = key, error, params
+
+
+def as_failed(e: Exception) -> "Failed":
+    """An infrastructure / model error as the user-facing failure of 1.x."""
+    if isinstance(e, Failed):
+        return e
+    kind = getattr(e, "kind", "infra")
+    if kind == "no_model":
+        return Failed("Étape impossible : le modèle nécessaire n'est pas installé (voir « Modèles »).", "no_model")
+    if isinstance(e, InfraError) and kind == "workspace":
+        return Failed("Étape impossible : l'espace de travail Lean n'est pas prêt ({why}).", "workspace",
+                      why=e.details[-300:])
+    return Failed("Interrompu : le moteur d'IA ou Lean ne répond plus. Voir le message en haut, "
+                  "puis renvoyez votre demande.", kind)
 
 
 class DossierPipeline:
@@ -208,6 +254,96 @@ class DossierPipeline:
             d.workspace = ws.key
         return ws
 
+    # ------------------------------------------------------------ stage tracking (D38)
+    def _begin(self, job: Job, stage: str) -> dict:
+        row = {"stage": stage, "start": round(time.time(), 3), "end": None, "seconds": None}
+        job.timings.append(row)
+        job.stages.append(stage)
+        self._main_stage(job)
+        return row
+
+    def _end(self, job: Job, row: dict) -> None:
+        if row.get("end") is None:
+            row["end"] = round(time.time(), 3)
+            row["seconds"] = round(row["end"] - row["start"], 2)
+        if row["stage"] in job.stages:
+            job.stages.remove(row["stage"])
+        self._main_stage(job)
+
+    def _main_stage(self, job: Job) -> None:
+        job.stage = next((s for s in MAIN_ORDER if s in job.stages), job.stages[0] if job.stages else "")
+        orch = getattr(self.ctx, "orchestrator", None)
+        if orch is not None and hasattr(orch, "wait_recheck") and job.active:
+            orch.wait_recheck(job)          # publishes the job
+        else:
+            self.ctx.publish_job(job)
+
+    def _spawn(self, job: Job, owner: str, fn: Callable[[], Awaitable[Any]], *, track: str = "",
+               stream: str = "") -> asyncio.Task:
+        """Run `fn()` as a task of this job: its own resource owner « <job id>#<owner> » (the local GPU is held per
+        owner, so two stages of one job never share a loaded model by accident), its streamed text labelled `stream`,
+        and — with `track` — its own row in `job.timings` / entry in `job.stages`."""
+        row = self._begin(job, track) if track else None
+
+        me = f"{job.id}#{owner}"
+
+        async def body():
+            CURRENT_JOB.set(me)
+            CURRENT_STAGE.set(stream or track or CURRENT_STAGE.get())
+            live(job).add(me)
+            try:
+                return await fn()
+            finally:
+                live(job).discard(me)
+                if row is not None:
+                    self._end(job, row)
+                try:
+                    self.ctx.local.release()
+                except Exception:  # noqa: BLE001
+                    pass
+        return asyncio.create_task(body(), name=f"{job.id}-{owner}")
+
+    @staticmethod
+    async def _stop(tasks) -> None:
+        """Cancel and wait (a stopped task never outlives the step that started it)."""
+        ts = [t for t in tasks if t is not None]
+        for t in ts:
+            if not t.done():
+                t.cancel()
+        if ts:
+            await asyncio.gather(*ts, return_exceptions=True)
+
+    def parallel_ok(self, job: Job, role: str = "explain") -> bool:
+        """Stages may run together: the option is on, the job is not « local only », and the role has a working
+        online model (with only the local GPU model, parallel stages would swap models on the GPU and be slower)."""
+        if not getattr(self.settings, "parallel_stages", True) or job.mode == "local":
+            return False
+        try:
+            return any(not c.local for c in self.ctx.brain.candidates(role, job.mode))
+        except Exception:  # noqa: BLE001
+            return False
+
+    async def _call(self, job: Job, d: Dossier, io: "JobIO", stage: str, req: str) -> None:
+        """One stage, with infrastructure errors turned into the user-facing failures of 1.x."""
+        try:
+            await getattr(self, "_" + stage)(job, d, io, req)
+        except (InfraError, BrainError) as e:
+            raise as_failed(e) from e
+
+    def _side(self, job: Job, d: Dossier, io: "JobIO", stage: str, req: str) -> asyncio.Task:
+        """An optional stage (guided reading, informal proof) running beside the main ones: its failure is logged,
+        never the job's failure (as in 1.x, where these stages swallow model errors)."""
+        async def fn():
+            try:
+                await self._call(job, d, io, stage, req)
+                job.done_stages.append(stage)
+            except Failed as f:
+                log.info("optional stage %s of %s failed: %s", stage, job.id, f.error)
+        return self._spawn(job, stage, fn, track=stage)
+
+    def _informal_wanted(self, d: Dossier, req: str) -> bool:
+        return bool(self.settings.informal_proof) and (not req or not d.informal_proof)
+
     # ------------------------------------------------------------ main loop
     async def run(self, job: Job) -> None:
         d = self.ctx.repo.get(job.dossier_id)
@@ -215,49 +351,64 @@ class DossierPipeline:
             job.error = "missing"
             return
         io = JobIO(self.ctx, job)
+        side: list[asyncio.Task] = []
+        job.live = {job.id}               # owners working right now: the orchestrator's « en attente » (D38)
+        job.side_spawned = set()
+        job.explained = asyncio.Event()
         try:
-            while job.plan:
-                step = job.plan.pop(0)
-                stage, req = step.get("stage", ""), step.get("request", "") or ""
-                if stage not in STAGES:
-                    continue
-                job.stage = stage
-                job.step_flags = {k: bool(step.get(k)) for k in ("force", "learn")}   # « Prouver quand même », Apprendre
-                self.ctx.publish_job(job)
-                try:
-                    await getattr(self, "_" + stage)(job, d, io, req)
-                except InfraError as e:
-                    if e.kind == "no_model":
-                        raise Failed("Étape impossible : le modèle nécessaire n'est pas installé (voir « Modèles »).",
-                                     "no_model") from e
-                    if e.kind == "workspace":
-                        raise Failed("Étape impossible : l'espace de travail Lean n'est pas prêt ({why}).",
-                                     "workspace", why=e.details[-300:]) from e
-                    raise Failed("Interrompu : le moteur d'IA ou Lean ne répond plus. Voir le message en haut, "
-                                 "puis renvoyez votre demande.", e.kind) from e
-                except BrainError as e:
-                    if e.kind == "no_model":
-                        raise Failed("Étape impossible : le modèle nécessaire n'est pas installé (voir « Modèles »).",
-                                     "no_model") from e
-                    raise Failed("Interrompu : le moteur d'IA ou Lean ne répond plus. Voir le message en haut, "
-                                 "puis renvoyez votre demande.", e.kind) from e
-                job.done_stages.append(stage)
-        except Failed as f:
-            job.plan = []
-            job.error = f.error
-            job.summary = msg(f.key, **f.params)
+            try:
+                while job.plan:
+                    step = job.plan.pop(0)
+                    stage, req = step.get("stage", ""), step.get("request", "") or ""
+                    if stage not in STAGES:
+                        continue
+                    job.step_flags = {k: bool(step.get(k)) for k in ("force", "learn")}   # « Prouver quand même », Apprendre
+                    if stage in SIDE_STAGES and job.plan and self.parallel_ok(job):
+                        side.append(self._side(job, d, io, stage, req))
+                        job.side_spawned.add(stage)
+                        continue
+                    if stage == "explanation" and self._informal_wanted(d, req) and self.parallel_ok(job) \
+                            and "informal" not in [p.get("stage") for p in job.plan]:
+                        # explanation and informal proof are written together; the informal proof is recorded after
+                        # the explanation so that the thread keeps its order
+                        side.append(self._side(job, d, io, "informal", ""))
+                        job.side_spawned.add("informal")
+                    row = self._begin(job, stage)
+                    token = CURRENT_STAGE.set(stage)
+                    try:
+                        await self._call(job, d, io, stage, req)
+                    finally:
+                        CURRENT_STAGE.reset(token)
+                        self._end(job, row)
+                        if stage == "explanation":
+                            job.explained.set()
+                    job.done_stages.append(stage)
+            except Failed as f:
+                job.plan = []
+                job.error = f.error
+                job.summary = msg(f.key, **f.params)
+                if d.status in ("translating", "proving"):
+                    d.status = "proved" if d.proof_is_current else "failed"
+                job.explained.set()
+                await self.event(d, job, "error", f.key, **f.params)
+                live(job).discard(job.id)
+                await asyncio.gather(*side, return_exceptions=True)    # optional stages end on their own
+                return
+            job.explained.set()
+            live(job).discard(job.id)
+            await asyncio.gather(*side, return_exceptions=True)
             if d.status in ("translating", "proving"):
-                d.status = "proved" if d.proof_is_current else "failed"
-            await self.event(d, job, "error", f.key, **f.params)
-            return
-        if d.status in ("translating", "proving"):
-            d.status = "proved" if d.proof_is_current else "draft"
-            await self.ctx.repo.save(d)
+                d.status = "proved" if d.proof_is_current else "draft"
+                await self.ctx.repo.save(d)
+        finally:
+            await self._stop(side)          # « Arrêter » / crash: nothing keeps running after the job
 
     # ------------------------------------------------------------ stages
     async def _short(self, io: JobIO, role: str, messages: list[dict], temperature: float, max_tokens: int = 700):
-        return await io.complete(role, messages, None, temperature=temperature, max_tokens=max_tokens,
-                                 extra={"top_p": 0.9, **NO_THINK})
+        # short text stage (D38): the fastest measured online model, minimal thinking, local only as the fallback
+        with classify.short_stage():
+            return await io.complete(role, messages, None, temperature=temperature, max_tokens=max_tokens,
+                                     extra={"top_p": 0.9, **NO_THINK})
 
     async def _understand(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         if not (self.has_model("understand", job.mode) and self.has_model("formalize", job.mode)):
@@ -277,7 +428,7 @@ class DossierPipeline:
             eng, disp = leancheck.parse_understood(text)
             d.understood, d.understood_display = eng, disp
             await self.event(d, job, "understood", "Problème compris ainsi (c'est ce texte que l'IA traduit en Lean) :",
-                             model=c.model.key, detail=disp)
+                             model=c.model.key, detail=disp, seconds=stage_seconds(job, "understand"))
 
     async def _route(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         try:
@@ -330,11 +481,12 @@ class DossierPipeline:
         if f.ok:
             d.status = "draft"
             await self.event(d, job, "statement", "L'IA a traduit le problème en Lean et Lean accepte l'énoncé. "
-                             "Relisez-le : la preuve portera exactement sur ce texte.", ref=idx, model=f.model)
+                             "Relisez-le : la preuve portera exactement sur ce texte.", ref=idx, model=f.model,
+                             seconds=stage_seconds(job, "statement"))
             if s.pause_after_translation:
                 job.plan = []
                 await self.event(d, job, "info", "Pause : relisez l'énoncé, puis cliquez sur « Prouver cet énoncé ».")
-            if s.statement_notes:
+            if s.statement_notes and not any(p.get("stage") == "notes" for p in job.plan):
                 job.plan.insert(0, {"stage": "notes"})
         else:
             job.plan = []
@@ -349,6 +501,7 @@ class DossierPipeline:
         if not d.statement or not self.has_model("explain", job.mode):
             return
         nl = d.understood_display or d.understood or d.problem
+        statement = d.statement
         try:
             # 6000: a thinking model (Gemini 3.x) spends part of the budget before writing; with 1500 its gloss stopped
             # after one sentence and the PDF printed it cut (real dossiers, 2026-11-21)
@@ -359,9 +512,11 @@ class DossierPipeline:
         if c.finish in ("length", "loop"):
             return                     # a cut gloss is worse than none (an earlier complete one stays shown)
         if text:
+            if d.statement != statement:
+                return                 # the statement changed meanwhile: this gloss is about the old one
             idx = d.add_notes(text, c.model.key)
             await self.event(d, job, "notes", "Lecture guidée de l'énoncé Lean, rédigée par l'IA :", ref=idx,
-                             model=c.model.key)
+                             model=c.model.key, seconds=stage_seconds(job, "notes"))
 
     # ------------------------------------------------------------ statement check + Mathlib first (S-K)
     def _lean_real(self) -> bool:
@@ -422,20 +577,29 @@ class DossierPipeline:
         if not d.statement:
             raise Failed("Pas d'énoncé à prouver : écrivez ou traduisez d'abord l'énoncé.", "no_statement")
         ws = await self.workspace(d)
-        stage_before = job.stage
-        job.stage = "verify"
-        self.ctx.publish_job(job)
-        learn = bool((getattr(job, "step_flags", None) or {}).get("learn"))
-        chk = StatementChecker(io, job.mode, lean_real=self._lean_real(),
-                               use_model=self.has_model("understand", job.mode))
-        r = await chk.run(d.problem, d.understood_display or d.understood, d.statement, ws, lang=language(),
-                          learn=learn)
-        r.statement_index = d.cur_statement
-        if 0 <= d.cur_statement < len(d.statements):
-            d.statements[d.cur_statement].meta["check"] = r.to_dict()
-        await self._check_event(job, d, r)
-        job.stage = stage_before
-        self.ctx.publish_job(job)
+        row = self._begin(job, "verify") if "verify" not in job.stages else None
+        token = CURRENT_STAGE.set("verify")
+        try:
+            learn = bool((getattr(job, "step_flags", None) or {}).get("learn"))
+            statement, cur = d.statement, d.cur_statement
+            ckey = self._check_key(d, ws, learn)
+            chk = StatementChecker(io, job.mode, lean_real=self._lean_real(),
+                                   use_model=self.has_model("understand", job.mode))
+            with classify.short_stage():
+                r = await chk.run(d.problem, d.understood_display or d.understood, statement, ws, lang=language(),
+                                  learn=learn)
+            r.statement_index = cur
+            if d.statement != statement or d.cur_statement != cur:
+                return r               # the user changed the statement meanwhile: this verdict is about the old one
+            if 0 <= cur < len(d.statements):
+                d.statements[cur].meta["check"] = r.to_dict()
+            await self._check_event(job, d, r)
+            if r.verdict != "unknown":
+                await self._cache().put("check", ckey, r.to_dict())
+        finally:
+            CURRENT_STAGE.reset(token)
+            if row is not None:
+                self._end(job, row)
         if stop_plan and r.verdict in ("false", "doubtful"):
             self._stop_for_check(job, d, r.verdict)
         return r
@@ -447,7 +611,7 @@ class DossierPipeline:
         job.summary = msg("Preuve non lancée : l'énoncé est faux." if verdict == "false" else
                           "Preuve non lancée : l'énoncé est douteux.")
 
-    async def _check_event(self, job: Job, d: Dossier, r: CheckResult) -> None:
+    async def _check_event(self, job: Job, d: Dossier, r: CheckResult, cached: bool = False) -> None:
         labels = {"wrong_object": "Mauvais objet", "missing_hypothesis": "Hypothèse manquante",
                   "extra_hypothesis": "Hypothèse en trop", "wrong_quantifier": "Mauvais quantificateur",
                   "wrong_direction": "Mauvais sens", "false_statement": "Énoncé faux", "other": "Remarque"}
@@ -474,7 +638,7 @@ class DossierPipeline:
                "unknown": "Vérification de l'énoncé : rien n'a pu être vérifié (modèle ou Lean indisponible)."}[r.verdict]
         await self.event(d, job, "check", key, ref=d.cur_statement, model=r.model, detail="\n".join(lines),
                          verdict=r.verdict, fix=r.fix, issues=r.issues, evidence=r.evidence, proved=bool(r.proof),
-                         seconds=round(r.seconds, 1))
+                         seconds=0.0 if cached else round(r.seconds, 1), **({"cached": True} if cached else {}))
 
     async def _mathlib(self, job: Job, d: Dossier, io: JobIO, ws, statement: str) -> MathlibResult:
         chk = self._check_of(d) or {}
@@ -571,15 +735,24 @@ class DossierPipeline:
         ws = await self.workspace(d)
         if not d.statement:
             raise Failed("Pas d'énoncé à prouver : écrivez ou traduisez d'abord l'énoncé.", "no_statement")
-        s, lib = self.settings, self.ctx.library
+        s = self.settings
         force = bool((getattr(job, "step_flags", None) or {}).get("force"))
+        parallel = self.parallel_ok(job, "understand")
+        gate: asyncio.Task | None = None      # statement check running beside the proof search (D38)
         if s.statement_check and not force and not (req and d.proof_is_current):
             chk = self._check_of(d)
             if chk is None:
-                # first proof search of this statement: check it first (S-K), bounded, never silent
-                r = await self._run_check(job, d, io, stop_plan=False)
-                chk = r.to_dict() if r is not None else None
-            if chk and chk.get("verdict") in ("false", "doubtful") and not req:
+                chk = await self._cached_check(job, d, ws)       # B14: same statement, same Mathlib: not redone
+            if chk is None:
+                # first proof search of this statement: check it (S-K), bounded, never silent — beside the search
+                # when possible: only a « faux » / « douteux » verdict stops it (D38)
+                if parallel:
+                    gate = self._spawn(job, "verify", lambda: self._run_check(job, d, io, stop_plan=False),
+                                       track="verify")
+                else:
+                    r = await self._run_check(job, d, io, stop_plan=False)
+                    chk = r.to_dict() if r is not None else None
+            if gate is None and chk and chk.get("verdict") in ("false", "doubtful") and not req:
                 # an explicit request of the user (« prouve-le par récurrence ») goes on; the automatic chain stops
                 self._stop_for_check(job, d, chk["verdict"])
                 if self._check_of(d) is chk:      # already reported earlier: remind once in the thread
@@ -588,6 +761,14 @@ class DossierPipeline:
                                      verdict=msg({"false": "faux", "doubtful": "douteux"}[chk["verdict"]])["text"])
                 await self.ctx.repo.save(d)
                 return
+        try:
+            await self._proof_body(job, d, io, req, ws, gate, parallel)
+        finally:
+            await self._stop([gate])
+
+    async def _proof_body(self, job: Job, d: Dossier, io: JobIO, req: str, ws, gate: asyncio.Task | None,
+                          parallel: bool) -> None:
+        s, lib = self.settings, self.ctx.library
         d.status = "proving"
         await self.ctx.repo.save(d)
         exclude = leancheck.declared_names(d.statement)
@@ -606,25 +787,78 @@ class DossierPipeline:
         if job.mode == "auto" and strategy == "agent" and not await self._internet(job.mode):
             # no Internet (S-T): the local models do the work, without waiting for every online model to time out
             strategy = "goedel"
+            parallel = False
             await self.event(d, job, "info", "Pas d'accès à Internet : la preuve est cherchée avec le modèle local.")
-        res: ProveResult | None = None
         try:
             statement = leancheck.prepare_statement(statement)
         except leancheck.StatementError as e:
             raise Failed("{why}", "statement", why=str(e)) from e
-        local_ok = True              # may the local prover still run? (S-T: only offline or when no online model could)
+        job.mathlib_hint = ""
         mf: MathlibResult | None = None
+        mf_task: asyncio.Task | None = None
+        mkey = ""
         if s.mathlib_first and refine is None:
-            mf = await self._mathlib(job, d, io, ws, statement)
-            if mf.ok:
-                lemma = mf.lemma or mf.tactic
-                res = ProveResult(True, mf.code, msg("Trouvé dans Mathlib : {name}.", name=lemma), [],
-                                  f"mathlib:{lemma}", mf.axioms, mf.seconds)
-                strategy = "mathlib"
-        if res is not None and res.ok:
-            pass
-        elif strategy == "agent":
-            job.mathlib_hint = mf.hint() if mf is not None else ""
+            mkey = self._mathlib_key(d, ws)
+            mf = await self._cached_mathlib(job, d, io, ws, statement, mkey)      # B14
+            if mf is None and parallel:
+                mf_task = self._spawn(job, "mathlib", lambda: self._mathlib(job, d, io, ws, statement),
+                                      track="mathlib", stream="proof")
+            elif mf is None:
+                mf = await self._mathlib(job, d, io, ws, statement)
+                await self._remember_mathlib(mkey, mf)
+        res: ProveResult | None = None
+        if mf is not None and mf.ok:
+            res, strategy = self._mathlib_proof(mf), "mathlib"
+        else:
+            if mf is not None:
+                job.mathlib_hint = mf.hint()
+            search = lambda: self._search(job, d, io, ws, statement, strategy, refine, hint, req)  # noqa: E731
+            if gate is None and mf_task is None:
+                res, strategy = await search()
+            else:
+                out = await self._race(job, d, io, ws, statement, req, gate, mf_task, search, mkey)
+                if out is None:
+                    return                 # the statement check stopped the proof (« faux » / « douteux »)
+                res, strategy, mf = out
+        if not res.ok:
+            d.status = "failed"
+            raise Failed("Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, "
+                         "ou plus d'essais (⚙ Options).", "no_proof",
+                         n=len([a for a in job.attempts if a.stage == "proof"]))
+        info = workspace_info(ws)
+        meta = {"axioms": res.axioms, "lean": info.get("lean", ""), "mathlib": info.get("mathlib", ""),
+                "workspace": ws.key, "seconds": round(res.seconds, 1), "strategy": strategy,
+                "attempts": len([a for a in job.attempts if a.stage == "proof"]), "checked": time.time()}
+        if mf is not None and mf.ok:
+            meta.update(mathlib_lemma=mf.lemma, mathlib_source=mf.source, mathlib_tactic=mf.tactic,
+                        **({"adapted_by": mf.model} if mf.model else {}))
+        idx = d.add_proof(res.code, note=req, model=res.model, meta=meta)
+        d.status = "proved"
+        await self.event(d, job, "proof", "Preuve trouvée et vérifiée par Lean (essai {i}, {s:.0f} s).", ref=idx,
+                         model=res.model, i=meta["attempts"], s=res.seconds, seconds=stage_seconds(job, "proof"))
+        if mf is not None and mf.ok and mf.lemma:
+            await self.event(d, job, "info", "Ce théorème est dans Mathlib sous le nom « {name} » : la preuve "
+                             "l'utilise directement.", name=mf.lemma)
+        entry = await asyncio.to_thread(lib.add_proof, res.code, d.title, ws.key, d.id, d.lemmas_used)
+        if entry:
+            self.ctx.bus.publish("library.updated", {"added": entry.name})
+            await self.event(d, job, "info", "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans "
+                             "vos prochaines preuves.", name=entry.name)
+
+    @staticmethod
+    def _mathlib_proof(mf: MathlibResult) -> ProveResult:
+        lemma = mf.lemma or mf.tactic
+        return ProveResult(True, mf.code, msg("Trouvé dans Mathlib : {name}.", name=lemma), [], f"mathlib:{lemma}",
+                           mf.axioms, mf.seconds)
+
+    async def _search(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, strategy: str, refine, hint: str,
+                      req: str) -> tuple[ProveResult, str]:
+        """The proof search proper (tournament / agent / Goedel online / local Goedel), after or beside Mathlib-first.
+        Returns (result, strategy); raises Failed when no model could work at all."""
+        s = self.settings
+        res: ProveResult | None = None
+        local_ok = True              # may the local prover still run? (S-T: only offline or when no online model could)
+        if strategy == "agent":
             tcfg = tourn.Config.from_settings(s)
             if tcfg.enabled:
                 # best model first, then races of untried models (S-J, pipeline/tournament.py): bounded, recorded
@@ -672,30 +906,196 @@ class DossierPipeline:
                                                       ctx_len, refine=refine, hint=hint)
             self._record(res.model, "prove", d, ok=res.ok, attempts=len(res.attempts), seconds=res.seconds,
                          lean_errors=sum(1 for x in res.attempts if x.status == "rejected" and x.code))
-        if not res.ok:
-            d.status = "failed"
-            raise Failed("Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, "
-                         "ou plus d'essais (⚙ Options).", "no_proof",
-                         n=len([a for a in job.attempts if a.stage == "proof"]))
-        info = workspace_info(ws)
-        meta = {"axioms": res.axioms, "lean": info.get("lean", ""), "mathlib": info.get("mathlib", ""),
-                "workspace": ws.key, "seconds": round(res.seconds, 1), "strategy": strategy,
-                "attempts": len([a for a in job.attempts if a.stage == "proof"]), "checked": time.time()}
-        if mf is not None and mf.ok:
-            meta.update(mathlib_lemma=mf.lemma, mathlib_source=mf.source, mathlib_tactic=mf.tactic,
-                        **({"adapted_by": mf.model} if mf.model else {}))
-        idx = d.add_proof(res.code, note=req, model=res.model, meta=meta)
-        d.status = "proved"
-        await self.event(d, job, "proof", "Preuve trouvée et vérifiée par Lean (essai {i}, {s:.0f} s).", ref=idx,
-                         model=res.model, i=meta["attempts"], s=res.seconds)
-        if mf is not None and mf.ok and mf.lemma:
-            await self.event(d, job, "info", "Ce théorème est dans Mathlib sous le nom « {name} » : la preuve "
-                             "l'utilise directement.", name=mf.lemma)
-        entry = await asyncio.to_thread(lib.add_proof, res.code, d.title, ws.key, d.id, d.lemmas_used)
-        if entry:
-            self.ctx.bus.publish("library.updated", {"added": entry.name})
-            await self.event(d, job, "info", "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans "
-                             "vos prochaines preuves.", name=entry.name)
+        return res, strategy
+
+    async def _race(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, req: str, gate: asyncio.Task | None,
+                    mf_task: asyncio.Task | None, search, mkey: str):
+        """D38: the statement check, Mathlib-first and the proof search run together.
+
+        - the first Lean-verified proof (Mathlib-first, a quick proof found by the check, or the search) wins and the
+          other proof work is cancelled; it is recorded only once the check has not stopped the proof;
+        - a « faux » / « douteux » verdict (automatic chain, no explicit request) cancels all proof work and stops the
+          plan exactly as before (« Prouver quand même » stays the user's choice): returns None;
+        - Mathlib-first's candidates reach the search as soon as they are known (`job.mathlib_hint`, read at each
+          new agent attempt).
+        Returns (result, strategy, Mathlib-first result or None)."""
+        live(job).discard(job.id)          # this coroutine only waits for the racers from here on
+        try:
+            return await self._race_body(job, d, io, ws, statement, req, gate, mf_task, search, mkey)
+        finally:
+            live(job).add(job.id)
+
+    async def _race_body(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, req: str,
+                         gate: asyncio.Task | None, mf_task: asyncio.Task | None, search, mkey: str):
+        search_task = self._spawn(job, "search", search, stream="proof")
+        racers: dict[asyncio.Task, str] = {search_task: "search"}
+        if mf_task is not None:
+            racers[mf_task] = "mathlib"
+        pending: set[asyncio.Task] = set(racers) | ({gate} if gate is not None else set())
+        winner: tuple[ProveResult, str] | None = None
+        lost: tuple[ProveResult, str] | None = None
+        error: BaseException | None = None
+        mf: MathlibResult | None = None
+        checked = gate is None
+        n0 = len(job.attempts)
+
+        async def cancel_racers() -> None:
+            others = [t for t in racers if not t.done()]
+            pending.difference_update(others)
+            await self._stop(others)
+            for a in job.attempts[n0:]:
+                if a.stage == "proof" and a.status in ("generating", "compiling"):
+                    a.status, a.summary = "cancelled", msg(RACE_CANCELLED)["text"]
+            self.ctx.publish_job(job)
+
+        try:
+            while pending and not (winner is not None and checked):
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for t in done:
+                    kind = "gate" if t is gate else racers.get(t, "")
+                    if kind == "gate":
+                        checked = True
+                        try:
+                            r = t.result()
+                        except Exception as e:  # noqa: BLE001 (a check that broke is « rien n'a pu être vérifié »)
+                            log.warning("statement check failed: %s", e)
+                            r = None
+                        if r is not None and r.verdict in ("false", "doubtful") and not req:
+                            await cancel_racers()
+                            self._stop_for_check(job, d, r.verdict)
+                            await self.ctx.repo.save(d)
+                            return None
+                        if r is not None and r.proof and winner is None and not (mf is not None and mf.ok):
+                            # Lean proved the statement directly (`exact?`, `simp`…): one strict check makes it a proof
+                            q = self._spawn(job, "quick", lambda tac=r.proof, src=r.proof_source:
+                                            self._quick_proof(io, ws, statement, tac, src), stream="proof")
+                            racers[q] = "quick"
+                            pending.add(q)
+                        continue
+                    try:
+                        out = t.result()
+                    except asyncio.CancelledError:
+                        continue
+                    except (Failed, InfraError, BrainError) as e:
+                        if kind == "search":
+                            error = e
+                        else:
+                            log.warning("%s failed: %s", kind, e)
+                        continue
+                    if kind == "mathlib":
+                        mf = out
+                        await self._remember_mathlib(mkey, mf)
+                        if mf.ok and winner is None:
+                            winner = (self._mathlib_proof(mf), "mathlib")
+                            await cancel_racers()
+                        elif not mf.ok:
+                            job.mathlib_hint = mf.hint()
+                    elif kind == "quick":
+                        if out is not None and out.ok and winner is None:
+                            mf = out
+                            winner = (self._mathlib_proof(mf), "mathlib")
+                            await cancel_racers()
+                    elif kind == "search":
+                        res, strategy = out
+                        if res is not None and res.ok and winner is None:
+                            winner = (res, strategy)
+                            await cancel_racers()
+                        elif winner is None:
+                            lost = (res if res is not None else ProveResult(False), strategy)
+        finally:
+            await self._stop(list(racers))
+        if winner is not None:
+            return winner[0], winner[1], (mf if winner[1] == "mathlib" else None)
+        if error is not None:
+            raise error
+        res, strategy = lost or (ProveResult(False), "agent")
+        return res, strategy, mf
+
+    async def _quick_proof(self, io: JobIO, ws, statement: str, tactic: str, source: str) -> MathlibResult | None:
+        """The statement check's quick proof, judged by a strict Lean check like any proof."""
+        try:
+            name = leancheck.theorem_name(statement)
+            body = "\n".join("  " + ln if ln.strip() else "" for ln in tactic.strip("\n").split("\n"))
+            code = leancheck.assemble_proof(statement, f"theorem {name} := by\n{body}")
+        except leancheck.StatementError:
+            return None
+        t0 = time.monotonic()
+        r = await io.check(leancheck.with_axiom_probe(code, name), ws, min(self.settings.compile_timeout_s, 120), name)
+        if not r.verdict.ok:
+            return None
+        m = re.search(r"\b([A-Z][\w']*(?:\.[\w'₀-₉]+)+|[a-z][\w']*_[\w'₀-₉.]+)", tactic)
+        return MathlibResult(True, code, m.group(1) if m else "", tactic, source or "check", axioms=r.verdict.axioms,
+                             seconds=time.monotonic() - t0)
+
+    # ------------------------------------------------------------ never redo twice (B14, D38)
+    def _cache(self) -> StageCache:
+        c = getattr(self, "_stage_cache", None)
+        if c is None:
+            c = self._stage_cache = StageCache(self.ctx.paths.cache / "stage-cache.json")
+        return c
+
+    def _versions(self, ws) -> dict:
+        try:
+            info = workspace_info(ws)
+        except Exception:  # noqa: BLE001
+            info = {}
+        return {"workspace": ws.key, "lean": info.get("lean", "") or getattr(ws, "toolchain", ""),
+                "mathlib": info.get("mathlib", "")}
+
+    def _check_key(self, d: Dossier, ws, learn: bool) -> str:
+        words = normalize_text((d.problem or "") + "\n" + (d.understood_display or d.understood or ""))
+        return make_key(d.statement, self._versions(ws), words, "learn" if learn else "", language())
+
+    def _mathlib_key(self, d: Dossier, ws) -> str:
+        return make_key(d.statement, self._versions(ws))
+
+    async def _cached_check(self, job: Job, d: Dossier, ws) -> dict | None:
+        learn = bool((getattr(job, "step_flags", None) or {}).get("learn"))
+        hit = self._cache().get("check", self._check_key(d, ws, learn))
+        if not hit or hit.get("verdict") not in ("faithful", "doubtful", "false"):
+            return None
+        names = set(CheckResult.__dataclass_fields__)
+        r = CheckResult(**{k: v for k, v in hit.items() if k in names})
+        r.statement_index = d.cur_statement
+        if 0 <= d.cur_statement < len(d.statements):
+            d.statements[d.cur_statement].meta["check"] = r.to_dict()
+        await self.event(d, job, "info", "Énoncé déjà vérifié avec cette version de Mathlib : le résultat est repris "
+                         "sans refaire la vérification.")
+        await self._check_event(job, d, r, cached=True)
+        return r.to_dict()            # a copy: the verdict was just reported, no « reminder » event
+
+    async def _cached_mathlib(self, job: Job, d: Dossier, io: JobIO, ws, statement: str,
+                              key: str) -> MathlibResult | None:
+        """A Mathlib-first result already found for this statement and this Mathlib. A success is re-assembled for
+        the current statement and judged by a fresh strict Lean check (never trusted from the cache)."""
+        hit = self._cache().get("mathlib", key)
+        if not hit:
+            return None
+        cands = list(hit.get("candidates") or [])
+        if not hit.get("ok"):
+            await self.event(d, job, "info", "Déjà cherché dans Mathlib pour cet énoncé : rien de directement "
+                             "applicable, la recherche de preuve commence tout de suite.")
+            return MathlibResult(False, candidates=cands)
+        tactic = str(hit.get("tactic") or "")
+        res = await self._quick_proof(io, ws, statement, tactic, "cache") if tactic else None
+        if res is None or not res.ok:
+            await self._cache().drop("mathlib", key)     # no longer true here: searched again as usual
+            return None
+        res.lemma = str(hit.get("lemma") or res.lemma)
+        res.source, res.model, res.candidates = str(hit.get("source") or "cache"), str(hit.get("model") or ""), cands
+        await self.event(d, job, "info", "Déjà trouvé dans Mathlib pour cet énoncé ({name}) : preuve vérifiée à "
+                         "nouveau par Lean.", name=res.lemma or tactic)
+        return res
+
+    async def _remember_mathlib(self, key: str, mf: MathlibResult | None) -> None:
+        if not key or mf is None:
+            return
+        if mf.ok and mf.tactic:
+            await self._cache().put("mathlib", key, {"ok": True, "tactic": mf.tactic, "lemma": mf.lemma,
+                                                     "source": mf.source, "model": mf.model,
+                                                     "candidates": mf.candidates[:8]})
+        elif not mf.ok and mf.candidates:
+            await self._cache().put("mathlib", key, {"ok": False, "candidates": mf.candidates[:8]})
 
     async def _tournament(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, hint: str, refine,
                           cfg: "tourn.Config") -> tuple[ProveResult | None, str, bool]:
@@ -918,7 +1318,8 @@ class DossierPipeline:
 
         need_online = job.mode != "local"
         if need_online:
-            await self.ctx.slots.acquire("online", job.id)
+            owner = job_owner(job)
+            await self.ctx.slots.acquire("online", owner)
         t0 = time.monotonic()
         kw = {"only": only} if only and _accepts(fn, "only") else {}
         try:
@@ -934,7 +1335,7 @@ class DossierPipeline:
             return None
         finally:
             if need_online:
-                self.ctx.slots.release("online", job.id)
+                self.ctx.slots.release("online", owner)
             if release_local:
                 self.ctx.local.release()
         a.gen_seconds = time.monotonic() - t0
@@ -1000,8 +1401,9 @@ class DossierPipeline:
                 "mathematical idea of that result." if language() != "en" else
                 f"\n\nThis theorem is already in Mathlib under the name `{lemma}` and the proof uses it. Say so "
                 "explicitly at the start, then explain the mathematical idea of that result.")}
-        c = await io.complete("explain", msgs, None,
-                              temperature=0.5, max_tokens=2000, extra={"top_p": 0.9, **NO_THINK, "repeat_penalty": 1.05})
+        with classify.short_stage():
+            c = await io.complete("explain", msgs, None, temperature=0.5, max_tokens=2000,
+                                  extra={"top_p": 0.9, **NO_THINK, "repeat_penalty": 1.05})
         text = leancheck.clean_model_text(c.text)
         text = await self._check_citations(job, d, text, cites)
         if not text:
@@ -1009,10 +1411,11 @@ class DossierPipeline:
         idx = d.add_explanation(text, note=req, model=c.model.key)
         self._record(c.model.key, "explain", d, ok=c.finish != "loop", seconds=c.seconds)
         await self.event(d, job, "explanation", "Explication rédigée par l'IA (la preuve Lean fait foi).", ref=idx,
-                         model=c.model.key)
+                         model=c.model.key, seconds=stage_seconds(job, "explanation"))
         if c.finish == "loop":
             await self.event(d, job, "info", "Explication prête (réponse interrompue : l'IA tournait en rond).")
-        if s.informal_proof and (not req or not d.informal_proof):
+        if self._informal_wanted(d, req) and "informal" not in getattr(job, "side_spawned", ()) \
+                and not any(p.get("stage") == "informal" for p in job.plan):
             job.plan.insert(0, {"stage": "informal"})
 
     async def _check_citations(self, job: Job, d: Dossier, text: str, cites: dict | None) -> str:
@@ -1031,20 +1434,27 @@ class DossierPipeline:
             return
         nl = d.understood_display or d.understood or d.problem
         cites = _citations(self.ctx, d)
-        msgs = prompts.informal_messages(d.proof, nl, language())
+        proof = d.proof
+        msgs = prompts.informal_messages(proof, nl, language())
         if cites:
             msgs[-1] = {**msgs[-1], "content": msgs[-1]["content"] + cites["prompt"]}
         try:
-            c = await io.complete("explain", msgs, None,
-                                  temperature=0.4, max_tokens=2500, extra={"top_p": 0.9, **NO_THINK})
+            with classify.short_stage():
+                c = await io.complete("explain", msgs, None,
+                                      temperature=0.4, max_tokens=2500, extra={"top_p": 0.9, **NO_THINK})
         except BrainError:
             return
+        explained = getattr(job, "explained", None)
+        if explained is not None and "informal" in getattr(job, "side_spawned", ()):
+            await explained.wait()     # written beside the explanation, recorded after it (thread order)
+        if d.proof != proof:
+            return                     # the proof changed meanwhile
         text = leancheck.clean_model_text(c.text)
         text = await self._check_citations(job, d, text, cites)
         if text:
             idx = d.add_informal_proof(text, c.model.key)
             await self.event(d, job, "informal", "Preuve rédigée en langage naturel par l'IA (la preuve Lean fait foi).",
-                             ref=idx, model=c.model.key)
+                             ref=idx, model=c.model.key, seconds=stage_seconds(job, "informal"))
 
 
 def _citations(ctx, d: Dossier) -> dict | None:

@@ -4,7 +4,7 @@
   import { app } from '../../lib/store/app.svelte';
   import { navigate } from '../../lib/router.svelte';
   import { t, tk } from '../../lib/i18n/index.svelte';
-  import { phaseOf, modelLabel, jobModel, providerName } from '../../lib/status';
+  import { phaseOf, modelLabel, jobModel, providerName, sideStages } from '../../lib/status';
   import { prefs } from '../../lib/prefs.svelte';
   import { ApiError } from '../../lib/api/client';
   import StatusMark from '../../components/StatusMark.svelte';
@@ -94,7 +94,7 @@
         <h1>{d.title || d.theorem}</h1>
       </div>
       <div class="row meta small">
-        <span class="phase-txt">{tk(`phase.${phase}`, phase)}{#if job}&nbsp;— {tk(`stage.${job.stage}`, t('stage.starting'))}{#if job.waiting} · <span class="wait">{tk(`waiting.${job.waiting}`, '')}</span>{/if}{/if}</span>
+        <span class="phase-txt">{tk(`phase.${phase}`, phase)}{#if job}&nbsp;— {tk(`stage.${job.stage}`, t('stage.starting'))}{#if sideStages(job).length} ({t('stage.alsoRunning', { list: sideStages(job).map((s) => tk(`stage.${s}`, s).toLowerCase()).join(', ') })}){/if}{#if job.waiting} · <span class="wait">{tk(`waiting.${job.waiting}`, '')}</span>{/if}{/if}</span>
         {#if model.name}<span class="chip {model.local ? 'local' : 'online'}" title={providerName(model.provider)}><Icon name={model.local ? 'cpu' : 'cloud'} size={12} />{model.name}</span>{/if}
         {#if conditional}<span class="chip running cond">{t('plan.conditional')}</span>{/if}
         {#if recheck === 'pending' || recheck === 'regressed'}<span class="chip {recheck === 'regressed' ? 'failed' : 'running'}">{tk(`recheck.${recheck}`, recheck)}</span>{/if}
