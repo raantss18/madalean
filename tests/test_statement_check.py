@@ -133,8 +133,9 @@ async def test_subsequences_false_with_the_models_counterexample_checked_by_lean
     assert ev.params["verdict"] == "false" and "(-1 : ℝ) ^ n" in ev.params["evidence"]["code"], ev.text
     assert "même limite" in ev.params["fix"] and job.error == "statement_false"
     # without a valid counterexample from the model, the same answer only makes the statement « douteux »
+    # (other wording: the same statement + wording + versions reuses the cached verdict, D38)
     ctx.brain.behaviour["no_cex"] = True
-    d2, job2 = await prove(ctx, SUBSEQ, "si (U2n+1) et (U2n) convergent alors (Un) converge")
+    d2, job2 = await prove(ctx, SUBSEQ, "si les suites (U2n+1) et (U2n) convergent alors la suite (Un) converge")
     assert check_events(d2)[-1].params["verdict"] == "doubtful" and job2.error == "statement_doubtful"
     await ctx.stop()
 
