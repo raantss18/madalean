@@ -1,5 +1,9 @@
 # BENCH — Goedel-Prover-V2-8B on RTX 4060 Laptop (8 GB, 60 W Max-Q)
 
+> 1.x hardware benchmark of the local model (kept for the chosen llama.cpp settings). The 2.x benchmark of the
+> proof pipeline — miniF2F, PutnamBench, score, time and cost per verified proof — is `docs/BENCH.md`
+> (`madalean bench …`, DECISIONS D53).
+
 llama.cpp 436f6f8 (CUDA 13.4, sm_89), all 37/37 layers on GPU. Raw data in `bench/`.
 Caveat: measured while Mathlib was compiling on the CPU (load avg ~30, user services also busy) — GPU-bound
 numbers are barely affected; Lean compile times are inflated (see C in ACCEPTANCE.md for idle numbers).

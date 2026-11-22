@@ -440,3 +440,11 @@ pre.calc-error { color: var(--failed); }
 .contact-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
 .contact-list dt { font-weight: 600; color: var(--text-2); }
 .contact-list dd { margin: 0; overflow-wrap: anywhere; }
+
+/* « Mesures » / “Measurements” (D53): wide result tables, read-only */
+.measures.narrow, .measures.prose { max-width: 1180px; }
+.measures section > p, .measures section > ul, .measures > .lead { max-width: var(--measure); }
+.measures td, .measures th { vertical-align: top; }
+.measures tbody th { font-weight: 400; text-align: left; min-width: 15rem; }
+.measures td { min-width: 6.5rem; }
+.measures .muted { font-size: .85rem; }

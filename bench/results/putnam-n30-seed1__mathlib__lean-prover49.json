@@ -1,0 +1,71 @@
+{
+ "format": 1,
+ "set": "putnam",
+ "config": "mathlib",
+ "strategy": "mathlib",
+ "description": "Mathlib-first only: library search and templates, no model",
+ "date": "2026-11-22",
+ "madalean": "2.0.3.dev0",
+ "commit": "01c8c83703ce",
+ "workspace": "lean-prover49",
+ "lean": "v4.9.0-rc1",
+ "mathlib": "2f65ba7f1a91 (checkout)",
+ "source": {
+  "repo": "trishullab/PutnamBench",
+  "commit": "a635813f5edf297d928f9bd5ef8324a26bdde09c",
+  "licence": "Apache-2.0",
+  "content_sha256": "597367f4927e76b26f5316193acb5b686c09a10090cdb0ad20be970b81bda9fb",
+  "problems": 672,
+  "upstream_lean": "leanprover/lean4:v4.33.1"
+ },
+ "selection": {
+  "split": "",
+  "set_size": 672,
+  "sample": 30,
+  "seed": 1,
+  "limit": 0,
+  "ids": false,
+  "count": 30
+ },
+ "budgets": {
+  "attempts": 4,
+  "rounds": 1,
+  "contestants": 3,
+  "time_per_problem_s": 180.0,
+  "time_budget_s": 0.0,
+  "paid_budget_usd": 0.0,
+  "jobs": 2,
+  "compile_timeout_s": 120
+ },
+ "selected": 30,
+ "attempted": 28,
+ "statement_errors": 2,
+ "statement_error_ids": [
+  "putnam_2010_a5",
+  "putnam_2021_b3"
+ ],
+ "solved": 0,
+ "solved_ids": [],
+ "solved_without_model": 0,
+ "rate": 0.0,
+ "complete": true,
+ "stop": "done",
+ "by_status": {
+  "failed": 28,
+  "statement_error": 2
+ },
+ "median_wall_s_solved": null,
+ "median_wall_s_all": 3.2,
+ "median_lean_s_solved": null,
+ "wall_s_total": 110.0,
+ "elapsed_s": 63.5,
+ "attempts_total": 28,
+ "tokens_in": 0,
+ "tokens_out": 0,
+ "model_calls": 0,
+ "cost_usd": 0.0,
+ "cost_per_verified_usd": null,
+ "paid": false,
+ "found_by": {},
+ "models": []
+}

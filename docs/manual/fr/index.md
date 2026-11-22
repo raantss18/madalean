@@ -43,7 +43,7 @@ synchronisés. Les appareils joignent l'hôte uniquement par votre réseau priv�
 - **Réglages et sécurité** : [Modèles et clés](models-keys.md) · [Mises à jour](updates.md) ·
   [Sécurité](security.md)
 - **Référence** : [Dépannage](troubleshooting.md) · [Glossaire Lean](glossary.md) ·
-  [Premières tactiques](tactics.md) · [Raccourcis clavier](shortcuts.md)
+  [Premières tactiques](tactics.md) · [Raccourcis clavier](shortcuts.md) · [Mesures](measures.md)
 
 ## Conventions de ce manuel
 

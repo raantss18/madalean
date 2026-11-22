@@ -42,7 +42,7 @@ host only through your private Tailscale network.
 - **Settings and security**: [Models and keys](models-keys.md) · [Updates](updates.md) ·
   [Security](security.md)
 - **Reference**: [Troubleshooting](troubleshooting.md) · [Lean glossary](glossary.md) ·
-  [First tactics](tactics.md) · [Keyboard shortcuts](shortcuts.md)
+  [First tactics](tactics.md) · [Keyboard shortcuts](shortcuts.md) · [Measurements](measures.md)
 
 ## Conventions of this manual
 

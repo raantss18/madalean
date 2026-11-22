@@ -20,7 +20,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 
-from madasite import checks, home, install, layout, manual, publication  # noqa: E402
+from madasite import checks, home, install, layout, manual, measures, publication  # noqa: E402
 from madasite.mathrender import MathBatch  # noqa: E402
 
 SITE_URL = "https://raantss18.github.io/madalean/"
@@ -54,6 +54,7 @@ def door(out: Path) -> None:
     (out / "en" / "home.html").write_text(home.home_page("en", "../"), encoding="utf-8")
     for lg in ("fr", "en"):
         (out / lg / "about.html").write_text(home.about_page(lg), encoding="utf-8")
+    measures.build(out, REPO, REPO_URL)      # « Mesures » (D53): bench/results/*.json as tables
     body404 = ('<main id="main" class="narrow prose" tabindex="-1"><h1>Page introuvable</h1>'
                '<p>Cette page n’existe pas. <a href="/madalean/index.html">Accueil du site</a>.</p>'
                '<p lang="en">This page does not exist. <a href="/madalean/index.html">Site home</a>.</p></main>')

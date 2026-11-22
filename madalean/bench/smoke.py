@@ -1,0 +1,50 @@
+"""The built-in smoke set: 20 statements written for Madalean (Apache-2.0, like the rest of the source), across branches,
+from one-line facts to short olympiad-style exercises. They compile with the Mathlib of both built-in workspaces
+(Lean 4.9 « Goedel » and the current one). It is a smoke test of the harness, NOT a published benchmark: scores on
+it say that the pipeline works end to end, nothing about research-level strength.
+
+Rows: (id, branch, informal statement, Lean statement ending with `:= by sorry`)."""
+
+SMOKE: list[tuple[str, str, str, str]] = [
+    ("smoke_logic_and_comm", "logic", "If P and Q hold, then Q and P hold.",
+     "theorem smoke_logic_and_comm (P Q : Prop) (h : P ∧ Q) : Q ∧ P := by sorry"),
+    ("smoke_logic_contrapose", "logic", "If P implies Q and Q is false, then P is false.",
+     "theorem smoke_logic_contrapose (P Q : Prop) (h : P → Q) (hq : ¬Q) : ¬P := by sorry"),
+    ("smoke_set_inter_subset", "sets", "The intersection of two sets is contained in the first one.",
+     "theorem smoke_set_inter_subset (α : Type) (A B : Set α) : A ∩ B ⊆ A := by sorry"),
+    ("smoke_nat_even_add", "arithmetic", "The sum of two even natural numbers is even.",
+     "theorem smoke_nat_even_add (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry"),
+    ("smoke_nt_dvd_six", "number theory", "The product of three consecutive natural numbers is divisible by 6.",
+     "theorem smoke_nt_dvd_six (n : ℕ) : 6 ∣ n * (n + 1) * (n + 2) := by sorry"),
+    ("smoke_nt_gcd_dvd", "number theory", "The gcd of a and b divides a.",
+     "theorem smoke_nt_gcd_dvd (a b : ℕ) : Nat.gcd a b ∣ a := by sorry"),
+    ("smoke_nt_prime_two_or_odd", "number theory", "A prime number is 2 or odd.",
+     "theorem smoke_nt_prime_two_or_odd (p : ℕ) (hp : Nat.Prime p) : p = 2 ∨ p % 2 = 1 := by sorry"),
+    ("smoke_alg_square", "algebra", "(a + b)² = a² + 2ab + b² for real numbers.",
+     "theorem smoke_alg_square (a b : ℝ) : (a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2 := by sorry"),
+    ("smoke_ineq_two_ab", "inequalities", "2ab ≤ a² + b² for real numbers.",
+     "theorem smoke_ineq_two_ab (a b : ℝ) : 2 * a * b ≤ a ^ 2 + b ^ 2 := by sorry"),
+    ("smoke_ineq_three", "inequalities", "ab + bc + ca ≤ a² + b² + c² for real numbers.",
+     "theorem smoke_ineq_three (a b c : ℝ) : a * b + b * c + c * a ≤ a ^ 2 + b ^ 2 + c ^ 2 := by sorry"),
+    ("smoke_abs_triangle", "analysis", "Triangle inequality for the absolute value.",
+     "theorem smoke_abs_triangle (a b : ℝ) : |a + b| ≤ |a| + |b| := by sorry"),
+    ("smoke_analysis_exp_pos", "analysis", "The exponential of a real number is positive.",
+     "theorem smoke_analysis_exp_pos (x : ℝ) : 0 < Real.exp x := by sorry"),
+    ("smoke_analysis_continuous", "analysis", "x ↦ x² + 1 is continuous.",
+     "theorem smoke_analysis_continuous (f : ℝ → ℝ) (hf : f = fun x => x ^ 2 + 1) : Continuous f := by sorry"),
+    ("smoke_analysis_tendsto", "analysis", "1/(n+1) tends to 0.",
+     "theorem smoke_analysis_tendsto : Filter.Tendsto (fun n : ℕ => (1 : ℝ) / (n + 1)) Filter.atTop (nhds 0) := by sorry"),
+    ("smoke_group_inv_mul", "group theory", "(ab)⁻¹ = b⁻¹a⁻¹ in a group.",
+     "theorem smoke_group_inv_mul (G : Type) [Group G] (a b : G) : (a * b)⁻¹ = b⁻¹ * a⁻¹ := by sorry"),
+    ("smoke_group_square_comm", "group theory", "A group in which every element squares to 1 is commutative.",
+     "theorem smoke_group_square_comm (G : Type) [Group G] (h : ∀ g : G, g * g = 1) (a b : G) : a * b = b * a := by sorry"),
+    ("smoke_linalg_det_mul", "linear algebra", "The determinant of a product of 2×2 real matrices.",
+     "theorem smoke_linalg_det_mul (A B : Matrix (Fin 2) (Fin 2) ℝ) : (A * B).det = A.det * B.det := by sorry"),
+    ("smoke_comb_sum_range", "combinatorics", "0 + 1 + … + n = n(n+1)/2.",
+     "theorem smoke_comb_sum_range (n : ℕ) : Finset.sum (Finset.range (n + 1)) (fun i => i) = n * (n + 1) / 2 := by sorry"),
+    ("smoke_comb_choose_symm", "combinatorics", "Binomial coefficients are symmetric.",
+     "theorem smoke_comb_choose_symm (n k : ℕ) (h : k ≤ n) : Nat.choose n k = Nat.choose n (n - k) := by sorry"),
+    ("smoke_topology_inter_open", "topology", "The intersection of two open sets is open.",
+     "theorem smoke_topology_inter_open (X : Type) [TopologicalSpace X] (U V : Set X) (hU : IsOpen U) (hV : IsOpen V) : "
+     "IsOpen (U ∩ V) := by sorry"),
+]

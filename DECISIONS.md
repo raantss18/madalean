@@ -1015,3 +1015,42 @@
   web UI, panel + real journal; screenshots), `tests/test_host_app_install.py` (fake PATH, temporary HOME). Not
   verified: the menu, task-bar icon and tray in the user's real KDE session; Start/Stop on the real service (not
   touched on purpose); GNOME; another distribution's webkit2gtk.
+
+## D53 — « Mesurer »: a benchmark harness that runs the real pipeline and counts only a fresh strict Lean verdict (strategy 2.1 item 2, 2026-11-22, S-AU)
+- Request: miniF2F and PutnamBench inside Madalean; score, time and cost per verified proof, per model and per
+  strategy; published on the site, redone at each version; no paid call unless a budget is given.
+- Decision (docs/BENCH.md): `madalean bench sets | fetch | check | run | report` (`madalean/bench/`, one hook in
+  `cli.py`). A run builds a **private ServerContext** in its run directory and submits one `proof` job per problem
+  to the application's own orchestrator (formal statement given, « Prouver quand même »: no statement check), so
+  Mathlib-first, the tournament, the conductor hook and the slots are the shipped code, not a copy. The proof the
+  pipeline records is judged again by the runner: statement pinned (preamble + theorem signature as given), fresh
+  strict Lean (`#print axioms`, no `sorry`, standard axioms). One JSONL row per problem (verified, attempts, wall
+  time, Lean time, tokens, USD, who found it), a summary JSON, resume by re-running the command, deterministic order
+  and seeded samples.
+- **Cost**: the engine reads the user's keys through a read-only filter; paid providers (catalogue `paid`) have no
+  key unless `--paid-budget USD`, which also becomes the month cap of the run's private ledger (the engine refuses
+  before sending) and is re-checked by the runner before each problem; a cost without a budget stops the run.
+- **Sets**: miniF2F (`yangky11/miniF2F-lean4`, MIT) and PutnamBench (`trishullab/PutnamBench`, Lean 4 part
+  Apache-2.0) are fetched at a pinned commit into `~/.cache/madalean-bench/`, only problem files + licence kept,
+  content SHA-256 pinned in the source and checked at each load; a built-in smoke set of 20 own statements.
+  Statements a workspace's Lean does not accept are found first (batches, then alone) and reported apart.
+- **Published**: `bench/results/*.json` (summaries only: counts, times, costs, ids) → site page « Mesures »
+  (`site/madasite/measures.py`, FR/EN, footer link) and a manual page `measures` (so the application's help has it).
+- Rejected: a second, simplified proving loop for the benchmark (it would measure something the user never runs);
+  trusting the pipeline's own « proved » (the point is an independent verdict); vendoring the sets (a moving
+  upstream is another benchmark; PutnamBench asks not to publish proofs — they stay in the run directory);
+  Goedel-Prover's `dataset/minif2f.jsonl` as the source (repository without a licence file); pinning the archive
+  hash (GitHub archives are not byte-stable: the content hash of the kept files is pinned instead); reusing the
+  user's configuration directory (a benchmark must not write measured rankings, library entries or spend rows into
+  the user's Madalean); letting earlier proofs of a run feed later problems (library offers nothing); embeddings
+  through Ollama during a run (Ollama stays its own engine: lexical Mathlib search only); a results panel in
+  Réglages (a web UI change while three other sessions edit the UI: the manual page is the in-app view for now).
+- Measured (2026-11-22, lean-prover49, no paid call): statements compiling — miniF2F valid 240/244 and test
+  241/244 on Lean 4.9, valid 244/244 on Lean 4.36; PutnamBench 636/672 on Lean 4.36 and 649/672 on Lean 4.9. Smoke set: Mathlib-first
+  alone 15/20 (median 4.5 s), with the tournament of free models 18/20 (median 10.9 s, 0 $). miniF2F valid, 50
+  problems (seed 1): Mathlib-first alone 4/50; with the tournament of free models
+  19/50 (median 68.5 s per verified proof, 120 s limit, 0 $; 4 by Mathlib alone, 6 by Mathlib-first with a short
+  proof written by a model, 9 by the model search — one model family, nemotron-3-ultra). PutnamBench, 30 problems
+  (seed 1), Mathlib-first alone: 0/28 (2 statements not compiling). Samples, short limits: estimates, not scores.
+- Not done: `certificate` strategy (waits for S-AT), `goedel-local` and paid runs (implemented, not run here),
+  PutnamBench with models, the miniF2F test split, a results panel in the web UI.

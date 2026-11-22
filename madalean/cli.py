@@ -1,4 +1,4 @@
-"""Command line: `madalean serve [--demo]`, `madalean pair`, `madalean status`.
+"""Command line: `madalean serve [--demo]`, `madalean pair`, `madalean status`, `madalean bench …` (docs/BENCH.md).
 
 The config/cache directories are fixed before any other madalean module is imported (they read them at import)."""
 from __future__ import annotations
@@ -30,6 +30,8 @@ def _parser() -> argparse.ArgumentParser:
     for c in (s, *[sub.choices[n] for n in ("pair", "status")]):
         c.add_argument("--config-dir", type=Path, help="default ~/.config/madalean (demo: ~/.config/madalean-demo)")
         c.add_argument("--cache-dir", type=Path)
+    from .bench.cli import add_parser          # « Mesurer » (D53): `madalean bench …`, its own private directories
+    add_parser(sub)
     return p
 
 
@@ -46,6 +48,9 @@ def _set_dirs(args) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.cmd == "bench":
+        from .bench import cli as bench_cli
+        return bench_cli.main(args)
     _set_dirs(args)
     if args.cmd == "serve":
         return serve(args)

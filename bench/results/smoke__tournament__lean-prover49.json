@@ -1,0 +1,90 @@
+{
+ "format": 1,
+ "set": "smoke",
+ "config": "tournament",
+ "strategy": "tournament",
+ "description": "the application's default: Mathlib-first, then the tournament of free online models",
+ "date": "2026-11-22",
+ "madalean": "2.0.3.dev0",
+ "commit": "01c8c83703ce",
+ "workspace": "lean-prover49",
+ "lean": "v4.9.0-rc1",
+ "mathlib": "2f65ba7f1a91 (checkout)",
+ "source": {
+  "licence": "Apache-2.0 (Madalean)",
+  "content_sha256": "9244fedc188e5d18476c7ace5327fae97fbf4d32e01efde86476f41a857272bd",
+  "problems": 20
+ },
+ "selection": {
+  "split": "",
+  "set_size": 20,
+  "sample": 0,
+  "seed": null,
+  "limit": 0,
+  "ids": false,
+  "count": 20
+ },
+ "budgets": {
+  "attempts": 3,
+  "rounds": 1,
+  "contestants": 3,
+  "time_per_problem_s": 180.0,
+  "time_budget_s": 720.0,
+  "paid_budget_usd": 0.0,
+  "jobs": 3,
+  "compile_timeout_s": 120
+ },
+ "selected": 20,
+ "attempted": 20,
+ "statement_errors": 0,
+ "statement_error_ids": [],
+ "solved": 18,
+ "solved_ids": [
+  "smoke_abs_triangle",
+  "smoke_alg_square",
+  "smoke_analysis_continuous",
+  "smoke_analysis_exp_pos",
+  "smoke_analysis_tendsto",
+  "smoke_comb_choose_symm",
+  "smoke_comb_sum_range",
+  "smoke_group_inv_mul",
+  "smoke_ineq_three",
+  "smoke_ineq_two_ab",
+  "smoke_linalg_det_mul",
+  "smoke_logic_and_comm",
+  "smoke_logic_contrapose",
+  "smoke_nat_even_add",
+  "smoke_nt_gcd_dvd",
+  "smoke_nt_prime_two_or_odd",
+  "smoke_set_inter_subset",
+  "smoke_topology_inter_open"
+ ],
+ "solved_without_model": 15,
+ "rate": 0.9,
+ "complete": true,
+ "stop": "done",
+ "by_status": {
+  "timeout": 2,
+  "verified": 18
+ },
+ "median_wall_s_solved": 10.9,
+ "median_wall_s_all": 11.4,
+ "median_lean_s_solved": 6.8,
+ "wall_s_total": 692.8,
+ "elapsed_s": 306.6,
+ "attempts_total": 55,
+ "tokens_in": 28666,
+ "tokens_out": 24150,
+ "model_calls": 11,
+ "cost_usd": 0.0,
+ "cost_per_verified_usd": 0.0,
+ "paid": false,
+ "found_by": {
+  "mathlib (no model)": 15,
+  "nvidia:nvidia/nemotron-3-ultra-550b-a55b": 3
+ },
+ "models": [
+  "nvidia:nvidia/nemotron-3-ultra-550b-a55b",
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free"
+ ]
+}

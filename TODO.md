@@ -12,8 +12,16 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    polynomiales, intervalles certifiés, programmation linéaire et sommes de carrés, recherches exhaustives (SAT) :
    le calcul produit un témoin, Lean ne fait que le vérifier ; ouvre nombres, algèbre, combinatoire, analyse,
    optimisation, géométrie
-2. 🔄 **Mesurer** (S-AU) — miniF2F et PutnamBench dans Madalean, score, temps et coût par preuve vérifiée, par
-   modèle et par stratégie ; publié sur le site, refait à chaque version
+2. ✅ **Mesurer** (S-AU, D53, docs/BENCH.md) — `madalean bench` : miniF2F et PutnamBench (téléchargés à une version
+   figée, jamais copiés), jeu de contrôle de 20 énoncés ; la vraie chaîne de l'application, sans interface ; seule
+   compte la preuve qu'un Lean neuf et strict accepte ; une ligne par problème (essais, temps, jetons, coût, modèle)
+   et un résumé ; reprise ; aucun modèle payant sans `--paid-budget` ; page « Mesures » du site et page du manuel.
+   Mesuré le 22/11 (aucun appel payant) : jeu de contrôle 15/20 sans modèle, 18/20 avec les modèles gratuits ;
+   miniF2F « valid », 50 problèmes tirés au sort : 4/50 sans modèle, 19/50 avec les modèles gratuits (0 $, médiane
+   68 s) ; PutnamBench, 30 problèmes : 0/28 sans modèle. Échantillons et limites courtes : des estimations.
+   Reste : ⬜ refaire à chaque version (passage complet de miniF2F « valid », plus de temps par problème) ;
+   ⬜ stratégie « certificat » quand S-AT est intégré ; ⬜ Goedel local et Claude (avec budget) ; ⬜ PutnamBench avec
+   modèles ; ⬜ panneau des mesures dans l'application (pour l'instant : la page du manuel, dans Aide)
 3. 🔄 **Veille mathématique permanente** (S-AV) — écran « Actualités » : nouveautés arXiv par domaine, problèmes
    ouverts et nouveaux problèmes (listes publiques), nouveautés Lean / Mathlib et IA pour les maths ; résumé, tri par
    tes domaines, « envoyer vers un projet / une conjecture / Sources », mise à jour automatique, lisible hors ligne

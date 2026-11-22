@@ -14,6 +14,8 @@ SVG_VOID_OK = {"path", "rect", "circle", "line", "polyline", "polygon", "stop", 
 # Links (never loaded resources) allowed to leave the site. Anything else is an error.
 ALLOWED = {
     "github": re.compile(r"^https://github\.com/raantss18(/madalean(\.git|/.*)?)?/?$"),
+    # « Mesures » (D53): the public repositories of the benchmark sets, linked at their pinned commit
+    "benchmarks": re.compile(r"^https://github\.com/(yangky11/miniF2F-lean4|trishullab/PutnamBench)(/.*)?$"),
     "scholarly": re.compile(r"^https://(doi\.org|arxiv\.org|zbmath\.org|www\.ams\.org/mathscinet)/"),
     "instructions": re.compile(r"^https://(tailscale\.com|platform\.claude\.com|aistudio\.google\.com|"
                                r"console\.anthropic\.com|huggingface\.co|console\.mistral\.ai|console\.groq\.com|"

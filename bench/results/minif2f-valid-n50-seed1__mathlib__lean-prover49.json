@@ -1,0 +1,75 @@
+{
+ "format": 1,
+ "set": "minif2f",
+ "config": "mathlib",
+ "strategy": "mathlib",
+ "description": "Mathlib-first only: library search and templates, no model",
+ "date": "2026-11-22",
+ "madalean": "2.0.3.dev0",
+ "commit": "01c8c83703ce",
+ "workspace": "lean-prover49",
+ "lean": "v4.9.0-rc1",
+ "mathlib": "2f65ba7f1a91 (checkout)",
+ "source": {
+  "repo": "yangky11/miniF2F-lean4",
+  "commit": "5746b7d6c47855ce1294bed87329618ff7f1bc31",
+  "licence": "MIT",
+  "content_sha256": "c5e5ab3da5028fec193f4b0e64aa1d0fbf40de7bea8227999b90a408b9b8ce73",
+  "problems": 488,
+  "upstream_lean": "leanprover/lean4:v4.24.0"
+ },
+ "selection": {
+  "split": "valid",
+  "set_size": 244,
+  "sample": 50,
+  "seed": 1,
+  "limit": 0,
+  "ids": false,
+  "count": 50
+ },
+ "budgets": {
+  "attempts": 4,
+  "rounds": 1,
+  "contestants": 3,
+  "time_per_problem_s": 180.0,
+  "time_budget_s": 0.0,
+  "paid_budget_usd": 0.0,
+  "jobs": 2,
+  "compile_timeout_s": 120
+ },
+ "selected": 50,
+ "attempted": 50,
+ "statement_errors": 0,
+ "statement_error_ids": [],
+ "solved": 4,
+ "solved_ids": [
+  "mathd_numbertheory_149",
+  "mathd_numbertheory_155",
+  "mathd_numbertheory_236",
+  "mathd_numbertheory_739"
+ ],
+ "solved_without_model": 4,
+ "rate": 0.08,
+ "complete": true,
+ "stop": "done",
+ "by_status": {
+  "failed": 46,
+  "verified": 4
+ },
+ "median_wall_s_solved": 4.6,
+ "median_wall_s_all": 3.2,
+ "median_lean_s_solved": 2.1,
+ "wall_s_total": 193.1,
+ "elapsed_s": 102.7,
+ "attempts_total": 50,
+ "tokens_in": 0,
+ "tokens_out": 0,
+ "model_calls": 0,
+ "cost_usd": 0.0,
+ "cost_per_verified_usd": 0.0,
+ "paid": false,
+ "found_by": {
+  "mathlib (no model)": 4
+ },
+ "models": []
+}

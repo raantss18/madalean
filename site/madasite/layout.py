@@ -30,7 +30,7 @@ def brand(root: str, site_name: str) -> str:
 STR = {
     "fr": {
         "skip": "Aller au contenu", "manual": "Manuel", "download": "Installer", "updates": "Mises à jour",
-        "home": "Accueil", "guide": "Guide", "about": "À propos", "author": "Auteur", "licence": "Licence Apache-2.0",
+        "home": "Accueil", "guide": "Guide", "about": "À propos", "measures": "Mesures", "author": "Auteur", "licence": "Licence Apache-2.0",
         "contact": "Contact", "source_code": "Code source", "privacy": "Ni traceur, ni cookie, ni ressource externe.",
         "search": "Chercher", "theme": "Thème : automatique", "theme_light": "Thème : clair",
         "theme_dark": "Thème : sombre", "lang_name": "Français", "other": "English", "menu": "Pages du manuel",
@@ -43,7 +43,7 @@ STR = {
     },
     "en": {
         "skip": "Skip to content", "manual": "Manual", "download": "Install", "updates": "Updates",
-        "home": "Home", "guide": "Guide", "about": "About", "author": "Author", "licence": "Apache-2.0 licence",
+        "home": "Home", "guide": "Guide", "about": "About", "measures": "Measurements", "author": "Author", "licence": "Apache-2.0 licence",
         "contact": "Contact", "source_code": "Source code", "privacy": "No tracker, no cookie, no external resource.",
         "search": "Search", "theme": "Theme: automatic", "theme_light": "Theme: light", "theme_dark": "Theme: dark",
         "lang_name": "English", "other": "Français", "menu": "Manual pages", "on_page": "On this page",
@@ -84,7 +84,8 @@ def site_footer(root: str, lang: str) -> str:
             f'<a href="{AUTHOR["github"]}" rel="noopener noreferrer">github.com/raantss18</a></p></div>'
             f'<div><p class="foot-h">Madalean</p><p><a href="{root}{lang}/download.html">{E(s["download"])}</a> · '
             f'<a href="{root}{lang}/install.html">{E(s["guide"])}</a> · <a href="{root}{lang}/index.html">{E(s["manual"])}</a>'
-            f' · <a href="{root}{lang}/about.html">{E(s["about"])}</a><br>'
+            f' · <a href="{root}{lang}/about.html">{E(s["about"])}</a>'
+            f' · <a href="{root}{lang}/measures.html">{E(s["measures"])}</a><br>'
             f'<a href="{AUTHOR["repo"]}" rel="noopener noreferrer">{E(s["source_code"])}</a> · '
             f'<a href="{root}updates/index.html">{E(s["updates"])}</a></p></div></div>')
 
