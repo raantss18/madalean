@@ -793,3 +793,38 @@
   changed in « Premiers pas › Outils » (reachable from the logo menu and Réglages); the components with install /
   repair are in « Réglages › Système » and « Premiers pas › Outils »; no « remove SageMath » button; with
   `tex_engine = system` the export tries the system's XeLaTeX, LuaLaTeX, then tectonic last.
+
+## D45 — « Expliquer » for Lean with a correction Lean accepted first; verified catalogue in the provers' prompts (TODO A8 + conductor follow-up, 2026-11-22, S-AM)
+- Request: « Expliquer l'erreur » (with a proposed correction) and « Expliquer ligne par ligne » on a Lean statement
+  or proof, in dossiers and notes, reusing the explain service; give the formalizer and the provers the verified Lean
+  constructions of S-AG's catalogue relevant to the request and the dossier's workspace, compact, cache-friendly.
+- **One service** (`research/explain.py`'s fast path, D35) with a Lean module (`research/leanexplain.py`) and one
+  endpoint (`POST /api/lean/explain`, also `/api/code/explain` with `language: lean`). The place (dossier statement /
+  proof, note block, free file) gives the workspace and the rules of a correction. Rejected: a separate Lean
+  explanation pipeline stage (job slot, dossier busy: an explanation must not block the dossier).
+- **A correction is shown only when Lean accepted it**: compiled with the warm Lean (D37) before display; a proof is
+  pinned to the dossier's statement (`assemble_proof`) and judged strictly; one repair round with Lean's errors, then
+  nothing is offered. Labelled « acceptée par Lean (vérification rapide) », never « vérifiée »; « Appliquer la
+  correction » = the manual-edit endpoints (new version, fresh strict check), so the dossier's rules are unchanged.
+  Rejected: offering an unchecked suggestion (the Sage choice of D35 — a Lean proof that does not compile is worth
+  nothing to the user); a quick check marking the version « vérifiée » (only the fresh strict check may, D37);
+  caching refused corrections (asking again may succeed).
+- **Goal states from Lean only**: `trace_state` inserted after each complete tactic (never inside a calc chain, an
+  alternative or a continued line) in a copy that is compiled once (warm path); Lean's information messages are the
+  goals; an error on an inserted line drops all goals. Rejected: asking the model for goals (invention); the warm
+  LSP's `$/lean/plainGoal` per position (a second protocol on the shared warm worker, more state to reset; the
+  `trace_state` copy gives the same text through the existing runner, on both Lean versions, at the cost of one
+  check: 2.2 s fresh / 0.04 s warm). Latency first: the model waits ≤ 4 s for them; header lines are glossed without
+  a model.
+- **Catalogue in the prompts** (`pipeline/leancat.py`, `codecat.lean_relevant` / `lean_prompt_block`): entries
+  relevant to the recognized intent (`intent.py`) and to the Lean names of the statement, only those in the
+  workspace's `verified` build (a failed or never-built entry is never given), in catalogue order, within a token
+  budget; appended to the END of the first user message of every Goedel-loop / Mathlib-first / tournament /
+  formalizer call (byte-identical across the rounds of a job: prefix caching unchanged), in the agent's task message
+  (its system prompt stays the cached prefix), after the conductor's cache breakpoint (stable block hash unchanged).
+  Measured (`scripts/dev/leancat_tokens.py`): +47 to +88 estimated tokens when relevant, 0 otherwise. Rejected: the
+  whole catalogue (≈ 460 tokens on every call, mostly irrelevant); a system block in front of Goedel's verbatim prompt (moves the
+  model's trained prompt, and changes the first bytes, i.e. every cached prefix).
+- UI (`components/LeanExplain.svelte`): one « Expliquer » menu right below the code (statement tools, proof tools,
+  the latest refused proof, the manual proof editor, each note block); S-AK rules (outside click / Escape, bottom
+  sheet on phones, focus back on the button); FR + EN; e2e incl. axe light desktop and dark 390 px.

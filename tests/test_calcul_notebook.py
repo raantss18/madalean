@@ -620,4 +620,6 @@ async def test_auto_fix_policy_recipes_detect_explain_and_kinds(tmp_path, monkey
         assert r.status == 400
         r = await s.post(L + "/api/code/explain", json={"language": "lean", "code": "theorem t : 1 = 1 := rfl",
                                                          "mode": "error"})
-        assert r.status == 400                                            # mode error needs an error
+        # S-AM (D45): without an error the server asks Lean itself; Lean accepts it → nothing to explain, no model
+        j = await r.json()
+        assert r.status == 200 and j["no_error"] and j["fix"] == "" and j["model"] == ""

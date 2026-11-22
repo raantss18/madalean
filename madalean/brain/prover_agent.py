@@ -213,10 +213,11 @@ class _Session:
 async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, statement: str, workspace_key: str,
                            check: CheckFn, library_search: Callable[[str], Awaitable[Any]] | None = None,
                            hint: str = "", on_chunk: OnChunk | None = None, mode: str = "auto", max_steps: int = 24,
-                           max_seconds: float = 900, only: str | None = None) -> dict:
+                           max_seconds: float = 900, only: str | None = None, request: str = "") -> dict:
     """Agentic proof search. Returns {code, model, steps, finish, transcript, checks, seconds}; `code` is the best
     code Lean accepted (the server re-checks it), finish: proved | max_steps | budget | error | gave_up.
-    `only`: run on this model key alone (tournament contestant, pipeline/tournament.py)."""
+    `only`: run on this model key alone (tournament contestant, pipeline/tournament.py). `request`: the problem in
+    words (S-AM, D45): with the statement, it selects the verified catalogue constructions given in the task."""
     t0 = time.monotonic()
     s = _Session(statement, check, retriever, workspace_key, on_chunk)
     settings = getattr(brain, "settings", {}) or {}
@@ -341,6 +342,14 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
                                 "that they fit):\n" + _fmt_decls(prem, 200))
         except Exception:  # noqa: BLE001
             premises_txt = ""
+    catalogue_txt = ""
+    try:                         # S-AM (D45): verified constructions of this workspace relevant to the request
+        from .rag import default_resolve
+        from ..pipeline.leancat import block_for
+        block, _ids = block_for(default_resolve(workspace_key), "prove", request, s.statement)
+        catalogue_txt = ("\n\n" + block) if block else ""
+    except Exception:  # noqa: BLE001 (no catalogue: the task as before)
+        catalogue_txt = ""
     target = s.statement.split("\n\n")[-1] if "theorem" in s.statement.split("\n\n")[-1] else s.statement
     task = (f"Prove this theorem (workspace {workspace_key}):\n\n```lean\n{target.strip()}\n```"
             + (f"\n\nOther declarations above it in the file (already available):\n```lean\n"
@@ -348,6 +357,7 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
                if s.statement.replace(leancheck.GOEDEL_HEADER, "").strip() != target.strip() else "")
             + (f"\n\nHint from the user: {hint.strip()}" if hint.strip() else "")
             + premises_txt
+            + catalogue_txt
             + "\n\nStart with your plan, then use the tools. Finish with `submit`.")
 
     kwargs: dict = {"mode": mode, "max_steps": max_steps, "max_seconds": max_seconds, "on_chunk": on_chunk}

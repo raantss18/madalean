@@ -2743,6 +2743,32 @@ const fr = {
   'home.dossiers': 'Dossiers du projet',
   'home.allDossiers': 'Tous les dossiers',
   'plan.closeSaves': 'Fermer (enregistré automatiquement)',
+
+  // S-AM (D45) : « Expliquer » pour Lean
+  'lx.menu': 'Expliquer',
+  'lx.error': 'Expliquer l’erreur',
+  'lx.lines': 'Expliquer ligne par ligne',
+  'lx.errorTitle': 'L’erreur, expliquée',
+  'lx.linesTitle': 'Explication ligne par ligne',
+  'lx.explaining': 'Explication en cours…',
+  'lx.checking': 'Lean vérifie la correction proposée…',
+  'lx.repairing': 'Lean a refusé la correction : nouvelle tentative…',
+  'lx.noError': 'Lean accepte ce code : il n’y a pas d’erreur à expliquer.',
+  'lx.fixAccepted': 'Correction acceptée par Lean {lean} (vérification rapide).',
+  'lx.fixLabel': 'Correction proposée',
+  'lx.apply': 'Appliquer la correction',
+  'lx.applyHint': 'Elle devient une nouvelle version, vérifiée à nouveau par Lean avant d’être dite « vérifiée ».',
+  'lx.fixRejected': 'Lean a refusé les corrections proposées : aucune n’est montrée.',
+  'lx.fixUnchecked': 'Pas de correction : Lean n’est pas disponible pour la vérifier.',
+  'lx.noFix': 'Pas de correction proposée.',
+  'lx.goalsFromLean': 'Les buts affichés sont ceux que Lean a donnés.',
+  'lx.noGoals': 'Lean n’a pas donné l’état du but pour ce code.',
+  'lx.goalAfter': 'But après cette ligne (Lean)',
+  'lx.goalNone': 'Aucun but : cette partie de la preuve est terminée.',
+  'lx.applied': 'Correction appliquée : nouvelle version.',
+  'lx.lastAttempt': 'Tentative {n}, refusée par Lean :',
+  'lx.lastVersion': 'Dernière preuve modifiée à la main, refusée par Lean :',
+  'lx.appliedRejected': 'Correction appliquée, mais la vérification complète de Lean la refuse.',
 } as const;
 
 export default fr;

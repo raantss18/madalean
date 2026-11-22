@@ -698,3 +698,60 @@ without the interface, never when the setting is off.
   the conductor with the new error (≤ 3 tries). Events `article.fix {state: working|proposed|none}`.
 
 **Not done**: the plan does not reorder or skip stages (it assigns models and hints).
+
+**Not done**: Sage / LaTeX corrections are not wired into Calcul or the article editor (owned by S-AG / S-R) — the
+cards and `Conductor.ask` are ready for it; the plan does not reorder or skip stages (it assigns models and hints).
+
+## 19. Lean explanations and the verified catalogue in the provers' prompts (session S-AM, DECISIONS D45)
+
+Files: `research/leanexplain.py` (prompts, goal states, the checked correction), `server/plugins/lean_explain.py`
+(`POST /api/lean/explain`, reached by the generic `POST /api/code/explain` with `language: lean`; API.md §3.8a),
+`pipeline/leancat.py` (catalogue block of a job's model calls), `research/codecat.py` (`lean_relevant`,
+`lean_prompt_block`), `web/src/components/LeanExplain.svelte`.
+
+**« Expliquer » for Lean** — the fast short-text path of §15 (`codegen.fast_complete`: `classify.task("transcribe")`,
+no job slot, staggered race), streamed (`lean.explain`), cached in memory like the Sage modes.
+- *Prompt*: plain French for a mathematician, tactics and Mathlib names in backticks with their mathematical meaning;
+  the workspace's versions (« Lean v4.9.0-rc1, Mathlib … »), a version note (Lean 4.9 / Goedel's Mathlib:
+  `Fintype.card`, `Nat.factors`, `∑ i in s`; current Mathlib: `Nat.card`, `Nat.primeFactorsList`, `∑ i ∈ s`), the
+  VERIFIED syntax card of the workspace (`syntaxcards.lean_card`) and the catalogue constructions relevant to the
+  code (below). Errors are Lean's own messages in Goedel's format (code around each error, `<error>` marks); the
+  model must quote only goals Lean printed.
+- *Correction*: compiled by the workspace's Lean before it is offered (`ctx.lean.check(…, warm=True)`: the warm Lean
+  of D37 answers in ≈ 0.04 s once running, a warm acceptance of a strict check is re-checked fresh by the runner
+  anyway). Rules of the place: a proof is assembled with the dossier's statement (`assemble_proof`: a changed
+  signature is never taken) and judged strictly (no `sorry`, standard axioms); a statement must compile (`sorry`
+  expected); a note's block must compile with its header, without a new `sorry`. Refused → one repair round with
+  Lean's errors → refused again: no correction is shown (« Lean a refusé les corrections proposées »). The UI says
+  « Correction acceptée par Lean v… (vérification rapide) », never « vérifiée »: « Appliquer la correction » goes
+  through the manual-edit endpoints (`…/statement`, `…/versions/proof`, the note's autosave + block check), whose
+  fresh strict check alone can make a proof « vérifiée ».
+- *Line by line*: one sentence per line; header lines (`import`, `open`, `set_option`) glossed without a model. Goal
+  states come from Lean only: `instrument` inserts `trace_state` after each complete tactic — at a tactic level
+  (after a line ending with `by` / `=>`, or a bullet), after the tactic's continuation lines and nested blocks,
+  never before `_ …` calc steps, `| …` alternatives, `<;>` or closing brackets; plus one before the first tactic of a
+  declaration (the goal to prove, shown on the theorem's line); a one-line `:= by sorry` statement gets that goal
+  only. Lean's information messages at the inserted lines are the goals (empty = « no goals »); an error ON an
+  inserted line drops every goal (the insertion may have changed the meaning). Measured on both Lean versions:
+  identical verdicts; the instrumented file costs what the plain one costs (2.2 s fresh on lean-prover49, 3.5 s on
+  lean-current with a warm page cache, 0.04 s warm). Latency first: the model waits ≤ 4 s for the goals; later goals
+  are still attached to the lines (not to the prompt).
+
+**Verified catalogue constructions in the prompts** — S-AG's Lean entries (`codecat.LEAN_ENTRIES`, compiled per
+workspace by `codecat.build_lean`: Lean 4.9 vs current spellings) relevant to the request are given to every model
+that writes Lean for a job. Relevance: the request's recognized intent (`intent.analyze` of the problem / what was
+understood / the statement: objects F_q, Z/nZ, K[x], Q(√d), matrices, S_n…, operations gcd, φ, primality, divisors,
+sums, determinant) plus Lean names already in the statement (`GaloisField`, `ZMod`, `∑`, `Nat.Prime` outside a
+`Fact` instance, `Matrix`…). Only entries **verified on the dossier's workspace** (in `verified` and not in
+`failed` of its build; nothing at all when the build is missing). Compact: `- doc:` + the verified code, in
+catalogue order (stable bytes for one request), within a token budget (prove 220, formalize 160, conductor 220).
+- Goedel loop, Mathlib-first, tournament contestants, formalizer: `JobIO.complete` (`leancat.inject`) appends the
+  block to the END of the first user message (after the verbatim Goedel prompt, like a user hint): every round of
+  a job sends a byte-identical first message, so provider prefix caching across rounds is unchanged.
+- Agent: in its task message (the system prompt, with the workspace's card, stays the stable cached prefix).
+- Conductor (`fix_statement`, `fix_proof`, `plan`): in the request block after the cache breakpoint
+  (`toolcards.compact(…, intent_text=…)`), the stable block byte-identical (same hash).
+- Measured (`scripts/dev/leancat_tokens.py`, estimated tokens ≈ 3.5 chars, both workspaces): odd-sum request
+  (`sum_range`) Goedel first message 149 → 204, formalizer 77 → 132, agent task 76 → 131, conductor request block
+  299 → 354; F_125 (`gf`) 150 → 237; primality / gcd ≈ +49; determinant +78; a request with nothing relevant
+  (x² + 1 > 0): unchanged. The conductor's stable block: 384 tokens before and after (lean-prover49), 377 (current).

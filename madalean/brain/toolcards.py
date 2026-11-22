@@ -211,6 +211,9 @@ ROLE_BUDGET = {"formalize": 450, "prove": 450, "explain": 200, "understand": 120
                "fix_sage": 450, "fix_python": 150, "fix_latex": 250}
 
 
+CATALOGUE_BUDGET = 220            # S-AM: tokens of verified catalogue constructions in a Lean-writing request block
+
+
 def _norm(text: str) -> str:
     return re.sub(r"[\W_]+", " ", text.lower()).strip()
 
@@ -237,9 +240,11 @@ def _render(c: Card, rules: list[Rule]) -> str:
 
 
 def compact(role: str, features: frozenset | set = frozenset(), ws=None, budget: int | None = None,
-            tools: tuple[str, ...] | None = None) -> Compacted:
+            tools: tuple[str, ...] | None = None, intent_text: str = "") -> Compacted:
     """The rule cards of `role`'s tools, compacted for one request: core rules in the stable block, feature rules in
-    the request block (deduplicated across cards, cut to `budget` tokens, lowest priority = last in card order)."""
+    the request block (deduplicated across cards, cut to `budget` tokens, lowest priority = last in card order).
+    `intent_text` (S-AM, D45): for a role that writes Lean, the code catalogue's constructions relevant to it and
+    verified on `ws` are added to the request block (after the cache breakpoint: the stable block is unchanged)."""
     tools = ROLE_TOOLS.get(role, ()) if tools is None else tools
     budget = ROLE_BUDGET.get(role, 300) if budget is None else budget
     cards = [card(t, ws) for t in tools]
@@ -284,7 +289,16 @@ def compact(role: str, features: frozenset | set = frozenset(), ws=None, budget:
         for c, r in picked:
             by.setdefault(c.title, []).append(r)
         req = "# Rules for this request\n" + "\n".join(f"- {r.text}" for rs in by.values() for r in rs)
-    full = "\n".join(_render(c, c.rules) for c in cards)
+    if intent_text and "lean" in tools and ws is not None:
+        try:
+            from ..research import codecat
+            cat, ids = codecat.lean_prompt_block(ws, intent_text, budget=CATALOGUE_BUDGET)
+        except Exception:  # noqa: BLE001 (no catalogue: the cards as before)
+            cat, ids = "", []
+        if cat:
+            req = (req + "\n\n" + cat) if req else cat
+            picked += [(None, Rule(f"cat-{i}", "")) for i in ids]      # listed in `selected` (measured)
+    full ="\n".join(_render(c, c.rules) for c in cards)
     all_cards = "\n".join(_render(c, c.rules) for c in (card(t, ws) for t in TOOLS))
     return Compacted(stable, req, hashlib.sha256(stable.encode()).hexdigest()[:12], estimate_tokens(full),
                      estimate_tokens(all_cards), estimate_tokens(stable), estimate_tokens(req),
