@@ -31,7 +31,8 @@ synchronisés. Les appareils joignent l'hôte uniquement par votre réseau priv�
 
 ## Plan du manuel
 
-- **Démarrer** : [Installer sur l'ordinateur hôte](install.md) · [Premier démarrage](first-run.md) ·
+- **Démarrer** : [Installer Madalean](install.md) · [Ce qu'installe Madalean](components.md) ·
+  [Première configuration](first-config.md) · [Premier démarrage](first-run.md) ·
   [Relier un téléphone, une tablette, un PC](pairing.md) · [Tailscale](tailscale.md)
 - **Travailler** : [De l'énoncé à la preuve](workflow.md) · [Lire un énoncé Lean](reading-lean.md) ·
   [Demandes de suivi et versions](follow-ups.md) · [Projets et dossiers en parallèle](projects.md) ·

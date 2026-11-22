@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.0.1 — à venir
+
+Travail en cours (branches non encore publiées) :
+
+**Installation guidée**
+- Installateur graphique `Madalean-installer.run` : il vérifie sa propre intégrité, examine la machine (carte
+  graphique, mémoire, disque, SageMath, TeX Live, Python, Lean, Ollama, Tailscale déjà présents), propose un plan
+  adapté (réutiliser un outil déjà installé ou installer la copie de Madalean, modèle local conseillé ou non) et
+  montre l'installation en direct dans le navigateur, avec « Réessayer » en cas d'erreur.
+- Le même assistant dans le terminal (`./install.sh`) ; `./install.sh --yes` garde les choix par défaut, sans
+  question ; `--dry-run` montre le plan sans rien installer ; nouvelles options `--models`, `--sage`, `--tex`, `--plan`.
+- SageMath et TeX Live déjà installés sur l'ordinateur peuvent être réutilisés (même bac à sable).
+- Les choix d'installation sont gardés et appliqués au premier démarrage ; l'application peut les lire.
+
+**Site**
+- Nouvel accueil (démonstration animée, fonctions, fonctionnement, installation en 3 étapes, questions
+  fréquentes), page « À propos » avec les coordonnées de l'auteur, guide complet d'installation et de première
+  configuration ; téléchargements classés serveur / clients, toujours vers la dernière version.
+
+**Applications**
+- « À propos » avec les coordonnées de l'auteur dans l'application Android et l'application de bureau ; licence
+  indiquée dans l'application web.
+
+**Interface** — nouvelle présentation de l'application web : en cours (session S-AK).
+
 ## 2.0.0 — 2026-11-22
 
 **Une nouvelle application.** « Lean AI Station » devient **Madalean** : un serveur sur l'ordinateur hôte, une

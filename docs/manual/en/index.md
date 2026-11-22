@@ -30,7 +30,8 @@ host only through your private Tailscale network.
 
 ## Map of the manual
 
-- **Getting started**: [Install on the host computer](install.md) · [First run](first-run.md) ·
+- **Getting started**: [Installing Madalean](install.md) · [What Madalean installs](components.md) ·
+  [First configuration](first-config.md) · [First run](first-run.md) ·
   [Link a phone, a tablet, a PC](pairing.md) · [Tailscale](tailscale.md)
 - **Working**: [From statement to proof](workflow.md) · [Reading a Lean statement](reading-lean.md) ·
   [Follow-up requests and versions](follow-ups.md) · [Projects and parallel dossiers](projects.md) ·

@@ -324,7 +324,7 @@ class Renderer:
         def cell(tag: str, txt: str, j: int) -> str:
             cls = f' class="al-{al[j]}"' if j < len(al) and al[j] else ""
             return f"<{tag}{cls}>{self._inline(txt)}</{tag}>"
-        out = ['<div class="table-wrap"><table><thead><tr>']
+        out = ['<div class="table-wrap" tabindex="0"><table><thead><tr>']
         out += [cell("th", c, j) for j, c in enumerate(hc)]
         out.append("</tr></thead><tbody>")
         for r in rows:

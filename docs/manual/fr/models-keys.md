@@ -10,7 +10,9 @@ summary: Les modes Local / Automatique / En ligne, ce qui part et vers qui, comm
 # Modèles et clés
 
 Madalean fonctionne **sans aucune clé** : modèles locaux installés sur l'hôte et fournisseurs en ligne gratuits sans
-compte. Une clé ajoute les modèles d'un fournisseur, souvent plus forts.
+compte. Une clé ajoute les modèles d'un fournisseur, souvent plus forts. La liste des fournisseurs, avec pour
+chacun ce qui est gratuit et où créer la clé, est dans [Première configuration](first-config.md#cles-des-fournisseurs-en-ligne) ;
+les modèles locaux sont décrits dans [Ce qu'installe Madalean](components.md#modeles-locaux).
 
 ## Les trois modes
 

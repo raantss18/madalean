@@ -839,7 +839,7 @@ const en: Record<keyof typeof fr, string> = {
   'about.author': 'Author',
   'about.contact': 'Contact',
   'about.licences': 'Licences',
-  'about.licencesText': 'Fonts Source Sans 3 and Source Serif 4 (SIL OFL 1.1, Adobe), DejaVu Sans Mono (Bitstream Vera licence, DejaVu changes in the public domain). Svelte, CodeMirror, KaTeX, markdown-it (MIT), DOMPurify (Apache 2.0 / MPL 2.0), uqr (MIT).',
+  'about.licencesText': 'Madalean is released under the Apache-2.0 licence. Fonts Source Sans 3 and Source Serif 4 (SIL OFL 1.1, Adobe), DejaVu Sans Mono (Bitstream Vera licence, DejaVu changes in the public domain). Svelte, CodeMirror, KaTeX, markdown-it (MIT), DOMPurify (Apache 2.0 / MPL 2.0), uqr (MIT).',
 
   'err.network': 'The host computer is not answering: check that it is on and connected.',
   'err.generic': 'Unexpected error ({code}). Try again; if it persists, see Settings › System.',

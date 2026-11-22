@@ -12,6 +12,85 @@ summary: Error messages in plain language, their cause and what to do.
 “Settings › System”, “Health” part, shows the state of each component (Lean workspaces, models, TeX, fonts, Jupyter,
 sandbox, disk) with a “Repair” button when one exists. Start there.
 
+## Installation
+
+The full installation log is in `~/.local/share/madalean/install.log`. `install.sh` is safe to run again: it resumes
+where it stopped. See [Installing Madalean](install.md).
+
+### The .run installer does not start
+
+- **Nothing happens on double-click, or “Permission denied”**: the file is not executable. Right-click › “Properties”
+  › “Permissions” › “Allow executing file as program”, or in a terminal `chmod +x Madalean-installer.run`, then
+  start it again.
+- **Double-clicking opens the file in a text editor**: start it from a terminal, `./Madalean-installer.run`
+  (with the right version number).
+- **“Damaged or modified file (wrong SHA-256)”**: the file was damaged during the download, or it is
+  incomplete. Delete it and **download it again** from the releases page; never bypass this check.
+
+
+### No browser opens
+
+Without a graphical session, the installer switches by itself to the terminal assistant. If there is a desktop but no
+browser opens, the installer prints the address of its page in the terminal (`http://127.0.0.1:…`, with its
+one-time key): copy it into a browser on the **same** computer. You can also force the terminal assistant from
+source: `./install.sh --assistant` (or `./Madalean-installer.run --terminal`).
+
+### The disk is full
+
+Step 1 shows the free space. Plan for ≈ 6 GB without local models or SageMath, ≈ 25 GB with the local models, 5 GB
+more for SageMath (see [Installing Madalean](install.md#before-you-start)). Free some space, or reduce the plan:
+`--models none` (or `--models prover`), `--sage later`. Then run `install.sh` again: what is already installed is not
+redone. Ongoing downloads are kept in `~/.local/share/madalean/downloads/` and resumed.
+
+### “micromamba failed”
+
+Installing the main environment (step 3) failed, most often because of a network interruption or a full disk. The
+last lines of the log are shown; details are in `~/.local/share/madalean/install.log`. Check the connection and the
+free space, then run `install.sh` again.
+
+### “Wrong SHA-256 fingerprint: …”
+
+A downloaded file does not match the expected fingerprint: it was truncated or altered on the way. The faulty file
+is deleted; run `install.sh` again, which downloads it again. If the error repeats, a proxy or filter on your network
+may be modifying downloads.
+
+### No NVIDIA card, or driver too old
+
+This is not an error: Madalean then installs the processor version of the model engine and advises no local model.
+Online models work normally. If you do have an NVIDIA card, check that the driver is installed (`nvidia-smi` must
+answer), then run `./install.sh --gpu` again. See [Local models](components.md#local-models).
+
+### The system's SageMath is not used
+
+To be reused, your system's SageMath must be version 10.0 or newer **and** provide its Jupyter kernel `sagemath`
+(for example `/usr/share/jupyter/kernels/sagemath`). Otherwise Madalean uses its own copy (≈ 5 GB). Install the
+Jupyter kernel with your distribution, or let Madalean install its copy. See [SageMath](components.md#sagemath).
+
+### LaTeX export fails
+
+“Settings › System”, “Health” part, “LaTeX (PDF export)” line: “Repair” reinstalls the TeX bundle. If you use the
+system's TeX Live first (`tex_engine = system`), it must be version 2022 or newer, with `fontspec`. See also
+[Export](#export) below and [LaTeX](components.md#latex).
+
+### The service does not start
+
+At the end of the installation, “The server does not answer yet” means the service did not start in time. Look at
+its log:
+
+```bash
+systemctl --user status madalean
+journalctl --user -u madalean -e
+```
+
+The log gives the cause (port 11500 already taken by another program, missing component…). If `systemctl --user` is
+not available (some containers or sessions without systemd), start Madalean by hand:
+`~/.local/share/madalean/current/bin/madalean serve`.
+
+### The sandbox is reported inactive
+
+bubblewrap is not installed: it is a package of your distribution, to install yourself (for example
+`sudo apt install bubblewrap`). See [bubblewrap](components.md#bubblewrap-the-sandbox).
+
 ## Connection and devices
 
 ### The device cannot reach the host

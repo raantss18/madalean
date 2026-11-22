@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:madalean_shell/src/about_screen.dart';
 import 'package:madalean_shell/src/address.dart';
 import 'package:madalean_shell/src/controller.dart';
 import 'package:madalean_shell/src/scan_screen.dart';
@@ -17,11 +18,15 @@ class ConnectScreen extends StatefulWidget {
     this.updater,
     this.openTailscale,
     this.openAppSettings,
+    this.version = '',
     super.key,
   });
   final ShellController controller;
   final ConnectState state;
   final Updater? updater;
+
+  /// Installed app version, shown in « À propos ».
+  final String version;
 
   /// Native actions (null in tests).
   final Future<String> Function()? openTailscale;
@@ -158,6 +163,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
         title: const Text('Madalean'),
         actions: [
           LanguageMenu(controller: c),
+          AboutButton(strings: s, version: widget.version),
           if (widget.updater != null)
             IconButton(
               tooltip: s.settings,
@@ -377,11 +383,15 @@ class UnreachableScreen extends StatelessWidget {
     required this.controller,
     required this.state,
     this.openTailscale,
+    this.version = '',
     super.key,
   });
   final ShellController controller;
   final UnreachableState state;
   final Future<String> Function()? openTailscale;
+
+  /// Installed app version, shown in « À propos ».
+  final String version;
 
   @override
   Widget build(BuildContext context) {
@@ -389,7 +399,12 @@ class UnreachableScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final known = state.tailscale || state.net != null;
     return Scaffold(
-      appBar: AppBar(actions: [LanguageMenu(controller: controller)]),
+      appBar: AppBar(
+        actions: [
+          LanguageMenu(controller: controller),
+          AboutButton(strings: s, version: version),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

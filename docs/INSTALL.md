@@ -10,6 +10,81 @@ the system except the NVIDIA driver (for the GPU engine) and a few universal pro
 ./uninstall.sh               # lists, asks, removes the prefix + the unit + the menu entry (keeps settings and models)
 ```
 
+**Guided install (S-AL, DECISIONS D44).** In a terminal, `./install.sh` first checks the machine and shows a
+recommended plan (one engine, `madalean/deps/assistant.py`, shared with the graphical installer and `GET /api/setup`):
+
+```text
+==> Assistant d'installation : vérification de la machine
+
+Votre machine
+  Processeur       AMD Ryzen 7 7735HS with Radeon Graphics (16 threads)
+  Mémoire          31 Go
+  Disque libre     924 Go (/home/me/.local/share/madalean)
+  Carte graphique  aucune carte NVIDIA
+  SageMath         10.10 compatible
+  TeX Live         2026 compatible
+  Python           3.14.10, 3.10
+  elan / Lean      leanprover/lean4:v4.29.1, leanprover/lean4:v4.34.1
+  Ollama           0.18.2
+  Tailscale        1.104.7
+  bubblewrap       présent
+
+Plan conseillé pour cette machine
+  • Modèles d'IA locaux : Aucun modèle local (modèles en ligne)
+      Pas de modèle local conseillé : sans carte NVIDIA d'au moins 8 Go, un modèle local serait très lent. …
+  • Moteur des modèles locaux (llama.cpp) : Processeur seulement (léger, 23 Mo)
+  • SageMath (calcul) : Réutiliser le SageMath déjà installé
+      SageMath 10.10 est déjà installé et compatible (version ≥ 10.0, noyau Jupyter présent) : le réutiliser
+      économise 5 Go ; votre distribution le met à jour. Le même bac à sable s'applique.
+  • LaTeX (export PDF, articles) : tectonic de Madalean (épinglé, hors ligne)
+  • Espace Lean + Mathlib : Construire lean-current maintenant (≈ 5 Go, réseau)
+  • Où travaillent les modèles : En ligne seulement
+  ! Ollama est présent : il reste installé ; …
+
+Plan retenu :
+  1. Modèles d'IA locaux : Aucun modèle local (modèles en ligne) (conseillé)
+  …
+  Place nécessaire ≈ 11 Go
+[Entrée] installer ce plan · numéro (1-6) pour changer un élément · q pour quitter : 3
+    1) Copie de Madalean, installée au premier calcul (≈ 1,5 Go à télécharger, 5 Go)
+    2) Copie de Madalean, installée maintenant (≈ 1,5 Go à télécharger, 5 Go)
+    3) Réutiliser le SageMath déjà installé  ← conseillé
+Choix : 3
+…
+[Entrée] installer ce plan · … :
+==> 1/9 Vérifications
+```
+
+| | |
+|---|---|
+| When | interactive only when stdin and stdout are terminals (or `--assistant`) and neither `--yes` nor `--plan` is given |
+| `--yes` / not a TTY | the 2.0.0 defaults, no question: models all, llama.cpp auto, Sage on first use, tectonic, import workspaces, mode auto |
+| `--plan FILE` | a plan written by the assistant or the graphical installer (`{"plan": {...}}`) |
+| `--dry-run` | machine check + recommended plan (or the defaults with `--yes`), installs and writes nothing |
+| `--models all\|prover\|none`, `--sage later\|now\|system`, `--tex own\|system` | per-item choices (also `--cpu`, `--no-models`, `--no-workspaces`, `--build-workspace`) |
+| needs | a `python3` ≥ 3.8 (the system's; else the assistant runs right after step 3 with Madalean's own Python) |
+| records | `<config-dir>/setup.json` (`madalean-setup/1`): detected machine, recommended + chosen plan, result, settings to apply (`sage_source`, `tex_engine`, `mode`, applied **once** at first start), history |
+| never | sudo, a package manager, or a system change: missing bubblewrap → the exact command is printed |
+
+**Reuse of system tools.** `sage_source = system` uses the system SageMath through its `sagemath` Jupyter kernel
+(≥ 10.0 recommended); `tex_engine = system` tries the system TeX Live (latexmk + XeLaTeX/LuaLaTeX, fontspec) before
+tectonic. Both run in the same sandbox as Madalean's own copies (Sage launcher: environment allow-list, private home,
+rlimits, bubblewrap with the file system read-only; TeX: `tex_confine`). `auto` (default) keeps the 2.0.0 order.
+
+**Graphical installer** `Madalean-installer.run` (`scripts/build_installer.sh`, `packaging/installer/`): checks the
+SHA-256 of its payload and the `SHA256SUMS` inside before unpacking; then, with a graphical session and `python3`, a
+local wizard (127.0.0.1, random port, one-time token, Host/Origin checks, strict CSP) in the browser: welcome → machine
+→ plan → live progress of `install.sh --plan` (« Réessayer », « Voir le détail ») → first configuration (« Ouvrir
+Madalean ») → done; stops on « Fermer » or after 30 min idle. Options: `--terminal`, `--yes`, `--check`, `--extract
+DIR`, `--no-browser`; other arguments go to install.sh. A browser-downloaded file must be made executable first
+(Properties › Allow executing, or `chmod +x`).
+
+`GET /api/setup` (host only, plugin `server/plugins/setup_api.py`): `{schema: "madalean-setup-status/1", setup
+(setup.json or null), detected, prefs {sage_source, tex_engine, mode, wizard_done}, components (as /api/deps), reuse
+{sage {preference, used: own|system|"", ok, system}, tex {preference, used: tectonic|system|"", ok, engines, system}},
+keys [provider names], devices (count), next_steps [{id: keys|workspace|sandbox|sage|tex|components|pair, done, title
+{fr, en}, help: manual page id}]}`; `?refresh=1` re-runs the machine check.
+
 `install.sh --help` lists every option (`--prefix`, `--config-dir`, `--cache-dir`, `--unit-name`, `--no-systemd`,
 `--no-desktop`, `--no-models`, `--no-workspaces`, `--build-workspace`, `--build-net`, `--port`, `--remote-port`,
 `--serve-args`). It is idempotent and resumable: downloads resume (`curl -C -` / HTTP Range), a verified file is

@@ -23,7 +23,7 @@ h2 { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: 
 label { display: block; font-weight: 600; font-size: .9rem; margin: 10px 0 4px; }
 input { width: 100%; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
 input.code { font-family: "DejaVu Sans Mono", ui-monospace, monospace; letter-spacing: .25em; width: 9.5em; }
-input:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .row { display: flex; gap: 14px; flex-wrap: wrap; } .grow { flex: 1; min-width: 180px; }
 .btn { font: inherit; border-radius: 8px; padding: 9px 16px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--ink); color: var(--card); border-color: var(--ink); font-weight: 600; margin-top: 6px; }
@@ -45,3 +45,7 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--focus); out
 .check input { width: auto; }
 .upd-row { align-items: center; }
 .btn.primary-s { background: var(--ink); color: var(--card); border-color: var(--ink); }
+.about-list { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; margin: 0; font-size: .9rem; }
+.about-list dt { color: var(--muted); font-weight: 600; }
+.about-list dd { margin: 0; overflow-wrap: anywhere; }
+.about-list a { color: var(--ink); display: inline-block; padding: 2px 0; }

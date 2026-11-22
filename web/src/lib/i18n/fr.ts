@@ -838,7 +838,7 @@ const fr = {
   'about.author': 'Auteur',
   'about.contact': 'Contact',
   'about.licences': 'Licences',
-  'about.licencesText': 'Polices Source Sans 3 et Source Serif 4 (SIL OFL 1.1, Adobe), DejaVu Sans Mono (licence Bitstream Vera, domaine public pour les ajouts DejaVu). Svelte, CodeMirror, KaTeX, markdown-it (MIT), DOMPurify (Apache 2.0 / MPL 2.0), uqr (MIT).',
+  'about.licencesText': 'Madalean est distribué sous licence Apache-2.0. Polices Source Sans 3 et Source Serif 4 (SIL OFL 1.1, Adobe), DejaVu Sans Mono (licence Bitstream Vera, domaine public pour les ajouts DejaVu). Svelte, CodeMirror, KaTeX, markdown-it (MIT), DOMPurify (Apache 2.0 / MPL 2.0), uqr (MIT).',
 
   'err.network': 'L’ordinateur hôte ne répond pas : vérifiez qu’il est allumé et relié au réseau.',
   'err.generic': 'Erreur inattendue ({code}). Réessayez ; si cela continue, voir Réglages › Système.',

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Sign a Madalean release (ARCHITECTURE §16). Usage: scripts/sign_release.sh DIR
-#   DIR contains the files to publish (madalean-<version>.tar.gz, AppImage, APK…).
+#   DIR contains the files to publish (scripts/stage_release.sh: madalean-server.tar.gz, Madalean-installer.run,
+#   Madalean-x86_64.AppImage, Madalean-android*.apk — stable names since 2.0.1, D44; madalean-<version>.tar.gz before).
 # Writes DIR/SHA256SUMS (sha256 of every file of DIR) and DIR/SHA256SUMS.sig (base64 Ed25519 signature of SHA256SUMS)
 # with the private key kept OUTSIDE git: ~/.config/madalean/release-keys/ed25519.pem (or $MADALEAN_RELEASE_KEY).
 # Then checks the signature against the public key embedded in madalean/update_checkers/selfupdate.py, and writes
@@ -42,7 +43,11 @@ from madalean.update_checkers.selfupdate import PUBLIC_KEY, signature_valid
 ok = signature_valid(PUBLIC_KEY, open("SHA256SUMS", "rb").read(), open("SHA256SUMS.sig").read())
 print("signature OK (embedded public key)" if ok else "signature does NOT match the embedded public key")
 sys.exit(0 if ok else 1)'
-VERSION=$(printf '%s\n' $files | sed -n 's/^madalean-\(.*\)\.tar\.gz$/\1/p' | head -1)
+VERSION=$(printf '%s\n' $files | sed -n 's/^madalean-\([0-9][^/]*\)\.tar\.gz$/\1/p' | head -1)
+if [ -z "$VERSION" ] && [ -f madalean-server.tar.gz ]; then   # stable asset names (D44): version from the archive
+  VERSION=$(tar -xzOf madalean-server.tar.gz --wildcards '*/madalean/__init__.py' \
+            | sed -n 's/^__version__ = "\(.*\)"/\1/p' | head -1)
+fi
 if [ -n "$VERSION" ]; then
   SITE=${SITE_DIR:-$ROOT/site}
   mkdir -p "$SITE/updates"

@@ -19,6 +19,10 @@ existe (à lancer depuis l'ordinateur hôte).
 
 ## Trois choix à faire
 
+Ces choix, les clés des fournisseurs et chaque comportement automatique sont détaillés dans
+[Première configuration](first-config.md).
+
+
 1. **Où travaillent les modèles** (« Réglages › Modèles ») :
    - *Local* : rien ne quitte l'ordinateur hôte ; seuls les modèles installés ici travaillent.
    - *Automatique* (par défaut) : le meilleur modèle disponible, en ligne d'abord, les modèles locaux si le réseau

@@ -1,6 +1,8 @@
 # Madalean site, reference manual and publication template (session S-F)
 
-ARCHITECTURE §17: the GitHub Pages site has three roles and no showcase: **reference manual** (one Markdown source,
+**S-AL (D44): the site now opens on a showcase** — root `index.html` (French) and `en/home.html` (English), built by `site/madasite/home.py`: hero with the wordmark, CSS-only demo « énoncé → Lean → preuve vérifiée » (still frames under `prefers-reduced-motion`), features, screenshots (the manual's), SVG « comment ça marche », install in 3 steps, FAQ, author band; `fr|en/about.html` (author, e-mail, GitHub, licence, credits). Every page has the top navigation Accueil · Installer · Guide · Manuel · À propos · Chercher and a footer with the author's contacts and the licence (`layout.site_footer`). The download page (`install.py`) is grouped **server** (`Madalean-installer.run` recommended, sources + `install.sh`, `madalean-server.tar.gz`) / **clients** (APK + QR code, AppImage, browser). **No version is displayed anywhere**: links go to `https://github.com/raantss18/madalean/releases/latest/download/<stable name>` when the published release has that name, else to `releases/latest` (stable names: `scripts/stage_release.sh`). Guide pages added to the manual: `install` (rewritten), `components`, `first-config` (25 pages per language). External link allow-list extended with the providers' key pages and `github.com/raantss18`.
+
+ARCHITECTURE §17: the GitHub Pages site has three roles (before S-AL: no showcase): **reference manual** (one Markdown source,
 also the in-app help), **signed update channel**, **publication of verified work** (template used by « Publier »).
 It plays no part in synchronisation.
 
@@ -26,7 +28,7 @@ scripts/build_site.sh --preview       # + sample publication + install page with
 python3 site/build.py publication --input DIR --out OUT      # render a project (DIR/publication.json + DIR/files/)
 ```
 
-Output (`site/_site/`): `index.html` (neutral bilingual door: links only), `fr/` and `en/` (manual pages
+Output (`site/_site/`): `index.html` (French showcase home; `en/home.html` English), `fr|en/about.html`, `fr/` and `en/` (manual pages
 `<id>.html`, `download.html` = install page, `search.html`), `updates/` (`stable.json`, `stable.json.sig`,
 `madalean-release.pub.pem`, `index.html`), `assets/` (css, js, fonts, KaTeX css+fonts, generated `math.css`,
 `search-fr.json`, `search-en.json`), `img/`, `404.html`, `.nojekyll`.
@@ -78,7 +80,7 @@ Text…
   from the output, collected in `index.json` (`verify`) and counted by the build. The integrator checks each one and
   deletes the comment.
 
-Pages (23 per language): index, install, first-run, pairing, tailscale · workflow, reading-lean, follow-ups, projects,
+Pages (25 per language): index, install, components, first-config, first-run, pairing, tailscale · workflow, reading-lean, follow-ups, projects,
 proof-plans · conjectures, sources, articles, notes, jupyter, publish · models-keys, updates, security ·
 troubleshooting · glossary, tactics, shortcuts.
 

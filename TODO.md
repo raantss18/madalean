@@ -102,7 +102,29 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 ### C — Avant la publication 2.0.0 (sur ton accord)
 17. ✅ Essai continu de 2 h (0 erreur) + 1 h sur les mêmes dossiers ; ✅ suite de tests ; ✅ manuel (23 points) ; ✅ README et notes de version
 18. ⬜ Tes essais : APK 2.0.1 (scan dans l'app), Calcul, une vraie preuve (coût Hugging Face), GitHub « Tester la connexion »
-19. ⬜ Publication : fusion v2 → main, tag v2.0.0, release signée, site GitHub Pages — **seulement sur ton accord**
+19. ✅ Publication 2.0.0 : v2 fusionnée dans main, tag v2.0.0, release GitHub signée, GitHub Pages activé, canal
+    de mises à jour en ligne (https://raantss18.github.io/madalean/)
+
+### E — 2.0.1 : site, installation guidée, contacts (session S-AL, D44, branche s-al-site-setup)
+20. ⚠️ Site plus attrayant : accueil vitrine (démonstration animée énoncé → Lean → preuve vérifiée, fonctions,
+    « Comment ça marche », installer en 3 étapes, questions fréquentes), page « À propos » avec tes coordonnées,
+    pages de guide et de manuel au style académique ; aucune version affichée, liens toujours vers la dernière
+    version — à regarder par toi
+21. ⚠️ Guide complet d'installation et de première configuration sur le site (FR/EN) : installer, ce qu'installe
+    Madalean composant par composant, première configuration (clés, modes, automatique/manuel), dépannage
+22. ⚠️ Assistant d'installation dans le terminal (`./install.sh`) : examen de la machine, plan conseillé, chaque
+    choix modifiable ; `--yes` inchangé ; SageMath ou TeX Live du système réutilisables ; choix gardés dans
+    `~/.config/madalean/setup.json`, lus par Madalean (`GET /api/setup`)
+23. ⚠️ Installateur graphique `Madalean-installer.run` (assistant dans le navigateur, progression en direct,
+    « Réessayer ») — à essayer par toi sur un vrai téléchargement à la prochaine version
+24. ⚠️ « À propos » avec tes coordonnées dans l'application web, l'application Android et l'AppImage
+25. ⬜ Prochaine release : noms de fichiers stables (`Madalean-installer.run`, `madalean-server.tar.gz`,
+    `Madalean-x86_64.AppImage`, `Madalean-android*.apk`) avec `scripts/stage_release.sh` puis
+    `scripts/sign_release.sh` — sur ton accord ; d'ici là les liens du site ouvrent la page de la dernière version
+26. ⬜ Assistant de premier démarrage dans l'application (session suivante, sur la nouvelle interface de S-AK) : lit
+    `GET /api/setup` (machine, plan, prochaines étapes) et règle clés, mode, comportements automatiques
+27. ⬜ Texte « environ 2 Go » de l'écran Calcul sans SageMath : 1,5 Go à télécharger, 5 Go sur le disque (S-AK)
+28. ⬜ Icône 32x32 de l'AppImage à convertir en RGBA (`cargo check` refuse l'icône actuelle)
 
 ### D — Plus tard
 - Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (aujourd'hui seulement pour Hugging Face)
@@ -144,7 +166,7 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 14. ✅ Clé Gemini présente et acceptée par Google (le modèle de test était surchargé : 503)
 
 ### P2 — publication (sur ton accord)
-13. ⬜ Fusion `v2` → `main`, tag `v2.0.0`, release signée (AppImage, APK, canal de mises à jour), site GitHub Pages
+13. ✅ Fusion `v2` → `main`, tag `v2.0.0`, release signée (AppImage, APK, canal de mises à jour), site GitHub Pages
 14. ⬜ Tests de l'AppImage et de l'APK après la release (toi), puis retrait de l'ancienne application 1.1.4
 
 ### Après la 2.0.0
@@ -214,9 +236,9 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 - ✅ 0 faille connue (Python, Go) ; SBOM ; exception : pillow dans Sage (documentée)
 - ⚠️ Vraie connexion Tailscale et moteur CUDA avec un vrai modèle non essayés
 
-## 6. Site GitHub Pages (session S-F, Opus) — ✅ prêt, pas en ligne
+## 6. Site GitHub Pages (session S-F, Opus) — ✅ en ligne (2.0.0)
 - ✅ Manuel FR/EN (23 pages), page d'installation avec QR codes, canal de mises à jour, modèle de publication
-- ⬜ Mise en ligne après ton accord ; 44 points du manuel à vérifier à l'intégration
+- ✅ Mise en ligne (2.0.0) ; points « à vérifier » du manuel restants : 14 (liste : docs/SITE.md §7)
 - ⬜ README, CHANGELOG 2.0.0, DECISIONS, ACCEPTANCE à finaliser
 
 ## 6 bis. Sécurité et robustesse (session S-H, Opus, indépendante des auteurs) — avant publication
@@ -230,4 +252,4 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 - ⬜ Tests réels : modèles locaux (carte graphique), fournisseurs gratuits, Claude et Gemini avec tes clés
 - ⬜ Appairage réel par Tailscale (téléphone, tablette, autre PC)
 - ⬜ Migration de tes dossiers, retrait de l'ancienne application PySide6
-- ⬜ Version 2.0.0 : tag, release (AppImage, APK), site en ligne
+- ✅ Version 2.0.0 : tag, release (AppImage, APK), site en ligne

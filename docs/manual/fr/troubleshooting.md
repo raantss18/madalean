@@ -12,6 +12,90 @@ summary: Les messages d'erreur en clair, leur cause et quoi faire.
 « Réglages › Système », partie « État de santé », montre l'état de chaque composant (espaces Lean, modèles, TeX,
 polices, Jupyter, bac à sable, disque) avec un bouton « Réparer » quand il en existe un. Commencez par là.
 
+## Installation
+
+Le journal complet de l'installation est dans `~/.local/share/madalean/install.log`. `install.sh` peut être relancé
+sans risque : il reprend où il s'était arrêté. Voir [Installer Madalean](install.md).
+
+### L'installateur .run ne démarre pas
+
+- **Rien ne se passe au double-clic, ou « Permission non accordée »** : le fichier n'est pas exécutable. Clic droit ›
+  « Propriétés » › « Permissions » › « Autoriser l'exécution du fichier comme un programme », ou dans un terminal
+  `chmod +x Madalean-installer.run`, puis relancez-le.
+- **Le double-clic ouvre le fichier dans un éditeur de texte** : lancez-le depuis un terminal,
+  `./Madalean-installer.run`.
+- **« Fichier abîmé ou modifié (empreinte SHA-256 incorrecte) »** : le fichier a été abîmé pendant le
+  téléchargement, ou il est incomplet. Supprimez-le et **téléchargez-le de nouveau** depuis la page des versions ;
+  ne contournez jamais ce contrôle.
+
+
+### Aucun navigateur ne s'ouvre
+
+Sans session graphique, l'installateur passe tout seul à l'assistant en terminal. S'il y a bien un bureau mais
+qu'aucun navigateur ne s'ouvre, l'installateur affiche dans le terminal l'adresse de sa page
+(`http://127.0.0.1:…`, avec sa clé à usage unique) : copiez-la dans un navigateur de la **même** machine. Vous pouvez
+aussi forcer l'assistant en terminal : `./Madalean-installer.run --terminal` (ou, depuis les sources,
+`./install.sh --assistant`).
+
+### Le disque est plein
+
+L'étape 1 affiche la place libre. Prévoyez ≈ 6 Go sans modèle local ni SageMath, ≈ 25 Go avec les modèles locaux,
+5 Go de plus pour SageMath (voir [Installer Madalean](install.md#ce-quil-faut-avant-de-commencer)). Libérez de la
+place, ou réduisez le plan : `--models none` (ou `--models prover`), `--sage later`. Relancez ensuite
+`install.sh` : ce qui est déjà installé n'est pas refait. Les téléchargements en cours sont gardés dans
+`~/.local/share/madalean/downloads/` et repris.
+
+### « Échec de micromamba »
+
+L'installation de l'environnement principal (étape 3) a échoué, le plus souvent à cause d'une coupure de réseau ou
+d'un disque plein. Les dernières lignes du journal sont affichées ; le détail est dans
+`~/.local/share/madalean/install.log`. Vérifiez la connexion et la place libre, puis relancez `install.sh`.
+
+### « Empreinte SHA-256 incorrecte : … »
+
+Un fichier téléchargé ne correspond pas à l'empreinte attendue : il a été tronqué ou altéré en route. Le fichier
+fautif est supprimé ; relancez `install.sh`, qui le télécharge de nouveau. Si l'erreur se répète, un proxy ou un
+filtre de votre réseau modifie peut-être les téléchargements.
+
+### Pas de carte NVIDIA, ou pilote trop ancien
+
+Ce n'est pas une erreur : Madalean installe alors le moteur des modèles pour le processeur et ne conseille aucun
+modèle local. Les modèles en ligne fonctionnent normalement. Si vous avez bien une carte NVIDIA, vérifiez que le
+pilote est installé (`nvidia-smi` doit répondre), puis relancez `./install.sh --gpu`. Voir
+[Modèles locaux](components.md#modeles-locaux).
+
+### Le SageMath du système n'est pas retenu
+
+Pour être réutilisé, le SageMath de votre système doit être en version 10.0 ou plus récente **et** fournir son noyau
+Jupyter `sagemath` (par exemple `/usr/share/jupyter/kernels/sagemath`). Sinon, Madalean utilise sa propre copie
+(≈ 5 Go). Installez le noyau Jupyter avec votre distribution, ou laissez Madalean installer sa copie. Voir
+[SageMath](components.md#sagemath).
+
+### L'export LaTeX échoue
+
+« Réglages › Système », partie « État de santé », ligne « LaTeX (export PDF) » : « Réparer » réinstalle le paquet
+TeX. Si vous utilisez le TeX Live du système en premier (`tex_engine = system`), il doit être en version 2022 ou plus
+récente, avec `fontspec`. Voir aussi [Export](#export) plus bas et [LaTeX](components.md#latex).
+
+### Le service ne démarre pas
+
+À la fin de l'installation, « Le serveur ne répond pas encore » signifie que le service n'a pas démarré à temps.
+Regardez son journal :
+
+```bash
+systemctl --user status madalean
+journalctl --user -u madalean -e
+```
+
+Le journal donne la cause (port 11500 déjà pris par un autre programme, composant manquant…). Si `systemctl --user`
+n'est pas disponible (certains conteneurs ou sessions sans systemd), lancez Madalean à la main :
+`~/.local/share/madalean/current/bin/madalean serve`.
+
+### Le bac à sable est signalé inactif
+
+bubblewrap n'est pas installé : c'est un paquet de votre distribution, à installer vous-même (par exemple
+`sudo apt install bubblewrap`). Voir [bubblewrap](components.md#bubblewrap-le-bac-a-sable).
+
 ## Connexion et appareils
 
 ### L'appareil ne joint pas l'hôte

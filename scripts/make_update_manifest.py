@@ -33,6 +33,8 @@ def kind_of(name: str) -> str:
         return "appimage"
     if low.endswith(".apk"):
         return "apk"
+    if low.endswith(".run"):
+        return "installer"          # Madalean-installer.run (graphical installer of the host; S-AL, D44)
     return "other"
 
 
@@ -41,7 +43,9 @@ def arch_of(name: str) -> str:
     for a in ("arm64-v8a", "armeabi-v7a", "x86_64", "universal"):
         if a in low:
             return a
-    return "x86_64" if low.endswith(".appimage") else ""
+    if low.endswith(".apk"):
+        return "universal"          # stable release name Madalean-android.apk (no ABI in the name)
+    return "x86_64" if low.endswith((".appimage", ".run")) else ""
 
 
 def main() -> int:

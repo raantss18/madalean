@@ -10,7 +10,9 @@ summary: The Local / Automatic / Online modes, what is sent and to whom, how to 
 # Models and keys
 
 Madalean works **without any key**: local models installed on the host and free online providers that need no
-account. A key adds a provider's models, often stronger ones.
+account. A key adds a provider's models, often stronger ones. The list of providers, with what is free and where to
+create each key, is in [First configuration](first-config.md#keys-of-online-providers); the local models are
+described in [What Madalean installs](components.md#local-models).
 
 ## The three modes
 

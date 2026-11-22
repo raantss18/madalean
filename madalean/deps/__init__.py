@@ -201,6 +201,23 @@ def activate(environ: dict | None = None) -> dict:
     return changes
 
 
+# ---------------------------------------------------------------- tool preferences (S-AL, D44)
+# Which copy of a tool the user prefers when both exist (Settings.sage_source / tex_engine, chosen at install time in
+# setup.json and applied at first start). Published by config.publish_preferences whenever settings load or change.
+PREFERENCES = {"sage_source": ("auto", "own", "system"), "tex_engine": ("auto", "tectonic", "system")}
+_PREFS: dict[str, str] = {}
+
+
+def set_preferences(**kw: str) -> None:
+    for k, v in kw.items():
+        if k in PREFERENCES and v in PREFERENCES[k]:
+            _PREFS[k] = v
+
+
+def preference(name: str) -> str:
+    return _PREFS.get(name, "auto")
+
+
 def llama_bin_dir() -> Path | None:
     p = tool("llama-server")
     return Path(p).parent if p and tool_info("llama-server")["source"] == "prefix" else None
