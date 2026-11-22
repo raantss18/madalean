@@ -214,7 +214,8 @@ découlent, par exemple `sage_source` (quel SageMath utiliser) et `tex_engine` (
 les changer à tout moment (l'application les lit aussi par `GET /api/setup`). Voir
 [Première configuration › Choix faits à l'installation](first-config.md#choix-faits-a-linstallation).
 
-<!-- verify after integration: setup.json is read at first start and its choices are shown in the app. -->
+Au premier démarrage dans le navigateur de l'hôte, l'assistant [« Premiers pas »](first-config.md#lassistant-premiers-pas)
+montre de nouveau ces choix (choix conseillé et raison pour cette machine) et permet de les changer.
 
 ## Où sont les choses
 

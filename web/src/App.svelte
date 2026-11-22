@@ -16,6 +16,7 @@
   import CommandPalette from './components/CommandPalette.svelte';
   import ConductorAsk from './components/ConductorAsk.svelte';
   import Tour from './components/Tour.svelte';
+  import { setupBoot } from './lib/setup/state.svelte';
 
   type Screen = Component<{ params: Record<string, string> }>;
   const cache = new Map<string, Promise<Screen>>();
@@ -46,6 +47,8 @@
     gate = 'ready';
     await app.boot();
   });
+  // S-AQ: once the state is loaded, on the host, « Premiers pas » opens by itself at the first start.
+  $effect(() => { if (app.m.loaded) void setupBoot(); });
 
   $effect(() => {
     // Leaving the pairing page after a successful pairing.
@@ -71,6 +74,9 @@
   {#if def}
     {#await load(def) then Screen}<Screen params={route.params} />{/await}
   {/if}
+{:else if route.name === 'setup' && def && app.m.loaded}
+  <!-- S-AQ: « Premiers pas » is full screen (its own header, « Plus tard » to leave) -->
+  {#await load(def) then Screen}<Screen params={route.params} />{/await}
 {:else}
   <a class="skip-link" href="#main">{t('a11y.skip')}</a>
   <div class="shell">

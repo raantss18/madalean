@@ -20,5 +20,7 @@ addRoute({ name: 'glossary', pattern: '/glossaire', load: () => import('./screen
 addRoute({ name: 'notebook', pattern: '/carnet', load: () => import('./screens/Notebook.svelte'), nav: { label: 'nav.notebook', icon: 'notebook', order: 23 } });
 addRoute({ name: 'help', pattern: '/aide/:page?', load: () => import('./screens/Help.svelte'), nav: { label: 'nav.help', icon: 'info', order: 24 } });
 addRoute({ name: 'settings', pattern: '/reglages/:section?', load: () => import('./screens/settings/Settings.svelte'), nav: { label: 'nav.settings', icon: 'settings', order: 29 } });
+// S-AQ (D49): the first-run assistant « Premiers pas », full screen on the host (App renders it without the top bar)
+addRoute({ name: 'setup', pattern: '/premiers-pas/:step?', load: () => import('./screens/setup/Setup.svelte') });
 addRoute({ name: 'pair', pattern: '/pair', load: () => import('./screens/Pair.svelte'), public: true });
 addRoute({ name: 'perf', pattern: '/__perf', load: () => import('./screens/Perf.svelte') });

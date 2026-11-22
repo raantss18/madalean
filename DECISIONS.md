@@ -749,3 +749,47 @@
   version may have changed).
 - Tests: fake brains / kernels / Lean (no paid call), the installed Sage's preparser and Sage itself for a corrected
   cell, the system XeLaTeX for the recompilation check (tests/test_conductor_fixes.py).
+
+## D49 — « Premiers pas »: the in-app first-run assistant, on the host only, resumable, real settings only (user request, 2026-11-22, S-AQ)
+- Request: at the first opening on the host, guide the whole starting configuration — tools (installed / missing,
+  the system's SageMath or LaTeX vs Madalean's copy, recommended choice with its reason, install / repair with live
+  progress), local model yes/no and which one with its download size, API keys one card per provider (where to get
+  it, free tier, what it is good for, paste + « Tester », never autosaved, host only), Hugging Face for Goedel-Prover,
+  Claude as conductor and its caps, modes (Local / Auto / En ligne; Apprendre / Recherche), automatic vs manual
+  behaviours, pairing, a final checklist; each step linked to its manual page; skippable, resumable, « Plus tard »
+  with a reminder on Home.
+- Decision (docs/UI.md §15): a **full-screen route** `/premiers-pas/:step?` of ten steps (welcome, tools, local,
+  keys, hf, claude, modes, auto, pair, done) built from S-AK's pieces — Réglages' `KeyForm` for keys (explicit
+  save, then test; « Tester » again for a saved key), Réglages' `Devices` for pairing (one pairing flow), the
+  existing `PATCH /api/settings` / `POST /api/deps/{c}/install` (+ `deps.progress`) / `GET /api/providers`. New
+  files only (`screens/setup/`, `lib/setup/`), five one-line hooks (App, routes, logo menu, Home, Réglages).
+- **When it opens**: on the host's Home while `wizard_done` is false and the server says `auto`. `auto` is false
+  once finished or put off, and on a server that **started with the user's dossiers already there** (an update
+  from 2.0.0: `wizard_done` was always false in 2.0.0 settings files, so opening it over existing work would
+  surprise every current user; the Home card offers it instead). The demo's seeded examples do not count, so the
+  demo shows it at first start (the e2e global setup marks it finished; its own spec reopens it). Deep links are
+  never redirected. Paired devices never see it (no auto-open, no menu entry, no card; host-only API).
+- **Progress on the server**: `<config>/first-run.json` (`madalean-first-run/1`: step, visited, models, completed,
+  reminder) through `GET`/`PATCH /api/setup/wizard`; « Plus tard » = the existing `wizard_done` setting;
+  « Terminer » = `completed` (+ `wizard_done`). The Home card stays until finished, « Ne plus afficher » hides it;
+  the assistant stays in the logo menu and Réglages. Rejected: localStorage (per device: the host's other browser
+  would start again), a new Settings field for the step (settings are user options; progress is not one).
+- **Small endpoints added** (all host only, tested in `tests/test_setup_wizard.py`): `POST /api/setup/reuse` — the
+  `sage_source` / `tex_engine` choice checked against the machine before it is saved (« system » needs a `sagemath`
+  kernel outside the prefix and, when known, SageMath ≥ 10.0; TeX « system » needs XeLaTeX or LuaLaTeX; « tectonic »
+  needs the prefix's tectonic), since PATCH /api/settings only checks the enum and a wrong choice silently leaves
+  Calcul or the PDF export without an engine; `POST /api/setup/models` (+ `/cancel`) — the missing GGUF files of the
+  chosen set downloaded exactly as install.sh does (`scripts/download_model.sh`, pinned revisions, SHA-256, resumable;
+  the script now honours `MADALEAN_MODELS_DIR`), refused in Local mode and in the demo, progress as `setup.models`
+  events; `GET /api/setup` gained `recommended` (the install engine's plan and reasons for this machine), `models`
+  and `wizard`. Rejected: downloading models through the update manager (it only replaces installed models);
+  a « remove SageMath » button (out of scope; the manual explains the manual removal).
+- **Real option names only** (madalean/config.py): `sage_source`, `tex_engine`, `mode`, `language`, `hf_goedel`,
+  `conductor`, `conductor_cap_usd`, `claude_reinforce`, `claude_cap_proof_usd`, `claude_cap_month_usd`,
+  `experiments_auto`, `parallel_stages` (no switch elsewhere until now), `lean_warm`, `pause_after_translation`,
+  `check_updates`, `updates_auto`; the « +0,50 $ » approval at the request cap is the conductor's runtime question
+  (D41), explained, not a setting.
+- The manual's « verify after integration » notes of S-AL are resolved: `sage_source` / `tex_engine` are shown and
+  changed in « Premiers pas › Outils » (reachable from the logo menu and Réglages); the components with install /
+  repair are in « Réglages › Système » and « Premiers pas › Outils »; no « remove SageMath » button; with
+  `tex_engine = system` the export tries the system's XeLaTeX, LuaLaTeX, then tectonic last.

@@ -35,7 +35,8 @@
 <div class="settings">
   <nav class="secnav" class:hide-narrow={Boolean(params['section'])} aria-label={t('settings.title')}>
     <h1 class:sr-only={Boolean(params['section']) && narrow}>{t('settings.title')}</h1>
-    {#if !app.m.local}<p class="remote-note small"><Icon name="lock" size={14} /> {t('settings.remoteNote')}</p>{/if}
+    {#if !app.m.local}<p class="remote-note small"><Icon name="lock" size={14} /> {t('settings.remoteNote')}</p>
+    {:else}<a class="first-steps" href="/premiers-pas"><Icon name="sparkle" />{t('setup.fromSettings')}</a>{/if}
     <ul>
       {#each sections.filter((x) => !x.hidden) as s (s.id)}
         <li><a href="/reglages/{s.id}" aria-current={current?.id === s.id || (current?.hidden && current.label === s.label) ? 'page' : undefined}><Icon name={s.icon} />{t(s.label)}<span class="chev"><Icon name="chevronRight" size={16} /></span></a></li>
@@ -60,6 +61,8 @@
   .chev { margin-left: auto; display: none; }
   .content h2 { font-size: var(--fs-xl); }
   .back { display: none; margin-bottom: var(--s-2); }
+  .first-steps { display: flex; align-items: center; gap: 10px; min-height: var(--touch); padding: 0 var(--s-3); margin-bottom: var(--s-2); border: 1px dashed var(--line-strong); border-radius: var(--r-2); color: var(--accent); text-decoration: none; font-weight: 600; }
+  .first-steps:hover { background: var(--accent-soft); }
   .remote-note { display: flex; gap: 6px; align-items: center; color: var(--text-2); background: var(--surface-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); }
   @media (max-width: 767px) {
     .settings { grid-template-columns: minmax(0, 1fr); gap: var(--s-3); }

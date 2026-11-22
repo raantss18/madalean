@@ -83,6 +83,7 @@
       </div>
       <div role="separator"></div>
       <a role="menuitem" href="/aide" aria-current={cur('help') ? 'page' : undefined} onclick={() => close()}><Icon name="info" size={18} />{t('nav.help')}</a>
+      {#if app.m.local}<a role="menuitem" href="/premiers-pas" onclick={() => close()}><Icon name="sparkle" size={18} />{t('setup.title')}</a>{/if}
       <a role="menuitem" href="/reglages" aria-current={cur('settings') ? 'page' : undefined} onclick={() => close()}><Icon name="settings" size={18} />{t('nav.settings')}</a>
       <div role="separator"></div>
       <div role="group" aria-label={t('mode.label')}>

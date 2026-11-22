@@ -45,4 +45,8 @@ export default async function setup(): Promise<void> {
     if (Date.now() - t0 > 30_000) throw new Error('demo server did not start');
     await new Promise((r) => setTimeout(r, 250));
   }
+  // S-AQ: a fresh config dir is a first start — « Premiers pas » would open over Home. The specs start with it
+  // finished; e2e/setup-wizard.spec.ts reopens it on purpose.
+  await fetch(`http://127.0.0.1:${port}/api/setup/wizard`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ completed: true }) });
 }

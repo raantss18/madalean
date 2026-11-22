@@ -9,7 +9,9 @@ summary: Guided tour, choice of mode, first statement, demo mode.
 
 # First run
 
-On first opening (in *Learn* mode, the default), a short four-step tour presents the ideas of the interface: write
+On the host computer, the very first opening starts with the “First steps” assistant (tools, local model, keys,
+modes…; see [First configuration](first-config.md#the-first-steps-assistant)). Then, on the first opening of the
+home screen (in *Learn* mode, the default), a short four-step tour presents the ideas of the interface: write
 a statement, check the translation, Lean checks every proof, you stay in control. “Skip the tour” closes it.
 
 The state of the installation (Lean workspaces, models, TeX, fonts, sandbox, disk) is shown in “Settings › System”,

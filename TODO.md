@@ -125,8 +125,13 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 25. ⬜ Prochaine release : noms de fichiers stables (`Madalean-installer.run`, `madalean-server.tar.gz`,
     `Madalean-x86_64.AppImage`, `Madalean-android*.apk`) avec `scripts/stage_release.sh` puis
     `scripts/sign_release.sh` — sur ton accord ; d'ici là les liens du site ouvrent la page de la dernière version
-26. ⬜ Assistant de premier démarrage dans l'application (session suivante, sur la nouvelle interface de S-AK) : lit
-    `GET /api/setup` (machine, plan, prochaines étapes) et règle clés, mode, comportements automatiques
+26. ⚠️ Assistant « Premiers pas » dans l'application (S-AQ, D49, docs/UI.md §15, branche s-aq-first-run) : plein écran
+    au premier démarrage sur l'hôte seulement (jamais sur un appareil relié), 10 étapes qui se passent une à une —
+    outils (installer / réparer avec la progression, SageMath et LaTeX du système ou de Madalean, choix conseillé et
+    raison), modèle local (aucun / preuve / les trois, taille, téléchargement vérifié), clés gratuites (« Tester »),
+    Hugging Face, Claude et ses plafonds, modes, automatique ou manuel, appareils, liste de vérification ; « Plus
+    tard » + carte sur l'accueil, reprise là où tu t'étais arrêté (menu du logo, Réglages) — à essayer par toi ;
+    téléchargement réel d'un modèle depuis l'assistant non essayé (testé avec un faux téléchargeur)
 27. ⬜ Texte « environ 2 Go » de l'écran Calcul sans SageMath : 1,5 Go à télécharger, 5 Go sur le disque (S-AK)
 28. ⬜ Icône 32x32 de l'AppImage à convertir en RGBA (`cargo check` refuse l'icône actuelle)
 
