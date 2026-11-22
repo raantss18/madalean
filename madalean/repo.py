@@ -31,10 +31,36 @@ class DossierRepo:
         self.publish = publish
         self.cache: dict[str, Dossier] = {}
         self._locks: dict[str, asyncio.Lock] = {}
+        self._gen: dict[str, int] = {}          # S-AO: changes saved per dossier (save calls) …
+        self._written: dict[str, int] = {}      # … and the last one already on disk
+        self.writes = self.coalesced = self.compactions = 0
 
     async def load_all(self) -> None:
         items = await asyncio.to_thread(self.store.list)
         self.cache = {d.id: d for d in items}
+        for d in items:                       # S-AO (D47): migration of dossiers grown big before compaction existed
+            try:
+                await self.compact(d, publish=False)
+            except Exception:  # noqa: BLE001 (never block the start on one dossier)
+                import logging
+                logging.getLogger("madalean.repo").exception("compaction of %s failed", d.id)
+
+    async def compact(self, d: Dossier, publish: bool = True) -> bool:
+        """S-AO (D47): compact a dossier's history when it is over the limits (madalean/history.py): the removed
+        versions and events are appended to its archive first, then the dossier is written. Call only when no job
+        works on it (version indices move); a save in progress is waited for. Returns True when it changed."""
+        from . import history
+        if not history.needs(d):
+            return False
+        lock = self._locks.setdefault(d.id, asyncio.Lock())
+        async with lock:
+            rec = history.compact(d)
+            if rec is None:
+                return False
+            await asyncio.to_thread(self.store.archive_append, d.id, rec)
+            self.compactions += 1
+        await self.save(d, publish=publish)
+        return True
 
     def get(self, did: str) -> Dossier | None:
         return self.cache.get(did)
@@ -54,11 +80,21 @@ class DossierRepo:
         return d
 
     async def save(self, d: Dossier, publish: bool = True) -> None:
+        """Write the dossier (atomic replace) before returning. S-AO (D47): saves that queue up behind a write in
+        progress are coalesced — the first of them to get the lock serialises the dossier as it is then (every
+        earlier change included) and the others return without writing again."""
         self.cache[d.id] = d
         lock = self._locks.setdefault(d.id, asyncio.Lock())
+        mine = self._gen[d.id] = self._gen.get(d.id, 0) + 1
         async with lock:
-            text = d.to_json()
-            await asyncio.to_thread(self._write, d.id, text)
+            if self._written.get(d.id, 0) < mine:
+                gen = self._gen[d.id]
+                text = d.to_json()
+                await asyncio.to_thread(self._write, d.id, text)
+                self._written[d.id] = gen
+                self.writes += 1
+            else:
+                self.coalesced += 1
         if publish:
             self.publish("dossier.updated", {"dossier": dossier_api(d)})
 

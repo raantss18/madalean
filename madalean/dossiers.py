@@ -259,6 +259,10 @@ class DossierStore:
             return False
         self.trash.mkdir(parents=True, exist_ok=True)
         src.replace(self.trash / src.name)
+        arc = self.archive_path(did)
+        if arc.exists():                                   # S-AO: the compacted history follows its dossier
+            (self.trash / ".history").mkdir(parents=True, exist_ok=True)
+            arc.replace(self.trash / ".history" / arc.name)
         return True
 
     def undelete(self, did: str) -> bool:
@@ -266,7 +270,46 @@ class DossierStore:
         if not src.exists():
             return False
         src.replace(self.root / src.name)
+        arc = self.trash / ".history" / self.archive_path(did).name
+        if arc.exists():
+            self.archive_path(did).parent.mkdir(parents=True, exist_ok=True)
+            arc.replace(self.archive_path(did))
         return True
+
+    # ---- S-AO (D47): what history compaction removed from a dossier, whole, append-only (never read by the server)
+    def archive_path(self, did: str) -> Path:
+        return self.root / ".history" / f"{did}.jsonl.gz"
+
+    def archive_append(self, did: str, record: dict) -> None:
+        """One gzip member per compaction appended to `.history/<id>.jsonl.gz` (a crash can only lose the member
+        being written; gzip reads the members that are complete)."""
+        import gzip
+        import os
+        p = self.archive_path(did)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        data = gzip.compress((json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8"))
+        fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def archive_read(self, did: str) -> list[dict]:
+        import gzip
+        import zlib
+        p = self.archive_path(did)
+        if not p.exists():
+            return []
+        out: list[dict] = []
+        try:
+            with gzip.open(p, "rt", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        out.append(json.loads(line))
+        except (OSError, EOFError, ValueError, zlib.error):
+            pass                                           # a truncated last member: what is complete is returned
+        return out
 
 
 # ---------------------------------------------------------------- library of proven results

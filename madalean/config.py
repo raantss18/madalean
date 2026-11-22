@@ -119,6 +119,9 @@ class Settings:
     browser_session_idle_minutes: int = 120  # browser (remote/LAN) session: closed after this idle time (host-only)
     local_idle_unload_minutes: int = 10     # S-N: stop llama-server after this idle time to give the GPU back (0 = never)
     calcul_idle_minutes: int = 30           # S-P: a Calcul notebook's kernel stops after this idle time (0 = never)
+    # S-AO (D47): opening a Calcul document (or its project) starts its kernel in the background and runs the first-use
+    # initialisations (Maxima, plots, finite fields); first-use caches are prepared once per Sage version
+    calcul_warm: bool = True
     # S-AE (D37): a Lean kept running per workspace in use, Mathlib loaded, for intermediate attempts (~3.4 GB each)
     lean_warm: bool = True
     lean_warm_idle_minutes: int = 10        # stopped after this idle time

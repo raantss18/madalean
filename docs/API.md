@@ -380,7 +380,10 @@ workspace); `indexing` = the index is being built (ask again later). `workspace`
  "roles":{"prove":{"preferred":"","candidates":[ModelRef]}, "understand":…, "route":…, "formalize":…, "explain":…, "assistant":…},
  "status":{…brain.status()…}, "keys":{"anthropic":true}}
 ```
-`POST /models/keys` `{"provider":"anthropic","key":"sk-…"}` → `{"provider":"anthropic","set":true,"backend":"keyring"|"file"}`.
+`POST /models/keys` `{"provider":"anthropic","key":"sk-…","test"?:bool}` → `{"provider":"anthropic","set":true,"backend":"keyring"|"file","unpaused":n,"testing":bool}`.
+S-AO (D47): saving a key lifts that provider's pauses, backoffs and failure counters (`unpaused` = models that were
+paused); unless `test: false`, the quick key test of `POST /models/test` then runs on the server (event
+`models.key_test {provider, ok, reason, …}`).
 Keys are stored with `secret-tool` when available, else `keys.json` (0600); they are **never** returned, logged or
 sent elsewhere. `DELETE /models/keys/{provider}` → `{"provider":…,"set":false,"existed":bool}`. Event
 `models.status {keys}`.
@@ -680,7 +683,8 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 
 **S-P: Calcul notebooks** — documents `/api/calcul/{pid}/docs[/{doc}]` (cells code/ask/markdown/figure, sequential
 `…/run {all|until|from|cells}`, `…/cells/{cid}/ask {prompt}`, `interrupt|restart|shutdown|clear`, `variables`,
-`ipynb`, `…/cells/{cid}/to`): full list in the docstring of `madalean/server/plugins/workbench.py` and
+`ipynb`, `…/cells/{cid}/to`; S-AO: `POST /api/calcul/{pid}/warm {doc?}` and `status.warm` — kernel ready in
+advance, CALCUL.md §11): full list in the docstring of `madalean/server/plugins/workbench.py` and
 [CALCUL.md](CALCUL.md). The S-M routes below act on the default document `calcul` (cells now also carry `type`,
 `outputs`, `exec_count`, `stale`; a run also returns nbformat-shaped `outputs`).
 **S-AB**: `…/docs/{doc}/detect {text}` → `{kind: code|ask}`; `…/cells/{cid}/explain {mode: error|lines}`;

@@ -134,6 +134,22 @@ class States:
                 st.until, st.reason = now() + seconds, reason
             self._save()
 
+    def clear_provider(self, provider: str) -> int:
+        """S-AO (D47): a new key was saved for `provider` — lift every pause and backoff of its models (whatever the
+        reason: refused key, quota, rate limit, overload, model not found with the old account…) and reset their
+        consecutive-failure counters. Reliability and latency statistics are kept (they describe the models, not the
+        key). Returns the number of models that were paused."""
+        n = 0
+        with self._lock:
+            for k, st in self.models.items():
+                if not k.startswith(provider + ":"):
+                    continue
+                if st.until > now():
+                    n += 1
+                st.until, st.reason, st.failures = 0.0, "", 0
+            self._save()
+        return n
+
     def record(self, key: str, ok: bool, status: int = 0, message: str = "", wait: float | None = None) -> None:
         if not ok and context_too_long(status, message):
             return

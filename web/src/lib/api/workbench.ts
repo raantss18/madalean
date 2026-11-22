@@ -75,7 +75,9 @@ export interface NbCell { id: string; type: NbCellType; language: 'sage' | 'pyth
   recognized?: { fr: string; en: string } | null; intent_key?: string; gen?: string }
 export interface NbDocInfo { id: string; title: string; language: 'sage' | 'python'; path: string; cells?: number; updated?: number; engine?: { name: string; version: string } | null; rev?: number }
 export interface NbKernel { kernel: string; state: string; shared?: boolean; name?: string; sandboxed?: boolean; connections?: number }
-export interface NbStatus extends CalcStatus { kernel: NbKernel; idle_minutes: number }
+// S-AO (D47): the kernel prepared in advance when the document (or its project) is opened
+export interface NbWarm { state: 'none' | 'off' | 'starting' | 'warming' | 'ready' | 'failed' | 'skipped'; start_s?: number; steps?: Record<string, number | 'error'>; used?: boolean; error?: string; seconds?: number }
+export interface NbStatus extends CalcStatus { kernel: NbKernel; idle_minutes: number; warm?: NbWarm }
 export interface NbView { doc: NbDocInfo; cells: NbCell[]; trash: { id: string; source: string }[]; status: NbStatus }
 export interface NbRunResult { runs: Record<string, CalcRun & { outputs: NbOutput[] }>; stopped: { cell_id: string; reason: string } | null; autofix: NbCell | null }
 
@@ -88,6 +90,7 @@ export interface NbExplainSteps { text: string; facts: NbStepFact[]; verified: b
 const D = (pid: string, doc: string) => `/calcul/${enc(pid)}/docs/${enc(doc)}`;
 export const nb = {
   docs: (pid: string) => request<{ docs: NbDocInfo[] }>('GET', `/calcul/${enc(pid)}/docs`),
+  warm: (pid: string, doc?: string) => request<{ warm: NbWarm; doc: string | null }>('POST', `/calcul/${enc(pid)}/warm`, doc ? { doc } : {}),
   createDoc: (pid: string, title: string, language: 'sage' | 'python') => request<{ doc: NbDocInfo }>('POST', `/calcul/${enc(pid)}/docs`, { title, language }),
   renameDoc: (pid: string, doc: string, title: string) => request<{ doc: NbDocInfo }>('PATCH', D(pid, doc), { title }),
   deleteDoc: (pid: string, doc: string) => request<{ removed: string }>('DELETE', D(pid, doc)),

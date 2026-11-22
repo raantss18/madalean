@@ -132,7 +132,8 @@ async def test_settings_keys_models_system(tmp_path):
             async with s.post(local + "/api/dossiers/x/message", json={}) as r:
                 assert r.status == 404
             async with s.post(local + "/api/models/keys", json={"provider": "anthropic", "key": "sk-ant-SECRET123456"}) as r:
-                assert (await r.json()) == {"provider": "anthropic", "set": True, "backend": "file"}
+                assert (await r.json()) == {"provider": "anthropic", "set": True, "backend": "file", "unpaused": 0,
+                                            "testing": True}
             f = tmp_path / "config" / "keys.json"
             assert oct(f.stat().st_mode)[-3:] == "600"
             for path in ("/api/models", "/api/state", "/api/settings", "/api/system"):

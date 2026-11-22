@@ -60,7 +60,10 @@ HOME_SUBDIRS = (".tmp", ".cache", ".config", ".local/share", ".local/state", ".r
 def home_key(environ: dict[str, str]) -> str:
     """Which persistent home a kernel gets: one per Calcul project (Jupyter passes the notebook path in
     JPY_SESSION_NAME, `…/calcul/<project>/<doc>.ipynb`), `shared` for conjecture experiments and other kernels."""
-    m = re.search(r"(?:^|/)calcul/([A-Za-z0-9_-]{1,48})/[^/]+$", environ.get("JPY_SESSION_NAME", ""))
+    name = environ.get("JPY_SESSION_NAME", "")
+    if re.search(r"(?:^|/)calcul/\.seed/[^/]+$", name):
+        return "warm-seed"                 # S-AO: the kernel that prepares the first-use caches (only Madalean code)
+    m = re.search(r"(?:^|/)calcul/([A-Za-z0-9_-]{1,48})/[^/]+$", name)
     return f"p-{m.group(1)}" if m else "shared"
 
 
@@ -201,6 +204,91 @@ def prepare_home(real: str, now: float | None = None) -> None:
                 shutil.rmtree(p) if os.path.isdir(p) and not os.path.islink(p) else os.unlink(p)
         except OSError:
             pass
+
+
+# S-AO (TODO B15, DECISIONS D47): first-use caches prepared once per Sage version, not once per project. The first
+# integral of a new project took ≈ 8 s because Maxima compiles its `linearalgebra` share package into
+# `$MAXIMA_USERDIR/binary/<maxima>/<lisp>/…` (and Sage writes its lazy-import cache, matplotlib its font list). These
+# names carry their own versions (Maxima / ECL version directories, a hash in the lazy-import cache's name,
+# matplotlib's version in `fontlist-v<version>.json`), so a copy can never be used by another version. A Calcul
+# warm-up that ran before any user code in its kernel copies what it just created into `<experiments>/.home/.seed/`
+# (harvest_seed); every later kernel start copies what its home lacks from there (seed_home). Regular files only,
+# never symlinks, size-capped. (Every sandboxed kernel already has the whole experiments directory writable, homes
+# included, so the seed opens no new path between projects; it is only filled from a warm-up's own output.)
+SEED_NAME = ".seed"
+SEED_PATTERNS = (".sage/maxima/binary", ".sage/maxima/test-directory-cached",
+                 ".sage/cache/*-lazy_import_cache.pickle", ".config/matplotlib/fontlist-*.json")
+SEED_MAX_BYTES = 64 * 1024 * 1024
+
+
+def seed_dir(real_home: str) -> str:
+    """The seed lives next to the homes: `<experiments>/.home/.seed` (home_key never yields `.seed`)."""
+    return os.path.join(os.path.dirname(real_home.rstrip("/")), SEED_NAME)
+
+
+def _seed_files(root: str, since: float | None = None) -> list[str]:
+    """Relative paths of the regular files under `root` matched by SEED_PATTERNS (modified at/after `since`)."""
+    import glob
+    import stat
+    cands: list[str] = []
+    for pat in SEED_PATTERNS:
+        for top in sorted(glob.glob(os.path.join(root, pat))):
+            if os.path.islink(top):
+                continue
+            if not os.path.isdir(top):
+                cands.append(top)
+                continue
+            for d, dirs, files in os.walk(top):            # os.walk does not follow symlinked directories
+                cands += [os.path.join(d, f) for f in sorted(files)]
+    out: list[str] = []
+    total = 0
+    for p in cands:
+        try:
+            st = os.lstat(p)
+        except OSError:
+            continue
+        if not stat.S_ISREG(st.st_mode) or (since is not None and st.st_mtime < since):
+            continue
+        total += st.st_size
+        if total > SEED_MAX_BYTES:
+            break
+        out.append(os.path.relpath(p, root))
+    return out
+
+
+def _copy_missing(src_root: str, dst_root: str, rels: list[str]) -> int:
+    n = 0
+    for rel in rels:
+        dst = os.path.join(dst_root, rel)
+        if os.path.lexists(dst):
+            continue
+        try:
+            os.makedirs(os.path.dirname(dst), mode=0o700, exist_ok=True)
+            tmp = f"{dst}.{os.getpid()}.part"
+            shutil.copyfile(os.path.join(src_root, rel), tmp, follow_symlinks=False)
+            os.chmod(tmp, 0o600 if not os.access(os.path.join(src_root, rel), os.X_OK) else 0o700)
+            os.replace(tmp, dst)
+            n += 1
+        except OSError:
+            continue
+    return n
+
+
+def seed_home(real: str) -> int:
+    """At kernel start: copy into the home the seeded first-use caches it lacks. Returns the number of files."""
+    seed = seed_dir(real)
+    if not os.path.isdir(seed) or os.path.islink(seed):
+        return 0
+    return _copy_missing(seed, real, _seed_files(seed))
+
+
+def harvest_seed(real: str, since: float) -> int:
+    """After a warm-up that ran before any user code: copy into the seed the caches it created (mtime ≥ since)."""
+    seed = seed_dir(real)
+    if os.path.islink(seed):
+        return 0
+    os.makedirs(seed, mode=0o700, exist_ok=True)
+    return _copy_missing(real, seed, _seed_files(real, since))
 
 
 def home_env(home: str) -> dict[str, str]:
@@ -411,6 +499,11 @@ def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside 
     os.makedirs(wd, exist_ok=True)
     real = home_dir(cfg, dict(os.environ))
     prepare_home(real)
+    if cfg.get("seed", True):                       # S-AO: first-use caches prepared once per Sage version
+        try:
+            seed_home(real)
+        except OSError:
+            pass
     cfg = {**cfg, "home_dir": real, "home": kernel_home(cfg, real)}
     env = launcher_env(cfg, dict(os.environ))
     mem = int(cfg.get("mem_bytes") or 0)
@@ -632,7 +725,8 @@ class SageBridge:
             d = Path(jm.share_dir) / "kernels" / spec_name
             d.mkdir(parents=True, exist_ok=True)
             cfg = {"workdir": str(self.workroot.resolve()), "mem_bytes": self.mem_mb * 1024 * 1024,
-                   "fsize_bytes": 512 * 1024 * 1024, "bwrap": self.bwrap or "", "hide": self.hidden_paths()}
+                   "fsize_bytes": 512 * 1024 * 1024, "bwrap": self.bwrap or "", "hide": self.hidden_paths(),
+                   "seed": bool(getattr(getattr(self.ctx, "settings", None), "calcul_warm", True))}
             (d / "launcher.json").write_text(json.dumps(cfg, indent=1), encoding="utf-8")
             spec = {"argv": [system_python(), "-I", str(Path(__file__).resolve()), "--launch", str(d / "launcher.json"),
                              "--", *base_spec["argv"]],

@@ -255,3 +255,33 @@ twice as many on these French / Lean texts — the plan's stable prefix is 915 e
 The stable block (role text + core rules, versioned) is byte-identical for every request of a role on the same tool
 versions (tested); measured cache hit on the real API: 1 858 of 2 108 prompt tokens of a plan, 960 of 1 180 of a
 final check — read at 0.1× the input price.
+
+# Historique borné (S-AO, 2026-11-22, DECISIONS D47)
+
+`scripts/soak_server.py --reuse --minutes 20` (demo server on test ports, 6 dossiers re-run continuously with
+notes + proof + explanation, 5 WebSocket clients, title PATCH bursts; samples every 30 s now also record the dossier
+file sizes and the bytes the server wrote, `/proc/<pid>/io`). « Before » = the same tree without the change
+(`--src` copy of `v2`).
+
+| 20 min, ≈ 1 000 jobs | before | after |
+|---|---|---|
+| largest dossier file | 662 KB, growing linearly (≈ 33 KB / min; ≈ 1.7 MB after ~550 relaunches each) | 70–176 KB, sawtooth (compacted at the end of a job above 300 events / 120 versions) |
+| all dossier files | 3.8 MB | 0.9 MB (+ archives `.history/*.jsonl.gz` ≈ 33 KB each) |
+| bytes written by the server | 2 182 MB | 908 MB (−58 %) |
+| server RSS: last / max | 130 / 131 MB | 140 / 141 MB |
+| RSS slope, second half | 31.7 MB/h | 4.0 MB/h |
+| errors | 0 | 0 |
+
+In the compacted dossier (255 events, 1 statement, 28 verified proofs — all kept, distinct texts —, 27 explanations,
+28 notes, 27 informal proofs after dedup / text limits) the per-job summary records take 12 KB (40 records). The
+writes stay whole-file atomic replaces, now of a bounded file; saves that queue behind a write in progress are
+coalesced (no write-behind: `await repo.save()` still means « on disk »).
+
+# Calcul prêt d'avance (S-AO, DECISIONS D47)
+
+`scripts/dev/bench_calcul_first_run.py [--warm] [--now]` (real sandboxed Sage 10.10 kernel, test server in a
+temporary directory): seconds from « run » to the answer for the first cell / integral / plot / GF(3⁴)
+factorisation of a freshly opened document — before: 4.18 / 8.32 / 1.16 / 0.17 s (new project), 2.70 / 1.04 /
+0.52 / 0.17 s (reopened project); after the warm-up (≈ 14 s after opening a new project, 4–5 s otherwise):
+0.11 / 0.11 / 0.16 / 0.11 s everywhere. Maxima's first-use caches are prepared once per Sage version: a second new
+project's first integral 8.72 → 1.06 s even when the cell runs at once. Details: docs/CALCUL.md §11.

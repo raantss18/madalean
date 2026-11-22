@@ -53,7 +53,9 @@ outputs, publication producer), `madalean/research/nbkernels.py` (kernels), `mad
 - Madalean's helpers are loaded once per kernel (`tex`, `fig`, `report`, `_madalean_vars`, `_madalean_approx`,
   `_madalean_latex`); a restart from JupyterLab is detected (cheap probe) and they are reloaded.
 - A Python kernel never imports Sage for these helpers.
-- Opening the screen starts nothing; the first run starts the kernel. Kernels stay warm (user decision) and stop
+- S-AO (D47): opening a document — or its project — prepares its kernel in advance (§11, setting « Calcul prêt
+  d'avance », on by default). With the setting off, opening starts nothing and the first run starts the kernel.
+  Kernels stay warm (user decision) and stop
   after `calcul_idle_minutes` (default 30, 0 = never; setting) without activity, counting both Madalean's runs and
   the kernel's own `last_activity` (JupyterLab use keeps it alive). Notebook kernels are separate from the
   experiment kernels of conjectures (`SageBridge.kernels`, bounded by S-Q's `MAX_WARM_KERNELS`).
@@ -393,3 +395,51 @@ kernelspecs, the Sage library, the prefix's component versions, Lean toolchain, 
 update. A failure shows the failed items and a toast; « Réparer » moves the kernels' homes aside (`.home.old`,
 caches rebuilt) and runs the test again; « Relancer le test » re-runs it. Report: `<config>/selftest.json`; event
 `system.selftest`.
+
+## 11. Kernel ready in advance (S-AO, TODO B15, DECISIONS D47) — `nbkernels.py`, `sagebridge.py`
+
+**When.** `GET /api/calcul/{pid}/docs/{doc}` of a document whose kernel is not running, and
+`POST /api/calcul/{pid}/warm {doc?}` (sent by the project page; the project's most recently changed document, never
+a new one) call `NotebookKernels.prewarm`: a background task starts (or attaches to) the document's kernel exactly as
+the first run would (same session, same sandbox, same private home, same preamble). Only when the setting
+`calcul_warm` is on (host-only, « Réglages › Carnet »), not in the demo, only for a device allowed to run cells
+(the host, or `experiments_remote`), only when the kernel is installed. `status.warm` of the document view says
+`starting | warming | ready | failed | skipped | off`, with the start time and each step's time.
+
+**Warm-up.** In a fresh session (never in a session JupyterLab opened, where user code may have run) Madalean runs
+three fixed programs, each its own execution, outside the history (`store_history=False`: no `_`, no execution
+count, no output in the notebook; everything inside a function deleted afterwards, no name left): `integral`
+(`integrate`, a definite integral, a `limit`, `latex`), `plot` (a 2D plot rendered to PNG in memory), `finite_field`
+(a factorisation over GF(3⁴), an integer factorisation). The Python kernel only builds matplotlib's font cache.
+**The user always wins**: any run, probe or restart of the document marks it used; the warm-up stops after its
+current step (a user's run waits at most for that step).
+
+**Caches prepared once per Sage version.** The first integral of a new project took ≈ 8 s because each project has
+its own home (D36) and Maxima compiled its `linearalgebra` share package there. A warm-up that ran undisturbed in a
+fresh kernel copies what it just created (files modified since it started, matching `sagebridge.SEED_PATTERNS`:
+`.sage/maxima/binary/…`, `.sage/maxima/test-directory-cached/…`, Sage's lazy-import cache, matplotlib's
+`fontlist-v*.json`; regular files only, no symlink, ≤ 64 MB) into `<experiments>/.home/.seed/` and writes
+`.done-<Sage version>`. At every kernel start the launcher copies into the home what it lacks from the seed
+(`seed_home`, before the kernel starts; the names carry their own Maxima / ECL / matplotlib versions, so a copy is
+never used by another version). If the user ran a cell first (or the home already had its caches), the seed is
+prepared once aside by a kernel that only ever runs the warm-up (`calcul/.seed/seed.ipynb`, home `warm-seed`), then
+stopped. The setting off: no seed copy either (`launcher.json` `seed: false`).
+
+**Memory.** Nothing beyond the kernel the document would start anyway: at most `WARM_MAX_UNUSED` = 2 kernels started
+in advance and not used yet (the oldest is stopped beyond that), never when the machine has less than 1.5 GB
+available (`/proc/meminfo`), idle stop unchanged (`calcul_idle_minutes`, counted from the warm-up). Health row
+« Calcul prêt d'avance » (off / preparing / n kernels ready and the last preparation time / a failed step / memory).
+
+**Measured** (Sage 10.10, this machine, sandboxed, `scripts/dev/bench_calcul_first_run.py`; seconds from « run » to
+the answer; « ready in advance » = the document was open long enough for the warm-up: 14 s for a new project, 4–5 s
+otherwise):
+
+| first … | new project, before | new project, ready in advance | reopened project, before | after | another new project, before | after |
+|---|---|---|---|---|---|---|
+| cell `1 + 1` | 4.18 | **0.11** | 2.70 | **0.11** | 2.81 | **0.11** |
+| integral `integrate(x*sin(x), x)` | 8.32 | **0.11** | 1.04 | **0.11** | 8.72 | **0.11** |
+| plot `plot(sin(x), (x, 0, 2*pi))` | 1.16 | **0.16** | 0.52 | **0.16** | 1.22 | **0.18** |
+| factorisation over GF(3⁴)[y] | 0.17 | **0.11** | 0.17 | **0.11** | 0.17 | **0.12** |
+
+Running at once after opening (`--warm --now`): no regression (4.18 / 8.56 / 1.29 / 0.18 s in a new project), and
+the seed prepared aside makes the next new project's first integral 1.06 s instead of 8.7 s even without waiting.

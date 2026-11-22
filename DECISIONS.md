@@ -828,3 +828,53 @@
 - UI (`components/LeanExplain.svelte`): one « Expliquer » menu right below the code (statement tools, proof tools,
   the latest refused proof, the manual proof editor, each note block); S-AK rules (outside click / Escape, bottom
   sheet on phones, focus back on the button); FR + EN; e2e incl. axe light desktop and dark 390 px.
+
+## D47 — Calcul kernel ready in advance; bounded dossier history; a new key lifts the provider's pause (TODO B15, B16 bis, D-list, 2026-11-22, S-AO)
+- **Calcul prêt d'avance** (docs/CALCUL.md §11). Opening a Calcul document (`GET …/docs/{doc}`) or its project
+  (`POST /api/calcul/{pid}/warm`, the project page) starts the document's own kernel in the background — the same
+  session, sandbox, private home and preamble as a first run — then runs fixed first-use initialisations outside the
+  history (integral / limit / latex, a 2D plot to PNG, GF(3⁴) and integer factorisations), each its own execution;
+  any user run, probe or restart stops it after the current step. Measured (Sage 10.10): first cell 4.2 → 0.1 s,
+  first integral 8.3 → 0.1 s, first plot 1.2 → 0.2 s, first GF(p^k) factorisation 0.17 → 0.11 s in a new project
+  once the warm-up is done (≈ 14 s after opening; 4–5 s in a project whose caches exist).
+- **Maxima once per Sage version**: the 8 s were Maxima compiling its `linearalgebra` share package into each
+  project's private home (D36: one home per project). A warm-up that ran undisturbed in a fresh kernel copies the
+  first-use caches it created (version-named Maxima / ECL binaries, Sage's lazy-import cache, matplotlib's font list;
+  regular files, no symlinks, ≤ 64 MB) to `<experiments>/.home/.seed/`; the launcher copies what a home lacks from
+  there at every kernel start. If the user ran first, a kernel that only runs the warm-up (home `warm-seed`) prepares
+  the seed once, aside. The private-home rule of D36 is unchanged (each kernel still writes only its own home and
+  the experiments directory, which every sandboxed kernel could already write in full: the seed opens no new path
+  between projects; it is filled only from a warm-up's own output). Another new project: first integral 8.7 → 1.1 s
+  even when run at once.
+- Bounds: no kernel beyond the one the document would start anyway; ≤ 2 kernels started in advance and unused (the
+  oldest stopped), none under 1.5 GB of available memory, idle stop unchanged; setting `calcul_warm` (host-only, on by
+  default; off = no warm-up and no seed copy); health row « Calcul prêt d'avance ». Not for paired devices that may
+  not run cells, not in the demo. Rejected: one shared Maxima cache bound into every home (a writable path shared by
+  all kernels, D36); a throwaway home per project start (D36 measured it); warming every Calcul document of the
+  project (memory); interrupting a warm-up step when the user runs (an interrupted Maxima compilation can leave a
+  partial cache; the user waits at most one step instead).
+- **Dossier history compaction** (`madalean/history.py`). A dossier over 300 events or 120 versions, at the end of
+  each job (no job holds a version index then) and at load (migration of existing big dossiers, idempotent), keeps in
+  full: every verified statement / proof, every user version and user event (messages, manual edits, « Retour à la
+  version »), the current versions and their parents, the latest 10 model texts per kind and 6 unverified attempts,
+  the latest 120 events; exact duplicates (same text, parent, verdict, author) fold into their latest occurrence (so
+  « current » and « latest for this statement » are unchanged); older events become compact per-job records
+  (`history`: counts per kind, models, error keys, times; > 40 jobs merged into one) and one « Historique compacté »
+  thread event. Indices are remapped everywhere. Nothing is lost: every removed version and event is appended whole
+  to `<dossiers>/.history/<id>.jsonl.gz` (append-only gzip members, fsync; follows the dossier to the trash). The
+  library, the article and the proof meta read only the current proof / statement. Rejected: dropping old versions
+  without an archive; an append-only event journal instead of the JSON file (every reader of the dossier format and
+  the atomic-replace crash safety would change; the bounded file is small enough to rewrite); compacting inside
+  `save` (a running job holds version indices).
+- **Lighter writes**: saves queued behind a write in progress are coalesced (the first to get the lock serialises
+  the dossier as it is, every earlier change included; the others return without writing). `await repo.save()`
+  still returns once the change is on disk (atomic replace): no write-behind window, nothing to lose on a crash.
+  Soak (`scripts/soak_server.py --reuse --minutes 20`, 6 dossiers re-run continuously, ≈ 1 000 jobs): largest
+  dossier 662 KB and growing → 70–176 KB (sawtooth), all dossiers 3.8 → 0.9 MB, bytes written 2 182 → 908 MB, RSS
+  slope 31.7 → 4.0 MB/h, 0 errors (docs/PERFORMANCE.md « Historique borné (S-AO) »).
+- **A new key lifts the pause, every provider** (was Hugging Face only, after its key test): `POST /api/models/keys`
+  clears that provider's model pauses and backoffs whatever their reason, consecutive-failure counters, « down » mark
+  and last error (reliability and latency statistics kept: they describe the models), then a quick key test runs on
+  the server (event `models.key_test`); the key form passes `test: false` and runs the same test itself to show its
+  result. Rejected: clearing only `key_refused` pauses (a 429 / quota pause of the old account would still block the
+  new key).
