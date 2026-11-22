@@ -199,3 +199,30 @@ project APIs (dossiers in the store, `/notes`, `/conjectures`, the project shelf
   `refs.bib` (generated at build time → opens Sources), `madalean.toml` (→ Options avancées), `madalean.lock`
   (→ Options › Paquets). A `.tex` opens in the editor, an image opens in a tab or is inserted. Read-only: the only
   structural action is « Ajouter une section » (existing route); no rename/delete from the tree.
+
+## 10. Compilation errors corrected by the conductor (session S-AN, DECISIONS D46)
+
+Code: `research/conductorfix.py` (`fix_compile`), `texbuild.trial_compile`, hook `_conductor_fix` of the plugin;
+the conductor itself is docs/BRAIN.md §18.
+
+- **When**: a compilation that really ran (`ran: true`) failed on an error for which §6 has no one-click fix
+  (`fix: null` — e.g. « Missing $ inserted », unbalanced braces, an unknown command without a close match), a
+  conductor can run (setting on, not `local`, Claude key or a capable free model) and this exact source (input hash)
+  was not tried yet. `POST /compile` answers at once with `fixing: true`; the work runs after the answer. Guard
+  refusals, missing packages and files to fetch are never sent to a model (they have their own fixes).
+- **What the conductor sees**: the file and line of the first such error, the raw TeX message and Madalean's plain
+  reading, an excerpt of ±20 numbered lines, the LaTeX rule card. It answers `{find, replace, what}`: `find` must
+  be an exact substring of the excerpt (the occurrence nearest the error line is used), `replace` must pass
+  `guard_ai` (no file / shell primitives, no definitions).
+- **Checked before it is offered**: the project is compiled with the change in its own build directory
+  (`build_dir/trial-<id>`, same engine and bubblewrap confinement, offline, no shell escape, deleted afterwards; the
+  author's PDF, log and cache are untouched). A change that still fails goes back to the conductor with the new
+  error (≤ 3 proposals per failed compilation). The source changed meanwhile → stop (the error may be gone).
+- **Offered as a suggestion**: `kind: "compile_fix"`, `origin: "assistant"`, `rationale` = the conductor's sentence,
+  `meta: {conductor, tier, usd (whole request), verified: "recompiled", error, line}` — shown « Proposé par Claude
+  Sonnet · 0,01 $ · vérifié : l'article compile avec ce changement » in the suggestions panel, accept / refuse like
+  every suggestion (§3); nothing is written to the source until the author accepts.
+- **Budget**: scope `article:<pid>:<hash>`, cap `conductor_cap_usd`; the cap question is the global dialog
+  « Plafond atteint » (`conductor.ask`, `POST /api/conductor/asks/{id}`). Events: `article.fix {project, state:
+  working|proposed|none, suggestion?, name?, usd}` (the editor shows « Recherche d'une correction… » then a toast),
+  `article.suggestion` as usual.

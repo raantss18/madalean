@@ -1986,6 +1986,8 @@ const fr = {
   'conductor.askBody': 'Cette demande a déjà coûté {spent} (plafond {cap}). Continuer avec Claude (+{step}) ?',
   'conductor.askYes': 'Continuer avec Claude (+{step})',
   'conductor.askNo': 'Continuer sans Claude',
+  'conductor.askCalcul': 'Claude corrige une cellule de Calcul qui a échoué.',
+  'conductor.askArticle': 'Claude cherche une correction pour la compilation de l’article.',
   'conductor.finalOk': 'Vérification finale : tout concorde',
   'conductor.finalIssues': 'Vérification finale : à revoir',
   'plan.inPlan': 'Ce lemme fait partie du plan de preuve d’un théorème : il se découpe depuis ce plan, pour rester dans les limites (profondeur, nombre de nœuds).',
@@ -2354,6 +2356,12 @@ const fr = {
   'ae.sug.kind.figure': 'figure',
   'ae.sug.kind.generalisation': 'généralisation',
   'ae.sug.kind.verification': 'vérification',
+  'ae.sug.kind.compile_fix': 'correction de compilation',
+  'ae.sug.fixedBy': 'Proposé par {name} · {cost} · vérifié : l’article compile avec ce changement',
+  'ae.sug.free': 'gratuit',
+  'ae.fixing': 'Recherche d’une correction de cette erreur (vérifiée par une compilation avant d’être proposée)…',
+  'ae.fixProposed': 'Une correction qui compile est proposée dans Suggestions.',
+  'ae.fixNone': 'Aucune correction sûre trouvée pour cette erreur.',
   // ---- end article editor (S-R)
   // ---- providers hub (S-U)
   'settings.sec.providers': 'Fournisseurs',

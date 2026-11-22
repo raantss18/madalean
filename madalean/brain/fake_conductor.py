@@ -33,6 +33,10 @@ def _kind(messages: list[dict]) -> str:
         return "fix_proof"
     if "final coherence" in sys:
         return "final"
+    if "cell of the user's notebook failed" in sys:
+        return "fix_code"
+    if "article failed to compile" in sys:
+        return "fix_latex"
     return "plan"
 
 
@@ -64,6 +68,15 @@ def demo_conductor(kind: str, messages: list[dict], brain: "ConductedFakeBrain")
         sig = stmt[stmt.rindex("theorem"):].replace(":= by sorry", ":= by") if "theorem" in stmt else ""
         return {"text": json.dumps({"proof": f"{sig}\n  exact Even.add ha hb", "what": "lemme inexistant "
                                     "remplacé par `Even.add`."})}
+    if kind == "fix_code":                 # S-AN: a failed Calcul cell — the code block given, the typo fixed
+        m = re.search(r"Code that failed:\n```\w*\n(.*?)```", user, re.S)
+        code = (m.group(1) if m else "").replace("totl", "total").replace("lenght", "length")
+        return {"text": json.dumps({"code": code.strip(), "what": "faute de frappe corrigée."})}
+    if kind == "fix_latex":                # S-AN: a failed compilation — the misspelt command fixed
+        m = re.search(r"\\(textbff|emphh|sectoin)\b", user)
+        bad = m.group(0) if m else "\\textbff"
+        good = {"\\textbff": "\\textbf", "\\emphh": "\\emph", "\\sectoin": "\\section"}.get(bad, "\\textbf")
+        return {"text": json.dumps({"find": bad + "{", "replace": good + "{", "what": "commande mal orthographiée."})}
     return {"text": json.dumps({"consistent": True, "issues": [], "summary": "Tout concorde."})}
 
 

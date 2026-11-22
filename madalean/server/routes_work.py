@@ -281,6 +281,7 @@ async def dossiers_statement(request: web.Request) -> web.Response:
             r = await ctx.lean.check(st, ws, ctx.settings.compile_timeout_s, None, owner=f"check-{d.id}")
             result = r.to_dict()
     idx = d.add_statement(st, source="user", ok=bool(result is None or result["statement_ok"]))
+    d.extra.pop("pending_proof", None)         # S-AN (D46): a proof kept aside was about the old statement
     m = msg("Énoncé modifié à la main.")
     d.add_event("statement", m["text"], ref=idx, key=m["key"])
     await ctx.repo.save(d)
@@ -476,6 +477,25 @@ async def jobs_conductor_answer(request: web.Request) -> web.Response:
     if not isinstance(data.get("approve"), bool):
         return error(400, "bad_request")
     return ok({"answered": True}) if answer(jid, data["approve"]) else error(409, "not_waiting")
+
+
+@routes.get("/api/conductor/asks")
+async def conductor_asks(request: web.Request) -> web.Response:
+    """S-AN (D46): cap questions waiting outside a job (a Calcul correction, an article compilation fix)."""
+    from ..research.conductorfix import pending
+    return ok({"asks": pending()})
+
+
+@routes.post("/api/conductor/asks/{id}")
+async def conductor_ask_answer(request: web.Request) -> web.Response:
+    """The answer to « Plafond atteint : continuer avec Claude (+0,50 $) ? » for a request outside a job —
+    {approve: bool}; 409 when nothing waits for it."""
+    from ..research.conductorfix import answer
+    aid = valid_id(request.match_info["id"])
+    data = await body(request)
+    if not isinstance(data.get("approve"), bool):
+        return error(400, "bad_request")
+    return ok({"answered": True}) if answer(aid, data["approve"]) else error(409, "not_waiting")
 
 
 # ---------------------------------------------------------------- library

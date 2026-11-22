@@ -103,6 +103,15 @@ answered 503 / 429; before: 5.5–6 s at best, 128 s in the bad case.
   code runs again by itself only where model code needs no approval (`experiments_auto`); otherwise it waits for
   « Approuver et exécuter » like any model code. The correction runs after the kernel lock is released (other cells
   can run meanwhile) and is cancelled by a new request on that cell.
+- **Who corrects** (S-AG then S-AN, D39 / D46): (1) the deterministic fixer (a missing import, a library load, a
+  conventional object, a definition of an earlier cell — no model); (2) else **the conductor** (docs/BRAIN.md §18):
+  Claude, the tier chosen by its scoring within this request's budget (1 $ by default, then « Plafond atteint :
+  continuer avec Claude (+0,50 $) ? »), else the best free model, with the Sage / Python rule cards and the
+  catalogue's canonical constructions of the recognized request; (3) else, or when its answer does not even pass the
+  installed Sage's preparser, the usual Calcul model as before. Whoever wrote it, the correction is model code:
+  same approval rule, same sandboxed kernel, same ≤ 3 per request. The cell says « Corrigé par Claude Sonnet ·
+  0,004 $ » (also in « Historique »); a correction that runs OK becomes the request's « meilleure version » through
+  the recipes ranking (§3.6) — and only counts for the conductor's measurements, never for the pinned Calcul model.
 - **« Réécrire » is always possible**: one generation per cell (`codegen.Generations`); a new request cancels the one
   still running for that cell (the replaced request answers 409 `replaced`, ignored by the UI). Cause of the old
   refusal: the automatic correction ran INSIDE the notebook's kernel lock (15–30 s of model time measured in the

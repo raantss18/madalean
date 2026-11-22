@@ -63,12 +63,14 @@ export const wb = {
 export type NbCellType = 'code' | 'ask' | 'markdown' | 'figure';
 export interface NbOutput { type: 'stream' | 'error' | 'result' | 'display'; name?: string; text?: string; ename?: string; evalue?: string;
   traceback?: string; data?: Record<string, unknown>; approx?: string }
+/** S-AN (D46): a correction written by the conductor (« Corrigé par Claude Sonnet · 0,004 $ »). */
+export interface ConductorFix { by: 'conductor'; name: string; usd: number; what: string }
 export interface NbRunMeta { status: string; seconds: number; t: number; code_hash: string; upstream: string; kernel: string }
 export interface NbCell { id: string; type: NbCellType; language: 'sage' | 'python'; source: string; collapsed: boolean; outputs_hidden: boolean;
   code?: string; code_hash?: string; origin?: 'user' | 'assistant'; model?: string; approved?: { hash: string; t: number; device: string } | null;
-  prompt?: string; versions?: { code: string; t: number; origin: string }[]; runs?: { id: string; t: number; status: string; seconds: number }[];
+  prompt?: string; versions?: { code: string; t: number; origin: string; fix?: ConductorFix }[]; runs?: { id: string; t: number; status: string; seconds: number }[];
   exec_count?: number | null; outputs?: NbOutput[]; last?: NbRunMeta | null; stale?: boolean; stale_reason?: string; fresh?: boolean;
-  autofix?: { t: number; model: string; n?: number; max?: number; reran?: boolean } | null; uses?: string[]; figure?: Record<string, unknown>; svg?: { asset: string };
+  autofix?: ({ t: number; model: string; n?: number; max?: number; reran?: boolean } & Partial<ConductorFix>) | null; uses?: string[]; figure?: Record<string, unknown>; svg?: { asset: string };
   // S-AG: what the request was recognized as, its intent key, where the code came from (catalogue | best | model | variant | fix | recipe)
   recognized?: { fr: string; en: string } | null; intent_key?: string; gen?: string }
 export interface NbDocInfo { id: string; title: string; language: 'sage' | 'python'; path: string; cells?: number; updated?: number; engine?: { name: string; version: string } | null; rev?: number }

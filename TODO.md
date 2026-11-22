@@ -86,8 +86,12 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     étape parmi ceux que Madalean classe (réussite mesurée, rapidité, prix), corrige ce que Lean refuse (≤ 3 fois)
     et vérifie la cohérence finale ; 1 $ par demande puis « continuer avec Claude (+0,50 $) ? » ; sans Claude le
     meilleur modèle gratuit dirige ; règles de chaque outil (Lean vérifié, Sage, LaTeX, explication) compactées et
-    mises en cache. Reste : brancher les corrections Sage / LaTeX dans Calcul et l'éditeur d'article ; à essayer sur
-    tes dossiers (coût affiché sur chaque demande)
+    mises en cache. S-AN (D46) : il corrige aussi une cellule Calcul qui échoue (après la correction automatique
+    sans modèle ; code à approuver comme tout code du modèle ; « Corrigé par Claude … · coût » dans l'historique ;
+    la version qui marche devient la meilleure) et une compilation d'article qui échoue (une seule modification,
+    vérifiée en recompilant, proposée dans Suggestions, jamais appliquée seule) ; une preuve trouvée avant un
+    verdict « douteux » / « faux » est gardée de côté et revérifiée par un Lean neuf sur « Prouver quand même ».
+    Reste : à essayer sur tes dossiers, carnets et articles avec ta clé Claude (coût affiché)
 16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
     tant qu'on ne l'ouvre pas
 16b. ⚠️ **Refonte de l'interface** (demande du 22/11, S-AK, D43, docs/UI.md §14) : le logo est le menu (« Accueil » en

@@ -17,6 +17,9 @@ Who directs is decided per decision, from data, never fixed:
   reasoning by measured quality, reliability and latency; and when none is capable, no conductor at all — the
   pipeline runs exactly as before.
 
+Outside a job (S-AN, D46, `research/conductorfix.py`): `codefix` corrects a Calcul cell that failed when run and
+`texfix` proposes one change for a failed article compilation; their success is the run / the recompilation.
+
 Calls go through `MadaleanBrain.call_model` (one pinned model, raw stop reason, usage with cache reads, the spend
 ledger and its caps). Structured output: `output_config.format` (JSON schema) on Claude; the JSON is validated
 here anyway (free models answer in text)."""
@@ -39,21 +42,27 @@ from .providers.base import ProviderError
 CLAUDE = ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5")
 TIER = {"claude-haiku-5-5": "haiku", "claude-sonnet-5-5": "sonnet", "claude-opus-5-5": "opus"}
 NAMES = {"claude-haiku-5-5": "Claude Haiku", "claude-sonnet-5-5": "Claude Sonnet", "claude-opus-5-5": "Claude Opus"}
-DECISIONS = ("plan", "fix", "final")
+DECISIONS = ("plan", "fix", "final", "codefix", "texfix")     # codefix / texfix: Calcul and article (S-AN, D46)
 # prior success of each tier per decision (before anything is measured here), worth PRIOR_N decisions
 PRIOR = {"plan": {"haiku": 0.55, "sonnet": 0.80, "opus": 0.90},
          "fix": {"haiku": 0.40, "sonnet": 0.75, "opus": 0.88},
-         "final": {"haiku": 0.70, "sonnet": 0.85, "opus": 0.90}}
+         "final": {"haiku": 0.70, "sonnet": 0.85, "opus": 0.90},
+         "codefix": {"haiku": 0.55, "sonnet": 0.82, "opus": 0.88},
+         "texfix": {"haiku": 0.60, "sonnet": 0.82, "opus": 0.88}}
 PRIOR_N = 4.0
 NEED = {"easy": 0.5, "medium": 0.8, "hard": 1.0}
 # expected seconds per decision before anything is measured here (real API, 2026-11-22: plan Haiku 7.5 s, Sonnet
 # 8.1–10.4 s, Opus 9.7 s; correction Sonnet 2.9 s; final check Haiku 3.3–4.1 s, Sonnet 3.1–4.0 s; others estimated)
 LAT_PRIOR = {"plan": {"haiku": 7.5, "sonnet": 9.5, "opus": 10.0},
              "fix": {"haiku": 3.0, "sonnet": 3.5, "opus": 8.0},
-             "final": {"haiku": 3.7, "sonnet": 3.6, "opus": 5.0}}
-OUT_TOKENS = {"plan": 900, "fix": 2500, "final": 450}          # expected output (estimate of the cost)
-MAX_TOKENS = {"plan": 4000, "fix": 12000, "final": 2000}        # hard ceiling sent to the API
-EFFORT = {"plan": {"easy": "low", "medium": "low", "hard": "medium"}, "fix": "medium", "final": "low"}
+             "final": {"haiku": 3.7, "sonnet": 3.6, "opus": 5.0},
+             "codefix": {"haiku": 2.5, "sonnet": 3.5, "opus": 7.0},       # estimated (fakes only so far)
+             "texfix": {"haiku": 2.5, "sonnet": 3.5, "opus": 7.0}}
+OUT_TOKENS = {"plan": 900, "fix": 2500, "final": 450, "codefix": 700, "texfix": 500}   # expected output (cost)
+MAX_TOKENS = {"plan": 4000, "fix": 12000, "final": 2000, "codefix": 4000, "texfix": 3000}   # ceiling sent to the API
+EFFORT = {"plan": {"easy": "low", "medium": "low", "hard": "medium"}, "fix": "medium", "final": "low",
+          "codefix": "low", "texfix": "low"}
+FIXES = ("fix", "codefix", "texfix")     # corrections: success = the checker's verdict (Lean, a run, a recompilation)
 CACHE_TTL = 280.0                 # a stable prefix used less than this ago is assumed warm (Anthropic: 5 min)
 FREE_MIN_REASONING = 0.6          # a free model directs only if it reasons at least this well (catalogue scale)
 CAP_STEP = 0.50                   # « continuer avec Claude (+0,50 $) ? »
@@ -84,6 +93,11 @@ FIX_STATEMENT_SCHEMA = {"type": "object", "additionalProperties": False, "requir
                         "properties": {"statement": {"type": "string"}, "what": {"type": "string"}}}
 FIX_PROOF_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["proof", "what"],
                     "properties": {"proof": {"type": "string"}, "what": {"type": "string"}}}
+FIX_CODE_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["code", "what"],
+                   "properties": {"code": {"type": "string"}, "what": {"type": "string"}}}
+FIX_LATEX_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["find", "replace", "what"],
+                    "properties": {"find": {"type": "string"}, "replace": {"type": "string"},
+                                   "what": {"type": "string"}}}
 FINAL_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["consistent", "issues", "summary"],
     "properties": {"consistent": {"type": "boolean"}, "summary": {"type": "string"},
@@ -122,7 +136,22 @@ statement, their closest attempts and Lean's errors, and write ONE complete corr
 given (same name, same statement) followed by its proof, plus auxiliary lemmas before it if needed. Fix the errors
 Lean reported; prefer short robust tactics. Answer as JSON: proof (the Lean code), what (one short French sentence
 for the user: the error and the fix).""",
-    "final": """You are the conductor of Madalean. Check the final coherence of a finished request: does the Lean
+    "fix_sage": """You are the conductor of Madalean. A SageMath cell of the user's notebook failed when run in the
+installed Sage. Read the user's request, the code, the error and the names already defined, and write ONE corrected
+cell that does what the request asks: keep the canonical constructions given (same names, same lines), keep what
+worked, fix only what the error shows; every library loaded in the cell; end with the result. Answer as JSON: code
+(the whole corrected cell, no Markdown fence), what (one short French sentence for the user: the error and the fix).""",
+    "fix_python": """You are the conductor of Madalean. A Python 3 cell of the user's notebook failed when run. Read the
+user's request, the code, the error and the names already defined, and write ONE corrected cell that does what the
+request asks: keep the canonical constructions given (same names, same lines), keep what worked, fix only what the
+error shows; every import explicit. Answer as JSON: code (the whole corrected cell, no Markdown fence), what (one
+short French sentence for the user: the error and the fix).""",
+    "fix_latex": """You are the conductor of Madalean. The user's LaTeX article failed to compile. Read the error and
+the excerpt of the file around it, and propose ONE minimal local change that makes it compile without changing the
+meaning: find = an exact substring of the excerpt (copied character for character, without the line numbers, long
+enough to be unique), replace = its corrected text. Never add packages, \\input, file or shell commands, never define
+macros. Answer as JSON: find, replace, what (one short French sentence for the user: the error and the fix).""",
+    "final":"""You are the conductor of Madalean. Check the final coherence of a finished request: does the Lean
 statement say what the user's problem says, does the explanation explain THAT statement and match the Lean proof?
 Lean has already verified the proof (when it says so); do not re-judge Lean. Report only real mismatches (missing or
 extra hypothesis, wrong quantifier, the explanation proving something else or claiming more). Answer as JSON:
@@ -441,9 +470,9 @@ class Conductor:
                        f"{lat:.1f} s {'measured' if measured is not None else 'expected'}")
                 out.append(Choice(key, NAMES[mid], tier, True, est, u, why))
             out.sort(key=lambda c: c.utility, reverse=True)
-            if decision == "fix" and attempt >= 2:
+            if decision in FIXES and attempt >= 2:
                 out.sort(key=lambda c: c.tier != "opus")          # stable: Opus first, the rest by utility
-            elif decision == "fix":
+            elif decision in FIXES:
                 out = [c for c in out if c.tier != "opus"] + [c for c in out if c.tier == "opus"]
         return out + self.free_conductors(mode)
 
@@ -592,7 +621,7 @@ class Conductor:
                 tried.append(f"{ch.key}: invalid answer")
                 self.stats.record(ch.key, decision, False, secs, usd)
                 continue
-            if decision != "fix":                 # a correction's success is Lean's verdict (recorded by the caller)
+            if decision not in FIXES:             # a correction's success is the checker's verdict (the caller)
                 self.stats.record(ch.key, decision, True, secs, usd)
             return Reply(data, ch.key, ch.name, ch.tier, usd, secs, res.tokens_in, res.tokens_out, res.cache_read,
                          res.cache_write, tried)

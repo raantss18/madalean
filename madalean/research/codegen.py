@@ -352,14 +352,17 @@ def _analysis(it: I.Intent) -> dict:
 async def transcribe(ctx, *, language: str, prompt: str, names: list, context: str, owner: str, lang: str = "fr",
                      use_cache: bool = True, on_code: Callable[[str], None] | None = None,
                      fix_code: str = "", fix_error: str = "", recipes=None, variant: bool = False,
-                     stats: ModelStats | None = None, prev: dict[str, str] | None = None) -> dict:
+                     stats: ModelStats | None = None, prev: dict[str, str] | None = None,
+                     conductor: dict | None = None) -> dict:
     """→ {code, model, origin, seconds, first_s, valid, error, fixed, cached, attempts, uses, recipe, fallbacks,
     key, recognized, intent, coverage, request_error}. Raises BrainError when a model is needed and none answers.
 
     `fix_code` + `fix_error`: repair a cell that failed when run (deterministic fixer first, then the model).
     `variant`: « Autre version » — a different version on purpose (never the stored best, never the catalogue).
     `use_cache` False: kept for older callers; the best version is still returned (D39: same request, same code).
-    `prev`: single-line definitions of earlier cells (name → line) the fixer may copy."""
+    `prev`: single-line definitions of earlier cells (name → line) the fixer may copy.
+    `conductor` ({scope, where, attempt}, with `fix_code`): the conductor corrects after the deterministic fixer and
+    before the usual model (S-AN, D46); its answer is checked like any code (validation before showing)."""
     t0 = time.monotonic()
     card, version, verified = await asyncio.to_thread(card_for, language)
     if language == "sage" and not verified:
@@ -395,6 +398,22 @@ async def transcribe(ctx, *, language: str, prompt: str, names: list, context: s
                 if on_code:
                     on_code(fx["code"])
                 return done(fx["code"], model="fix", origin="fix", fixed=True)
+        if conductor is not None:
+            # S-AN (D46): the conductor corrects what the deterministic fixer could not (None: the usual model below)
+            from . import conductorfix
+            pre = asm.prefix if asm is not None else ""
+            cf = await conductorfix.fix_code(ctx, language=language, prompt=prompt, code=fix_code, error=fix_error,
+                                             names=names or [], prefix=pre, version=version,
+                                             recognized=I.summary(it, "en") if it.recognized else "", **conductor)
+            if cf is not None:
+                code = codefix.enforce_prefix(cf["code"], pre) if pre else cf["code"]
+                code = await asyncio.to_thread(canonical, code, language, known, prev, version)
+                chk = await asyncio.to_thread(validate, code, language, known)
+                if chk["ok"] and code.strip() != fix_code.strip():
+                    if on_code:
+                        on_code(code)
+                    return done(code, model=cf["model"], origin="conductor", fixed=True, conductor=cf)
+                conductorfix.record(ctx, cf["model"], "codefix", False, cf["seconds"], cf["usd"])
     if not fixing and not variant:
         # 1. the best version of this request (by intent): the same code every time, « Réécrire » included
         b = await asyncio.to_thread(store.best, key, language, version, known)

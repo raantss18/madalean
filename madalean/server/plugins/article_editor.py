@@ -284,7 +284,34 @@ async def compile_(request):
     res = {**res, "pdf": (f"/api/research/projects/{pid}/texproject/pdf?h={res['pdf']}" if res.get("pdf") else None)}
     ctx.publish("texproject.compiled", {"project": pid, "ok": res["ok"], "hash": res.get("hash"),
                                         "by": _dev(request)})
+    res["fixing"] = _conductor_fix(request, ctx, pid, res)
     return ok(res)
+
+
+def _conductor_fix(request, ctx, pid: str, res: dict) -> bool:
+    """S-AN (D46): an error without a one-click fix → the conductor proposes ONE change, checked by recompiling, as
+    a suggestion (`article.fix` events). Runs after the answer; True when it was started."""
+    from ...research import conductorfix
+    mode = _mode(ctx, pid)
+    if not conductorfix.fixable(res, pid) or conductorfix.available(ctx, mode) is None:
+        return False
+    tasks = request.app[TASKS]
+    key = f"fix-{pid}"
+    if key in tasks and not tasks[key].done():
+        return True
+
+    async def run():
+        try:
+            await conductorfix.fix_compile(ctx, pid, res, mode=mode)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001
+            log.exception("compile fix failed")
+            ctx.publish("article.fix", {"project": pid, "state": "none"})
+    t = ctx.spawn(run())
+    tasks[key] = t
+    t.add_done_callback(lambda _t: tasks.pop(key, None) if tasks.get(key) is _t else None)
+    return True
 
 
 @_guard

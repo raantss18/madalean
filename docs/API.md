@@ -302,7 +302,18 @@ together; explanation and informal proof are written together after the proof. E
 the check cancels the proof work and stops the plan exactly as before (`error: statement_false|statement_doubtful`,
 « Prouver quand même » = plan `[{"stage":"proof","force":true}]`); a proof found by Mathlib-first, by a quick proof
 of the check or by the search cancels the other proof work (their running attempts end `cancelled`) and is recorded
-once the check has not stopped it. `POST /jobs/{id}/cancel` stops every stage. Never parallel in `local` mode (one
+once the check has not stopped it. A proof found before a « faux » / « douteux » verdict is kept on the dossier as
+`pending_proof` (`{code, statement, statement_index, prepared, workspace, model, strategy, seconds, verdict, t,
+job, mathlib?}`, S-AN / D46) — never recorded as verified, never in the library; the next `{"stage":"proof",
+"force":true}` re-checks it with a FRESH strict Lean (attempt `kind: "pending"`) and records it at once when Lean
+accepts it (`meta.pending_reused`, `meta.verdict_overridden`), else searches as before; a new statement (by hand,
+by the model, by the conductor) drops it. `POST /jobs/{id}/cancel` stops every stage.
+
+`GET /conductor/asks` → `{"asks":[ConductorAsk]}` and `POST /conductor/asks/{id} {approve: bool}` → `{answered}`
+(400 when `approve` is not a boolean, 409 when nothing waits): the cap question « Plafond atteint : continuer avec
+Claude (+0,50 $) ? » of a request outside a job (S-AN, D46) — a Calcul correction or an article compilation fix.
+`ConductorAsk = {id, kind: "calcul"|"article", spent, cap, step, estimate, t, project_id?, doc?, cell_id?,
+project?}`. No answer within 5 minutes = no (the request goes on without Claude). Never parallel in `local` mode (one
 GPU model at a time). Same statement + same workspace / Lean / Mathlib: the check verdict and the Mathlib-first
 result are reused (event « déjà vérifié … »; a reused Mathlib proof is checked again by Lean).
 
@@ -473,6 +484,8 @@ A client too slow to read (10 000 queued events) is disconnected with close code
 | `jupyter.status` | `{jupyter: JupyterStatus}` |
 | `assistant.token` / `assistant.done` / `assistant.error` | see §3.11 |
 | `toast` | `{level: "info"|"ok"|"warn"|"error", key, params, text}` |
+| `conductor.ask` | `ConductorAsk` (§3.6) — a cap question outside a job; `{id, …, done: true}` once answered or expired |
+| `article.fix` | `{project, state: "working"|"proposed"|"none", path?, line?, suggestion?, name?, usd?}` — the conductor's fix of a failed compilation (docs/ARTICLE.md §10) |
 
 Plugins may publish other types (ignore unknown types).
 
@@ -660,6 +673,11 @@ explanation of the same cell replaced it. Facts come from Madalean's fixed Sage 
 (only when the cell may run, [CALCUL.md §3.7](CALCUL.md)); streamed as `calcul.steps {project_id, doc, cell_id,
 text, state: start|writing|done|error}`. Generic: `POST /api/code/explain {language: sage|python, code, output,
 request?, mode: "steps"}` → the same shape, model only (`reason: no_kernel`, never runs code); 400 without `output`.
+**S-AN (D46)**: a run whose `autofix` was written by the conductor carries `autofix: {…, by: "conductor", name,
+tier, usd, what, seconds, request_usd, code_hash}` and the new version `versions[-1].fix: {by, name, usd, what}`;
+the cap question of that request is `conductor.ask` (§3.6). Article: `POST …/texproject/compile` also answers
+`fixing: bool` (a conductor's fix is being looked for, `article.fix` events; docs/ARTICLE.md §10); suggestions
+have `meta` (`compile_fix`: `{conductor, tier, usd, verified: "recompiled", error, line}`).
 
 | Method | Path | Body → answer |
 |---|---|---|

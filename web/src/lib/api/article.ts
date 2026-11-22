@@ -27,10 +27,13 @@ export interface Packages { class: string; packages: PackageInfo[]; needed: { na
   redundant: { name: string; reason: string; path: string; line: number }[]; refused: { name: string; instead: string; path: string; line: number }[];
   engine: 'tectonic' | 'system' | 'none'; digest: string }
 export interface CompileResult { ok: boolean; pdf: string | null; hash: string; seconds: number; engine: string; cached: boolean;
-  diagnostics: Diagnostic[]; packages: Packages; states: Record<string, { status: DossierState; title: string }> }
+  diagnostics: Diagnostic[]; packages: Packages; states: Record<string, { status: DossierState; title: string }>;
+  /** S-AN (D46): the conductor is looking for a fix of this error (`article.fix` events follow). */
+  fixing?: boolean }
 export interface Suggestion { id: string; block_id: string; path: string; find: string; occurrence: number; at: 'replace' | 'after' | 'before';
   replace: string; kind: string; origin: 'assistant' | 'research' | 'user'; rationale: string; model: string; created: number;
-  state: 'pending' | 'accepted' | 'rejected' | 'stale'; anchor?: { path: string; from: number; to: number } }
+  state: 'pending' | 'accepted' | 'rejected' | 'stale'; anchor?: { path: string; from: number; to: number };
+  meta?: { conductor?: string; usd?: number; verified?: string; [k: string]: unknown } }
 export interface CiteKey { key: string; title: string; author: string; year: number | null }
 export interface LabelRef { label: string; path: string; line: number; env: string; title: string }
 export interface TexProject {

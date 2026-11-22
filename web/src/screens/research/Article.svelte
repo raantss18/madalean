@@ -28,6 +28,7 @@
   import ArticleSide from './article/ArticleSide.svelte';
   import { layout, isShortcut } from '../../lib/ui/layout.svelte';
   import { dismiss } from '../../lib/ui/dismiss';
+  import { costText } from '../../lib/conductor';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -51,6 +52,7 @@
   let sugBtn: HTMLButtonElement | undefined = $state();
   let compiling = $state(false);
   let result = $state<CompileResult | null>(null);
+  let fixing = $state(false);                 // S-AN: the conductor looks for a fix that compiles (a suggestion)
   let pdfNonce = $state(0);
   let target = $state<{ page: number; bbox: number[]; nonce: number } | null>(null);
   let selection = $state<{ from: number; to: number; text: string } | null>(null);
@@ -314,6 +316,7 @@
     try {
       const r = await articleApi.compile(pid, opts);
       result = r;
+      fixing = !!r.fixing;
       if (r.ok) { pdfNonce++; if (!previewShown && !narrow && opts.fetch === undefined && !opts.force) toast('ok', t('ae.compiled', { s: r.seconds.toFixed(1) })); }
       showDiagsInEditor();
       if (proj && r.states) proj.states = r.states;
@@ -494,7 +497,13 @@
     toast('error', e.text || tk(`err.${e.error}`, t('ae.assist.failed')));
   }));
   $effect(() => app.on('article.suggestion', (ev) => { const e = ev as unknown as { project: string }; if (e.project === pid) void reloadSugs(); }));
-  $effect(() => app.on('research.suggestion', (ev) => { const e = ev as unknown as { project_id: string }; if (e.project_id === pid) void loadQ(); }));
+  $effect(() => app.on('article.fix', (ev) => {
+    const e = ev as unknown as { project: string; state: string };
+    if (e.project !== pid || e.state === 'working') return;
+    fixing = false;
+    toast('info', t(e.state === 'proposed' ? 'ae.fixProposed' : 'ae.fixNone'));
+  }));
+  $effect(() => app.on('research.suggestion',(ev) => { const e = ev as unknown as { project_id: string }; if (e.project_id === pid) void loadQ(); }));
   $effect(() => app.on('texproject.file', (ev) => {
     const e = ev as unknown as { project: string; path: string; hash: string };
     if (e.project !== pid || hashes[e.path] === e.hash) return;
@@ -686,6 +695,7 @@
                     </li>
                   {/each}
                 </ul>
+                {#if fixing}<p class="xs muted" role="status">{t('ae.fixing')}</p>{/if}
               </details>
             {/if}
             {#if pdfUrl}
@@ -718,6 +728,7 @@
             <ul class="mine">
               {#each texSugs.filter((s) => s.state === 'pending') as s (s.id)}
                 <li><span class="chip">{tk(`ae.sug.kind.${s.kind}`, s.kind)}</span> <del>{s.find.slice(0, 160)}</del> <ins>{s.replace.slice(0, 240)}</ins>
+                  {#if s.kind === 'compile_fix'}<span class="xs muted fixed-by">{s.rationale ? s.rationale + ' — ' : ''}{t('ae.sug.fixedBy', { name: s.meta?.conductor ?? s.model, cost: costText(s.meta?.usd, i18n.lang, t('ae.sug.free')) })}</span>{/if}
                   <span class="row"><button class="btn small" onclick={() => { if (s.anchor) openFile(s.anchor.path); void decide(s.id, true); }}>{t('ae.sug.accept')}</button>
                   <button class="btn small quiet" onclick={() => decide(s.id, false)}>{t('ae.sug.reject')}</button>
                   {#if s.anchor}<button class="linkish xs" onclick={() => openFile(s.anchor!.path)}>{s.anchor.path}</button>{/if}</span></li>
@@ -786,6 +797,7 @@
   .sugs { position: fixed; right: var(--s-3); bottom: var(--s-3); width: min(440px, calc(100vw - 24px)); max-height: 70vh; overflow: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-3); box-shadow: var(--shadow-2); padding: var(--s-3); z-index: 8; }
   .sugs .mine { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
   .sugs del { color: var(--failed); } .sugs ins { color: var(--proved); text-decoration: none; }
+  .sugs .fixed-by { display: block; margin-top: 2px; }
   .h3 { font-size: var(--fs-md); margin: 0; }
   @media (min-width: 1440px) { .ae { --ae-side-w: 272px; } }
   @media (max-width: 1279px) { .ae { --ae-preview-w: 42%; } }

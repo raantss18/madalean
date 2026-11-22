@@ -395,6 +395,8 @@ class DossierPipeline:
                             job.explained.set()
                     job.done_stages.append(stage)
                     await hook.after_stage(stage)
+                    if "pending_proof" in d.extra and self._pending(d) is None:
+                        await self.ctx.repo.save(d)   # S-AN: the statement was corrected: the kept proof is dropped
             except Failed as f:
                 job.plan = []
                 job.error = f.error
@@ -493,6 +495,7 @@ class DossierPipeline:
             raise Failed("Pas d'énoncé produit. Reformulez le problème (plus précis, avec les hypothèses) ou écrivez "
                          "l'énoncé Lean vous-même dans l'onglet « Énoncé Lean ».", "no_statement")
         idx = d.add_statement(f.statement, ok=f.ok, note=req, model=f.model)
+        d.extra.pop("pending_proof", None)     # S-AN (D46): a proof kept aside was about the old statement
         if f.ok:
             d.status = "draft"
             await self.event(d, job, "statement", "L'IA a traduit le problème en Lean et Lean accepte l'énoncé. "
@@ -752,6 +755,9 @@ class DossierPipeline:
             raise Failed("Pas d'énoncé à prouver : écrivez ou traduisez d'abord l'énoncé.", "no_statement")
         s = self.settings
         force = bool((getattr(job, "step_flags", None) or {}).get("force"))
+        if force and not req and await self._use_pending(job, d, io, ws):
+            await self.ctx.repo.save(d)         # S-AN (D46): the proof kept aside, re-checked fresh: no new search
+            return
         parallel = self.parallel_ok(job, "understand")
         gate: asyncio.Task | None = None      # statement check running beside the proof search (D38)
         if s.statement_check and not force and not (req and d.proof_is_current):
@@ -977,8 +983,12 @@ class DossierPipeline:
                             log.warning("statement check failed: %s", e)
                             r = None
                         if r is not None and r.verdict in ("false", "doubtful") and not req:
+                            found = (*winner, mf if winner[1] == "mathlib" else None) if winner is not None \
+                                else self._found_in(done, racers)
                             await cancel_racers()
                             self._stop_for_check(job, d, r.verdict)
+                            if found is not None:     # S-AN (D46): kept aside, never « vérifiée » nor in the library
+                                await self._keep_pending(job, d, ws, statement, found, r.verdict)
                             await self.ctx.repo.save(d)
                             return None
                         if r is not None and r.proof and winner is None and not (mf is not None and mf.ok):
@@ -1042,6 +1052,99 @@ class DossierPipeline:
         m = re.search(r"\b([A-Z][\w']*(?:\.[\w'₀-₉]+)+|[a-z][\w']*_[\w'₀-₉.]+)", tactic)
         return MathlibResult(True, code, m.group(1) if m else "", tactic, source or "check", axioms=r.verdict.axioms,
                              seconds=time.monotonic() - t0)
+
+    # ------------------------------------------------------------ a proof found before a « faux » / « douteux » (S-AN)
+    def _found_in(self, done, racers: dict) -> tuple | None:
+        """A racer that finished with a Lean-verified proof in the same batch as the verdict."""
+        for t in done:
+            kind = racers.get(t)
+            if kind is None or t.cancelled() or t.exception() is not None:
+                continue
+            out = t.result()
+            if kind == "search" and out and out[0] is not None and out[0].ok:
+                return out[0], out[1], None
+            if kind in ("mathlib", "quick") and out is not None and out.ok:
+                return self._mathlib_proof(out), "mathlib", out
+        return None
+
+    async def _keep_pending(self, job: Job, d: Dossier, ws, statement: str, found: tuple, verdict: str) -> None:
+        """DECISIONS D46: the proof the search found while the statement check was still running is kept on the
+        dossier as a pending candidate — not « vérifiée », not in the library. « Prouver quand même » re-checks it
+        with a fresh strict Lean instead of searching again; a corrected statement discards it."""
+        res, strategy, mf = found
+        cand = {"code": res.code, "statement": d.statement, "statement_index": d.cur_statement,
+                "prepared": statement, "workspace": ws.key, "model": res.model, "strategy": strategy,
+                "seconds": round(res.seconds, 1), "verdict": verdict, "t": time.time(), "job": job.id}
+        if mf is not None:
+            cand["mathlib"] = {"lemma": mf.lemma, "source": mf.source, "tactic": mf.tactic, "model": mf.model}
+        d.extra["pending_proof"] = cand
+        await self.event(d, job, "info", "Une preuve a été trouvée pendant la vérification de l'énoncé. Elle est "
+                         "mise de côté, sans être enregistrée comme vérifiée : « Prouver quand même » la revérifie "
+                         "avec Lean au lieu de relancer la recherche ; corriger l'énoncé l'abandonne.",
+                         model=res.model, verdict=verdict, pending=True)
+
+    @staticmethod
+    def _pending(d: Dossier) -> dict | None:
+        """The pending candidate when it is still about the current statement; a stale one is dropped."""
+        p = d.extra.get("pending_proof")
+        if not isinstance(p, dict):
+            return None
+        if p.get("statement") != d.statement or p.get("statement_index") != d.cur_statement or not p.get("code"):
+            d.extra.pop("pending_proof", None)
+            return None
+        return p
+
+    async def _use_pending(self, job: Job, d: Dossier, io: JobIO, ws) -> bool:
+        """« Prouver quand même » with a pending candidate: one FRESH strict Lean check (never the warm Lean); accepted
+        → recorded at once like any proof (library included); refused → dropped, the search runs as before."""
+        p = self._pending(d)
+        if p is None:
+            return False
+        d.extra.pop("pending_proof", None)
+        if p.get("workspace") and p["workspace"] != ws.key:
+            return False
+        code = p["code"]
+        try:
+            name = leancheck.theorem_name(p.get("prepared") or leancheck.prepare_statement(d.statement))
+        except leancheck.StatementError:
+            return False
+        a = io.new_attempt("proof", "pending")
+        a.model, a.code, a.status = p.get("model", ""), code, "compiling"
+        io.update_attempt(a)
+        t0 = time.monotonic()
+        r = await self.ctx.lean.check(leancheck.with_axiom_probe(code, name), ws, self.settings.compile_timeout_s,
+                                      name, owner=job_owner(job), warm=False)
+        a.compile_seconds = r.seconds
+        if not r.verdict.ok:
+            a.status = "rejected"
+            a.errors_text = "\n".join(f"line {m.line}: {m.text[:300]}" for m in r.verdict.errors[:4]) \
+                or "; ".join(r.verdict.reasons[:3]) or r.infra_error or "rejected"
+            io.update_attempt(a)
+            await self.event(d, job, "info", "La preuve mise de côté n'est pas acceptée par Lean : nouvelle recherche.")
+            return False
+        a.status, a.summary = "accepted", msg("Preuve vérifiée par Lean")["text"]
+        io.update_attempt(a)
+        info = workspace_info(ws)
+        meta = {"axioms": r.verdict.axioms, "lean": info.get("lean", ""), "mathlib": info.get("mathlib", ""),
+                "workspace": ws.key, "seconds": round(p.get("seconds", 0) + time.monotonic() - t0, 1),
+                "strategy": p.get("strategy", ""), "attempts": len([x for x in job.attempts if x.stage == "proof"]),
+                "checked": time.time(), "pending_reused": True, "verdict_overridden": p.get("verdict", "")}
+        mfi = p.get("mathlib") or {}
+        if mfi:
+            meta.update(mathlib_lemma=mfi.get("lemma", ""), mathlib_source=mfi.get("source", ""),
+                        mathlib_tactic=mfi.get("tactic", ""), **({"adapted_by": mfi["model"]} if mfi.get("model")
+                                                                 else {}))
+        idx = d.add_proof(code, model=p.get("model", ""), meta=meta)
+        d.status = "proved"
+        await self.event(d, job, "proof", "Preuve mise de côté revérifiée par Lean et enregistrée ({s:.0f} s).",
+                         ref=idx, model=p.get("model", ""), s=time.monotonic() - t0,
+                         seconds=round(time.monotonic() - t0, 1))
+        entry = await asyncio.to_thread(self.ctx.library.add_proof, code, d.title, ws.key, d.id, d.lemmas_used)
+        if entry:
+            self.ctx.bus.publish("library.updated", {"added": entry.name})
+            await self.event(d, job, "info", "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans "
+                             "vos prochaines preuves.", name=entry.name)
+        return True
 
     # ------------------------------------------------------------ never redo twice (B14, D38)
     def _cache(self) -> StageCache:

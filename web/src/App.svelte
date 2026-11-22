@@ -14,6 +14,7 @@
   import ProjectBar from './components/ProjectBar.svelte';
   import ConnectionBanner from './components/ConnectionBanner.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
+  import ConductorAsk from './components/ConductorAsk.svelte';
   import Tour from './components/Tour.svelte';
 
   type Screen = Component<{ params: Record<string, string> }>;
@@ -110,6 +111,7 @@
     </main>
   </div>
   <CommandPalette bind:open={palette} />
+  <ConductorAsk />
 {/if}
 <Toasts />
 
