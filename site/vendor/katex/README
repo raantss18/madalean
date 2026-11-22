@@ -1,0 +1,5 @@
+KaTeX 0.19.1, copied from web/node_modules/katex (npm katex@0.19.1, MIT licence: LICENSE).
+katex.min.js is used at BUILD time only (node, site/tools/katex_render.cjs): the pages contain pre-rendered maths and
+ship only katex.min.css + fonts/*.woff2 (no client script). katex.min.css was filtered to keep only the woff2 sources.
+Update: copy dist/katex.min.js, dist/katex.min.css, dist/fonts/*.woff2 and LICENSE from the new version and apply the
+same filter (regex in docs/SITE.md, section "Vendored files").

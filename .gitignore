@@ -1,6 +1,6 @@
 .venv/
 .venv-convert/
-vendor/
+/vendor/
 workspaces/
 logs/
 __pycache__/
