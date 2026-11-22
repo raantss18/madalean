@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.2 — à venir
+## 2.0.2 — 2026-11-22
 
 **« Madalean Server », l'application de l'ordinateur hôte**
 - Sur l'ordinateur qui fait tourner Madalean, le menu des applications propose maintenant **une seule** entrée,
@@ -14,6 +14,14 @@
   compiler). Sans la bibliothèque système webkit2gtk-4.1, l'entrée ouvre une fenêtre de Chromium (ou Chrome, Brave,
   Edge, Vivaldi), sinon le navigateur ; l'installateur le dit. Elle remplace l'ancienne entrée « Madalean » qui
   ouvrait le navigateur avec une icône générique, et l'icône s'affiche tout de suite dans le menu.
+
+**Carte graphique**
+- Partage avec Ollama : quand Madalean a besoin de la carte pour un modèle local et qu'Ollama ne fait rien, il lui
+  demande de libérer la place (0,3 s) ; si Ollama est en train de répondre, Madalean attend au plus 30 s puis passe
+  au processeur ou à un modèle en ligne (réglable) — il ne coupe jamais Ollama. Ligne « Partage avec Ollama » dans le
+  panneau ☁ et l'état de santé ; réglages dans Réglages › Modèles.
+- L'état de santé signale quand le moteur des modèles locaux tourne sur le processeur alors qu'une carte NVIDIA est
+  utilisable, avec un bouton pour réparer (cas vu après une mise à jour du pilote).
 
 ## 2.0.1 — 2026-11-22
 

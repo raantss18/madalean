@@ -110,6 +110,10 @@ test('each step: reuse choice, local model, key test, Claude caps, mode, behavio
   await page.getByRole('button', { name: 'Suivant' }).click();
   await expect(heading(page)).toHaveText('Un modèle sur cet ordinateur ?');
   const models = page.getByRole('group', { name: 'Quels modèles installer sur cet ordinateur ?' });
+  // the recommended choice is pre-selected and depends on this machine's GPU: start from « Aucun » so each click
+  // below is a real change that the server records
+  await models.getByRole('radio', { name: /^Aucun/ }).check();
+  await expect.poll(async () => (await api<Wiz>('GET', '/setup/wizard')).models).toBe('none');
   await models.getByRole('radio', { name: /Le modèle de preuve/ }).check();
   await expect.poll(async () => (await api<Wiz>('GET', '/setup/wizard')).models).toBe('prover');
   await models.getByRole('radio', { name: /Les trois modèles/ }).check();
