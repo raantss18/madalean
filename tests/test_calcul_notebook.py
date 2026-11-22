@@ -403,6 +403,13 @@ async def test_real_kernel_shared_with_jupyterlab_session(tmp_path, language, mo
             run = (await (await s.post(D + f"/cells/{c4['id']}/run", json={"timeout": 120})).json())["run"]
             out = next(o for o in run["outputs"] if o["type"] == "result")
             assert out["approx"].startswith("4.44288") and "pi" in out["data"]["text/latex"]
+            # Maxima (integrals) writes its cache inside the experiments dir, never under HOME (read-only sandbox)
+            c6 = (await (await add("n = var('n'); assume(n, 'integer'); assume(n > 0)\n"
+                                   "integral(x^2*cos(n*x), x, 0, 2*pi).simplify_full()")).json())["cell"]
+            run = (await (await s.post(D + f"/cells/{c6['id']}/run", json={"timeout": 300})).json())["run"]
+            assert run["status"] == "ok", run
+            out = next(o for o in run["outputs"] if o["type"] == "result")
+            assert "pi" in out["data"]["text/plain"] and "n^2" in out["data"]["text/plain"]
         # restart from Madalean: the same session, state gone, then the shutdown removes the session
         assert (await s.post(D + "/restart")).status == 200
         c5 = (await (await add("print(a)")).json())["cell"]

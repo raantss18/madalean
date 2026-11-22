@@ -47,7 +47,9 @@ def launcher_env(cfg: dict, environ: dict[str, str]) -> dict[str, str]:
     # characters, so a long HOME (in ~HOME/.gap/ of the root paths) makes the Sage kernel crash at start. Every
     # directory a kernel writes to is set explicitly below, inside the experiments directory.
     env.update({"HOME": "/nonexistent", "TMPDIR": os.path.join(wd, ".tmp"), "IPYTHONDIR": os.path.join(wd, ".ipython"),
-                "DOT_SAGE": os.path.join(wd, ".sage"), "MPLCONFIGDIR": os.path.join(wd, ".mpl"),
+                "DOT_SAGE": os.path.join(wd, ".sage"),
+                # Maxima (integrals, limits, sums) otherwise writes its compiled cache under HOME → read-only error
+                "MAXIMA_USERDIR": os.path.join(wd, ".sage", "maxima"), "MPLCONFIGDIR": os.path.join(wd, ".mpl"),
                 "XDG_CACHE_HOME": os.path.join(wd, ".cache"), "XDG_CONFIG_HOME": os.path.join(wd, ".config"),
                 "MADALEAN_EXPERIMENT": "1"})
     return env
