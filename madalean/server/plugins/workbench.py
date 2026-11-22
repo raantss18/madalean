@@ -23,7 +23,8 @@ Calcul (S-P: notebooks — a document is a standard .ipynb sharing one kernel wi
                                                           lines / S-AJ: steps of the computation (facts checked by
                                                           Sage, streamed as `calcul.steps`)
 - `POST   …/cells/{cid}/suggestion {code, model?}`        apply a proposed fix (model code: approval needed)
-- `POST   /api/code/explain {language: sage|python|lean, code, error?, mode}`   the same, generic (Lean screens)
+- `POST   /api/code/explain {language: sage|python|lean, code, error?, mode}`   the same, generic (Lean: handled by
+                                                          lean_explain.py, S-AM — checked correction, goal states)
 - `GET    /api/calcul/recipes` · `DELETE /api/calcul/recipes/{id}`   learned recipes (docs/CALCUL.md §3.5)
 - `GET    /api/calcul/catalogue`                       canonical code structures + verification (S-AG, §3.6)
 - `POST   /api/calcul/analyze {text, language?}`       what a request is recognized as (S-AG), no model
@@ -1054,6 +1055,9 @@ async def code_explain(request):
     S-AJ: `mode: steps` with {output, request?}: the mathematical steps, model only (no kernel here: unverified)."""
     data = await body(request)
     mode = str(data.get("mode", "error"))
+    if str(data.get("language", "")) == "lean" and mode in ("error", "lines"):
+        from .lean_explain import handle      # S-AM (D45): Lean-specific prompt, goal states, checked correction
+        return await handle(request, data)
     if mode == "steps":
         return await _steps_answer(request, str(data.get("language", "")), str(data.get("code", "")),
                                    str(data.get("output", ""))[:20000], str(data.get("request", ""))[:4000],

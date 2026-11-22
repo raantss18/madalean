@@ -26,7 +26,7 @@ from .mathlib_first import MathlibFirst, MathlibResult
 from .verify import CheckResult, StatementChecker
 from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
-from . import conductor_hook
+from . import conductor_hook, leancat
 from .stagecache import StageCache, make_key, normalize_text
 
 log = get("pipeline")
@@ -170,6 +170,7 @@ class JobIO:
         hook = conductor_hook.hook_of(job)         # S-AI (D41): the conductor's model and tool cards for this role
         if hook.active and not only:
             messages = hook.cards(role, messages)
+        messages = leancat.inject(ctx, job, role, messages)     # S-AM (D45): verified catalogue entries
         try:
             inner = asyncio.create_task(ctx.brain.complete(
                 role, messages, mode=mode, temperature=temperature, max_tokens=max_tokens, on_chunk=on_chunk,
@@ -1339,6 +1340,8 @@ class DossierPipeline:
             await self.ctx.slots.acquire("online", owner)
         t0 = time.monotonic()
         kw = {"only": only} if only and _accepts(fn, "only") else {}
+        if _accepts(fn, "request"):              # S-AM (D45): the request, for the verified catalogue entries
+            kw["request"] = "\n".join(leancat.job_texts(d))
         try:
             out = await fn(self.ctx.brain, self.ctx.retriever, statement=statement, workspace_key=ws.key, check=check,
                            library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode,

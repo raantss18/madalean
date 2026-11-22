@@ -1,6 +1,6 @@
 // Typed HTTP client for docs/API.md. One place for: JSON, errors, 401 handling, aborts, downloads.
 import type {
-  CheckResult, Device, Dossier, DossierSummary, FollowStage, Hello, Job, JupyterStatus, LibEntry, Mode,
+  CheckResult, Device, LeanExplainAnswer, LeanExplainWhere, Dossier, DossierSummary, FollowStage, Hello, Job, JupyterStatus, LibEntry, Mode,
   LeaderboardRow, ModelsInfo, Rankings, Project, Settings, Stage, StateSnapshot, Strategy, SystemInfo, UpdatesStatus, UsageStatus, VersionKind,
 } from './types';
 
@@ -138,6 +138,10 @@ export const api = {
   restoreLibrary: (entry: LibEntry) => request<{ ok: boolean }>('POST', '/library/restore', { entry }),
   libraryExportUrl: (workspace: string) => `/api/library/export?workspace=${enc(workspace)}`,
 
+  /** S-AM (D45): « Expliquer l'erreur » (a correction is offered only once Lean accepted it) / « ligne par ligne ». */
+  leanExplain: (body: LeanExplainWhere & { mode: 'error' | 'lines'; code?: string; stream?: string;
+    errors?: { line: number; col: number; text: string; severity: string }[] }, o?: ReqOpts) =>
+    request<LeanExplainAnswer>('POST', '/lean/explain', body, o),
   check: (code: string, opts: { workspace?: string; strict?: boolean; timeout?: number } = {}, o?: ReqOpts) =>
     request<{ check: CheckResult; workspace: string }>('POST', '/check', { code, ...opts }, o),
   importTex: (input: File | string) => {

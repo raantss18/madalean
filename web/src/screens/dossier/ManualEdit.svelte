@@ -13,6 +13,7 @@
   import EnterHint from '../../components/EnterHint.svelte';
   import CheckResultView from '../../components/CheckResultView.svelte';
   import Md from '../../components/Md.svelte';
+  import LeanExplain from '../../components/LeanExplain.svelte';
   import { reportError } from './actions';
 
   let { dossier: d, kind, server, open = $bindable(false) }: { dossier: Dossier; kind: 'proof' | 'informal' | 'explanation'; server: string; open?: boolean } = $props();
@@ -77,6 +78,11 @@
       <button class="btn quiet" onclick={cancel}>{t('common.cancel')}</button>
     </div>
     {#if check}<CheckResultView {check} mode="proof" />{/if}
+    {#if kind === 'proof' && draft.text.trim()}
+      <!-- S-AM (D45): explain the draft; an accepted correction replaces it and is saved like a manual edit -->
+      <div class="row lx-row"><LeanExplain where={{ dossier: d.id, part: 'proof' }} code={draft.text} canError={Boolean(check && !check.ok)}
+        onApply={async (fix) => { if (!draft) return false; draft = { base: draft.base, text: fix }; await save(); return !draft; }} /></div>
+    {/if}
   </div>
 {/if}
 
@@ -85,5 +91,6 @@
   .note { margin: 0 0 var(--s-2); color: var(--text-2); }
   .stale { background: var(--running-soft); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
   .seg { margin-bottom: var(--s-2); }
+  .lx-row { margin-top: var(--s-2); }
   .pv { padding: var(--s-3); background: var(--surface-2); border-radius: var(--r-2); }
 </style>

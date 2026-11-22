@@ -10,7 +10,8 @@
   import { t, fmtTime } from '../../lib/i18n/index.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
   import { errorText } from '../../lib/ui/errors';
-  import { linkify, leanBlocks } from '../../lib/notes';
+  import { linkify, leanBlocks, replaceLeanBlock } from '../../lib/notes';
+  import LeanExplain from '../../components/LeanExplain.svelte';
   import { currentProjectId } from '../../lib/project.svelte';
   import ProjectGate from '../../components/ProjectGate.svelte';
   import CodeEditor from '../../components/CodeEditor.svelte';
@@ -160,6 +161,20 @@
     checking = block ?? 999;
     try { const r = await research.leanCheckNote(note.id, block); note = r.note; } catch (x) { toast('error', errorText(x)); } finally { checking = -1; }
   }
+  // S-AM (D45): an accepted correction replaces the block's code; the note's autosave makes it a new revision,
+  // then the block is checked again by Lean
+  async function applyBlockFix(index: number, fix: string): Promise<boolean> {
+    const next = replaceLeanBlock(body, index, fix);
+    if (next === body) return false;
+    body = next;
+    edited();
+    // the editor's own change effect may touch the saver again while it saves: flush until it settles
+    for (let i = 0; i < 3 && saver.status !== 'saved'; i++) await saver.flush();
+    if (saver.status !== 'saved') return false;
+    toast('ok', t('lx.applied'));
+    await checkLean(index);
+    return true;
+  }
   async function toDossier(block: number) {
     if (!note) return;
     try {
@@ -258,6 +273,10 @@
                     <button class="btn small" onclick={() => toDossier(b.index)}>{t('notes.toDossier')}</button>
                   </div>
                   {#if r && !r.ok}<CheckResultView check={{ ...r, axioms: null, reasons: r.reasons ?? [], cancelled: false }} />{/if}
+                  {#if b.code.trim()}
+                    <div class="row lx-row"><LeanExplain where={{ note: note.id, block: b.index }} code={b.code}
+                      errors={r && !r.ok ? r.errors : null} canError={Boolean(r && !r.ok)} onApply={(fix) => applyBlockFix(b.index, fix)} /></div>
+                  {/if}
                 </div>
               {/each}
             </section>
@@ -320,6 +339,7 @@
   .pane { min-width: 0; }
   .preview { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--s-3) var(--s-4); font-family: var(--font-serif); line-height: 1.65; max-height: 75vh; overflow: auto; }
   .lean, .back { margin-top: var(--s-4); }
+  .lx-row { margin-top: var(--s-2); }
   .lean h2, .back h2 { font-size: var(--fs-md); margin: 0; }
   .lb { border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--s-2) var(--s-3); margin-top: var(--s-2); background: var(--surface); }
   .back ul { padding-left: 1.2em; }

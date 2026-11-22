@@ -322,6 +322,30 @@ probe, forbidden constructs). Runs in a `lean` slot. 409 `no_workspace`, 400 `no
 `POST /import/tex` — `multipart/form-data` with field `file` (≤ 5 MB) or JSON `{"tex":"…"}` →
 `{"statements":[{"title":"Théorème 1 — Euclide","body":"…"}]}` (theorem-like environments, else the document body).
 
+### 3.8a « Expliquer » for Lean (session S-AM, DECISIONS D45, plugin `lean_explain.py`)
+
+`POST /lean/explain` (also `POST /code/explain` with `"language":"lean"`) `{"mode":"error|lines", "code"?,
+"dossier"?, "part"?:"statement|proof", "note"?, "block"?, "workspace"?, "errors"?:[{line, col, text, severity}],
+"error"?:"…", "stream"?:"<id>"}`. The place decides the workspace and the rules of a correction: `dossier` + `part`
+(the dossier's workspace; `code` defaults to its statement / proof; a proof correction is pinned to the dossier's
+statement and judged strictly — axiom probe, forbidden constructs), `note` + `block` (the project's workspace, the
+block's code and the header it is checked with), else `workspace` / the default (a free file). Lean's messages:
+`errors` as shown on screen (positions in `code`), or `error` (text), else the server compiles `code` itself (warm
+Lean allowed, D37).
+- `error` → `{"explanation","fix","fix_status":"accepted|rejected|none|unchecked","fix_check":{summary, via?,
+  seconds?}|null,"fix_tries","no_error"?,"workspace","lean","model","cached"}`. `fix` is non-empty only when Lean
+  accepted it (`accepted`); a refused correction goes back to the model once with Lean's errors, then is dropped
+  (`rejected`, `fix:""`); `unchecked` = no Lean to check it (not offered). `no_error:true` = Lean accepts the code (no
+  model call). Applying a fix is a manual edit: `POST /dossiers/{id}/statement` or `…/versions/proof` (fresh strict
+  check decides « vérifiée »), or the note's own save.
+- `lines` → `{"lines":[{"line","code","text","goal"}],"goals":"lean|none",…}`: one sentence per line (header lines
+  `import` / `open` / `set_option` glossed without a model); `goal` = the goal state Lean printed after that line
+  (`"no goals"` when that branch is done; `null` when Lean gave none — never invented).
+- Errors: 400 `bad_fields` (`mode`, `part`, empty / too long code), 404 `not_found`, 409 `no_lean_block`, 503
+  `no_model`. Answers are cached in memory (same code, place, Lean / Mathlib version, language; a refused or
+  unchecked correction is not cached). WebSocket `lean.explain {stream, text, state: start|writing|checking|
+  repairing|done|error}` while it runs (only when `stream` is given).
+
 ### 3.8b Declarations (hover / tap on Lean names) and examples
 
 `GET /declarations/{workspace}/{name}` (also `GET /lean/declaration?name=&workspace=`, use this form for workspace
@@ -648,7 +672,7 @@ installer must be `installable=False`). Export: `export_dossier(..., bib_entries
 `outputs`, `exec_count`, `stale`; a run also returns nbformat-shaped `outputs`).
 **S-AB**: `…/docs/{doc}/detect {text}` → `{kind: code|ask}`; `…/cells/{cid}/explain {mode: error|lines}`;
 `…/cells/{cid}/suggestion {code}`; generic `POST /api/code/explain {language: sage|python|lean, code, error?, mode}`
-→ `{explanation, fix, fix_valid, model}` | `{lines: [{line, code, text}], model}`; `GET /api/calcul/recipes`,
+→ `{explanation, fix, fix_valid, model}` | `{lines: [{line, code, text}], model}` (`lean`: the shape of §3.8a); `GET /api/calcul/recipes`,
 `DELETE /api/calcul/recipes/{id}`. `ask` answers `{cell, model, approval_required, timing, checked, recipe, uses}`,
 409 `replaced` when a newer request for the same cell replaced it; runs answer 409 `calcul_busy` while cells run.
 Event `calcul.draft {project_id, doc, cell_id, code, state: start|writing|done|error}`.

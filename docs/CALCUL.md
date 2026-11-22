@@ -146,7 +146,9 @@ right below it, the code (filling live while the model writes), « Approuver et 
 « Expliquer » on demand (`research/explain.py`, generic: `POST /api/code/explain {language: sage|python|lean, code,
 error?, mode: error|lines|steps}`, reusable by the Lean screens; `steps`: §3.7): on an error, « Expliquer l'erreur » (plain French, a
 proposed fix shown as a suggestion; « Appliquer la correction » makes it model code, approval needed); « Expliquer
-ligne par ligne » (« ⋯ »): one sentence under each line. Same fast role and syntax card.
+ligne par ligne » (« ⋯ »): one sentence under each line. Same fast role and syntax card. The Lean screens (dossier
+statement and proof, notes' Lean blocks) use the same service with a Lean prompt, Lean's goal states and a correction
+checked by Lean before it is shown (S-AM, [BRAIN.md §19](BRAIN.md), [API.md §3.8a](API.md)).
 
 Long LaTeX results wrap (outer commas, inline KaTeX) or scroll inside their focusable box; never clipped (e2e checks
 360 / 412 / 768 / 1440 px, light and dark).

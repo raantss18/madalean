@@ -35,8 +35,13 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 7 bis. ⚠️ Éditeur d'article plus aéré (S-AD) : panneaux latéraux repliables (mode « pleine largeur »,
    choix retenu), calculs Sage et autres éléments du projet dans la liste avec chacun son logo et son nom bien
    distincts, arborescence des fichiers de l'article affichable au choix
-8. ⬜ Même chose pour Lean : « Expliquer l'erreur » (avec correction proposée) et « Expliquer ligne par ligne » sur un
-   énoncé ou une preuve Lean, dans les dossiers et les notes (réutilise le service d'explication de l'étape 7)
+8. ⚠️ Même chose pour Lean (S-AM, D45) : menu « Expliquer » sous l'énoncé Lean, sous la preuve (et la dernière preuve
+   refusée par Lean) et sous chaque bloc Lean des notes — « Expliquer l'erreur » à partir des messages de Lean, avec
+   une correction montrée seulement si Lean de l'espace l'accepte (« acceptée par Lean, vérification rapide » ; une
+   preuve garde l'énoncé du dossier ; refusée deux fois → aucune correction) et « Appliquer la correction » en un
+   clic (nouvelle version, revérifiée par Lean : « vérifiée » seulement après) ; « Expliquer ligne par ligne »
+   tactique par tactique avec l'état du but donné par Lean après chaque ligne (rien d'inventé) ; Lean 4.9 / Lean
+   récent pris en compte. Testé avec le vrai Lean 4.9 ; reste à l'essayer avec les vrais modèles en ligne
 9. ⚠️ Un seul code par demande (S-AG, D39) : la demande est analysée sans modèle (F_125 = F_{125} = F_{5^3} =
    GF(125) = 𝔽₁₂₅ reconnus comme le même corps, F_12 refusé avec la raison ; Z/nZ, anneaux de polynômes, corps de
    nombres, matrices, groupes, courbes elliptiques, intégrales, limites, sommes, tracés…) et affichée sous la
@@ -86,7 +91,10 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     étape parmi ceux que Madalean classe (réussite mesurée, rapidité, prix), corrige ce que Lean refuse (≤ 3 fois)
     et vérifie la cohérence finale ; 1 $ par demande puis « continuer avec Claude (+0,50 $) ? » ; sans Claude le
     meilleur modèle gratuit dirige ; règles de chaque outil (Lean vérifié, Sage, LaTeX, explication) compactées et
-    mises en cache. Reste : brancher les corrections Sage / LaTeX dans Calcul et l'éditeur d'article ; à essayer sur
+    mises en cache. Les constructions Lean vérifiées du catalogue (S-AG) utiles à la demande sont données au
+    traducteur et à chaque prouveur (boucle Goedel, agent, tournoi, corrections du chef), selon l'espace Lean du
+    dossier, seulement celles que cet espace a compilées (S-AM, D45 : +50 à +90 tokens quand utile, rien sinon, cache
+    préservé). Reste : brancher les corrections Sage / LaTeX dans Calcul et l'éditeur d'article ; à essayer sur
     tes dossiers (coût affiché sur chaque demande)
 16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
     tant qu'on ne l'ouvre pas

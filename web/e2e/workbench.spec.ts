@@ -48,7 +48,7 @@ test('library: groups, card/table views, detail with domain and tags, export lin
   await expect(page.locator('.card').first()).toBeVisible();
   await axe(page, 'library cards');
   await page.getByRole('radio', { name: 'Tableau' }).check({ force: true });
-  await expect(page.locator('table.tbl')).toBeVisible();
+  await expect(page.locator('table.tbl').first()).toBeVisible();
   await axe(page, 'library table');
   await page.locator('table.tbl .link-btn').first().click();
   const detail = page.locator('aside.detail');

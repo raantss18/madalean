@@ -118,7 +118,19 @@ export interface CheckResult {
   cancelled: boolean; infra_error: string;
 }
 
-export interface LibEntry { name: string; title: string; statement: string; code: string; workspace: string;
+/** S-AM (D45): « Expliquer » for Lean — POST /api/lean/explain. */
+export interface LeanExplainWhere { dossier?: string; part?: 'statement' | 'proof'; note?: string; block?: number; workspace?: string }
+export interface LeanExplainLine { line: number; code: string; text: string; goal: string | null }
+export interface LeanExplainAnswer {
+  workspace: string; lean: string; model: string; cached: boolean;
+  // mode error
+  explanation?: string; fix?: string; fix_status?: 'accepted' | 'rejected' | 'none' | 'unchecked';
+  fix_check?: { summary: string; via?: string; seconds?: number } | null; fix_tries?: number; no_error?: boolean;
+  // mode lines
+  lines?: LeanExplainLine[]; goals?: 'lean' | 'none';
+}
+
+export interface LibEntry{ name: string; title: string; statement: string; code: string; workspace: string;
   dossier: string; deps: string[]; t: number }
 
 export interface ModelRef { key: string; provider: string; model_id: string; name: string; local: boolean; paid: boolean;

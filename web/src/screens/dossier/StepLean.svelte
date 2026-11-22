@@ -19,6 +19,7 @@
   import ExplainBack from './ExplainBack.svelte';
   import { follow, run, reportError, verify as verifyStatement } from './actions';
   import StatementVerdict from './StatementVerdict.svelte';
+  import LeanExplain from '../../components/LeanExplain.svelte';
   import { navigate } from '../../lib/router.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
 
@@ -70,6 +71,17 @@
       toast(r.check?.statement_ok === false ? 'warn' : 'ok', r.check?.statement_ok === false ? t('lean.savedButRejected') : t('lean.saved'));
     } catch (e) { reportError(e, d.id); } finally { checking = false; }
   }
+  // S-AM (D45): « Appliquer la correction » = a manual edit of the statement (new version, checked by Lean)
+  async function applyFix(fix: string): Promise<boolean> {
+    try {
+      const r = await api.setStatement(d.id, fix, true);
+      app.m.full[d.id] = r.dossier;
+      check = r.check;
+      editing = false;
+      toast(r.check?.statement_ok === false ? 'warn' : 'ok', r.check?.statement_ok === false ? t('lx.appliedRejected') : t('lx.applied'));
+      return true;
+    } catch (e) { reportError(e, d.id); return false; }
+  }
   async function sendCorrection() {
     if (!correction.trim()) return;
     if (await follow(d.id, correction.trim(), 'statement')) { correction = ''; correcting = false; }
@@ -118,6 +130,9 @@
             {#if v?.ok}<button class="btn" onclick={() => verifyStatement(d.id, prefs.mode === 'learn')} disabled={Boolean(job)} title={t('check.buttonHint')}>{jobRuns(job, 'verify') ? t('check.running') : t('check.button')}</button>{/if}
             <Versions dossier={d} kind="statement" busy={Boolean(job)} />
           {/if}
+          <LeanExplain where={{ dossier: d.id, part: 'statement' }} code={editing ? code : undefined}
+            errors={check && !check.statement_ok ? check.errors : null} canError={editing ? Boolean(check && !check.statement_ok) : !(check?.statement_ok ?? v?.ok ?? true)}
+            onApply={applyFix} disabled={Boolean(job)} />
         </div>
         {#if correcting}
           <div class="field correction">

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { abbreviationAt, insideDollarMath, ABBREVIATIONS } from '../../src/lib/lean/abbrev';
 import { lookupGloss, tokenAt } from '../../src/lib/lean/glossary';
 import { refusalOf, isRefusal } from '../../src/lib/lean/refusal';
-import { linkify, leanBlocks, resolveConflicts } from '../../src/lib/notes';
+import { linkify, leanBlocks, replaceLeanBlock, resolveConflicts } from '../../src/lib/notes';
 import { forceLayout, layeredLayout } from '../../src/lib/graph/layout';
 import { match, addRoute, routes } from '../../src/lib/router.svelte';
 import { modelLabel, phaseOf } from '../../src/lib/status';
@@ -66,6 +66,13 @@ describe('notes and graphs', () => {
     const b = leanBlocks('a\n```lean\ntheorem t : True := trivial\n```\nb\n```lean4\nexample : 1 = 1 := rfl\n```');
     expect(b.map((x) => x.index)).toEqual([0, 1]);
     expect(b[1]!.code).toBe('example : 1 = 1 := rfl');
+  });
+  it('replaces one Lean block with a correction (S-AM)', () => {
+    const body = 'a\n```lean\ntheorem t : True := by\n  exact no_such\n```\nb\n```lean4\nexample : 1 = 1 := rfl\n```\nc';
+    const out = replaceLeanBlock(body, 0, 'theorem t : True := by\n  trivial\n');
+    expect(out).toBe('a\n```lean\ntheorem t : True := by\n  trivial\n```\nb\n```lean4\nexample : 1 = 1 := rfl\n```\nc');
+    expect(leanBlocks(out)[1]!.code).toBe('example : 1 = 1 := rfl');
+    expect(replaceLeanBlock(body, 5, 'x')).toBe(body);
   });
   it('rebuilds a body from conflict choices', () => {
     const theirs = 'a\nY\nc\n';

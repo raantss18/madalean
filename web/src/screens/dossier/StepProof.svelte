@@ -17,7 +17,10 @@
   import Exercise from './Exercise.svelte';
   import ManualEdit from './ManualEdit.svelte';
   import SplitDialog from './SplitDialog.svelte';
-  import { follow, run } from './actions';
+  import { follow, run, reportError } from './actions';
+  import LeanExplain from '../../components/LeanExplain.svelte';
+  import { api } from '../../lib/api/client';
+  import { toast } from '../../lib/ui/toasts.svelte';
   import { navigate } from '../../lib/router.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
@@ -44,6 +47,22 @@
   const explV = $derived(d.explanations[d.cur_explanation]);
   const informalV = $derived(d.informal_proofs.find((v) => v.parent === d.cur_proof) ?? d.informal_proofs[d.informal_proofs.length - 1]);
 
+  // S-AM (D45): « Appliquer la correction » = a manual edit (new version; « vérifiée » only if the fresh strict
+  // check of the manual edit accepts it)
+  async function applyFix(fix: string): Promise<boolean> {
+    try {
+      const r = await api.saveVersion(d.id, 'proof', fix, true);
+      app.m.full[d.id] = r.dossier;
+      toast(r.check?.ok ? 'ok' : 'warn', r.check?.ok ? t('manual.proofAccepted') : t('lx.appliedRejected'));
+      return true;
+    } catch (e) { reportError(e, d.id); return false; }
+  }
+  const refused = $derived.by(() => {
+    const v = d.proofs[d.proofs.length - 1];
+    if (v && !v.ok && v.parent === d.cur_statement && v.code.trim()) return { code: v.code, label: t('lx.lastVersion') };
+    const a = [...attempts].reverse().find((x) => x.status === 'rejected' && x.code.trim());
+    return a ? { code: a.code, label: t('lx.lastAttempt', { n: a.index + 1 }) } : null;
+  });
   const quick = $derived([
     { label: t('quick.simpler'), run: () => follow(d.id, t('quick.simplerReq'), 'proof') },
     { label: t('quick.other'), run: () => follow(d.id, t('quick.otherReq'), 'proof') },
@@ -125,6 +144,7 @@
         <CodeEditor value={d.current.proof} language="lean" readonly label={t('proof.lean')} gloss={prefs.mode === 'learn'} workspace={d.workspace} minLines={6} />
         <div class="row tools">
           <button class="btn small" aria-expanded={editProof} onclick={() => (editProof = !editProof)}><Icon name="edit" size={14} />{t('proof.editByHand')}</button>
+          <LeanExplain where={{ dossier: d.id, part: 'proof' }} canError={!proved} onApply={applyFix} disabled={Boolean(job)} />
         </div>
         <ManualEdit dossier={d} kind="proof" server={d.current.proof} bind:open={editProof} />
       {/if}
@@ -197,6 +217,14 @@
         <h2>{t('proof.needStatement')}</h2>
         <a class="btn primary" href="/d/{encodeURIComponent(d.id)}/lean">{t('proof.toStatement')}</a>
       {/if}
+      {#if refused && !job}
+        <!-- S-AM (D45): the latest proof Lean refused (a manual version, else the search's last attempt) -->
+        <div class="last-bad">
+          <p class="small">{refused.label}</p>
+          <pre class="errs neutral">{refused.code}</pre>
+          <div class="row"><LeanExplain where={{ dossier: d.id, part: 'proof' }} code={refused.code} canError onApply={applyFix} /></div>
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -229,6 +257,7 @@
   .result.proved { border-color: color-mix(in srgb, var(--proved) 50%, var(--line)); border-left: 4px solid var(--proved); }
   .stamp { color: var(--text-2); margin: var(--s-2) 0; }
   .tools { margin-top: var(--s-2); }
+  .last-bad { margin-top: var(--s-3); }
   .prose { max-width: var(--measure); margin: var(--s-3) 0; font-family: var(--font-serif); font-size: 1.0625rem; line-height: 1.65; }
   .quick { display: flex; flex-wrap: wrap; gap: var(--s-2); }
   .tree { list-style: none; padding: 0; margin: var(--s-2) 0 0; }

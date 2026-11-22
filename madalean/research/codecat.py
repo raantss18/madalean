@@ -824,6 +824,96 @@ def lean_code(eid: str, flavor: str) -> str:
     return code.format(**e.get("sample", {})) if e.get("sample") else code
 
 
+# ---------------------------------------------------------------- Lean entries for a request (S-AM, D45)
+# What the provers / formalizer / explanations get: the entries relevant to the request's recognized intent (words,
+# via intent.py) and to the Lean already written (names in the statement), only those VERIFIED on the workspace.
+_OBJ_LEAN = {"zmod": ["zmod"], "matrix": ["matrix"], "matspace": ["matspace"], "ell": ["ell"]}
+_GROUP_LEAN = {"sym": "group_sym", "alt": "group_alt", "dih": "group_dih", "cyc": "group_cyc"}
+_OP_LEAN = {"gcd": "int_gcd", "totient": "int_totient", "is_prime": "int_is_prime", "divisors": "int_divisors",
+            "sum": "sum_range", "det": "matrix"}
+_LEAN_NAMES: list[tuple[str, re.Pattern]] = [(e, re.compile(p)) for e, p in [
+    ("gf", r"\bGaloisField\b"), ("gf_prime", r"Fact\s*\(\s*Nat\.Prime"),
+    ("zmod", r"\bZMod\b"), ("mpoly", r"\bMvPolynomial\b"), ("poly", r"\bPolynomial\b|\[X\]|\bX\s*\^"),
+    ("gauss", r"\bGaussianInt\b|ℤ\[i\]"), ("quadfield", r"\bAdjoinRoot\b|\bQuadraticAlgebra\b"),
+    ("cyclofield", r"\bCyclotomicField\b"), ("matrix", r"!!\[|\bMatrix\.det\b|\.det\b"),
+    ("matspace", r"\bMatrix\s*\(Fin|\bGL\s*\(|\bSpecialLinearGroup\b"),
+    ("group_sym", r"\bEquiv\.Perm\b|\bPerm\s*\(Fin"), ("group_alt", r"\balternatingGroup\b"),
+    ("group_dih", r"\bDihedralGroup\b"), ("group_cyc", r"\bMultiplicative\s*\(ZMod|\bIsCyclic\b"),
+    ("ell", r"\bWeierstrassCurve\b|\bEllipticCurve\b"), ("int_gcd", r"\bNat\.gcd\b|\bInt\.gcd\b|\bgcd\b"),
+    ("int_totient", r"\btotient\b|\bφ\b"), ("int_is_prime", r"\bNat\.Prime\b|\.Prime\b|\bPrime\s"),
+    ("int_factor", r"\bprimeFactorsList\b|\bNat\.factors\b|\bfactorization\b"),
+    ("int_divisors", r"\bdivisors\b"), ("sum_range", r"∑|\bFinset\.sum\b|\bFinset\.range\b"),
+]]
+
+
+def lean_relevant(*texts: str) -> list[str]:
+    """Catalogue entries relevant to `texts` (the request in words, the Lean statement…), in catalogue order (stable:
+    the same request gives the same list, so the prompt block is byte-identical)."""
+    found: set[str] = set()
+    words = "\n".join(t for t in texts if t)
+    try:
+        it = I.analyze(words[:4000])
+    except Exception:  # noqa: BLE001 (the analysis never breaks a prompt)
+        it = None
+    if it is not None:
+        for o in it.objects:
+            if o.kind == "gf":
+                found.add("gf_prime" if o.params.get("k") == 1 else "gf")
+            elif o.kind == "poly":
+                found.add("mpoly" if len(o.params.get("vars") or []) > 1 else "poly")
+            elif o.kind == "numfield":
+                p = o.params
+                found.add("cyclofield" if "cyclo" in p else "gauss" if p.get("quad") == -1 else
+                          "quadfield" if "quad" in p else "poly")
+            elif o.kind == "base" and o.params.get("ring") == "ZZ[I]":
+                found.add("gauss")
+            elif o.kind == "group" and o.params.get("family") in _GROUP_LEAN:
+                found.add(_GROUP_LEAN[o.params["family"]])
+            else:
+                found.update(_OBJ_LEAN.get(o.kind, []))
+        if it.op in _OP_LEAN:
+            found.add(_OP_LEAN[it.op])
+        if it.op == "factor" and not any(o.kind == "poly" for o in it.objects):
+            found.add("int_factor")
+    no_fact = re.sub(r"Fact\s*\(\s*Nat\.Prime\s+\w+\s*\)", "", words)   # `Fact (Nat.Prime 5)`: a field, not primality
+    for eid, rx in _LEAN_NAMES:
+        if rx.search(no_fact if eid == "int_is_prime" else words):
+            found.add(eid)
+    if "gf" in found:
+        found.discard("gf_prime")                  # the F_{p^k} entry already shows the `Fact` instance
+    return [e for e in LEAN_ENTRIES if e in found]
+
+
+def lean_prompt_block(ws, *texts: str, budget: int = 220, lang: str = "en") -> tuple[str, list[str]]:
+    """(text, entry ids): the relevant Lean constructions verified on `ws`, compact, for a prompt. '' when the
+    workspace's catalogue is not built or nothing is relevant (an entry that failed — or was never checked — on this
+    workspace is never given). `budget`: estimated tokens (≈ 3.5 characters each); entries past it are dropped."""
+    if ws is None:
+        return "", []
+    st = lean_status(ws)
+    if not st:
+        return "", []
+    ok = set(st.get("verified") or []) - set((st.get("failed") or {}).keys())
+    ids = [e for e in lean_relevant(*texts) if e in ok]
+    if not ids:
+        return "", []
+    flavor = st.get("flavor") or lean_flavor(getattr(ws, "toolchain", ""))
+    head = (f"Verified Lean constructions (compiled on this workspace: Lean {st.get('lean') or '?'}, this Mathlib) — "
+            "use these exact spellings:") if lang == "en" else (
+        f"Constructions Lean vérifiées (compilées sur cet espace : Lean {st.get('lean') or '?'}, cette Mathlib) — "
+        "écrire exactement ainsi :")
+    out, used, kept = [head], int(len(head) / 3.5), []
+    for eid in ids:
+        item = f"- {LEAN_ENTRIES[eid]['doc']}:\n" + "\n".join("    " + l for l in lean_code(eid, flavor).split("\n"))
+        t = int(len(item) / 3.5) + 1
+        if used + t > budget:
+            continue
+        out.append(item)
+        used += t
+        kept.append(eid)
+    return ("\n".join(out), kept) if kept else ("", [])
+
+
 def lean_source(flavor: str) -> tuple[str, list[tuple[str, int, int]]]:
     """One file with every Lean entry (after the Goedel header), and the line span of each entry."""
     from .. import leancheck

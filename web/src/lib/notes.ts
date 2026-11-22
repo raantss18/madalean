@@ -44,6 +44,17 @@ export function leanBlocks(body: string): LeanBlock[] {
   return out;
 }
 
+/** The body with the code of Lean block `index` replaced by `code` (S-AM: « Appliquer la correction »); unchanged
+ *  when there is no such block. */
+export function replaceLeanBlock(body: string, index: number, code: string): string {
+  const b = leanBlocks(body).find((x) => x.index === index);
+  if (!b) return body;
+  const lines = body.split('\n');
+  const n = b.code === '' ? 0 : b.code.split('\n').length;
+  lines.splice(b.startLine, n, ...code.replace(/\n+$/, '').split('\n'));
+  return lines.join('\n');
+}
+
 /** Applies the user's choice for each conflict hunk to rebuild a body (server conflict format, 0-based base lines). */
 export function resolveConflicts(theirsBody: string, conflicts: { mine: string; theirs: string }[], choice: ('mine' | 'theirs' | 'both')[]): string {
   let out = theirsBody;

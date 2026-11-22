@@ -520,7 +520,7 @@ class Conductor:
         invalid JSON. `kind`: the prompt (plan | fix_statement | fix_proof | final). `on_cap(est)` is awaited before
         a Claude call that the request's cap cannot pay; it returns True when the cap was raised (the user said
         yes), False to go on without Claude."""
-        comp = toolcards.compact(kind, features, ws)
+        comp = toolcards.compact(kind, features, ws, intent_text=user)     # S-AM: + verified Lean constructions
         stable = ROLE_TEXT[kind] + ("\n\n" + comp.stable if comp.stable else "")
         request = comp.request
         user_full = user

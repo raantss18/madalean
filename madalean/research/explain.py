@@ -10,7 +10,10 @@ language (`sage`, `python`, `lean`) so the Lean proofs screen can reuse it (HTTP
   intermediate values; without facts the answer is marked « explication sans vérification » by the caller.
 
 Fast code role (research/codegen.py: `classify.task("transcribe")`, no job slot) and the syntax card of the installed
-version (syntaxcards.py: Sage card / Lean+Mathlib card) in the system prompt."""
+version (syntaxcards.py: Sage card / Lean+Mathlib card) in the system prompt.
+
+Lean (S-AM, D45): the HTTP endpoints hand `language: lean` to `research/leanexplain.py` (Lean prompt, Lean's goal
+states, a correction offered only once the workspace's Lean accepted it); `explain()` below stays the plain path."""
 from __future__ import annotations
 
 import asyncio
