@@ -144,8 +144,11 @@ class FakeBrain:
                 if on_chunk:
                     on_chunk(Chunk("text", piece))
                 await asyncio.sleep(self.delay * random.uniform(0.5, 1.5) if self.delay else 0)
-            return Completion("".join(sent), model, finish, tokens_in=sum(len(m.get("content", "")) for m in messages) // 4,
-                              tokens_out=len(text) // 4, seconds=time.monotonic() - t0)
+            n_in, n_out = sum(len(m.get("content", "")) for m in messages) // 4, len(text) // 4
+            from . import usage                 # S-AK: the demo's status panel counts its scripted calls too
+            usage.record("local" if model.local else "fake", model.model_id, n_in, n_out, usd=0.0)
+            return Completion("".join(sent), model, finish, tokens_in=n_in, tokens_out=n_out,
+                              seconds=time.monotonic() - t0)
         except asyncio.CancelledError:
             raise
         finally:

@@ -188,6 +188,8 @@ async def _once(http: Http, url: str, body: dict, *, mode: str, provider: str, k
         res.tool_calls.append(ToolCall(c["id"] or f"call_{k}", c["name"], c["arguments"], args, err))
     if res.tool_calls and res.finish == "stop":
         res.finish = "tool_use"
+    from .. import usage                                 # S-AK: tokens of every call (status panel)
+    usage.record(provider, str(body.get("model", "")), res.tokens_in, res.tokens_out)
     return res
 
 

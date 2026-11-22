@@ -273,6 +273,11 @@ async def _once(http: Http, url: str, body: dict, headers: dict, *, mode: str, k
     if res.finish in ("length", "refusal") and res.tool_calls:
         for c in res.tool_calls:                         # never run a truncated / refused tool call
             c.input, c.error = None, c.error or f"tool call cut by stop_reason={res.finish}"
+    from .. import usage                                 # S-AK: tokens of every call (status panel)
+    from ..spend import cost
+    model = str(body.get("model", ""))
+    usage.record("anthropic", model, res.tokens_in, res.tokens_out,
+                 usd=cost(model, res.tokens_in, res.tokens_out, res.cache_read, res.cache_write))
     return res
 
 

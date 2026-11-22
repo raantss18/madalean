@@ -139,6 +139,8 @@ class ServerContext:
             except Exception:  # noqa: BLE001 (never block the start on 1.x data)
                 log.exception("migration failed")
         await asyncio.to_thread(self._load_settings)
+        from .brain import usage                    # S-AK: tokens of every model call (status panel)
+        usage.TALLY.attach(self.paths.config / "model-usage.json")
         await self.repo.load_all()
         await self.projects.load_all()
         await asyncio.to_thread(self.library.load)
@@ -179,6 +181,8 @@ class ServerContext:
         if isinstance(self.local, LocalLlama):
             await self.local.stop()
         await self.monitor.stop()
+        from .brain import usage
+        usage.TALLY.flush()
         if self.brain is not None:
             try:
                 await self.brain.close()

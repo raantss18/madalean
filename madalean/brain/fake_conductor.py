@@ -157,6 +157,8 @@ class ConductedFakeBrain(FakeBrain):
         if m.paid:
             row = self.ledger.record(m.model_id, spend.SPEND_SCOPE.get(), n_in, n_out, cache_read, cache_write)
             usd = row.usd
+        from . import usage                     # S-AK: counted like a real provider call
+        usage.record(m.provider if hasattr(m, "provider") else "fake", m.model_id, n_in, n_out, usd=usd)
         self.calls.append({"model": key, "kind": kind, "tokens_in": n_in, "tokens_out": n_out,
                            "cache_read": cache_read, "cache_write": cache_write, "usd": usd,
                            "extra": dict(extra or {}), "messages": messages})
