@@ -7,8 +7,8 @@ export interface RouteDef {
   /** Path pattern: literal segments and `:param` (optional with `?`, last segment only). */
   pattern: string;
   load: () => Promise<{ default: Component<{ params: Record<string, string> }> }>;
-  /** Shown in the navigation (desktop rail + phone bottom bar + command palette). */
-  nav?: { label: Key; icon: string; order: number; phone?: boolean; shortcut?: string; group?: 'project' };
+  /** Shown in the navigation: the project bar (`group: 'project'`) or the logo menu, and the command palette. */
+  nav?: { label: Key; icon: string; order: number; shortcut?: string; group?: 'project' };
   /** Visible without a paired session (pairing screen). */
   public?: boolean;
 }
@@ -58,8 +58,21 @@ function sync(): void {
   route.params = m?.params ?? {};
 }
 
+// Called before every in-app navigation (links, back / forward): autosave flushes what is pending (S-AK).
+const leaving = new Set<() => void>();
+export function beforeNavigate(fn: () => void): () => void {
+  leaving.add(fn);
+  return () => leaving.delete(fn);
+}
+function runLeaving(): void {
+  for (const fn of [...leaving]) {
+    try { fn(); } catch { /* a failing hook never blocks navigation */ }
+  }
+}
+
 export function navigate(path: string, opts: { replace?: boolean; focus?: boolean } = {}): void {
   if (path === location.pathname + location.search) return;
+  runLeaving();
   if (opts.replace) history.replaceState(null, '', path);
   else history.pushState(null, '', path);
   sync();
@@ -76,7 +89,7 @@ export function navigate(path: string, opts: { replace?: boolean; focus?: boolea
 
 export function startRouter(): void {
   sync();
-  window.addEventListener('popstate', sync);
+  window.addEventListener('popstate', () => { runLeaving(); sync(); });
   // Intercept same-origin links (not downloads, not new tabs, not /api or /jupyter).
   document.addEventListener('click', (e) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

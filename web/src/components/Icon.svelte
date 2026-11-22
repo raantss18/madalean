@@ -14,6 +14,7 @@
     x: 'M6 6l12 12M18 6L6 18',
     stop: 'M7 7h10v10H7z',
     play: 'M8 5l11 7-11 7z',
+    home: 'M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10',
     chevronDown: 'M6 9l6 6 6-6',
     chevronUp: 'M6 15l6-6 6 6',
     chevronRight: 'M9 6l6 6-6 6',

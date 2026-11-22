@@ -19,11 +19,10 @@ test('two browser contexts stay in sync live (dossier, status, settings, deletio
   await expect(b.getByRole('heading', { level: 1, name: 'Synchronisé' })).toBeVisible();
   await expect(b.locator('.phase-txt')).toContainText('Prouvé', { timeout: 45_000 });
   await expect(a.getByRole('heading', { name: /Preuve vérifiée par Lean/ })).toBeVisible();
-  // Rename on B → A's heading follows.
-  await b.getByRole('button', { name: 'Autres actions' }).click();
-  await b.getByRole('menuitem', { name: 'Renommer' }).click();
-  await b.getByLabel('Titre').fill('Synchronisé bis');
-  await b.getByRole('button', { name: 'Enregistrer' }).click();
+  // Rename on B (the title edits in place, autosaved — S-AK) → A's heading follows.
+  await b.getByRole('heading', { level: 1 }).getByRole('button').click();
+  await b.locator('#dossier-title').fill('Synchronisé bis');
+  await b.keyboard.press('Enter');
   await expect(a.getByRole('heading', { level: 1, name: 'Synchronisé bis' })).toBeVisible();
   // Settings change on A (mode) → B's privacy indicator follows.
   await api('PATCH', '/settings', { mode: 'local' });

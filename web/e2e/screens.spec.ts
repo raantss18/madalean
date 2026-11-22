@@ -38,6 +38,18 @@ for (const scheme of ['light', 'dark'] as const) {
       const id = await provedId();
       await open(page, '/', { mode: 'learn' });
       await shot(page, `${s.name}-${scheme}-home`);
+      // S-AK (docs/UI.md §14): the logo menu, the « Projet › Dossier » switcher and the status panel
+      await page.locator('.logo-btn').click();
+      await shot(page, `${s.name}-${scheme}-menu`);
+      await page.keyboard.press('Escape');
+      await page.locator('#context-switcher').click();
+      await shot(page, `${s.name}-${scheme}-switcher`);
+      await page.keyboard.press('Escape');
+      await page.locator('#status-btn').click();
+      await expect(page.locator('#status-panel').getByText('Mémoire', { exact: true })).toBeVisible();
+      await page.waitForTimeout(3200);                                     // a second CPU sample
+      await shot(page, `${s.name}-${scheme}-status`);
+      await page.keyboard.press('Escape');
       await page.goto(`${process.env['MADALEAN_URL']}/d/${id}/lean`);
       await expect(page.locator('.cm-content').first()).toBeVisible();
       await shot(page, `${s.name}-${scheme}-lean`);
@@ -71,7 +83,8 @@ test('screens: live parallel work and devices (desktop light)', async ({ page })
   await api('POST', '/dossiers', { statement: 'theorem t (a b : ℝ) : 2 * a * b ≤ a ^ 2 + b ^ 2 := by sorry' });
   await page.goto(`${process.env['MADALEAN_URL']}/d/${a.dossier.id}`);
   await page.waitForTimeout(2500);
-  await page.getByRole('button', { name: /Activité/ }).click();
+  await page.locator('#status-btn').click();                             // S-AK: running jobs are in the status panel
+  await expect(page.locator('#status-panel').getByText('Mémoire', { exact: true })).toBeVisible();
   await shot(page, 'desktop-light-parallel-activity');
   await page.keyboard.press('Escape');
   await page.goto(`${process.env['MADALEAN_URL']}/d/${a.dossier.id}/preuve`);

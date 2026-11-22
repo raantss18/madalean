@@ -9,6 +9,8 @@
   import Icon from '../../components/Icon.svelte';
   import { follow, stop } from './actions';
   import StatementVerdict from './StatementVerdict.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
+  import { enterSubmit } from '../../lib/ui/enter';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
   let text = $state('');
@@ -30,7 +32,7 @@
     if (!ok) text = msg;   // the request comes back to the input (L Katta)
     sending = false;
   }
-  function key(e: KeyboardEvent) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }
+  // S-AK: Enter sends, Shift+Enter is a new line (lib/ui/enter.ts)
   function firstLine(ev: DossierEvent): string { return ev.text.split('\n')[0] ?? ''; }
   // only the last statement check of the current statement offers « Corriger » / « Prouver quand même »
   const lastCheck = $derived([...d.events].reverse().find((e) => e.kind === 'check'));
@@ -67,7 +69,8 @@
 
   <form class="composer" onsubmit={(e) => { e.preventDefault(); void send(); }}>
     <label for="follow-{d.id}" class="label">{t('thread.ask')}</label>
-    <textarea id="follow-{d.id}" class="input" rows="3" bind:value={text} onkeydown={key} placeholder={t('thread.placeholder')} aria-describedby="follow-h-{d.id}"></textarea>
+    <textarea id="follow-{d.id}" class="input" rows="3" bind:value={text} use:enterSubmit={() => void send()} placeholder={t('thread.placeholder')} aria-describedby="follow-h-{d.id} follow-e-{d.id}"></textarea>
+    <EnterHint id="follow-e-{d.id}" />
     <p class="hint" id="follow-h-{d.id}">{job ? t('thread.busy') : t('thread.hint')}</p>
     <div class="row">
       <label class="sr-only" for="follow-stage-{d.id}">{t('thread.target')}</label>

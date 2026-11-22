@@ -3,7 +3,11 @@
   // code, natural-language requests, text, interactive figures — share ONE kernel. Keyboard like JupyterLab
   // (Esc / Enter modes, Shift+Enter, A/B, M/Y, D D, Z). Model code runs only after approval of that exact code
   // (server-enforced). Every result connects to the research flow: conjecture, note, Lean dossier, article.
-  import { tick, untrack } from 'svelte';
+  import { tick, untrack, onDestroy } from 'svelte';
+  import { Autosave } from '../../lib/ui/autosave.svelte';
+  import { enterIntent, touchOnly, newlineIndent, tabIndent, applyEdit } from '../../lib/ui/enter';
+  import SaveState from '../../components/SaveState.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
   import type { Component } from 'svelte';
   import { ApiError } from '../../lib/api/client';
   import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget, type NbExplainError, type NbExplainLine, type NbExplainSteps } from '../../lib/api/workbench';
@@ -146,7 +150,26 @@
   // a code cell the user has not run yet: what is typed may be code or a request (chip « Code / Demande »)
   const isFresh = (c: NbCell) => c.type === 'code' && c.origin !== 'assistant' && !(c.runs?.length) && !(c.outputs?.length);
   const kindOf = (c: NbCell): Guess => guess[c.id] ?? guessKind(drafts[c.id] ?? c.source);
+  // S-AK (docs/UI.md §14.5): every cell is saved while typing (debounced), on blur, before leaving the screen.
+  const sheetSaver = new Autosave(async () => {
+    for (const c of [...cells]) {
+      if (!dirty(c)) continue;
+      const r = await nb.edit(loadedFor, docId, c.id, { source: drafts[c.id] });
+      patchCell(r.cell);
+    }
+  });
+  onDestroy(() => sheetSaver.destroy());
+  // Code cells (the user's wish, S-AK): Enter runs, Shift+Enter is a new line keeping the indentation, Tab / Shift+Tab
+  // indent / dedent the selected lines (Escape then Tab leaves the cell: no keyboard trap).
+  function codeKey(c: NbCell, e: KeyboardEvent) {
+    const ta = e.currentTarget as HTMLTextAreaElement;
+    const k = enterIntent(e);
+    if (k === 'submit' && (e.ctrlKey || e.metaKey || !touchOnly())) { e.preventDefault(); e.stopPropagation(); void runCell(c); return; }
+    if (k === 'newline') { e.preventDefault(); e.stopPropagation(); applyEdit(ta, newlineIndent(ta.value, ta.selectionStart, ta.selectionEnd)); return; }
+    if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); applyEdit(ta, tabIndent(ta.value, ta.selectionStart, ta.selectionEnd, e.shiftKey)); }
+  }
   function onType(c: NbCell) {
+    sheetSaver.touch();
     if (!isFresh(c) || forced[c.id]) return;
     const text = drafts[c.id] ?? '';
     guess[c.id] = guessKind(text);
@@ -454,7 +477,8 @@
     });
   }
   function cellKey(c: NbCell, e: KeyboardEvent) {
-    if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey || e.metaKey)) { e.preventDefault(); void runCell(c, e.shiftKey); return; }
+    // Ctrl+Enter runs (renders a text cell) from anywhere in the cell; Shift+Enter is a new line (S-AK)
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); void runCell(c, e.shiftKey); return; }
     const t = e.target as HTMLElement;
     const inField = t.matches('textarea, input, select, [contenteditable]') || !!t.closest('.figure-host');
     if (e.key === 'Escape' && inField && !t.closest('.figure-host')) { e.preventDefault(); if (c.type === 'markdown') { void save(c); editingMd = null; } select(c.id); return; }
@@ -560,6 +584,7 @@
         <button class="btn small" onclick={() => kernel('interrupt')} disabled={!queue && kstate !== 'busy'}><Icon name="stop" size={14} />{ct('interrupt')}</button>
         <Menu label={ct('moreDoc')} align="left" items={phoneMore(pid)} />
         <span class="spacer"></span>
+        <SaveState state={sheetSaver} />
         <span class="chip kstate {kstate}" role="status" aria-live="polite" title={ct('idleHint', { n: status?.idle_minutes ?? 30 })}>
           <span class="dot" aria-hidden="true"></span>{queue ? ct('k.busy') : ct(`k.${['none', 'idle', 'busy', 'starting'].includes(kstate) ? kstate : 'unknown'}`)}{status?.kernel?.shared ? ` · ${ct('shared')}` : ''}
         </span>
@@ -600,7 +625,9 @@
                   {#if c.type === 'ask'}
                     <label class="sr-only" for="prompt-{c.id}">{ct('promptOf', { n: i + 1 })}</label>
                     <textarea id="prompt-{c.id}" class="input prompt" rows="2" bind:value={prompts[c.id]} placeholder={ct('askPh')}
-                      onkeydown={(e) => { if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); e.stopPropagation(); void write(c); } }}></textarea>
+                      aria-describedby="prompt-e-{c.id}"
+                      onkeydown={(e) => { if (enterIntent(e) === 'submit' && (e.ctrlKey || e.metaKey || !touchOnly())) { e.preventDefault(); e.stopPropagation(); void write(c); } else if (enterIntent(e) === 'newline') e.stopPropagation(); }}></textarea>
+                    <EnterHint id="prompt-e-{c.id}" />
                     <div class="actions">
                       <button class="btn small" onclick={() => write(c)} disabled={!(prompts[c.id] ?? '').trim()} aria-busy={writing === c.id}>
                         <Icon name="sparkle" size={14} />{c.source.trim() || writing === c.id ? ct('rewrite') : ct('write')}</button>
@@ -616,7 +643,9 @@
                       <textarea id="src-{c.id}" class="code-in live-code" readonly spellcheck="false" rows={rows(drafting[c.id] ?? '')} value={drafting[c.id]}></textarea>
                     {:else}
                       <textarea id="src-{c.id}" class="code-in" spellcheck="false" autocapitalize="off" autocomplete="off" rows={rows(drafts[c.id] ?? c.source)}
-                        placeholder={isFresh(c) ? ct('autoPh') : ''} bind:value={drafts[c.id]} oninput={() => onType(c)} onfocus={() => { mode = 'edit'; }} onblur={() => save(c)}></textarea>
+                        placeholder={isFresh(c) ? ct('autoPh') : ''} bind:value={drafts[c.id]} oninput={() => onType(c)} onfocus={() => { mode = 'edit'; }} onblur={() => sheetSaver.flush()}
+                        onkeydown={(e) => codeKey(c, e)} aria-describedby={sel === c.id ? `run-e-${c.id}` : undefined}></textarea>
+                      {#if sel === c.id}<EnterHint id="run-e-{c.id}" action="run" />{/if}
                     {/if}
                     {@const fresh = isFresh(c) && !!(drafts[c.id] ?? '').trim()}
                     <div class="actions">
@@ -647,8 +676,8 @@
                   {:else if c.type === 'markdown'}
                     {#if editingMd === c.id || !c.source.trim()}
                       <label class="sr-only" for="src-{c.id}">{ct('textOf', { n: i + 1 })}</label>
-                      <textarea id="src-{c.id}" class="code-in md-in" rows={rows(drafts[c.id] ?? c.source)} bind:value={drafts[c.id]}
-                        onfocus={() => { mode = 'edit'; editingMd = c.id; }} onblur={async () => { await save(c); editingMd = null; }}></textarea>
+                      <textarea id="src-{c.id}" class="code-in md-in" rows={rows(drafts[c.id] ?? c.source)} bind:value={drafts[c.id]} oninput={() => sheetSaver.touch()}
+                        onfocus={() => { mode = 'edit'; editingMd = c.id; }} onblur={async () => { await sheetSaver.flush(); editingMd = null; }}></textarea>
                     {:else}
                       <!-- svelte-ignore a11y_no_static_element_interactions (double-click shortcut; the « Modifier le texte » button and Enter do the same) -->
                       <div class="md-view" ondblclick={() => { editingMd = c.id; select(c.id, true); }}><Md src={c.source} /></div>

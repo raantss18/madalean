@@ -20,6 +20,8 @@
   import CheckResultView from '../../components/CheckResultView.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
   import ConflictView from './ConflictView.svelte';
+  import SaveState from '../../components/SaveState.svelte';
+  import { Autosave } from '../../lib/ui/autosave.svelte';
 
   let { params }: { params: Record<string, string> } = $props();
   const nid = $derived(params['id'] ?? '');
@@ -82,12 +84,13 @@
     return () => clearTimeout(h);
   });
 
+  // S-AK: the shared autosave (debounce, flush on leave / unload, retry with backoff); a conflict opens the merge view.
+  const saver = new Autosave(async () => { await save(undefined, true); }, { delay: 1200 });
   function edited() {
     dirty = true;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => void save(), 1200);
+    saver.touch();
   }
-  async function save(override?: { body: string; base: number; title?: string }) {
+  async function save(override?: { body: string; base: number; title?: string }, rethrow = false) {
     if (!note || saving) return;
     if (timer) { clearTimeout(timer); timer = null; }
     saving = true;
@@ -106,6 +109,7 @@
       void loadList(pid);
     } catch (e) {
       if (e instanceof ApiError && e.kind === 'conflict') conflict = e.body as unknown as NoteConflict;
+      else if (rethrow) throw e;
       else toast('error', errorText(e));
     } finally { saving = false; }
   }
@@ -182,7 +186,7 @@
   const blocks = $derived(leanBlocks(body));
   const resultOf = (i: number): LeanBlockResult | null => note?.lean_blocks.find((b) => b.index === i)?.result ?? null;
   const tags = $derived([...new Set(list.flatMap((n) => n.tags))].sort());
-  onDestroy(() => { if (timer) { clearTimeout(timer); if (dirty) void save(); } });
+  onDestroy(() => { if (timer) clearTimeout(timer); saver.destroy(); });
 </script>
 
 <ProjectGate>
@@ -220,7 +224,7 @@
           <div class="row ebar">
             <label class="sr-only" for="ntitle">{t('notes.titleLabel')}</label>
             <input id="ntitle" class="input ntitle" bind:value={title} />
-            <span class="status xs" role="status">{saving ? t('notes.saving') : dirty ? t('notes.unsaved') : savedAt ? t('notes.saved') : t('notes.rev', { rev: note.rev })}</span>
+            {#if saver.status === 'saved' && !dirty && !savedAt}<span class="status xs">{t('notes.rev', { rev: note.rev })}</span>{:else}<SaveState state={saver} />{/if}
             <div class="seg" role="radiogroup" aria-label={t('notes.viewMode')}>
               {#each [['edit', 'draft.edit'], ['split', 'notes.split'], ['preview', 'draft.preview']] as [v, k]}
                 <label><input type="radio" name="nview" checked={view === v} onchange={() => (view = v as 'edit')} />{t(k as 'draft.edit')}</label>
@@ -233,7 +237,7 @@
           {#if conflict}<ConflictView {conflict} mineBody={body} mineTitle={title} onresolve={resolved} oncancel={() => { if (conflict) setNote(conflict.current); conflict = null; }} />{/if}
           <div class="panes {view}">
             {#if view !== 'preview'}
-              <div class="pane"><CodeEditor bind:value={body} language="natural" label={t('notes.body')} minLines={18} linkComplete={complete} onSubmit={() => save()} />
+              <div class="pane"><CodeEditor bind:value={body} language="natural" label={t('notes.body')} minLines={18} linkComplete={complete} onSubmit={() => saver.flush()} enterSubmits={false} />
                 <p class="hint">{t('notes.syntax')}</p></div>
             {/if}
             {#if view !== 'edit'}

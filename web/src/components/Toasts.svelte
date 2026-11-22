@@ -29,7 +29,7 @@
 <style>
   .toasts { position: fixed; z-index: 900; right: var(--s-4); bottom: var(--s-4); display: grid; gap: var(--s-2); width: min(420px, calc(100vw - 2 * var(--s-4))); pointer-events: none; }
   .toasts.err { bottom: auto; top: calc(var(--topbar-h) + var(--s-2)); }
-  @media (max-width: 767px) { .toasts { bottom: calc(var(--bottomnav-h) + var(--s-2) + env(safe-area-inset-bottom)); right: var(--s-3); } }
+  @media (max-width: 767px) { .toasts { bottom: calc(var(--s-2) + env(safe-area-inset-bottom)); right: var(--s-3); } }
   .toast { pointer-events: auto; display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4); background: var(--surface); color: var(--text); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--r-2); box-shadow: var(--shadow-2); font-size: var(--fs-sm); animation: in 180ms var(--ease); }
   .toast.ok { border-left-color: var(--proved); }
   .toast.warn { border-left-color: var(--running-fill); }

@@ -4,14 +4,17 @@
   import type { EditorHandle } from '../lib/lean/editor';
   import type { GlossEntry } from '../lib/lean/glossary';
   import { i18n } from '../lib/i18n/index.svelte';
+  import { enterIntent, touchOnly } from '../lib/ui/enter';
 
   let {
     value = $bindable(''), language = 'lean', readonly = false, label, placeholder = '', errors = [], gloss = false,
-    onTokenTap, onSubmit, minLines = 3, id = '', lineNumbers = true, describedby = '', workspace = '', linkComplete,
+    onTokenTap, onSubmit, enterSubmits = true, minLines = 3, id = '', lineNumbers = true, describedby = '', workspace = '', linkComplete,
   }: {
     value?: string; language?: 'lean' | 'natural'; readonly?: boolean; label: string; placeholder?: string;
     errors?: { line: number; text: string; severity: string }[]; gloss?: boolean;
-    onTokenTap?: (token: string, entry: GlossEntry | null) => void; onSubmit?: () => void; minLines?: number; id?: string;
+    onTokenTap?: (token: string, entry: GlossEntry | null) => void; onSubmit?: () => void;
+    /** With onSubmit: Enter submits, Shift+Enter is a new line (S-AK). false: long-form text, only Ctrl+Enter submits. */
+    enterSubmits?: boolean; minLines?: number; id?: string;
     lineNumbers?: boolean; describedby?: string; workspace?: string;
     linkComplete?: (typed: string) => Promise<{ label: string; apply: string; detail?: string }[]>;
   } = $props();
@@ -30,7 +33,7 @@
       const caret = ta?.selectionStart ?? value.length;
       ed = createEditor({
         parent: host, doc: value, language, readOnly: readonly, ariaLabel: label, placeholder,
-        lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.lang, gloss, onTokenTap, onSubmit,
+        lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.lang, gloss, onTokenTap, onSubmit, enterSubmits,
         declLookup: gloss ? (name) => import('../lib/lean/lookup').then((m) => m.lookupToken(name, workspace || undefined)) : undefined,
         onChange: (d) => { value = d; }, linkComplete,
       });
@@ -55,7 +58,8 @@
   <div bind:this={host} class="host" hidden={!ready}></div>
   {#if !ready}
     <textarea bind:this={ta} {id} class="input fallback" class:mono={language === 'lean'} aria-label={label} aria-describedby={describedby || undefined}
-      {placeholder} readonly={readonly} bind:value rows={minLines} spellcheck={language === 'natural'}></textarea>
+      {placeholder} readonly={readonly} bind:value rows={minLines} spellcheck={language === 'natural'}
+      onkeydown={(e) => { const k = enterIntent(e); if (onSubmit && k === 'submit' && (e.ctrlKey || e.metaKey || (enterSubmits && !touchOnly()))) { e.preventDefault(); onSubmit(); } }}></textarea>
   {/if}
 </div>
 

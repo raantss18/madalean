@@ -12,7 +12,7 @@
   import { toast } from '../../lib/ui/toasts.svelte';
   import { errorText } from '../../lib/ui/errors';
   import { currentProjectId } from '../../lib/project.svelte';
-  import { navigate } from '../../lib/router.svelte';
+  import { navigate, beforeNavigate } from '../../lib/router.svelte';
   import { aprefs, setAPref, WIDTHS } from '../../lib/article/prefs.svelte';
   import { headings, numberDocument, katexMacros, scan, parseMarker } from '../../lib/article/latex';
   import type { ArticleEditor, EditorCtx, SugView } from '../../lib/article/editor';
@@ -27,6 +27,7 @@
   import ArticleDialogs from './article/ArticleDialogs.svelte';
   import ArticleSide from './article/ArticleSide.svelte';
   import { layout, isShortcut } from '../../lib/ui/layout.svelte';
+  import { dismiss } from '../../lib/ui/dismiss';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -47,6 +48,7 @@
   let narrow = $state(false);
   let preview = $state(aprefs.preview !== 'off');
   let showSugs = $state(false);
+  let sugBtn: HTMLButtonElement | undefined = $state();
   let compiling = $state(false);
   let result = $state<CompileResult | null>(null);
   let pdfNonce = $state(0);
@@ -157,6 +159,10 @@
     return () => { cancelled = true; };
   });
   onDestroy(() => { if (saveTimer) { clearTimeout(saveTimer); void saveAll(); } ed?.destroy(); ed = null; });
+  // S-AK: what is typed is sent before leaving the screen and when the page is hidden or closed (docs/UI.md §14.5)
+  const flushNow = () => { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; } if (Object.values(dirty).some(Boolean)) void saveAll(); };
+  onDestroy(beforeNavigate(flushNow));
+  $effect(() => { const h = () => { if (document.visibilityState === 'hidden') flushNow(); }; window.addEventListener('pagehide', flushNow); document.addEventListener('visibilitychange', h); return () => { window.removeEventListener('pagehide', flushNow); document.removeEventListener('visibilitychange', h); }; });
 
   function scheduleRefresh() {
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -596,7 +602,7 @@
           </div>
         {/if}
         <Menu label={t('ae.insert')} icon="plus" text={narrow ? '' : t('ae.insert')} items={insertItems} />
-        <button class="btn small" onclick={() => (showSugs = !showSugs)} aria-pressed={showSugs}>
+        <button bind:this={sugBtn} class="btn small" onclick={() => (showSugs = !showSugs)} aria-pressed={showSugs}>
           <Icon name="sparkle" size={16} /><span class="lbl" class:sr-only={narrow}>{t('ae.suggestions')}</span>{#if pendingCount}<span class="count">{pendingCount}</span>{/if}
         </button>
         {#if !narrow}
@@ -706,7 +712,7 @@
       {/if}
 
       {#if showSugs}
-        <section class="sugs" aria-label={t('ae.suggestions')}>
+        <section class="sugs" aria-label={t('ae.suggestions')} use:dismiss={{ onclose: () => (showSugs = false), trigger: sugBtn }}>
           <div class="row"><h2 class="h3">{t('ae.suggestions')}</h2><span class="spacer"></span><button class="btn quiet icon small" onclick={() => (showSugs = false)} aria-label={t('common.close')}><Icon name="x" size={16} /></button></div>
           {#if texSugs.filter((s) => s.state === 'pending').length}
             <ul class="mine">
@@ -756,7 +762,7 @@
   .side { background: var(--surface); min-width: 0; display: flex; flex-direction: column; }
   .side.inline { border-right: 1px solid var(--line); position: sticky; top: calc(var(--topbar-h) + var(--ae-bar-h)); align-self: start; height: calc(100dvh - var(--topbar-h) - var(--ae-bar-h)); }
   .side.overlay { position: fixed; z-index: 600; left: 0; top: var(--topbar-h); bottom: 0; width: min(360px, 88vw); box-shadow: var(--shadow-2); border-right: 1px solid var(--line); padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom); }
-  .side.sheet { position: fixed; z-index: 770; left: max(0px, calc(50% - 280px)); right: max(0px, calc(50% - 280px)); bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); max-height: min(75dvh, 640px); height: 75dvh; border-radius: var(--r-3) var(--r-3) 0 0; box-shadow: var(--shadow-2); border: 1px solid var(--line); }
+  .side.sheet { position: fixed; z-index: 770; left: max(0px, calc(50% - 280px)); right: max(0px, calc(50% - 280px)); bottom: env(safe-area-inset-bottom); max-height: min(75dvh, 640px); height: 75dvh; border-radius: var(--r-3) var(--r-3) 0 0; box-shadow: var(--shadow-2); border: 1px solid var(--line); }
   :global(html[data-kb='open']) .side.sheet { bottom: var(--kb-inset, 0px); max-height: calc(var(--kb-vh, 100dvh) - 16px); }
   .scrim { position: fixed; inset: var(--topbar-h) 0 0 0; z-index: 590; background: rgba(10, 14, 24, 0.35); border: 0; padding: 0; }
   .scrim.sheet { inset: 0; z-index: 760; background: rgba(10, 14, 24, 0.4); }
@@ -795,7 +801,7 @@
   @media (max-width: 767px) {
     .ae { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0; }
     .bar { padding: var(--s-2) var(--s-3); }
-    .sugs { left: var(--s-2); right: var(--s-2); width: auto; bottom: calc(var(--bottomnav-h) + var(--s-2) + env(safe-area-inset-bottom)); max-height: 60dvh; z-index: 520; }
+    .sugs { left: var(--s-2); right: var(--s-2); width: auto; bottom: calc(var(--s-2) + env(safe-area-inset-bottom)); max-height: 60dvh; z-index: 520; }
     :global(html[data-kb='open']) .sugs { bottom: calc(var(--kb-inset, 0px) + var(--s-2)); }
   }
   @media (pointer: coarse) {

@@ -75,6 +75,21 @@
   function edit(n: PlanNode) {
     const tr = (n.tracks ?? []).find((x) => x.id === n.active_track);
     editing = { id: n.id, title: n.title, statement_nl: n.statement_nl, why: n.why, lean: n.lean, combination: tr && n.children.length ? tr.combination : null };
+    editOrig = { ...editing };
+  }
+  // S-AK: the node editor saves when it closes, however it is closed (« Fermer », Escape, a click outside):
+  // nothing typed is lost, and nothing is sent when nothing changed.
+  let editOrig: NonNullable<typeof editing> | null = null;
+  function commitEdit() {
+    const e = editing, o = editOrig;
+    editing = null; editOrig = null;
+    if (!e || !o) return;
+    const changed = (['title', 'statement_nl', 'why', 'lean', 'combination'] as const).some((k) => e[k] !== o[k]);
+    if (!changed) return;
+    const p: Record<string, unknown> = { base_rev: rev(), title: e.title, statement_nl: e.statement_nl, why: e.why };
+    if (e.lean !== o.lean) p['lean'] = e.lean;
+    if (e.combination !== null && e.combination !== o.combination) p['combination'] = e.combination;
+    void run('edit', () => research.patchPlanNode(d.id, e.id, p as { base_rev: number }));
   }
 </script>
 
@@ -149,7 +164,7 @@
   {/if}
 </section>
 
-<Dialog open={Boolean(editing)} title={t('plan.editTitle')} wide onclose={() => (editing = null)}>
+<Dialog open={Boolean(editing)} title={t('plan.editTitle')} wide onclose={commitEdit}>
   {#if editing}
     <div class="field"><label for="pe-t">{t('plan.nodeTitle')}</label><input id="pe-t" class="input" bind:value={editing.title} /></div>
     <div class="field"><label for="pe-s">{t('plan.nodeStatement')}</label><textarea id="pe-s" class="input" rows="3" bind:value={editing.statement_nl}></textarea></div>
@@ -158,10 +173,7 @@
     {#if editing.combination !== null}<div class="field"><label for="pe-c">{t('plan.editCombination')}</label><textarea id="pe-c" class="input mono" rows="5" bind:value={editing.combination}></textarea></div>{/if}
   {/if}
   {#snippet actions()}
-    <button class="btn quiet" onclick={() => (editing = null)}>{t('common.cancel')}</button>
-    <button class="btn primary" onclick={() => { const e = editing!; editing = null; const orig = plan?.nodes[e.id]; const p: Record<string, unknown> = { base_rev: rev(), title: e.title, statement_nl: e.statement_nl, why: e.why };
-      if (!orig || orig.lean !== e.lean) p['lean'] = e.lean; if (e.combination !== null) p['combination'] = e.combination;
-      void run('edit', () => research.patchPlanNode(d.id, e.id, p as { base_rev: number })); }}>{t('common.save')}</button>
+    <button class="btn primary" onclick={commitEdit}>{t('plan.closeSaves')}</button>
   {/snippet}
 </Dialog>
 <Dialog open={Boolean(adding)} title={t('plan.addChild')} onclose={() => (adding = null)}>

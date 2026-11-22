@@ -1,6 +1,7 @@
 // Phone/tablet display fixes (session S-AA, docs/UI.md §12): the first-run tour never hides the statement field or
-// the send button, menus sit directly on the on-screen keyboard, and menus switch to bottom sheets at the same width
-// as the bottom bar (< 768 px). Set SHOTS_DIR to also save a screenshot of every case.
+// the send button, menus sit directly on the on-screen keyboard, and menus switch to bottom sheets below 768 px
+// (S-AK: there is no bottom bar any more; sheets sit on the screen's bottom edge). Set SHOTS_DIR to also save a
+// screenshot of every case.
 import { test, expect, type Page } from '@playwright/test';
 import { open } from './util';
 
@@ -56,9 +57,8 @@ for (const w of WIDTHS) {
         await expect(menu).toBeVisible();
         const mb = (await menu.boundingBox())!;
         if (w < 768) {
-          // Sheet: anchored above the bottom bar, nearly full width (capped on wide phones), entirely on screen.
-          const nav = (await page.locator('.bottomnav').boundingBox())!;
-          expect(Math.abs(mb.y + mb.height + 8 - nav.y)).toBeLessThanOrEqual(2);
+          // Sheet: anchored 8 px above the bottom edge, nearly full width (capped on wide phones), entirely on screen.
+          expect(Math.abs(mb.y + mb.height + 8 - HEIGHT[w]!)).toBeLessThanOrEqual(2);
           expect(mb.width).toBeGreaterThanOrEqual(Math.min(w - 16, 560) - 2);
           await expect(page.locator('.sheet-scrim')).toBeVisible();
         } else {
@@ -83,7 +83,7 @@ for (const w of [360, 412, 600, 700] as const) {
     test.describe(`keyboard ${w}px ${scheme}`, () => {
       test.use({ viewport: { width: w, height: HEIGHT[w]! }, hasTouch: true, isMobile: true, colorScheme: scheme });
 
-      test('menu opened while the keyboard is up sits directly on the keyboard, then above the bottom bar', async ({ page }) => {
+      test('menu opened while the keyboard is up sits directly on the keyboard, then on the bottom edge', async ({ page }) => {
         await open(page, '/article', { mode: 'research' });
         const editor = page.locator('.cm-content').first();
         await expect(editor).toBeVisible();
@@ -96,21 +96,18 @@ for (const w of [360, 412, 600, 700] as const) {
         const menu = page.getByRole('menu');
         await expect(menu).toBeVisible();
         await page.waitForTimeout(200);
-        // Focus left the editor for the menu but the keyboard is still up: no bottom bar, no gap.
+        // Focus left the editor for the menu but the keyboard is still up: no gap.
         await expect(page.locator('html')).toHaveAttribute('data-kb', 'open');
-        await expect(page.locator('.bottomnav')).toBeHidden();
         let mb = (await menu.boundingBox())!;
         expect(Math.abs(kbTop - (mb.y + mb.height))).toBeLessThanOrEqual(10);
         expect(mb.y).toBeGreaterThanOrEqual(0);
         await shot(page, `menu-keyboard-${w}-${scheme}`);
-        // Keyboard goes down: the bottom bar comes back and the sheet moves above it.
+        // Keyboard goes down: the sheet moves back to the bottom edge.
         await page.setViewportSize({ width: w, height: HEIGHT[w]! });
         await expect(page.locator('html')).not.toHaveAttribute('data-kb', 'open');
-        await expect(page.locator('.bottomnav')).toBeVisible();
         await page.waitForTimeout(200);
         mb = (await menu.boundingBox())!;
-        const nav = (await page.locator('.bottomnav').boundingBox())!;
-        expect(Math.abs(mb.y + mb.height + 8 - nav.y)).toBeLessThanOrEqual(2);
+        expect(Math.abs(mb.y + mb.height + 8 - HEIGHT[w]!)).toBeLessThanOrEqual(2);
       });
     });
   }

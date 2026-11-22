@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from '../components/EnterHint.svelte';
+  import { enterSubmit } from '../lib/ui/enter';
   // Notebook: JupyterLab (Python, SageMath) embedded, with the assistant beside it. The assistant reads the open
   // notebook through the contents API and can append a cell. Remote devices: only when the host allows it.
   import { api } from '../lib/api/client';
@@ -98,7 +100,8 @@
           {#if busy}<li class="assistant">{#if streaming}<Md src={streaming} />{:else}<p class="muted small">{t('learn.thinking')}</p>{/if}</li>{/if}
         </ol>
         <label class="sr-only" for="nb-in">{t('notebook.ask')}</label>
-        <textarea id="nb-in" class="input" rows="3" bind:value={input} placeholder={t('notebook.ask')}></textarea>
+        <textarea id="nb-in" class="input" rows="3" bind:value={input} use:enterSubmit={() => void ask()} placeholder={t('notebook.ask')} aria-describedby="nb-e"></textarea>
+        <EnterHint id="nb-e" />
         <div class="row">
           <button class="btn primary" onclick={ask} disabled={busy || !input.trim()}>{t('thread.send')}</button>
           {#if busy}<button class="btn quiet" onclick={() => reqId && api.stopAssistant(reqId)}>{t('common.stop')}</button>{/if}

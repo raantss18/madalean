@@ -1,30 +1,30 @@
-// App navigation rail shown or hidden from 1024 px (session S-AD, docs/UI.md §13). Per device (localStorage
-// `madalean.layout`). The article editor has its own choice (hidden by default: its project panel lists the same
-// items and the text needs the width) and its focus mode hides the rail whatever the choice.
+// Project bar shown or hidden (session S-AK, docs/UI.md §14.2; it replaced the S-AD navigation rail, §13). Per device
+// (localStorage `madalean.layout`). The article editor has its own choice (hidden by default there: its project panel
+// lists the same items and the text needs the height) and its focus mode hides the bar whatever the choice.
 import { loadJSON, saveJSON } from '../prefs.svelte';
 
-interface Saved { rail: boolean; railArticle: boolean }
+interface Saved { bar: boolean; barArticle: boolean; rail?: boolean; railArticle?: boolean }
 const saved = typeof window === 'undefined' ? {} : loadJSON<Partial<Saved>>('layout', {});
 
 export const layout = $state({
-  rail: saved.rail ?? true,
-  railArticle: saved.railArticle ?? false,
-  /** Screen that owns the rail choice ('' = the app-wide one). */
+  bar: saved.bar ?? saved.rail ?? true,
+  barArticle: saved.barArticle ?? saved.railArticle ?? false,
+  /** Screen that owns the bar choice ('' = the app-wide one). */
   scope: '' as '' | 'article',
-  /** Focus mode of the current screen: the rail is hidden. */
+  /** Focus mode of the current screen: the bar is hidden. */
   focus: false,
 });
 
-export function railShown(): boolean {
+export function barShown(): boolean {
   if (layout.focus) return false;
-  return layout.scope === 'article' ? layout.railArticle : layout.rail;
+  return layout.scope === 'article' ? layout.barArticle : layout.bar;
 }
 
-export function setRail(v: boolean): void {
-  if (layout.scope === 'article') layout.railArticle = v;
-  else layout.rail = v;
+export function setBar(v: boolean): void {
+  if (layout.scope === 'article') layout.barArticle = v;
+  else layout.bar = v;
   if (v) layout.focus = false;
-  saveJSON('layout', { rail: layout.rail, railArticle: layout.railArticle });
+  saveJSON('layout', { bar: layout.bar, barArticle: layout.barArticle });
 }
 
 /** Ctrl+Shift+1 (layout-independent: `KeyboardEvent.code`), also used by the article's own shortcuts. */

@@ -193,7 +193,8 @@ test('manual proof edit becomes a version checked by Lean; D28 refusal is shown 
   await page.getByRole('button', { name: 'Modifier la preuve' }).click();
   await page.getByRole('textbox', { name: 'Preuve modifiée' }).click();
   await page.keyboard.press('Control+End');
-  await page.keyboard.type('\n  -- relu à la main');
+  await page.keyboard.press('Shift+Enter');                                  // S-AK: Shift+Enter = new line, Enter = check
+  await page.keyboard.type('  -- relu à la main');
   await page.getByRole('button', { name: 'Vérifier et enregistrer' }).click();
   await expect.poll(async () => (await api<{ dossier: { proofs: unknown[] } }>('GET', `/dossiers/${d.id}`)).dossier.proofs.length, { timeout: 20_000 }).toBe(before.proofs.length + 1);
   // D28: the server refuses code that could run on the host; the UI says so plainly (refusal simulated here).

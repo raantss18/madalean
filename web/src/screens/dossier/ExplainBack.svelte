@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from '../../components/EnterHint.svelte';
+  import { enterSubmit } from '../../lib/ui/enter';
   // « Explique-le avec tes mots » — POST /dossiers/{id}/explain-back: the learner writes first; the server grades the
   // explanation against criteria taken from the Lean-verified proof (or the Lean statement), names the gap and asks
   // ONE question. Up to three rounds, then a cleaner final version is asked for.
@@ -59,7 +61,8 @@
   {/if}
   {#if rounds >= 3}<p class="small cleaner">{t('learn.cleanerVersion')}</p>{/if}
   <label class="sr-only" for="eb-{target}">{t('learn.yourExplanation')}</label>
-  <textarea id="eb-{target}" class="input" rows="3" bind:value={draft} placeholder={turns.length ? t('learn.answerPlaceholder') : t('learn.explainPlaceholder')} aria-describedby="eb-n-{target}"></textarea>
+  <textarea id="eb-{target}" class="input" rows="3" bind:value={draft} use:enterSubmit={() => void send()} placeholder={turns.length ? t('learn.answerPlaceholder') : t('learn.explainPlaceholder')} aria-describedby="eb-n-{target} eb-e-{target}"></textarea>
+  <EnterHint id="eb-e-{target}" />
   <p class="xs muted" id="eb-n-{target}">{t('learn.explainNote')}</p>
   {#if err}<p class="error-text" role="alert">{err}</p>{/if}
   <div class="row">

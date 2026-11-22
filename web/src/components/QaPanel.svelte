@@ -1,4 +1,6 @@
 <script lang="ts">
+  import EnterHint from './EnterHint.svelte';
+  import { enterSubmit } from '../lib/ui/enter';
   // Grounded answers (NotebookLM-like): every sentence carries the passages it rests on; a click on a citation opens
   // the source at that passage. Sentences without a verified citation are shown struck as « non étayé »; the optional
   // general-knowledge part is labelled as such. POST /research/ask|summarize|compare → qa.token… qa.done.
@@ -98,7 +100,8 @@
   <form onsubmit={ask}>
     <label class="label" for="qa-in">{t('qa.ask')}</label>
     <textarea id="qa-in" class="input" rows="2" bind:value={question} placeholder={t('qa.placeholder')}
-      onkeydown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask(e); }}></textarea>
+      use:enterSubmit={() => ask(new Event('submit'))} aria-describedby="qa-e"></textarea>
+    <EnterHint id="qa-e" />
     <div class="row">
       <label class="switch small"><input type="checkbox" bind:checked={general} />{t('qa.allowGeneral')}</label>
       <span class="spacer"></span>

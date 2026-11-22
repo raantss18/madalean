@@ -4,7 +4,8 @@ import {
   EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, hoverTooltip,
   Decoration, type DecorationSet, placeholder as cmPlaceholder,
 } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, insertNewlineAndIndent } from '@codemirror/commands';
+import { touchOnly } from '../ui/enter';
 import { StreamLanguage, HighlightStyle, syntaxHighlighting, bracketMatching, type StringStream } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { autocompletion, type CompletionContext } from '@codemirror/autocomplete';
@@ -127,6 +128,8 @@ export interface EditorOptions {
   declLookup?: GlossLookup;
   onTokenTap?: (token: string, entry: GlossEntry | null) => void;
   onSubmit?: () => void;
+  /** Enter calls onSubmit and Shift+Enter inserts a new line (sending fields); otherwise only Ctrl+Enter submits. */
+  enterSubmits?: boolean;
   /** `[[` link completion (notes): returns options for the text typed after `[[`. */
   linkComplete?: (typed: string) => Promise<{ label: string; apply: string; detail?: string }[]>;
 }
@@ -149,6 +152,12 @@ export function createEditor(o: EditorOptions): EditorHandle {
     EditorView.lineWrapping,
     keymap.of([
       ...(o.onSubmit ? [{ key: 'Mod-Enter', run: () => { o.onSubmit!(); return true; } }] : []),
+      // S-AK (docs/UI.md §14.3): Enter sends, Shift+Enter is a new line (keeps the indentation); never while an IME
+      // composes, never on a touch-only screen (no Shift+Enter on its keyboard: the button sends there)
+      ...(o.onSubmit && o.enterSubmits ? [
+        { key: 'Enter', run: (v: EditorView) => { if (v.composing || touchOnly()) return false; o.onSubmit!(); return true; } },
+        { key: 'Shift-Enter', run: insertNewlineAndIndent },
+      ] : []),
       ...historyKeymap, ...defaultKeymap, indentWithTab,
     ]),
     abbreviations(o.language === 'natural'),

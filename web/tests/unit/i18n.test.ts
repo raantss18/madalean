@@ -43,6 +43,7 @@ describe('i18n catalogues', () => {
       'attempt.status': ['generating', 'compiling', 'accepted', 'rejected', 'error', 'cancelled'],
       'gloss.kind': ['tactic', 'keyword', 'notation', 'type', 'predicate'], step: ['enonce', 'lean', 'preuve'],
       stepstate: ['todo', 'running', 'queued', 'done', 'failed'], 'versions.title': ['statement', 'proof', 'explanation'],
+      'status.mode': ['local', 'auto', 'online'], enter: ['send', 'run', 'check'],
     };
     for (const [fam, ks] of Object.entries(families)) for (const k of ks) expect(`${fam}.${k}` in fr, `${fam}.${k}`).toBe(true);
   });

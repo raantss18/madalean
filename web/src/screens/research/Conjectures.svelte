@@ -18,6 +18,11 @@
   import Icon from '../../components/Icon.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
   import type { CheckResult } from '../../lib/api/types';
+  import { onDestroy } from 'svelte';
+  import { Autosave } from '../../lib/ui/autosave.svelte';
+  import { enterSubmit } from '../../lib/ui/enter';
+  import SaveState from '../../components/SaveState.svelte';
+  import EnterHint from '../../components/EnterHint.svelte';
 
   let { params }: { params: Record<string, string> } = $props();
   const pid = $derived(currentProjectId());
@@ -91,12 +96,29 @@
     const r = await act('exp', () => research.newExperiment(c!.id, { kind, language }));
     if (r) { const x = await research.conjecture(c.id); c = x.conjecture; }
   }
+  // S-AK: edited experiment code is saved automatically; a saved edit drops the approval (the server's rule), so the
+  // run button asks again with the new code.
+  const codeSaver = new Autosave(async () => {
+    if (!c) return;
+    const cid = c.id;
+    let changed = false;
+    for (const [eid, code] of Object.entries(codeEdit)) {
+      const x = c.experiments.find((e) => e.id === eid);
+      if (!x || code === x.code) continue;
+      await research.editExperiment(cid, eid, code);
+      changed = true;
+    }
+    if (!changed) return;
+    const r = await research.conjecture(cid);
+    if (c?.id !== cid) return;
+    c = r.conjecture;
+    for (const x of c.experiments) if (codeEdit[x.id] === x.code) delete codeEdit[x.id];
+  });
+  onDestroy(() => codeSaver.destroy());
   async function approveRun(x: Experiment) {
     if (!c) return;
     if (codeEdit[x.id] !== undefined && codeEdit[x.id] !== x.code) {
-      await act('save', () => research.editExperiment(c!.id, x.id, codeEdit[x.id]!));
-      const r = await research.conjecture(c.id); c = r.conjecture;
-      delete codeEdit[x.id];
+      await codeSaver.flush();
       toast('info', t('conj.codeChanged'));
       return;
     }
@@ -180,8 +202,8 @@
                   <span class="chip {x.status === 'done' ? 'proved' : x.status === 'failed' || x.status === 'rejected' ? 'failed' : x.status === 'running' ? 'running' : ''}">{tk(`conj.expStatus.${x.status}`, x.status)}</span>
                   <span class="xs muted">{x.source === 'ai' ? t('conj.byAi') : t('versions.byYou')}</span></div>
                 <label class="label" for="code-{x.id}">{t('conj.code')}</label>
-                <textarea id="code-{x.id}" class="input mono code" rows="9" value={codeEdit[x.id] ?? x.code} oninput={(e) => (codeEdit[x.id] = (e.target as HTMLTextAreaElement).value)} spellcheck="false"></textarea>
-                <p class="xs muted">{t('conj.approveNote')}</p>
+                <textarea id="code-{x.id}" class="input mono code" rows="9" value={codeEdit[x.id] ?? x.code} oninput={(e) => { codeEdit[x.id] = (e.target as HTMLTextAreaElement).value; codeSaver.touch(); }} onblur={() => codeSaver.flush()} spellcheck="false"></textarea>
+                <p class="xs muted">{t('conj.approveNote')} {#if codeEdit[x.id] !== undefined}<SaveState state={codeSaver} />{/if}</p>
                 <div class="row">
                   {#if x.status !== 'running'}
                     <button class="btn small primary" onclick={() => approveRun(x)} disabled={!!busy}>{codeEdit[x.id] !== undefined && codeEdit[x.id] !== x.code ? t('conj.saveCode') : t('conj.approveRun')}</button>
@@ -230,7 +252,7 @@
     </Dialog>
     <Dialog bind:open={writing} title={t('conj.write')}>
       <form id="cjw" onsubmit={write}>
-        <div class="field"><label for="cjs">{t('conj.statement')}</label><textarea id="cjs" class="input" rows="3" bind:value={newStmt}></textarea></div>
+        <div class="field"><label for="cjs">{t('conj.statement')}</label><textarea id="cjs" class="input" rows="3" bind:value={newStmt} use:enterSubmit={() => (document.getElementById('cjw') as HTMLFormElement | null)?.requestSubmit()} aria-describedby="cjs-e"></textarea><EnterHint id="cjs-e" /></div>
         <div class="field"><label for="cjm">{t('conj.motivation')}</label><input id="cjm" class="input" bind:value={newMotiv} /></div>
       </form>
       {#snippet actions()}<button class="btn quiet" onclick={() => (writing = false)}>{t('common.cancel')}</button><button class="btn primary" type="submit" form="cjw">{t('conj.create')}</button>{/snippet}
