@@ -128,3 +128,25 @@ the short stages (BRAIN.md §16) is not visible with scripted models; it removes
 
 From now on, `scripts/perf_report.py` reads the exact stage durations: `seconds` in the result events and `timings`
 (start / end of every stage) in the job history, plus « premier essai de preuve après l'énoncé accepté ».
+
+# Calcul : un seul code par demande (S-AG)
+
+DECISIONS D39. `scripts/dev/calcul_determinism.py` (no network, no real model: a fake model that answers
+differently every time stands in for the model path; throw-away directories). 31 typical requests (finite fields,
+polynomials, integers, analysis, matrices, groups, curves, number fields, two partially covered), each asked, asked
+again (« Réécrire ») and asked in another notation (F_125 / GF(5^3), plain / LaTeX / Unicode), 2026-11-22, this host.
+
+| | Sage 10.10 | Python (sympy 1.14) |
+|---|---|---|
+| fully written by the verified catalogue (no model) | 29 / 31 | 22 / 31 |
+| identical code after « Réécrire » | **31 / 31** | **31 / 31** |
+| identical code in the other notation | **31 / 31** | **31 / 31** |
+| model calls for 93 asks | 2 | 9 |
+| analysis + assembly (median / max) | 2 ms / 44 ms | 1 ms / 603 ms (first: reads the kernel's versions) |
+| « Réécrire » (best version, preparser check) | 37 ms median | 1 ms median |
+| produced cells run in the installed Sage | 31 / 31 OK | — |
+
+Before (S-AB; seen in the user's recipes file, read-only): temperature 0.2 with a race of up to 3 models
+— the code of « Réécrire » changed by design, and the same field was written `GF(125, 'b')`, `F125` from an earlier
+cell, or `F.<a> = GF(16)` depending on the model that answered first. Catalogue build: Sage 3.8 s (55 samples),
+Python 1.1 s (39 samples), Lean: both workspaces compile the 21 entries (one file each).

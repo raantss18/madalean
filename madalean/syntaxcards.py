@@ -659,7 +659,9 @@ async def ensure_lean(ctx, ws=None) -> bool:
 
 async def ensure_all(ctx) -> None:
     """Server start (delayed), each update checkers' pass, after a Mathlib / Lake update: rebuild what changed."""
-    for fn in (ensure_sage, lambda: ensure_lean(ctx)):
+    from .research import codecat
+    # S-AG (D39): the catalogue of canonical code structures is (re)verified by the same hooks
+    for fn in (ensure_sage, lambda: ensure_lean(ctx), lambda: codecat.ensure(ctx)):
         try:
             await fn()
         except Exception:  # noqa: BLE001 (a catalogue build must never break anything)

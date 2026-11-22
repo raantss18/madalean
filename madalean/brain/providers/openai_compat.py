@@ -46,6 +46,9 @@ async def stream_chat(http: Http, *, base_url: str, model: str, messages: list[d
                 else:
                     body.pop("reasoning_effort")
                 continue
+            if e.status in (400, 422) and "seed" in low and "seed" in body:
+                body.pop("seed")                       # S-AG: a provider without `seed`: temperature 0 alone
+                continue
             if e.status == 400 and "temperature" in low and "temperature" in body:
                 body.pop("temperature")
                 continue

@@ -149,6 +149,48 @@ test('calcul notebook: ordered cells, exact/approx, NL cell to review, keyboard,
   await expect.poll(async () => JSON.stringify(await api('GET', '/dossiers'))).toContain('2^32 + 1');
 });
 
+test('calcul: a request is recognized, « Réécrire » gives the same code, « Autre version » in the menu (S-AG)', async ({ page }) => {
+  const ps = (await api<{ projects: { id: string }[] }>('GET', '/projects')).projects;
+  let pid = ps[0]!.id;
+  for (const p of ps) if ((await api<{ cells: unknown[] }>('GET', `/calcul/${p.id}/docs/calcul`)).cells.length) { pid = p.id; break; }
+  await page.addInitScript((id) => { localStorage.setItem('madalean.project', id); }, pid);
+  await open(page, '/calcul', { mode: 'research' });
+  await expect(page.getByRole('heading', { name: 'Calcul', level: 1 })).toBeVisible();
+  await expect(page.locator('li.cell').first()).toBeVisible();
+  const n0 = await page.locator('li.cell').count();
+  await page.getByRole('button', { name: 'Ajouter une cellule' }).click();
+  await expect(page.locator('li.cell')).toHaveCount(n0 + 1);
+  let ask = page.locator('li.cell').nth(n0);
+  await ask.getByRole('textbox', { name: /Code de la cellule/ }).fill('factorise x^5+4x-1 dans F_{5^3}[x]');
+  await expect(ask.getByRole('group', { name: 'Ce que vous avez tapé' }).getByRole('button', { name: 'Demande' })).toHaveAttribute('aria-pressed', 'true');
+  await ask.getByRole('button', { name: 'Écrire le code' }).click();
+  ask = page.locator('li.cell.ask').last();
+  const code = ask.getByRole('textbox', { name: /Code de la cellule/ });
+  await expect(code).toHaveValue('F125.<a> = GF(5^3)\nR.<x> = PolynomialRing(F125)\nf = x^5 + 4*x - 1\nf.factor()');
+  await expect(ask.getByText('Reconnu : corps fini F₁₂₅ = F_{5³}', { exact: false })).toBeVisible();
+  await expect(ask.getByText(/construction vérifiée/)).toBeVisible();
+  // the same request written another way, « Réécrire »: byte-identical code
+  await ask.getByRole('textbox', { name: /Demande de la cellule/ }).fill('factorise x^5 + 4x - 1 dans GF(125)[x]');
+  await ask.getByRole('button', { name: 'Réécrire' }).click();
+  await expect(code).toHaveValue('F125.<a> = GF(5^3)\nR.<x> = PolynomialRing(F125)\nf = x^5 + 4*x - 1\nf.factor()');
+  // « Autre version » is a small item of the cell's menu, not a new button
+  await expect(ask.locator('.cell-head').getByRole('button')).toHaveCount(1);
+  await ask.getByRole('button', { name: /Plus d’actions/ }).click();
+  await expect(page.getByRole('menuitem', { name: 'Autre version' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await axe(page, 'calcul recognized request');
+  // a field that does not exist: said under the request, no code
+  const n = await page.locator('li.cell').count();
+  await page.getByRole('button', { name: 'Ajouter une cellule' }).click();
+  await expect(page.locator('li.cell')).toHaveCount(n + 1);
+  let bad = page.locator('li.cell').nth(n);
+  await bad.getByRole('textbox', { name: /Code de la cellule/ }).fill('factorise x^2+1 dans F_12[x]');
+  await bad.getByRole('button', { name: 'Écrire le code' }).click();
+  bad = page.locator('li.cell.ask').last();
+  await expect(bad.getByRole('alert')).toContainText("puissance d'un nombre premier");
+  await expect(bad.getByRole('textbox', { name: /Code de la cellule/ })).toHaveCount(0);
+});
+
 test('calcul notebook on a phone and in dark mode: single column, big run buttons, axe clean', async ({ browser }) => {
   const ps = (await api<{ projects: { id: string }[] }>('GET', '/projects')).projects;
   let pid = ps[0]!.id;

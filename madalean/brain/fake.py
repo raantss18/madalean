@@ -111,11 +111,13 @@ class FakeBrain:
         return ModelRef("fake", f"fake-{role}", f"Fake online {role}")
 
     async def complete(self, role, messages, *, mode="auto", temperature=None, max_tokens=None, on_chunk=None,
-                       prefer=None, extra=None) -> Completion:
+                       prefer=None, extra=None, only=None) -> Completion:
         model = self._model(role, mode)
+        if only and only != model.key:
+            raise BrainError("no_model", f"{only} is not available")
         self.requests.append({"role": role, "mode": mode, "messages": [dict(m) for m in messages],
                               "temperature": temperature, "max_tokens": max_tokens, "extra": dict(extra or {}),
-                              "model": model.key})
+                              "model": model.key, "only": only})
         if len(self.requests) > 4000:          # S-H soak: `serve --demo` ran for hours → bounded record
             del self.requests[:-2000]
         t0 = time.monotonic()

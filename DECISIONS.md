@@ -482,3 +482,45 @@
 - Header: the wordmark (white-script file in dark themes, switched by CSS on `data-theme` / `prefers-color-scheme`)
   from 1024 px up, the icon below. Pairing screen: the wordmark. « À propos »: icon + wordmark. Text alternative is
   always « Madalean ». Added a PWA manifest (with a maskable icon), `favicon.ico`, a full-bleed apple-touch icon.
+
+## D39 — Calcul: one canonical code per request — request analysis, catalogue of structures, the best version kept (user request, 2026-11-22, S-AG)
+- Request: « l'écriture de code est trop aléatoire, ça doit retenir le meilleur ; sur Sage ça oublie de charger les
+  bibliothèques ; F_125 doit être reconnu comme F_{5^3} avec une syntaxe unique si je regénère deux fois ; un
+  catalogue de la structure des codes Sage, Python et Lean en analysant la demande ».
+- Causes found: temperature 0.2 and a staggered race (the first model to answer won: another model, another style,
+  each time); « Réécrire » bypassed the cache and the recipes on purpose; recipes matched words, not mathematics
+  (F_125 / F_{5^3} / GF(125) were three requests); the syntax card is rules, not constructions; nothing checked
+  imports or names relied on from earlier cells.
+- **Request analysis without a model** (`research/intent.py`): objects with canonical parameters (finite fields by
+  their factored order, F_12 refused with the reason; Z/nZ; Q, Z, R, C, Z[i]; K[x, y]; Q(√d) reduced to squarefree d,
+  Q(i), Q(ζ_n), Q(∛2); matrices; S_n, A_n, D_n, C_n; elliptic curves by their Weierstrass equation or label;
+  integers), the operation (≈ 50, French / English), formulas in one spelling (own tokenizer: implicit products, ²,
+  √, π, LaTeX). Key = hash of that structure; unknown words stay in the key (two different requests never share
+  code). Rejected: a model to normalize (non-deterministic, slow); sympy in the server (not in the installed env).
+- **Catalogue** (`research/codecat.py`): one construction per object / operation in Sage and Python (sympy / numpy
+  / matplotlib, every import explicit) with naming conventions (`F125.<a> = GF(5^3)`, `Z12`, `R.<x>`, `K`, `M`, `G`,
+  `E`, symbolic variables always declared), and Lean / Mathlib constructions **per version** (Lean 4.9 of the
+  prover: `Fintype.card` / `Nat.factors` / `∑ … in`; current Mathlib: `Nat.card` / `Nat.primeFactorsList` /
+  `∑ … ∈`). Verified by running samples (request → assembly → assertion) in the installed Sage and the kernel's
+  Python, compiling the Lean entries with each workspace; a failing entry is not used. Rebuilt by the syntax-card
+  hooks (start, update checkers' pass, Mathlib update). Python refuses what sympy cannot do (F_{p^k}, Z[i], curves,
+  number fields): the model writes it rather than wrong code.
+- **Generation**: (1) the stored best version of the intent, as is — « Réécrire » included (the user wants one
+  syntax per request); (2) fully covered → assembled, no model; (3) S-AB template shortcut; (4) model: the
+  catalogue's constructions are a mandatory prefix, enforced after (the model's redefinitions of those names are
+  dropped), temperature 0 + seed, ONE pinned model per language chosen by measured run success on Calcul (sticky:
+  replaced only when another is ≥ 0.15 better over ≥ 5 runs, or after two misses), the race of D35 only as fallback;
+  earlier failing versions are shown as « do not repeat ». Output canonicalized (imports on top, deduplicated,
+  ordered; missing imports / conventional objects / single-line definitions of earlier cells added by static
+  analysis). Rejected: temperature 0 alone (providers still differ; the race picks a different model); caching by
+  text (F_125 vs GF(125)).
+- **Keep the best** (`research/recipes.py`, schema 2, S-AB file migrated with a backup): per intent, every version
+  and its runs; ranking ran OK > approved > ≥ 30 % faster > older (no flapping on timing noise); a version that
+  only failed is never preferred again. « Autre version » (cell menu, small) asks the model on purpose for a
+  different version (temperature 0.7, another seed); it replaces the best only when it ranks strictly higher.
+- **Auto-fix**: a run error that is a missing name (`np`, a conventional `F9`, a definition of an earlier cell) is
+  fixed deterministically first; only other errors go to the model (D35 policy unchanged: approval rules, ≤ 3).
+- UI: « Reconnu : corps fini F₁₂₅ = F_{5³} · … » under the request; a wrong request (F_12) is said there, without
+  code; the head shows « construction vérifiée » / « meilleure version ». Measured (docs/PERFORMANCE.md, CALCUL.md
+  §3.6): 31 typical requests in two notations each → 31/31 byte-identical after « Réécrire » and across notations,
+  29/31 without any model (Sage), all 31 Sage cells ran; analysis + assembly ≈ 2 ms.

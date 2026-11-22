@@ -37,6 +37,18 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
    distincts, arborescence des fichiers de l'article affichable au choix
 8. ⬜ Même chose pour Lean : « Expliquer l'erreur » (avec correction proposée) et « Expliquer ligne par ligne » sur un
    énoncé ou une preuve Lean, dans les dossiers et les notes (réutilise le service d'explication de l'étape 7)
+9. ⚠️ Un seul code par demande (S-AG, D39) : la demande est analysée sans modèle (F_125 = F_{125} = F_{5^3} =
+   GF(125) = 𝔽₁₂₅ reconnus comme le même corps, F_12 refusé avec la raison ; Z/nZ, anneaux de polynômes, corps de
+   nombres, matrices, groupes, courbes elliptiques, intégrales, limites, sommes, tracés…) et affichée sous la
+   demande (« Reconnu : corps fini F₁₂₅ = F_{5³} ») ; catalogue des constructions canoniques Sage / Python / Lean
+   (Lean 4.9 et Lean récent séparément), vérifié en exécutant chaque entrée dans le vrai Sage, le Python du noyau
+   et les deux espaces Lean ; une demande couverte est écrite sans modèle ; sinon le modèle part des constructions
+   du catalogue, température 0, un seul modèle attitré par langage (choisi sur les exécutions réussies) ; imports
+   et bibliothèques manquants ajoutés tout seuls (aussi après une erreur d'exécution) ; la meilleure version de
+   chaque demande est gardée (a marché > approuvée > plus rapide ; une version en échec n'est plus jamais
+   proposée) ; « Réécrire » redonne le même code, « Autre version » dans le menu ⋯ de la cellule. Mesuré : 31
+   demandes typiques × 2 écritures → 31/31 codes identiques, 29/31 sans modèle, 31/31 exécutées dans Sage. Reste à
+   l'essayer après installation (vrais modèles en ligne : modèle attitré non mesuré ici)
 
 ### B — Accélération de toute l'application (après A)
 9. ✅ **Mesurer d'abord** (22/11 : docs/PERFORMANCE.md « Proof time baseline », scripts/perf_report.py) : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de
