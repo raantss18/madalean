@@ -29,7 +29,7 @@ url = "2"
 keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 gethostname = "0.5"
 ed25519-compact = { version = "2", default-features = false, features = ["std"] }
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = "0.22"
 
 [dev-dependencies]
