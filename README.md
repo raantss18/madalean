@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/madalean-wordmark-dark.svg">
+    <img src="docs/brand/madalean-wordmark.svg" alt="Madalean" width="420">
+  </picture>
+</p>
+
 # Madalean
 
 *[English version](README.en.md)*

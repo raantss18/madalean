@@ -1,26 +1,31 @@
-/* Madalean design tokens. Brand: ink #1f2a44, paper #f2e6cf, laterite #d9643f (shells/branding).
-   Contrast pairs are checked in docs/UI.md (WCAG AA, both themes). */
+/* Madalean design tokens. Brand (D40, docs/BRAND.md): navy #002B5C, orange #FE7B01 (shells/branding).
+   Orange on white is only 2.6:1: it is a fill / decoration colour, never text or thin icons on light surfaces;
+   --laterite is the darkened orange for text. Contrast pairs: docs/BRAND.md and docs/UI.md (WCAG AA, both themes). */
 :root {
   color-scheme: light;
   --font-ui: 'Source Sans 3 Variable', 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', 'Noto Serif', Georgia, serif;
   --font-mono: 'DejaVu Sans Mono', 'JuliaMono', 'Noto Sans Mono', ui-monospace, monospace;
 
-  --bg: #f4f5f7;
+  --brand-navy: #002b5c;        /* identity colours, theme-independent */
+  --brand-orange: #fe7b01;      /* fills and decoration only; label on it: --brand-navy (5.4:1), never white (2.6:1) */
+  --on-brand-orange: #002b5c;
+
+  --bg: #f4f6f9;
   --surface: #ffffff;
-  --surface-2: #eceef2;
-  --surface-3: #e2e5eb;
-  --line: #d6dae2;
-  --line-strong: #858ea2;       /* 3.4:1 on surface: input borders, focusable outlines */
-  --text: #1a2031;
-  --text-2: #464e62;            /* 8.0:1 on surface */
-  --text-3: #5b6376;            /* 6.0:1 on surface, 5.5:1 on bg */
-  --ink: #1f2a44;               /* brand ink: primary buttons, wordmark */
+  --surface-2: #ebeff5;
+  --surface-3: #e0e6ee;
+  --line: #d3dae5;
+  --line-strong: #7f8aa0;       /* 3.5:1 on surface: input borders, focusable outlines */
+  --text: #14213a;              /* 16.1:1 on surface */
+  --text-2: #44506a;            /* 8.1:1 on surface */
+  --text-3: #58637a;            /* 6.0:1 on surface, 5.6:1 on bg */
+  --ink: #002b5c;               /* brand navy: primary buttons, selected segments: 14.0:1 with --on-ink */
   --on-ink: #ffffff;
-  --accent: #2c46ad;            /* links, focus, active nav: 7.6:1 on surface */
-  --accent-soft: #e6eafb;
-  --laterite: #b44a26;          /* brand laterite darkened for text use: 5.2:1 on surface */
-  --laterite-mark: #d9643f;     /* decorative only */
+  --accent: #0b4f9c;            /* links, focus, active nav (navy family): 8.0:1 on surface, 7.4:1 on bg */
+  --accent-soft: #e5eef9;
+  --laterite: #a84b00;          /* brand orange darkened for text use: 5.7:1 on surface, 5.3:1 on bg */
+  --laterite-mark: #fe7b01;     /* brand orange: decorative only (rules, underlines, highlight outlines) */
 
   --proved: #1a7246;            /* 5.9:1 */
   --proved-soft: #e3f3ea;
@@ -31,15 +36,15 @@
   --running-soft: #fdf1dc;
   --queued: #5b6376;
   --queued-soft: #eceef2;
-  --info-soft: #e8eefc;
+  --info-soft: #e6eefa;
   --online: #6a3fb0;            /* "goes online" privacy colour: 7.0:1 */
   --online-soft: #f0e9fb;
   --local: #1a6a7a;             /* "stays on this machine": 6.0:1 */
   --local-soft: #e2f2f4;
 
-  --focus: #2c46ad;
-  --shadow-1: 0 1px 2px rgba(20, 28, 48, 0.08);
-  --shadow-2: 0 8px 28px rgba(20, 28, 48, 0.16), 0 1px 3px rgba(20, 28, 48, 0.1);
+  --focus: #0b4f9c;
+  --shadow-1: 0 1px 2px rgba(0, 31, 66, 0.08);
+  --shadow-2: 0 8px 28px rgba(0, 31, 66, 0.16), 0 1px 3px rgba(0, 31, 66, 0.1);
 
   --r-1: 4px;     /* chips, code */
   --r-2: 8px;     /* buttons, inputs */
@@ -76,21 +81,21 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #13161d;
-    --surface: #1a1e27;
-    --surface-2: #222734;
-    --surface-3: #2a3040;
-    --line: #2f3546;
-    --line-strong: #6d768b;     /* 3.4:1 on surface */
-    --text: #e8eaf0;
-    --text-2: #b9bfcc;
-    --text-3: #a0a7b6;          /* 6.6:1 */
-    --ink: #dfe4f2;
-    --on-ink: #151a26;
-    --accent: #a3b4ff;
-    --accent-soft: #252d4d;
-    --laterite: #f0936d;
-    --laterite-mark: #e0754e;
+    --bg: #0b1220;              /* navy-tinted surfaces */
+    --surface: #111b2e;
+    --surface-2: #18243a;
+    --surface-3: #1f2d47;
+    --line: #26344f;
+    --line-strong: #6b7d9e;     /* 4.1:1 on surface */
+    --text: #e8edf5;            /* 14.6:1 */
+    --text-2: #b6c2d6;          /* 9.6:1 */
+    --text-3: #9aa8c0;          /* 7.2:1 */
+    --ink: #dbe6f5;             /* light primary buttons, navy label: 11.1:1 */
+    --on-ink: #002b5c;
+    --accent: #8db8f2;          /* 8.4:1 on surface */
+    --accent-soft: #1a2c4d;
+    --laterite: #ff9a3d;        /* 8.2:1 on surface */
+    --laterite-mark: #fe7b01;   /* 6.6:1 on surface */
     --proved: #66d398;
     --proved-soft: #17301f;
     --failed: #ff8e82;
@@ -99,34 +104,34 @@
     --running-fill: #e0a238;
     --running-soft: #33270f;
     --queued: #a0a7b6;
-    --queued-soft: #262b37;
-    --info-soft: #1f2740;
+    --queued-soft: #1d2840;
+    --info-soft: #172744;
     --online: #c7a8ff;
     --online-soft: #2b2140;
     --local: #79d0de;
     --local-soft: #15303a;
-    --focus: #a3b4ff;
+    --focus: #8db8f2;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #13161d;
-  --surface: #1a1e27;
-  --surface-2: #222734;
-  --surface-3: #2a3040;
-  --line: #2f3546;
-  --line-strong: #6d768b;
-  --text: #e8eaf0;
-  --text-2: #b9bfcc;
-  --text-3: #a0a7b6;
-  --ink: #dfe4f2;
-  --on-ink: #151a26;
-  --accent: #a3b4ff;
-  --accent-soft: #252d4d;
-  --laterite: #f0936d;
-  --laterite-mark: #e0754e;
+  --bg: #0b1220;
+  --surface: #111b2e;
+  --surface-2: #18243a;
+  --surface-3: #1f2d47;
+  --line: #26344f;
+  --line-strong: #6b7d9e;
+  --text: #e8edf5;
+  --text-2: #b6c2d6;
+  --text-3: #9aa8c0;
+  --ink: #dbe6f5;
+  --on-ink: #002b5c;
+  --accent: #8db8f2;
+  --accent-soft: #1a2c4d;
+  --laterite: #ff9a3d;
+  --laterite-mark: #fe7b01;
   --proved: #66d398;
   --proved-soft: #17301f;
   --failed: #ff8e82;
@@ -135,13 +140,13 @@
   --running-fill: #e0a238;
   --running-soft: #33270f;
   --queued: #a0a7b6;
-  --queued-soft: #262b37;
-  --info-soft: #1f2740;
+  --queued-soft: #1d2840;
+  --info-soft: #172744;
   --online: #c7a8ff;
   --online-soft: #2b2140;
   --local: #79d0de;
   --local-soft: #15303a;
-  --focus: #a3b4ff;
+  --focus: #8db8f2;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 10px 32px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
 }

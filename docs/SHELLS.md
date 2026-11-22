@@ -303,11 +303,13 @@ the server runs); `--status`/`--print` were run, and the refusal path was checke
 
 ## Branding (`shells/branding`)
 
-`madalean-icon.svg` (app icon: baobab whose crown is the quantifier ∀, on ink #1F2A44, paper #F2E6CF, laterite
-ground line #D9643F), `madalean-mark-mono.svg` (single colour, `currentColor`, for monochrome / adaptive
-foregrounds), `madalean-wordmark.svg` / `-dark.svg` (text set in a serif font stack — convert to paths before
-print use), `png/` exports (16 → 1024 px). `candidates/` keeps the two other studies (lemur-tail λ, ravinala ⊢);
-the baobab-∀ was chosen because it stays legible at 16–48 px and as a one-colour shape.
+Visual identity of D40 (docs/BRAND.md): the user's « Madal∃an » logo, navy #002B5C script, orange #FE7B01 ∃ and
+swoosh. `madalean-logo-source.png` is the original raster; `madalean-wordmark.svg` is the vector master traced from
+it (all paths, no font). Everything else is **generated** by `scripts/build_brand.py` (never edit by hand):
+`madalean-wordmark-dark.svg` / `-mono.svg`, `madalean-icon.svg` (orange ∃ + swoosh on a navy rounded square),
+`-icon-small.svg` (≤ 32 px: heavier glyph), `-icon-maskable.svg`, `-icon-round.svg`, `madalean-mark-mono.svg`
+(`currentColor`), `png/` exports (16 → 1024 px), plus the copies in `web/public/brand/`, the Android launcher /
+adaptive / monochrome icons, the Tauri icons, `shells/desktop/ui/icon.svg` and `docs/brand/`.
 
 ## Tests
 

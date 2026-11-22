@@ -1,5 +1,5 @@
 /* Madalean site: manual, install page, update channel, publication template.
-   Tokens follow web/src/styles/tokens.css (ink #1f2a44, laterite #d9643f). Contrast pairs checked AA in both themes.
+   Tokens follow web/src/styles/tokens.css (brand navy #002b5c, orange #fe7b01: docs/BRAND.md). Contrast pairs checked AA in both themes.
    No external resource: fonts are self-hosted (SIL OFL), no inline style anywhere (strict CSP). */
 
 @font-face { font-family: 'Source Serif 4 Variable'; font-style: normal; font-display: swap; font-weight: 200 900;
@@ -14,52 +14,52 @@
   --font-ui: 'Source Sans 3 Variable', system-ui, -apple-system, 'Segoe UI', 'Noto Sans', sans-serif;
   --font-serif: 'Source Serif 4 Variable', 'Noto Serif', Georgia, serif;
   --font-mono: 'DejaVu Sans Mono', 'JuliaMono', 'Noto Sans Mono', ui-monospace, monospace;
-  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #eceef2; --line: #d6dae2; --line-strong: #858ea2;
-  --text: #1a2031; --text-2: #464e62; --text-3: #5b6376;
-  --ink: #1f2a44; --on-ink: #ffffff; --accent: #2c46ad; --accent-soft: #e6eafb;
-  --laterite: #b44a26; --laterite-mark: #d9643f;
+  --bg: #f4f6f9; --surface: #ffffff; --surface-2: #ebeff5; --line: #d3dae5; --line-strong: #7f8aa0;
+  --text: #14213a; --text-2: #44506a; --text-3: #58637a;
+  --ink: #002b5c; --on-ink: #ffffff; --accent: #0b4f9c; --accent-soft: #e5eef9;
+  --laterite: #a84b00; --laterite-mark: #fe7b01;
   --proved: #1a7246; --proved-soft: #e3f3ea; --proved-mid: #b9e2c9;
   --failed: #b42318; --failed-soft: #fbe9e7;
-  --statement: #2c46ad; --statement-soft: #e6eafb;
+  --statement: #0b4f9c; --statement-soft: #e5eef9;
   --defined: #1a6a7a; --defined-soft: #e2f2f4;
   --warn: #8a5200; --warn-soft: #fdf1dc;
-  --focus: #2c46ad;
+  --focus: #0b4f9c;
   --code-bg: #f6f7f9;
   --hl-kw: #6a2fb0; --hl-tac: #1a5fb4; --hl-com: #5b6376; --hl-str: #8a4b00; --hl-num: #8a4b00; --hl-ty: #1a6a7a;
-  --hl-sym: #b44a26; --hl-sorry: #b42318;
+  --hl-sym: #a84b00; --hl-sorry: #b42318;
   --measure: 72ch;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #13161d; --surface: #1a1e27; --surface-2: #222734; --line: #2f3546; --line-strong: #6d768b;
-    --text: #e8eaf0; --text-2: #b9bfcc; --text-3: #a0a7b6;
-    --ink: #dfe4f2; --on-ink: #151a26; --accent: #a3b4ff; --accent-soft: #252d4d;
-    --laterite: #f0936d; --laterite-mark: #e0754e;
+    --bg: #0b1220; --surface: #111b2e; --surface-2: #18243a; --line: #26344f; --line-strong: #6b7d9e;
+    --text: #e8edf5; --text-2: #b6c2d6; --text-3: #9aa8c0;
+    --ink: #dbe6f5; --on-ink: #002b5c; --accent: #8db8f2; --accent-soft: #1a2c4d;
+    --laterite: #ff9a3d; --laterite-mark: #fe7b01;
     --proved: #66d398; --proved-soft: #17301f; --proved-mid: #24513a;
     --failed: #ff8e82; --failed-soft: #3a1c1a;
-    --statement: #a3b4ff; --statement-soft: #252d4d;
+    --statement: #8db8f2; --statement-soft: #1a2c4d;
     --defined: #79d0de; --defined-soft: #15303a;
     --warn: #f3bf68; --warn-soft: #33270f;
-    --focus: #a3b4ff; --code-bg: #161a22;
+    --focus: #8db8f2; --code-bg: #0e1727;
     --hl-kw: #c7a8ff; --hl-tac: #8ab4ff; --hl-com: #a0a7b6; --hl-str: #f3bf68; --hl-num: #f3bf68; --hl-ty: #79d0de;
-    --hl-sym: #f0936d; --hl-sorry: #ff8e82;
+    --hl-sym: #ff9a3d; --hl-sorry: #ff8e82;
   }
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #13161d; --surface: #1a1e27; --surface-2: #222734; --line: #2f3546; --line-strong: #6d768b;
-  --text: #e8eaf0; --text-2: #b9bfcc; --text-3: #a0a7b6;
-  --ink: #dfe4f2; --on-ink: #151a26; --accent: #a3b4ff; --accent-soft: #252d4d;
-  --laterite: #f0936d; --laterite-mark: #e0754e;
+  --bg: #0b1220; --surface: #111b2e; --surface-2: #18243a; --line: #26344f; --line-strong: #6b7d9e;
+  --text: #e8edf5; --text-2: #b6c2d6; --text-3: #9aa8c0;
+  --ink: #dbe6f5; --on-ink: #002b5c; --accent: #8db8f2; --accent-soft: #1a2c4d;
+  --laterite: #ff9a3d; --laterite-mark: #fe7b01;
   --proved: #66d398; --proved-soft: #17301f; --proved-mid: #24513a;
   --failed: #ff8e82; --failed-soft: #3a1c1a;
-  --statement: #a3b4ff; --statement-soft: #252d4d;
+  --statement: #8db8f2; --statement-soft: #1a2c4d;
   --defined: #79d0de; --defined-soft: #15303a;
   --warn: #f3bf68; --warn-soft: #33270f;
-  --focus: #a3b4ff; --code-bg: #161a22;
+  --focus: #8db8f2; --code-bg: #0e1727;
   --hl-kw: #c7a8ff; --hl-tac: #8ab4ff; --hl-com: #a0a7b6; --hl-str: #f3bf68; --hl-num: #f3bf68; --hl-ty: #79d0de;
-  --hl-sym: #f0936d; --hl-sorry: #ff8e82;
+  --hl-sym: #ff9a3d; --hl-sorry: #ff8e82;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -83,6 +83,14 @@ a:hover { text-decoration-thickness: 2px; }
   font: 600 1.3rem/1 var(--font-serif); }
 .brand span { border-bottom: 2px solid var(--laterite-mark); padding-bottom: 2px; }
 .brand .mark { width: 30px; height: 30px; }
+.brand .wordmark { display: block; height: 36px; width: auto; }
+.brand .wm-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .brand .wm-light { display: none; }
+  :root:not([data-theme='light']) .brand .wm-dark { display: block; }
+}
+:root[data-theme='dark'] .brand .wm-light { display: none; }
+:root[data-theme='dark'] .brand .wm-dark { display: block; }
 .top-nav ul { list-style: none; display: flex; gap: 4px; margin: 0; padding: 0; flex-wrap: wrap; }
 .top-nav a { display: inline-block; padding: 8px 10px; min-height: 44px; line-height: 28px; color: var(--text-2);
   text-decoration: none; border-radius: 8px; }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Neutral, quiet theme for the shell screens (the main UI is the web UI).
-/// Brand ink colour of shells/branding/madalean-icon.svg.
-const Color brandColor = Color(0xFF1F2A44);
+/// Brand navy of shells/branding (docs/BRAND.md); orange accent #FE7B01 is decorative only.
+const Color brandColor = Color(0xFF002B5C);
 
 ThemeData shellTheme(Brightness b) {
   final scheme = ColorScheme.fromSeed(

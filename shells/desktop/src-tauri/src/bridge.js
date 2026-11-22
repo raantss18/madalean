@@ -26,12 +26,12 @@
     var d = document.createElement('div');
     d.id = '__madalean_toast'; d.setAttribute('role', 'status');
     d.style.cssText = 'position:fixed;z-index:2147483647;left:50%;bottom:24px;transform:translateX(-50%);' +
-      'background:#1f2a44;color:#f2e6cf;font:14px/1.4 system-ui,sans-serif;padding:10px 14px;border-radius:10px;' +
+      'background:#002b5c;color:#ffffff;font:14px/1.4 system-ui,sans-serif;padding:10px 14px;border-radius:10px;' +
       'box-shadow:0 6px 24px rgba(0,0,0,.3);display:flex;gap:12px;align-items:center;max-width:90vw';
     var s = document.createElement('span'); s.textContent = text; d.appendChild(s);
     if (actionLabel && actionUrl) {
       var b = document.createElement('button'); b.textContent = actionLabel;
-      b.style.cssText = 'background:#f2e6cf;color:#1f2a44;border:0;border-radius:6px;padding:4px 10px;font:inherit;cursor:pointer';
+      b.style.cssText = 'background:#fe7b01;color:#002b5c;border:0;border-radius:6px;padding:4px 10px;font:inherit;font-weight:600;cursor:pointer';
       b.onclick = function () { location.href = actionUrl; d.remove(); };
       d.appendChild(b);
     }

@@ -5,6 +5,7 @@
   import type { Hello } from '../lib/api/types';
   import { navigate, route } from '../lib/router.svelte';
   import { t, i18n } from '../lib/i18n/index.svelte';
+  import Wordmark from '../components/Wordmark.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   let hello = $state<Hello | null>(null);
@@ -70,7 +71,7 @@
 
 <main class="pair" id="main">
   <div class="card">
-    <img src="/brand/icon.svg" alt="" width="56" height="56" />
+    <div class="logo"><Wordmark height={52} /></div>
     <h1>{t('pair.title')}</h1>
     {#if hello?.paired && !hello.local}
       <p>{t('pair.already', { host: hello.host_name })}</p>
@@ -117,7 +118,7 @@
 <style>
   .pair { min-height: 100dvh; display: grid; place-items: center; padding: var(--s-4); }
   .card { width: min(440px, 100%); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--laterite-mark); border-radius: var(--r-3); padding: var(--s-5); box-shadow: var(--shadow-1); }
-  .card img { border-radius: 12px; display: block; margin-bottom: var(--s-3); }
+  .logo { margin-bottom: var(--s-3); }
   .code { font: 600 1.75rem/1 var(--font-mono); letter-spacing: 0.35em; text-align: center; max-width: 14rem; }
   .steps { padding-left: 1.2em; color: var(--text-2); }
   .notice { background: var(--running-soft); color: var(--running); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); font-weight: 600; }

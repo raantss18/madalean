@@ -15,6 +15,7 @@
   import ActivityPanel from './components/ActivityPanel.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
   import Tour from './components/Tour.svelte';
+  import Wordmark from './components/Wordmark.svelte';
 
   type Screen = Component<{ params: Record<string, string> }>;
   const cache = new Map<string, Promise<Screen>>();
@@ -87,8 +88,8 @@
       <button class="btn quiet icon menu-btn" aria-label={t('nav.dossiers')} aria-expanded={railOpen} aria-controls="rail" aria-keyshortcuts="Control+Shift+1"
         title={`${railOpen ? t('layout.rail.hide') : t('layout.rail.show')} (${t('layout.key', { k: '1' })})`} onclick={toggleRail}><Icon name="menu" /></button>
       <a class="brand" href="/" aria-label={t('nav.homeLabel')}>
-        <img src="/brand/icon.svg" alt="" width="28" height="28" />
-        <span class="word">Madalean</span>
+        <img class="brand-icon" src="/brand/icon.svg" alt="" width="32" height="32" />
+        <span class="word"><Wordmark height={30} alt="" /></span>
       </a>
       <ProjectSwitcher />
       <div class="spacer"></div>
@@ -174,10 +175,10 @@
   .shell { min-height: 100dvh; display: flex; flex-direction: column; }
   .topbar { position: sticky; top: 0; z-index: 500; display: flex; align-items: center; gap: var(--s-2); height: var(--topbar-h); padding: 0 max(var(--s-3), env(safe-area-inset-right)) 0 max(var(--s-3), env(safe-area-inset-left)); background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
   .brand { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: var(--touch); color: var(--text); text-decoration: none; margin-right: var(--s-2); min-height: var(--touch); }
-  .brand img { flex: none; border-radius: 6px; }
+  .brand-icon { flex: none; border-radius: 7px; display: none; }
   .topbar :global(.switch-select) { flex: 0 1 auto; min-width: 0; }
   .topbar :global(.privacy) { flex: 0 1 auto; min-width: 0; }
-  .word { font-family: var(--font-serif); font-weight: 600; font-size: 1.25rem; letter-spacing: 0.01em; border-bottom: 2px solid var(--laterite-mark); line-height: 1.1; }
+  .word { display: inline-flex; }
   .spacer { flex: 1; }
   .search-btn .kbd { margin-left: 4px; }
   .act-btn { position: relative; }
@@ -222,6 +223,7 @@
   @media (max-width: 1023px) {
     .menu-btn { display: inline-flex; }
     .word { display: none; }
+    .brand-icon { display: block; }
     .body { grid-template-columns: minmax(0, 1fr); }
     .rail { position: fixed; z-index: 650; left: 0; top: var(--topbar-h); bottom: 0; height: auto; width: min(340px, 88vw); transform: translateX(-105%); transition: transform 180ms var(--ease); box-shadow: var(--shadow-2); visibility: hidden; }
     .drawer-open .rail { transform: none; visibility: visible; }

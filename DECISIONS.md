@@ -459,3 +459,26 @@
 - Measured: job `timings` (start / end per stage, kept in the job history) and `seconds` in the result events;
   `scripts/perf_report.py` reads them; `scripts/dev/perf_stages_demo.py` replays the real medians on the demo
   server (docs/PERFORMANCE.md « Étapes en parallèle (S-AF) »).
+
+## D40 — New visual identity: « Madal∃an », navy and orange (user request, 2026-11-22, S-AH)
+- The user supplied the logo (« Voici désormais notre identité visuelle, remplace tout ») : navy `#002B5C` script,
+  the « e » as an orange `#FE7B01` ∃, an orange swoosh. It replaces the baobab-∀ icon, the serif text wordmark and the
+  ink / paper / laterite palette everywhere (web UI, site, READMEs, Android, AppImage / desktop entry). docs/BRAND.md.
+- **Vector master traced, not redrawn**: navy and orange separated by colour, traced with potrace, written as three
+  absolute paths (`shells/branding/madalean-wordmark.svg`); rendered back over the source the difference is only
+  anti-aliased edges (RMSE 2.5 %). Rejected: redrawing the script by hand or setting it in a font (loses the user's
+  lettering). One script (`scripts/build_brand.py`) derives every other file, so a future logo tweak is one run.
+- **App icon = orange ∃ + swoosh on a navy rounded square**: the ∃ is the distinctive part of the logo and stays
+  legible at 16 px; the whole wordmark does not (a 3.4:1 word is under 5 px tall in a 16 px square). The logo's own swoosh
+  is a 14:1 hairline, so the icon redraws it as a thicker crescent with the same rise; ≤ 32 px uses a heavier variant.
+  Android adaptive foreground keeps the mark inside the 66 dp safe zone; monochrome layer for themed icons.
+- **Accessibility first**: orange on white is 2.6:1, so it is never text or a thin icon on light surfaces — only fills,
+  rules, underlines, highlight outlines (`--laterite-mark`). Orange text uses `#A84B00` (5.7:1) in light, `#FF9A3D`
+  (8.2:1) in dark. Primary buttons stay navy with a white label (14:1); an orange button would need a navy label
+  (5.4:1), never white. Links and focus use a navy-family blue `#0B4F9C` (8.0:1) rather than navy itself, so links stay
+  distinct from body text. Dark theme surfaces are navy-tinted. Token **names** kept (`--ink`, `--accent`,
+  `--laterite`, `--laterite-mark` …) so no component changed meaning; added `--brand-navy`, `--brand-orange`,
+  `--on-brand-orange`. axe (e2e) clean in both themes.
+- Header: the wordmark (white-script file in dark themes, switched by CSS on `data-theme` / `prefers-color-scheme`)
+  from 1024 px up, the icon below. Pairing screen: the wordmark. « À propos »: icon + wordmark. Text alternative is
+  always « Madalean ». Added a PWA manifest (with a maskable icon), `favicon.ico`, a full-bleed apple-touch icon.

@@ -3,6 +3,7 @@
   import { api, shell } from '../../lib/api/client';
   import { t } from '../../lib/i18n/index.svelte';
   import Icon from '../../components/Icon.svelte';
+  import Wordmark from '../../components/Wordmark.svelte';
   const sh = shell();
   // Author shown in « À propos » (same details as the user's other apps).
   const AUTHOR = {
@@ -15,8 +16,8 @@
 </script>
 
 <div class="about">
-  <img src="/brand/icon.svg" alt="" width="64" height="64" />
-  <p><strong class="word">Madalean</strong> {app.m.version}</p>
+  <div class="brand"><img src="/brand/icon.svg" alt="" width="56" height="56" /><Wordmark height={44} /></div>
+  <p>Madalean {app.m.version}</p>
   <p class="small">{t('about.host', { host: app.m.host_name })} · {app.m.local ? t('about.local') : t('about.remote', { name: app.m.device?.name ?? '' })}{app.m.demo ? ` · ${t('about.demo')}` : ''}</p>
   <p class="small">{t('about.what')}</p>
   <p class="small">{t('about.lean')}</p>
@@ -37,8 +38,8 @@
 </div>
 
 <style>
-  .about img { border-radius: 14px; }
-  .word { font-family: var(--font-serif); font-size: 1.3rem; }
+  .brand { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+  .brand img { border-radius: 12px; }
   h3 { margin-top: var(--s-4); }
   .contact { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
   .contact li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }

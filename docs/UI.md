@@ -68,7 +68,7 @@ Built on the shells' brand (shells/branding/: a baobab whose crown is ∀, ink `
   screen and paper match. All self-hosted (fontsource packages), licences in « À propos ».
 - **The status glyph family after ∎**: proved = filled square (the QED mark), running = a square being drawn,
   queued = dotted, failed = struck, stopped = half, draft = open. Always paired with a text label (sr-only in lists).
-- **Restrained palette**: cool paper `#F4F5F7`, ink text, indigo `#2C46AD` for links/focus, laterite only for the
+- **Restrained palette** (brand D40, docs/BRAND.md): cool paper `#F4F6F9`, navy `#002B5C` ink, blue `#0B4F9C` for links/focus, orange only for the
   wordmark rule and the current step underline; semantic proved green / failed red / running amber; privacy colours
   teal (« stays here ») and violet (« goes online »). Dark theme built from the same tokens.
 
@@ -209,16 +209,16 @@ Conjectures, Publier, Carnet and the settings sections (models-keys, pairing, up
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` / `--surface` / `--surface-2` | `#F4F5F7` / `#FFF` / `#ECEEF2` | `#13161D` / `#1A1E27` / `#222734` | page, panels, wells |
-| `--text` / `--text-2` / `--text-3` | `#1A2031` 16.2:1 / `#464E62` 8.3:1 / `#5B6376` 6.0:1 | `#E8EAF0` 13.9:1 / `#B9BFCC` 9.1:1 / `#A0A7B6` 6.9:1 | text levels |
-| `--ink` / `--on-ink` | `#1F2A44` / `#FFF` 14.3:1 | `#DFE4F2` / `#151A26` 13.7:1 | primary buttons, brand |
-| `--accent` | `#2C46AD` 8.1:1 | `#A3B4FF` 8.4:1 | links, focus ring, selection |
-| `--laterite` / `--laterite-mark` | `#B44A26` 5.3:1 / `#D9643F` | `#F0936D` / `#E0754E` | brand rule, current step |
+| `--bg` / `--surface` / `--surface-2` | `#F4F6F9` / `#FFF` / `#EBEFF5` | `#0B1220` / `#111B2E` / `#18243A` (navy-tinted) | page, panels, wells |
+| `--text` / `--text-2` / `--text-3` | `#14213A` 16.1:1 / `#44506A` 8.1:1 / `#58637A` 6.0:1 | `#E8EDF5` 14.6:1 / `#B6C2D6` 9.6:1 / `#9AA8C0` 7.2:1 | text levels |
+| `--ink` / `--on-ink` | `#002B5C` (brand navy) / `#FFF` 14.0:1 | `#DBE6F5` / `#002B5C` 11.1:1 | primary buttons, brand |
+| `--accent` | `#0B4F9C` 8.0:1 | `#8DB8F2` 8.4:1 | links, focus ring, selection |
+| `--laterite` / `--laterite-mark` | `#A84B00` 5.7:1 / `#FE7B01` (brand orange, decoration only: 2.6:1) | `#FF9A3D` 8.2:1 / `#FE7B01` 6.6:1 | orange text / brand rule, current step, highlights |
 | `--proved` on `--proved-soft` | `#1A7246` 5.2:1 | `#66D398` 7.7:1 | proved |
 | `--failed` on `--failed-soft` | `#B42318` 5.6:1 | `#FF8E82` 6.9:1 | failed / errors |
 | `--running` on `--running-soft` | `#8A5200` 5.7:1 | `#F3BF68` 8.7:1 | running / waiting |
 | `--online` / `--local` (on soft) | `#6A3FB0` 6.0:1 / `#1A6A7A` 5.4:1 | `#C7A8FF` 7.5:1 / `#79D0DE` 7.8:1 | who receives what |
-| `--line-strong` | `#858EA2` 3.3:1 | `#6D768B` 3.7:1 | input borders (non-text 3:1) |
+| `--line-strong` | `#7F8AA0` 3.5:1 | `#6B7D9E` 4.1:1 | input borders (non-text 3:1) |
 | radii | 4 / 8 / 12 px | | chips·code / controls / panels |
 | spacing | 4 8 12 16 24 32 48 | | `--s-1` … `--s-7` |
 | type | 13 14 16 19 24 32 px | | `--fs-xs` … `--fs-2xl`; body 16/1.5 |
