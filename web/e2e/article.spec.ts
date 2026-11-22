@@ -251,6 +251,8 @@ test('panels on tablet and small laptop: drawers over the text, Escape closes an
   const box = await page.locator('#ae-side').boundingBox();
   const bar = await page.locator('.bottomnav').boundingBox();
   expect(box!.y + box!.height).toBeLessThanOrEqual(bar!.y + 1);
+  // contrast is only meaningful once the sheet has finished sliding in (under load axe could sample it half-opaque)
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
   await axe(page, 'article phone sheet');
 });
 
