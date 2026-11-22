@@ -709,8 +709,8 @@ behaviours, pairing, a final checklist; each step linked to its manual page.
 ### 15.2 Rules
 
 - **Opens by itself** only when: the request is local (host), the route is Home, `settings.wizard_done === false`
-  and the server's `auto` is true (false after « Plus tard » / « Terminer », and on a server that started with the
-  user's dossiers already there — an update from 2.0.0). A deep link is never redirected. Paired devices: no
+  and the server's `auto` is true (false after « Plus tard » / « Terminer »). An update from 2.0.0 opens it too, once
+  (the user's choice, 2026-11-22). A deep link is never redirected. Paired devices: no
   automatic opening, no menu entry, no Home card, `/premiers-pas` says it is for the host; the API is host-only.
 - **Progress on the server** (`first-run.json`): each move saves `step` + `visited`; opening `/premiers-pas` without a
   step resumes there (also from the browser's back / forward). « Plus tard » = `wizard_done: true`; the **Home card**
@@ -749,7 +749,7 @@ horizontal scroll (checked at 390 px). axe (WCAG 2.1 AA) clean on every step tes
 ### 15.4 Tests and screenshots
 
 - `tests/test_setup_wizard.py`: wizard progress (host only, validation, merge, persisted across a restart, « Plus
-  tard », resume, completion), no automatic opening after an update with existing dossiers, reuse checked against
+  tard », resume, completion), opens once after an update with existing dossiers, reuse checked against
   fake system Sage / TeX, local-model download with a fake downloader (progress events, Local mode, busy, nothing
   missing), refused in the demo.
 - `web/e2e/setup-wizard.spec.ts`: first start on the host opens it, a deep link does not, a paired browser never

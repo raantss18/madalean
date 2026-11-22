@@ -62,7 +62,7 @@ async def test_wizard_progress_host_only_and_persisted(tmp_path, monkeypatch):
             assert w["completed"] is True and w["done"] is True and w["auto"] is False
 
 
-async def test_update_with_existing_work_does_not_open_by_itself(tmp_path, monkeypatch):
+async def test_update_with_existing_work_opens_it_once(tmp_path, monkeypatch):
     monkeypatch.setenv("MADALEAN_NO_NET", "1")
     ctx = make_ctx(tmp_path)
     async with running(ctx):
@@ -72,7 +72,7 @@ async def test_update_with_existing_work_does_not_open_by_itself(tmp_path, monke
     async with running(ctx2) as (_srv, local, _remote):
         async with aiohttp.ClientSession() as s:
             st, w = await _json(await s.get(local + "/api/setup/wizard"))
-            assert st == 200 and w["auto"] is False and w["done"] is False and w["completed"] is False
+            assert st == 200 and w["auto"] is True and w["done"] is False and w["completed"] is False   # user's choice 22/11
 
 
 async def test_reuse_checked_against_the_machine(tmp_path, monkeypatch):

@@ -124,7 +124,6 @@ async def setup_get(request: web.Request) -> web.Response:
 # ---------------------------------------------------------------- S-AQ: the first-run assistant « Premiers pas »
 STEPS = ("welcome", "tools", "local", "keys", "hf", "claude", "modes", "auto", "pair", "done")
 WIZARD_SCHEMA = "madalean-first-run/1"
-UPGRADE = web.AppKey("setup_upgrade", bool)
 
 
 def _wiz_file(ctx) -> Path:
@@ -150,7 +149,7 @@ def wizard_state(app: web.Application, ctx) -> dict:
             "visited": [x for x in STEPS if x in (d.get("visited") or [])],
             "models": d.get("models") if d.get("models") in assistant.CHOICES["models"] else "",
             "done": done, "completed": completed, "reminder": bool(d.get("reminder", True)),
-            "auto": not done and not completed and not app.get(UPGRADE, False)}
+            "auto": not done and not completed}
 
 
 @host_only
@@ -357,9 +356,8 @@ async def models_cancel(request: web.Request) -> web.Response:
 
 
 def register(app: web.Application, ctx) -> None:
-    # An update from 2.0.0 (the user's work already there when this server started) never opens the assistant by
-    # itself; the Home card offers it. The demo's seeded examples do not count.
-    app[UPGRADE] = bool(not ctx.demo and not _wiz_file(ctx).exists() and getattr(ctx.repo, "cache", None))
+    # The assistant opens by itself at the first start of the host's web app, an update from 2.0.0 included (the
+    # user's choice, 2026-11-22); « Plus tard » or « Terminer » sets wizard_done and it never opens by itself again.
     app.router.add_get("/api/setup", setup_get)
     app.router.add_get("/api/setup/wizard", wizard_get)
     app.router.add_patch("/api/setup/wizard", wizard_patch)

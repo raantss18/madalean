@@ -764,10 +764,8 @@
   existing `PATCH /api/settings` / `POST /api/deps/{c}/install` (+ `deps.progress`) / `GET /api/providers`. New
   files only (`screens/setup/`, `lib/setup/`), five one-line hooks (App, routes, logo menu, Home, Réglages).
 - **When it opens**: on the host's Home while `wizard_done` is false and the server says `auto`. `auto` is false
-  once finished or put off, and on a server that **started with the user's dossiers already there** (an update
-  from 2.0.0: `wizard_done` was always false in 2.0.0 settings files, so opening it over existing work would
-  surprise every current user; the Home card offers it instead). The demo's seeded examples do not count, so the
-  demo shows it at first start (the e2e global setup marks it finished; its own spec reopens it). Deep links are
+  once finished or put off (« Plus tard » / « Terminer »). An update from 2.0.0 opens it too, once: the user chose
+  this on 2026-11-22 (S-AQ had proposed the Home card only for existing installs). The demo shows it at first start (the e2e global setup marks it finished; its own spec reopens it). Deep links are
   never redirected. Paired devices never see it (no auto-open, no menu entry, no card; host-only API).
 - **Progress on the server**: `<config>/first-run.json` (`madalean-first-run/1`: step, visited, models, completed,
   reminder) through `GET`/`PATCH /api/setup/wizard`; « Plus tard » = the existing `wizard_done` setting;
