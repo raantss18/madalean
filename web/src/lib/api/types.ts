@@ -79,7 +79,16 @@ export interface Job {
   stages?: Stage[];
   /** D38: one row per stage run (unix seconds; end/seconds null while it runs). */
   timings?: { stage: Stage; start: number; end: number | null; seconds: number | null }[];
+  /** S-AI (D41): who directs the request, its cost so far, the plan with the model of each step, the cap question. */
+  conductor?: Conductor | Record<string, never>;
 }
+export interface ConductorStep { id: string; kind: string; goal: string; model: string; model_name: string; why: string;
+  wave: number; depends_on: string[]; advisory: boolean; stage: string }
+export interface Conductor { by: string; name: string; tier: '' | 'haiku' | 'sonnet' | 'opus' | 'free'; usd: number; cap: number;
+  difficulty: '' | 'easy' | 'medium' | 'hard'; summary: string; plan: ConductorStep[];
+  ask: { spent: number; cap: number; step: number; estimate: number; t: number } | null;
+  state: 'planning' | 'running' | 'asking' | 'off' | 'done'; decisions?: number; claude?: boolean;
+  final?: { consistent: boolean; issues: { part: string; text: string }[]; summary: string } }
 export interface Tournament { round: number; models: string[]; names: string[]; state: string; domain: string;
   winner?: string; tried?: string[]; rounds?: number; minutes?: number }
 export interface LeaderboardRow { model: string; task: string; domain: string; tasks: number; solved: number;

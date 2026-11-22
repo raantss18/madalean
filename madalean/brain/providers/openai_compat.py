@@ -14,11 +14,29 @@ _NO_TOOLS = ("does not support tools", "tools are not supported", "tool use is n
              "does not support function", "function calling is not", "tools is not supported")
 
 
+def merge_stable(messages: list[dict]) -> list[dict]:
+    """S-AI: the « stable » marker of a system block (Anthropic cache breakpoint) is not an OpenAI field: it is
+    dropped and consecutive system messages are merged, the stable one first, so the prompt prefix stays
+    byte-identical across requests (providers' implicit prefix caches). Messages without the marker: unchanged."""
+    if not any(isinstance(m, dict) and "stable" in m for m in messages):
+        return messages
+    out: list[dict] = []
+    for m in messages:
+        m = {k: v for k, v in m.items() if k != "stable"}
+        prev = out[-1] if out else None
+        if prev is not None and m.get("role") == "system" and prev.get("role") == "system" \
+                and isinstance(m.get("content"), str) and isinstance(prev.get("content"), str):
+            out[-1] = {**prev, "content": prev["content"] + "\n\n" + m["content"]}
+        else:
+            out.append(m)
+    return out
+
+
 async def stream_chat(http: Http, *, base_url: str, model: str, messages: list[dict], mode: str,
                       provider: str, key: str | None = None, max_tokens: int | None = None,
                       temperature: float | None = None, tools: list[dict] | None = None, extra: dict | None = None,
                       on_chunk=None, stall: float = 90.0, first_byte: float = 120.0) -> StreamResult:
-    body: dict = {"model": model, "messages": messages, "stream": True}
+    body: dict = {"model": model, "messages": merge_stable(messages), "stream": True}
     if max_tokens:
         body["max_tokens"] = max_tokens
     if temperature is not None:

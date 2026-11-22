@@ -26,6 +26,7 @@ from .mathlib_first import MathlibFirst, MathlibResult
 from .verify import CheckResult, StatementChecker
 from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
+from . import conductor_hook
 from .stagecache import StageCache, make_key, normalize_text
 
 log = get("pipeline")
@@ -166,11 +167,14 @@ class JobIO:
             # here by one stage would be cleared by another (D38)
             owner = job_owner(job)
             await ctx.slots.acquire("online", owner)
+        hook = conductor_hook.hook_of(job)         # S-AI (D41): the conductor's model and tool cards for this role
+        if hook.active and not only:
+            messages = hook.cards(role, messages)
         try:
             inner = asyncio.create_task(ctx.brain.complete(
                 role, messages, mode=mode, temperature=temperature, max_tokens=max_tokens, on_chunk=on_chunk,
-                prefer=(ctx.settings.prefer or {}).get(role) or prefer or None, extra=extra,
-                **({"only": only} if only else {})))
+                prefer=(ctx.settings.prefer or {}).get(role) or prefer or (None if only else hook.prefer(role))
+                or None, extra=extra, **({"only": only} if only else {})))
             try:
                 return await inner
             except asyncio.CancelledError:
@@ -355,7 +359,9 @@ class DossierPipeline:
         job.live = {job.id}               # owners working right now: the orchestrator's « en attente » (D38)
         job.side_spawned = set()
         job.explained = asyncio.Event()
+        hook = conductor_hook.attach(self, job, d, io)       # S-AI (D41): NullHook when no conductor can run
         try:
+            await hook.start()
             try:
                 while job.plan:
                     step = job.plan.pop(0)
@@ -373,16 +379,21 @@ class DossierPipeline:
                         # the explanation so that the thread keeps its order
                         side.append(self._side(job, d, io, "informal", ""))
                         job.side_spawned.add("informal")
+                    await hook.before_stage(stage)
                     row = self._begin(job, stage)
                     token = CURRENT_STAGE.set(stage)
                     try:
                         await self._call(job, d, io, stage, req)
+                    except Failed as f:
+                        if not await hook.recover(stage, f):      # the conductor corrects the closest attempt
+                            raise
                     finally:
                         CURRENT_STAGE.reset(token)
                         self._end(job, row)
                         if stage == "explanation":
                             job.explained.set()
                     job.done_stages.append(stage)
+                    await hook.after_stage(stage)
             except Failed as f:
                 job.plan = []
                 job.error = f.error
@@ -400,8 +411,10 @@ class DossierPipeline:
             if d.status in ("translating", "proving"):
                 d.status = "proved" if d.proof_is_current else "draft"
                 await self.ctx.repo.save(d)
+            await hook.finish()              # S-AI: final coherence check (statement ↔ proof ↔ explanation)
         finally:
             await self._stop(side)          # « Arrêter » / crash: nothing keeps running after the job
+            await hook.close()
 
     # ------------------------------------------------------------ stages
     async def _short(self, io: JobIO, role: str, messages: list[dict], temperature: float, max_tokens: int = 700):
@@ -468,7 +481,8 @@ class DossierPipeline:
         await self.ctx.repo.save(d)
         previous = d.statement if req else ""
         first = len(job.attempts)
-        text = (d.understood or d.problem) + await self._mathlib_reference(job, d, ws, req)
+        text = (d.understood or d.problem) + await self._mathlib_reference(job, d, ws, req) \
+            + conductor_hook.hook_of(job).hint("formalize")                    # S-AI: the conductor's advice
         f = await Formalizer(io, job.mode, prefer=self._goedel_online_key("formalize", job.mode)).run(
                                                 text, ws, s.translate_attempts,
                                                 s.compile_timeout_s, name=d.theorem, profile=s.profile,
@@ -783,6 +797,7 @@ class DossierPipeline:
                              names=", ".join(e.title for e in used))
         refine = (d.proof, req) if (req and d.proof_is_current) else None
         hint = req if (req and not d.proof_is_current) else ""
+        hint = (hint + conductor_hook.hook_of(job).hint("prove")).strip()       # S-AI: the conductor's advice
         strategy = self._choose_strategy(job)
         if job.mode == "auto" and strategy == "agent" and not await self._internet(job.mode):
             # no Internet (S-T): the local models do the work, without waiting for every online model to time out
@@ -1133,6 +1148,7 @@ class DossierPipeline:
                    if not r.local and r.provider != "huggingface" and (not r.paid or paid_ok or r.key == chosen)]
             if not pins:
                 out = out[:1]              # an agent that cannot be pinned to a model is one contestant (the router)
+            out = conductor_hook.hook_of(job).lead(out)      # S-AI: the conductor's prover leads round 0
             if gonline is not None:
                 out.insert(0, gonline)     # leads round 0 (S-T); « tried » keeps it out of later rounds
             if goedel is not None:

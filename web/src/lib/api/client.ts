@@ -130,6 +130,8 @@ export const api = {
     declaration: { name: string; kind?: string; signature: string; doc: string; module: string } | null }>('GET', `/lean/declaration?name=${enc(name)}${workspace ? `&workspace=${enc(workspace)}` : ''}`),
   job: (id: string) => request<{ job: Job }>('GET', `/jobs/${enc(id)}`),
   cancelJob: (id: string) => request<{ cancelled: boolean }>('POST', `/jobs/${enc(id)}/cancel`, {}),
+  /** S-AI (D41): answer « Plafond atteint : continuer avec Claude (+0,50 $) ? ». */
+  answerConductor: (id: string, approve: boolean) => request<{ answered: boolean }>('POST', `/jobs/${enc(id)}/conductor`, { approve }),
 
   library: () => request<{ entries: LibEntry[] }>('GET', '/library'),
   deleteLibrary: (name: string) => request<{ removed: LibEntry }>('DELETE', `/library/${enc(name)}`),

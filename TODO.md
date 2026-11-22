@@ -62,6 +62,13 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
 15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
     (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)
 16 bis. ⬜ **Dossiers relancés des centaines de fois** : historique compacté (versions vérifiées et tes messages gardés, essais ratés résumés) et écriture plus légère — vu à l'essai prolongé (≈ 1,7 Mo par dossier après 550 relances)
+16 ter. 🔄 **Chef d'orchestre** (S-AI, D41) : Claude (Haiku / Sonnet / Opus choisi à chaque décision selon la
+    difficulté, le budget restant et les mesures) lit chaque demande, fait le plan et choisit le modèle de chaque
+    étape parmi ceux que Madalean classe (réussite mesurée, rapidité, prix), corrige ce que Lean refuse (≤ 3 fois)
+    et vérifie la cohérence finale ; 1 $ par demande puis « continuer avec Claude (+0,50 $) ? » ; sans Claude le
+    meilleur modèle gratuit dirige ; règles de chaque outil (Lean vérifié, Sage, LaTeX, explication) compactées et
+    mises en cache. Reste : brancher les corrections Sage / LaTeX dans Calcul et l'éditeur d'article ; à essayer sur
+    tes dossiers (coût affiché sur chaque demande)
 16. ⬜ **Interface** : temps d'ouverture des écrans sur téléphone, mises à jour regroupées, rien de lourd chargé
     tant qu'on ne l'ouvre pas
 

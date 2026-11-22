@@ -368,7 +368,7 @@ class MadaleanBrain:
         floor_ = min(max_tokens, spend.MIN_OUTPUT)
         if affordable < floor_:
             which = "proof" if scope and self.ledger.proof_room(scope, cp) <= self.ledger.month_room(cm) else "month"
-            why = (f"spending cap reached ({which}: {cp if which == 'proof' else cm:.2f} $); "
+            why = (f"spending cap reached ({which}: {self.ledger.cap_for(scope, cp) if which == 'proof' else cm:.2f} $); "
                    f"{m.name} not called")
             emit(on_chunk, "info", why, event="budget", model=m.key, cap=which)
             raise ProviderError("budget", why)
@@ -575,6 +575,9 @@ class MadaleanBrain:
                 or EFFORT.get(role, "medium")
             if fast:
                 effort = "low"
+            ex_ = extra or {}
+            if ex_.get("effort_force"):
+                effort = str(ex_["effort_force"])          # S-AI conductor: the effort of its own decision
             mt = max_tokens or MAX_TOKENS.get(role, 16000)
             est = 0.0
             scope = spend.SPEND_SCOPE.get()
@@ -587,7 +590,9 @@ class MadaleanBrain:
                         max_tokens=mt, tools=tools, effort=effort,
                         thinking=bool(self.settings.get("anthropic_thinking", True)) and not fast,
                         fallbacks=bool(self.settings.get("anthropic_fallbacks", True)), cache=True,
-                        on_chunk=on_chunk, stall=stall, first_byte=first)
+                        on_chunk=on_chunk, stall=stall, first_byte=first,
+                        output_format=ex_.get("format") if isinstance(ex_.get("format"), dict) else None,
+                        thinking_off=bool(ex_.get("thinking_off")))
             except ProviderError as e:
                 if m.paid and est and e.kind in ("network", "stall", "empty"):
                     # the request may have been billed without usage reaching us: count its prompt (estimated)
@@ -605,7 +610,7 @@ class MadaleanBrain:
         msgs = messages if history is None else convo.to_openai(history, bool(tools))
         if m.provider == "huggingface" and not fast:
             first = max(first, FIRST_BYTE_REASONING)     # a 32B prover thinks (and may queue) before its first token
-        ex = {k: v for k, v in (extra or {}).items() if k not in ("effort",)}
+        ex = {k: v for k, v in (extra or {}).items() if k not in ("effort", "effort_force", "format", "thinking_off")}
         if not m.local:
             ex = {k: v for k, v in ex.items() if k in ("top_p", "seed", "stop", "presence_penalty", "frequency_penalty")}
         if p.id == "gemini" and gemini_thinking(m.model_id):
@@ -703,6 +708,48 @@ class MadaleanBrain:
         if e.status == 429:
             self.last_error[m.provider] = "rate_limit"
         return f"HTTP {e.status} {e.message}".strip() if e.status else e.message
+
+    # ------------------------------------------------------------------ one pinned call (S-AI conductor)
+    def model_of(self, key: str) -> Model | None:
+        """The usable catalogue model with this key (keys set, providers on), None otherwise."""
+        return next((x for x in self._view().models if x.key == key), None)
+
+    async def call_model(self, key: str, role: str, messages: list[dict], *, mode: str = "auto",
+                         max_tokens: int | None = None, extra: dict | None = None,
+                         on_chunk: OnChunk | None = None) -> tuple[StreamResult, float, float | None]:
+        """One call on exactly this model, for the conductor (DECISIONS D41) which owns its fallback chain: no switch
+        to another model here. Returns (raw result — `finish == "refusal"` visible, usage with cache reads —, wall
+        seconds, seconds to the first visible text). Failures are recorded like any call (pause on 429, provider
+        down, refused key…) and raised as ProviderError; a refusal is returned, not recorded as a failure. Paid models
+        go through the same caps and ledger as every paid call (`_budget`)."""
+        mode = self.effective_mode(mode)
+        token = CALL_MODE.set(mode)
+        try:
+            m = self.model_of(key)
+            if m is None:
+                raise ProviderError("unavailable", f"{key}: not available (no key, provider off or unknown)")
+            if mode == "local" and not m.local:
+                raise ProviderError("unavailable", f"{key}: local mode")
+            if self.states.pause_of(key):
+                raise ProviderError("unavailable", f"{key}: paused ({self.states.pause_of(key)[1]})")
+            if not m.local and self.down.get(m.provider, 0) > time.monotonic():
+                raise ProviderError("unavailable", f"{key}: provider unreachable")
+            t0 = time.monotonic()
+            timed, first = _first_text(on_chunk, t0)
+            try:
+                res = await self._generate(m, role, mode=mode, messages=messages, max_tokens=max_tokens, extra=extra,
+                                           on_chunk=timed)
+            except ProviderError as e:
+                why = await self._on_failure(m, e, mode)
+                raise ProviderError(e.kind, why, e.status, e.wait) from e
+            secs = time.monotonic() - t0
+            if res.finish != "refusal":
+                self.states.record(key, True)
+                if not m.local:
+                    self.states.record_latency(key, first[0] if first[0] is not None else secs)
+            return res, secs, first[0]
+        finally:
+            CALL_MODE.reset(token)
 
     # ------------------------------------------------------------------ complete
     async def complete(self, role: Role, messages: list[dict], *, mode: Mode = "auto",

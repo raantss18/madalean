@@ -136,6 +136,13 @@ class Ledger:
             except TypeError:
                 continue
         self._reserved: dict[str, float] = {}      # scope -> estimates of calls in flight
+        # S-AI (D41): a request directed by the conductor has its own cap (default 1 USD, + 0.50 USD per « yes » to the
+        # cap question); it replaces the per-proof cap for that scope (the request's scope IS its proof scope). Kept in
+        # memory for the job's lifetime only; the monthly cap always applies on top.
+        self.scope_caps: dict[str, float] = {}
+
+    def cap_for(self, scope: str | None, cap_proof: float) -> float:
+        return self.scope_caps.get(scope or "", cap_proof) if scope else cap_proof
 
     def _save(self) -> None:
         self.rows = self.rows[-MAX_ROWS:]
@@ -159,7 +166,7 @@ class Ledger:
         if not scope:
             return float("inf")
         with self._lock:
-            return cap_proof - self.scope_total(scope) - self._reserved.get(scope, 0.0)
+            return self.cap_for(scope, cap_proof) - self.scope_total(scope) - self._reserved.get(scope, 0.0)
 
     def room(self, scope: str | None, cap_proof: float, cap_month: float) -> float:
         """USD still allowed for one call now (calls in flight count with their estimate)."""
@@ -174,8 +181,9 @@ class Ledger:
                 raise BudgetExceeded("month", est, month, cap_month)
             if scope:
                 s = self.scope_total(scope) + self._reserved.get(scope, 0.0)
-                if s + est > cap_proof + 1e-9:
-                    raise BudgetExceeded("proof", est, s, cap_proof)
+                cap = self.cap_for(scope, cap_proof)
+                if s + est > cap + 1e-9:
+                    raise BudgetExceeded("proof", est, s, cap)
             key = scope or ""
             self._reserved[key] = self._reserved.get(key, 0.0) + est
 

@@ -63,6 +63,10 @@ class Job:
     # {stage, start, end, seconds} (unix seconds; end/seconds None while it runs) — read by scripts/perf_report.py
     stages: list[str] = field(default_factory=list)
     timings: list[dict] = field(default_factory=list)
+    # S-AI (D41): who directs this request and what it costs: {by, name, tier, usd, cap, difficulty, summary,
+    # plan: [{id, kind, goal, model, model_name, why, wave, depends_on, advisory, stage}], ask: {spent, cap, step} |
+    # None (the cap question waiting for the user), state: planning | running | asking | off | done, final}
+    conductor: dict = field(default_factory=dict)
 
     @classmethod
     def new(cls, dossier_id: str, plan: list[dict], mode: str, strategy: str, user: bool = True) -> "Job":

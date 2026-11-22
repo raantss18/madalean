@@ -466,6 +466,18 @@ async def jobs_cancel(request: web.Request) -> web.Response:
     return ok({"cancelled": await ctx_of(request).orchestrator.cancel(valid_id(request.match_info["id"]))})
 
 
+@routes.post("/api/jobs/{id}/conductor")
+async def jobs_conductor_answer(request: web.Request) -> web.Response:
+    """S-AI (D41): the answer to « Plafond atteint : continuer avec Claude (+0,50 $) ? » — {approve: bool}.
+    409 when the job is not waiting for this answer."""
+    from ..pipeline.conductor_hook import answer
+    jid = valid_id(request.match_info["id"])
+    data = await body(request)
+    if not isinstance(data.get("approve"), bool):
+        return error(400, "bad_request")
+    return ok({"answered": True}) if answer(jid, data["approve"]) else error(409, "not_waiting")
+
+
 # ---------------------------------------------------------------- library
 @routes.get("/api/library")
 async def library_list(request: web.Request) -> web.Response:
