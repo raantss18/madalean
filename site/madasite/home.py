@@ -16,7 +16,7 @@ T = {
         "title": "Madalean — de l'énoncé à la preuve vérifiée par Lean",
         "desc": "Madalean traduit vos énoncés en Lean 4, cherche la preuve avec les meilleurs modèles et ne déclare "
                 "rien prouvé sans le verdict de Lean. Libre, installé chez vous, sur tous vos appareils.",
-        "eyebrow": "Assistant de démonstration pour Lean 4 et Mathlib",
+        "eyebrow": "Assistant de preuve pour Lean 4 et Mathlib",
         "h1": "Vos énoncés, prouvés pour de vrai.",
         "promise": "Écrivez un énoncé comme au tableau : Madalean le traduit en Lean, cherche la preuve avec les "
                    "meilleurs modèles d'IA et n'affirme rien que Lean n'ait vérifié.",
