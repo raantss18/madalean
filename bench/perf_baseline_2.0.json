@@ -1,0 +1,78 @@
+{
+ "stages": {
+  "statement": {
+   "label": "traduction en Lean",
+   "n": 18,
+   "median_s": 34.7,
+   "max_s": 324.2
+  },
+  "understood": {
+   "label": "compréhension",
+   "n": 12,
+   "median_s": 4.7,
+   "max_s": 571.3
+  },
+  "notes": {
+   "label": "lecture guidée",
+   "n": 10,
+   "median_s": 48.8,
+   "max_s": 225.7
+  },
+  "check": {
+   "label": "vérification de l'énoncé",
+   "n": 7,
+   "median_s": 39.6,
+   "max_s": 59.7
+  },
+  "proof": {
+   "label": "preuve (jusqu'à la preuve vérifiée)",
+   "n": 11,
+   "median_s": 31.3,
+   "max_s": 72.6
+  },
+  "explanation": {
+   "label": "explication",
+   "n": 12,
+   "median_s": 21.0,
+   "max_s": 355.0
+  },
+  "informal": {
+   "label": "preuve rédigée",
+   "n": 10,
+   "median_s": 2.8,
+   "max_s": 395.1
+  }
+ },
+ "proofs": [
+  {
+   "strategy": "mathlib",
+   "attempts": 1,
+   "seconds": 33.5,
+   "workspace": "lean-prover49"
+  },
+  {
+   "strategy": "agent",
+   "attempts": 32,
+   "seconds": 15.4,
+   "workspace": "lean-prover49"
+  },
+  {
+   "strategy": "agent",
+   "attempts": 4,
+   "seconds": 12.6,
+   "workspace": "lean-prover49"
+  },
+  {
+   "strategy": "mathlib",
+   "attempts": 1,
+   "seconds": 55.9,
+   "workspace": "lean-prover49"
+  },
+  {
+   "strategy": "agent",
+   "attempts": 29,
+   "seconds": 686.1,
+   "workspace": "lean-prover49"
+  }
+ ]
+}

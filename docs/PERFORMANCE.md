@@ -59,3 +59,37 @@ Lean processes share the memory-mapped Mathlib `.olean` files: two or three conc
 - `texio` font caches (`lru_cache(maxsize=None)`) are bounded in practice by the installed fonts (S-O's file).
 
 Tests: `tests/test_memory_bounds.py`.
+
+# Proof time baseline (TODO B9, 2026-11-22)
+
+Measured by `scripts/perf_report.py` (stage durations from the timestamps of the user's 15 real dossiers; raw data
+in `bench/perf_baseline_2.0.json`) and `scripts/perf_report.py --lean` (one check of a trivial `import Mathlib`
+proof through the server's sandbox). Re-run at every release.
+
+| Stage | n | median | max | Note |
+|---|---|---|---|---|
+| Understanding | 12 | 4.7 s | 571 s | max: provider waits |
+| Translation to Lean | 18 | 34.7 s | 324 s | max: local formalizer on GPU |
+| Guided reading (`notes`) | 10 | 48.8 s | 226 s | does not feed the proof, yet runs before it |
+| Statement check | 7 | 39.6 s | 59.7 s | runs before the proof too |
+| Proof (to verified) | 11 | 31.3 s | 72.6 s | tournaments up to 686 s |
+| Explanation | 12 | 21.0 s | 355 s | max: local Qwen3-8B picked while online models were up |
+| Informal proof | 10 | 2.8 s | 395 s | same cause |
+
+Lean check cost per attempt (bubblewrap, `lean --json`, fresh process every time):
+
+| Workspace | first check (cold disk) | next checks (page cache warm) |
+|---|---|---|
+| lean-prover49 (v4.9.0-rc1) | 10.7 s | 2.0 s |
+| lean-current (v4.36.0) | 25.8 s | 3.3 s |
+| user MathlibDemo (v4.29) | 34.0 s | 3.5 s |
+| user lean1 (v4.23) | 20.9 s | 3.5 s |
+
+Findings:
+1. The stages run strictly one after another: the first proof attempt starts about 2 minutes after the statement is
+   accepted (reading + check), although only a « wrong statement » verdict should stop the proof.
+2. Every attempt reloads Mathlib (2–3.5 s warm, 10–34 s cold, ~3.4 GB): an `exact <Mathlib lemma>` proof took
+   33–56 s; a 32-attempt proof pays it 32 times.
+3. Short text stages sometimes land on a slow local model while fast online ones are available.
+
+Work started: S-AE (warm Lean, D37), S-AF (parallel stages, fast model choice for short stages, no recompute, D38).

@@ -39,20 +39,20 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
    énoncé ou une preuve Lean, dans les dossiers et les notes (réutilise le service d'explication de l'étape 7)
 
 ### B — Accélération de toute l'application (après A)
-9. ⬜ **Mesurer d'abord** : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de
+9. ✅ **Mesurer d'abord** (22/11 : docs/PERFORMANCE.md « Proof time baseline », scripts/perf_report.py) : chronométrage de bout en bout d'une preuve réelle (compréhension, vérification de
    l'énoncé, recherche Mathlib, traduction, chaque essai, chaque vérification Lean, explication) et de chaque écran ;
    tableau des temps dans docs/PERFORMANCE.md, refait à chaque version
-10. ⬜ **Lean toujours chaud** (le plus gros gain attendu) : aujourd'hui chaque vérification relance Lean et recharge
+10. 🔄 **Lean toujours chaud** (le plus gros gain attendu) : aujourd'hui chaque vérification relance Lean et recharge
     Mathlib (≈ 4,5 s et 3,4 Go à chaque fois). Un Lean resté ouvert avec Mathlib déjà chargé (mode REPL, en-tête
     préchargé) vérifierait un essai en une fraction de seconde. Le verdict final reste fait par un Lean neuf et strict
-11. ⬜ **Arrêt précoce des essais** : vérifier la preuve pendant qu'elle s'écrit (Lean chaud, par blocs) et couper
+11. 🔄 **Arrêt précoce des essais** : vérifier la preuve pendant qu'elle s'écrit (Lean chaud, par blocs) et couper
     un modèle dès la première erreur sûre, au lieu d'attendre la fin de la réponse
-12. ⬜ **Course des modèles plus intelligente** : choix selon le temps mesuré ici et le taux de réussite par domaine,
+12. 🔄 **Course des modèles plus intelligente** : choix selon le temps mesuré ici et le taux de réussite par domaine,
     la première preuve vérifiée arrête les autres ; réflexion réglée selon la difficulté ; mise en cache des
     consignes chez les fournisseurs qui le permettent
-13. ⬜ **Travail en parallèle** : vérification de l'énoncé, recherche Mathlib et premiers essais lancés ensemble
+13. 🔄 **Travail en parallèle** : vérification de l'énoncé, recherche Mathlib et premiers essais lancés ensemble
     au lieu de l'un après l'autre (on annule ce qui devient inutile)
-14. ⬜ **Ne jamais refaire deux fois** : résultats déjà prouvés et réponses identiques gardés (par version de
+14. 🔄 **Ne jamais refaire deux fois** : résultats déjà prouvés et réponses identiques gardés (par version de
     Mathlib), lemmes de la bibliothèque proposés d'abord
 15. ⬜ **Noyau Sage prêt d'avance** : noyau démarré à l'ouverture d'un carnet, Maxima préparé une fois par version
     (le premier calcul d'intégrale prend aujourd'hui ≈ 10 s)
