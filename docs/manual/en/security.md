@@ -18,6 +18,10 @@ Madalean listens at two doors, both closed to the outside of the host computer:
 2. **The device door** (`127.0.0.1:11501`), published on your private Tailscale network. Every request must present
    the **token** of a linked device, except the pairing page itself.
 
+A third door, on the local network (port 11502), exists only if you open it from the host (see
+[Tailscale › Without Tailscale](tailscale.md#without-tailscale)); it also requires a linked device's token, but its
+traffic is not encrypted.
+
 There is no Madalean account, no Madalean server on the Internet, no telemetry.
 
 ## Devices and codes
@@ -49,18 +53,22 @@ knows whether a key is saved), never written to a log, never sent to a provider 
 
 - **Lean** compiles the proofs written by the models. Forbidden constructs (`sorry`, new axioms, search commands)
   are refused before compiling.
-- **Lean can also run code** while it reads a file: `#eval`, `initialize`, `run_cmd`, tactics, macros or elaborators
-  defined in the file (`elab`, `macro`, `syntax`…), `unsafe`, `implemented_by`. Since Lean code may come from a
-  model, from the text of a paper or from a paired device, Madalean **refuses to compile** any file containing one of
-  these constructs, at a single point that every compilation goes through. `import`s are limited to Mathlib, Aesop,
-  Batteries, Std, Qq, ProofWidgets and Plausible. The check works on words, outside comments and strings: it can
-  wrongly refuse a legitimate file (a variable named `prefix`, for instance); the refusal message names the
-  construct.
+- **Lean can also run code** while it reads a file: `#eval`, `initialize`, `run_cmd`, tactics, macros, notations or
+  elaborators defined in the file (`elab`, `macro`, `syntax`, `notation`…), attributes that register code, `unsafe`,
+  `implemented_by`, `IO`, `native_decide`. Since Lean code may come from a model, from the text of a paper or from a
+  paired device, Madalean **refuses to compile** any file containing one of these constructs (“Refused before
+  compiling: …”). `import`s are limited to Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets and Plausible. The check
+  works on words, outside comments and strings: it can wrongly refuse a legitimate file (a variable named `prefix`,
+  for instance); the refusal message gives the kind of construct at fault.
+- This filter is only a first barrier. **Every Lean compilation runs in a sandbox** (bubblewrap): no network, no
+  access to your home folder, Lean and Mathlib read-only. LaTeX compilations too. “Settings › System” shows whether
+  the sandbox is active; without bubblewrap (or if the system does not allow it), they run without this isolation.
 - **Experiments of the conjecture workshop**: the code is shown to you, and runs only after your approval of **this
-  exact code**. It runs with time, memory and file-size limits, without your keys or secret variables; if
-  `bubblewrap` is installed, with a read-only file system in which your configuration folder, `~/.ssh` and your
-  keyrings are hidden. The network is **not** cut for these experiments.
-- **Jupyter** runs what you type into it, like any Jupyter installation.
+  exact code**. It runs with time, memory and file-size limits, without your keys or secret variables; in the
+  sandbox, **without network**, with a read-only file system in which your configuration folder, `~/.ssh`, your
+  keyrings and the Tailscale state are hidden. The Compute notebooks run in the same sandbox.
+- **Jupyter** (JupyterLab opened on its own) runs what you type into it, like any Jupyter installation: its kernels
+  are not in the sandbox.
 - A model's text never becomes a system command.
 
 ## Documents from outside
@@ -79,5 +87,5 @@ because answers grounded in your sources have access to no tool.
 - Publish anything before you have approved, item by item, what leaves.
 - Install an update whose signature is not valid.
 
-An independent security review is done before each major version.
-<!-- verify after integration: S-H review done before 2.0.0; forbidden-construct list in leancheck -->
+Madalean 2.0 went through an independent security review before its first release (its authors did not do the
+review); its findings and the accepted risks are in `docs/SECURITY.md` in the repository.

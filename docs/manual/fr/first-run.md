@@ -9,11 +9,13 @@ summary: Visite guidée, choix du mode, premier énoncé, mode démo.
 
 # Premier démarrage
 
-À la première ouverture sur l'ordinateur hôte, Madalean vérifie son environnement (espaces Lean, modèles, TeX,
-polices, disque) et affiche ce qui manque avec un bouton de réparation quand il en existe un. Une courte visite
-présente ensuite les quatre idées de l'interface : écrire un énoncé, vérifier la traduction, laisser Lean juger,
-garder la main.
-<!-- verify after integration: first-run checks and tour wording -->
+À la première ouverture (en mode *Apprendre*, celui par défaut), une courte visite en quatre étapes présente les
+idées de l'interface : écrire un énoncé, vérifier la traduction, Lean vérifie chaque preuve, vous gardez la main.
+« Passer la visite » la ferme.
+
+L'état de l'installation (espaces Lean, modèles, TeX, polices, bac à sable, disque) se lit dans « Réglages ›
+Système », partie « État de santé » : chaque problème y est signalé, avec un bouton « Réparer » quand une réparation
+existe (à lancer depuis l'ordinateur hôte).
 
 ## Trois choix à faire
 
@@ -36,7 +38,7 @@ Sur l'accueil, écrivez par exemple :
 
 > Montrer que la somme de deux entiers pairs est paire.
 
-puis lancez. Les étapes s'enchaînent seules : compréhension, traduction en Lean, recherche de preuve, explication.
+puis « Traduire et prouver ». Les étapes s'enchaînent seules : compréhension, traduction en Lean, recherche de preuve, explication.
 La suite est décrite dans [De l'énoncé à la preuve](workflow.md).
 
 ## Essayer sans modèles ni Lean : le mode démo

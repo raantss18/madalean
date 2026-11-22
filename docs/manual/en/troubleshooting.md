@@ -9,18 +9,21 @@ summary: Error messages in plain language, their cause and what to do.
 
 # Troubleshooting
 
-“Settings › System” shows the state of each component (Lean workspaces, models, TeX, fonts, Jupyter, disk) with a
-repair button when one exists. Start there.
+“Settings › System”, “Health” part, shows the state of each component (Lean workspaces, models, TeX, fonts, Jupyter,
+sandbox, disk) with a “Repair” button when one exists. Start there.
 
 ## Connection and devices
 
 ### The device cannot reach the host
 
 1. Is the host computer on, and not asleep?
-2. Is Tailscale **connected** on both devices, with the same account? (Tailscale app: switch on.)
+2. Is Tailscale **connected** on the device, with the same account as the host? (Tailscale app: switch on.)
 3. Is the server running? On the host: `systemctl --user status madalean`.
-4. Does the Tailscale rule exist? On the host: `scripts/tailscale_setup.sh --status`.
-5. Is the address typed in full, `pc-name.tailXXXX.ts.net` (port 10500 by default)?
+4. Is Madalean's Tailscale node approved and running? On the host: `curl -s http://127.0.0.1:11500/api/net` must
+   show `"state": "running"` (otherwise, see [Link a device › Step 1](pairing.md)). If you use the system's Tailscale
+   instead: `scripts/tailscale_setup.sh --status`.
+5. Is the address typed in full, `madalean.tailXXXX.ts.net` (or `pc-name.tailXXXX.ts.net:10500` with the system's
+   Tailscale)?
 
 ### “This device is not (or no longer) linked to Madalean”
 
@@ -46,10 +49,11 @@ This setting opens the machine to other devices; it can only be changed on the h
 
 ### “The provider refuses the key”
 
-The key was badly copied (extra space), revoked, or the account has no credit left. Create it again in the
-provider's console and paste it again. Madalean pauses the provider for 12 h after a key refusal: saving a new key
-lifts the pause.
-<!-- verify after integration: saving a new key clears the key_refused pause -->
+The key was badly copied (extra space), revoked, or the account has no credit left. Create it again on the
+provider's site and paste it again (“Settings › Providers”): Madalean tests it at once. After a key refusal, Madalean
+pauses the provider for 12 h (“Paused for now (key refused (check it))”). For Hugging Face, a new token that passes
+the test lifts the pause at once; for the other providers, the pause runs its course, then the new key is used
+normally.
 
 ### The local model is slow, or “not enough GPU memory”
 
@@ -69,13 +73,13 @@ The translation is not valid Lean for this workspace (unknown name, notation fro
 message is shown below the statement. “Fix the statement…” reruns the translation with the error; or “Edit by
 hand”.
 
-### “Lean refuses to compile this code: …”
+### “Refused before compiling: …”
 
-The code contains a construct that could run code on the host (`#eval`, `macro`, `elab`, `unsafe`…) or an `import`
-outside Mathlib and its dependencies: Madalean refuses to compile it (see
-[Security](security.md#code-run-on-the-host)). Remove the construct named in the message. If the word at fault is
-just a variable name (`prefix`, `syntax`…), rename the variable.
-<!-- verify after integration: exact wording of the exec_risks refusal message -->
+The code contains a construct that could run code on the host (`#eval`, `macro`, `elab`, `unsafe`,
+`native_decide`…) or an `import` outside Mathlib and its dependencies: Madalean refuses to compile it (see
+[Security](security.md#code-run-on-the-host)). The message gives the kind of construct found, for example
+meta-programming, system access (IO, unsafe) or the import of a module that is not allowed. Remove it. If the word at
+fault is just a variable name (`prefix`, `syntax`, `IO`…), rename the variable.
 
 ### “No proof found”
 
@@ -106,19 +110,21 @@ A dossier has only one active job. Wait for it to finish, or “Stop”.
 
 ### “No LaTeX on the host computer: the HTML version opens”
 
-No TeX engine (XeLaTeX or LuaLaTeX) is installed. The HTML prints to PDF from the browser. For the real PDF: install
-TeX Live (“Settings › Updates” gives the command for your distribution).
+Madalean's LaTeX engine (installed by `./install.sh`) is missing or could not typeset the document, and no system
+LaTeX replaced it. The HTML prints to PDF from the browser. For the real PDF: “Settings › System”, “Health” part,
+LaTeX line, “Repair” button (or rerun `./install.sh`).
 
 ### Symbols are missing in the PDF
 
-The DejaVu Sans Mono and Noto Sans Math fonts must be present on the host; “Settings › System” checks it.
+The DejaVu Sans Mono and Noto Sans Math fonts are installed with Madalean; “Settings › System” checks that they are
+present. Rerun `./install.sh` if one is missing.
 
 ## Jupyter
 
 ### “Jupyter is not available”
 
-JupyterLab is not installed on the host, or did not start. “Settings › System” gives the cause; the install command
-is in “Settings › Updates”.
+JupyterLab (installed with Madalean) is missing or did not start. “Settings › System” gives the cause, with a
+“Repair” button.
 
 ### “Jupyter is reachable only from the host”
 

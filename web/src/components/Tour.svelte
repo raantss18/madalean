@@ -11,11 +11,12 @@
   ];
   let i = $state(0);
   const s = $derived(steps[i]!);
-  // Phones: the page gets extra room at the bottom so nothing stays hidden behind the card.
+  // From 1024 px the card floats in a corner: the page gets extra room at the bottom so it can scroll clear of it.
+  // Below, the card is part of the page, above the statement (S-AA: it used to cover the field and its buttons).
   onMount(() => { document.documentElement.dataset['tour'] = '1'; return () => { delete document.documentElement.dataset['tour']; }; });
 </script>
 
-<section class="tour kb-hide" aria-labelledby="tour-h" aria-live="polite">
+<section class="tour" aria-labelledby="tour-h" aria-live="polite">
   <p class="step xs">{t('tour.step', { i: i + 1, n: steps.length })}</p>
   <h2 id="tour-h">{t(s.title)}</h2>
   <p>{t(s.text)}</p>
@@ -32,9 +33,15 @@
 </section>
 
 <style>
-  .tour { position: fixed; z-index: 800; right: var(--s-4); bottom: var(--s-4); width: min(380px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--laterite-mark); border-radius: var(--r-3); box-shadow: var(--shadow-2); padding: var(--s-4); }
-  .tour h2 { font-size: var(--fs-md); }
-  .tour p { font-size: var(--fs-sm); color: var(--text-2); }
+  .tour { margin: 0 0 var(--s-4); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--laterite-mark); border-radius: var(--r-3); box-shadow: var(--shadow-1); padding: var(--s-3) var(--s-4); max-width: 46rem; }
+  .tour h2 { font-size: var(--fs-md); margin: 0 0 4px; }
+  .tour p { font-size: var(--fs-sm); color: var(--text-2); margin: 0 0 var(--s-2); }
   .step { margin: 0 0 4px; color: var(--text-3); font-weight: 600; }
-  @media (max-width: 767px) { .tour { right: 12px; bottom: calc(var(--bottomnav-h) + 12px + env(safe-area-inset-bottom)); } }
+  @media (min-width: 1024px) {
+    .tour { position: fixed; z-index: 800; right: var(--s-4); bottom: var(--s-4); width: min(380px, calc(100vw - 24px)); margin: 0; box-shadow: var(--shadow-2); padding: var(--s-4); }
+    .tour p { margin: revert; }
+    :global(html[data-tour]) :global(main) { padding-bottom: 280px; }
+    /* On-screen keyboard (touch tablets): no floating card over the text being typed. */
+    :global(html[data-kb='open']) .tour { display: none; }
+  }
 </style>

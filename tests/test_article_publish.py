@@ -304,7 +304,12 @@ async def test_generated_lake_project_builds_with_real_lean(tmp_path):
     for p in (LEAN_CURRENT / ".lake" / "packages").iterdir():
         (lean / ".lake" / "packages" / p.name).symlink_to(p)
     tc = (lean / "lean-toolchain").read_text().strip().replace("/", "--").replace(":", "---")
-    lake = Path.home() / ".elan" / "toolchains" / tc / "bin" / "lake"
+    # Madalean's own elan (prefix, D29) first, then the user's ~/.elan
+    homes = [Path.home() / ".local" / "share" / "madalean" / "elan", Path.home() / ".elan"]
+    lake = next((h / "toolchains" / tc / "bin" / "lake" for h in homes
+                 if (h / "toolchains" / tc / "bin" / "lake").is_file()), None)
+    if lake is None:
+        pytest.skip(f"toolchain {tc} not installed")
     r = subprocess.run([str(lake), "build"], cwd=lean, capture_output=True, text=True, timeout=3000)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-2000:]
     assert "manifest out of date" not in r.stdout + r.stderr

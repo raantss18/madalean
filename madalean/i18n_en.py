@@ -1266,4 +1266,12 @@ EN.update({
         'proof, {cap_m} $ per month).',
     "Pas d'accès à Internet : la preuve est cherchée avec le modèle local.":
         "No Internet access: the proof is searched with the local model.",
+    # leancheck.EXEC_RISKS labels (shown in « Refusé avant compilation : … »)
+    "commande exécutée à la compilation (#eval…)": "command run at compile time (#eval…)",
+    "code exécuté au chargement (initialize)": "code run at load time (initialize)",
+    "méta-programmation (élaborateur, macro, syntaxe)": "meta-programming (elaborator, macro, syntax)",
+    "attribut qui enregistre du code exécutable": "attribute that registers executable code",
+    "accès au système (IO, unsafe)": "system access (IO, unsafe)",
+    "code natif (native_decide)": "native code (native_decide)",
+    "import d'un module non autorisé": "import of a module that is not allowed",
 })

@@ -9,19 +9,22 @@ summary: Les messages d'erreur en clair, leur cause et quoi faire.
 
 # Dépannage
 
-« Réglages › Système » montre l'état de chaque composant (espaces Lean, modèles, TeX, polices, Jupyter, disque) avec
-un bouton de réparation quand il en existe un. Commencez par là.
+« Réglages › Système », partie « État de santé », montre l'état de chaque composant (espaces Lean, modèles, TeX,
+polices, Jupyter, bac à sable, disque) avec un bouton « Réparer » quand il en existe un. Commencez par là.
 
 ## Connexion et appareils
 
 ### L'appareil ne joint pas l'hôte
 
 1. L'ordinateur hôte est-il allumé, et pas en veille ?
-2. Tailscale est-il **connecté** sur les deux appareils, avec le même compte ? (application Tailscale : interrupteur
-   actif.)
+2. Tailscale est-il **connecté** sur l'appareil, avec le même compte que l'hôte ? (application Tailscale :
+   interrupteur actif.)
 3. Le serveur tourne-t-il ? Sur l'hôte : `systemctl --user status madalean`.
-4. La règle Tailscale existe-t-elle ? Sur l'hôte : `scripts/tailscale_setup.sh --status`.
-5. L'adresse tapée est-elle complète, `nom-du-pc.tailXXXX.ts.net` (port 10500 par défaut) ?
+4. Le nœud Tailscale de Madalean est-il approuvé et en marche ? Sur l'hôte : `curl -s http://127.0.0.1:11500/api/net`
+   doit indiquer `"state": "running"` (sinon, voir [Relier un appareil › Étape 1](pairing.md)). Si vous utilisez le
+   Tailscale du système à la place : `scripts/tailscale_setup.sh --status`.
+5. L'adresse tapée est-elle complète, `madalean.tailXXXX.ts.net` (ou `nom-du-pc.tailXXXX.ts.net:10500` avec le
+   Tailscale du système) ?
 
 ### « Cet appareil n'est pas (ou plus) relié »
 
@@ -47,10 +50,11 @@ Ce réglage ouvre la machine à d'autres appareils ; il ne se change que sur l'h
 
 ### « Le fournisseur refuse la clé »
 
-La clé a été mal copiée (espace en trop), révoquée, ou le compte n'a plus de crédit. Recréez-la dans la console du
-fournisseur et collez-la de nouveau. Madalean met le fournisseur en pause 12 h après un refus de clé : enregistrer une
-nouvelle clé lève la pause.
-<!-- verify after integration: saving a new key clears the key_refused pause -->
+La clé a été mal copiée (espace en trop), révoquée, ou le compte n'a plus de crédit. Recréez-la sur le site du
+fournisseur et collez-la de nouveau (« Réglages › Fournisseurs ») : Madalean la teste aussitôt. Après un refus de
+clé, Madalean met le fournisseur en pause 12 h (« En pause pour l'instant (clé refusée (vérifiez-la)) »). Pour
+Hugging Face, un nouveau jeton qui passe le test lève la pause tout de suite ; pour les autres fournisseurs, la pause
+va à son terme, puis la nouvelle clé sert normalement.
 
 ### Le modèle local est lent, ou « mémoire graphique insuffisante »
 
@@ -70,13 +74,14 @@ La traduction n'est pas du Lean valide pour cet espace (nom inconnu, notation d'
 message de Lean est affiché sous l'énoncé. « Corriger l'énoncé… » relance la traduction avec l'erreur ; ou
 « Modifier à la main ».
 
-### « Lean refuse de compiler ce code : … »
+### « Refusé avant compilation : … »
 
-Le code contient une construction qui pourrait exécuter du code sur l'hôte (`#eval`, `macro`, `elab`, `unsafe`…) ou
-un `import` hors de Mathlib et de ses dépendances : Madalean refuse de le compiler (voir
-[Sécurité](security.md#code-execute-sur-lhote)). Retirez la construction nommée dans le message. Si le mot en cause
-est un simple nom de variable (`prefix`, `syntax`…), renommez la variable.
-<!-- verify after integration: exact wording of the exec_risks refusal message -->
+Le code contient une construction qui pourrait exécuter du code sur l'hôte (`#eval`, `macro`, `elab`, `unsafe`,
+`native_decide`…) ou un `import` hors de Mathlib et de ses dépendances : Madalean refuse de le compiler (voir
+[Sécurité](security.md#code-execute-sur-lhote)). Le message donne le genre de construction trouvée, par exemple
+« méta-programmation (élaborateur, macro, syntaxe) », « accès au système (IO, unsafe) » ou « import d'un module non
+autorisé ». Retirez-la. Si le mot en cause est un simple nom de variable (`prefix`, `syntax`, `IO`…), renommez la
+variable.
 
 ### « Pas de preuve trouvée »
 
@@ -107,19 +112,21 @@ Un dossier n'a qu'un travail actif. Attendez la fin, ou « Arrêter ».
 
 ### « Pas de LaTeX sur l'ordinateur hôte : la version HTML s'ouvre »
 
-Aucun moteur TeX (XeLaTeX ou LuaLaTeX) n'est installé. Le HTML s'imprime en PDF depuis le navigateur. Pour le vrai
-PDF : installez TeX Live (« Réglages › Mises à jour » donne la commande pour votre distribution).
+Le moteur LaTeX de Madalean (installé par `./install.sh`) est absent ou n'a pas pu composer le document, et aucun
+LaTeX du système ne l'a remplacé. Le HTML s'imprime en PDF depuis le navigateur. Pour le vrai PDF : « Réglages ›
+Système », partie « État de santé », ligne LaTeX, bouton « Réparer » (ou relancez `./install.sh`).
 
 ### Des symboles manquent dans le PDF
 
-Les polices DejaVu Sans Mono et Noto Sans Math doivent être présentes sur l'hôte ; « Réglages › Système » le vérifie.
+Les polices DejaVu Sans Mono et Noto Sans Math sont installées avec Madalean ; « Réglages › Système » vérifie
+qu'elles sont présentes. Relancez `./install.sh` si l'une manque.
 
 ## Jupyter
 
 ### « Jupyter n'est pas disponible »
 
-JupyterLab n'est pas installé sur l'hôte, ou n'a pas démarré. « Réglages › Système » donne la cause ; la commande
-d'installation est dans « Réglages › Mises à jour ».
+JupyterLab (installé avec Madalean) est absent ou n'a pas démarré. « Réglages › Système » donne la cause, avec un
+bouton « Réparer ».
 
 ### « Jupyter n'est accessible que depuis l'hôte »
 

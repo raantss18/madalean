@@ -29,25 +29,35 @@ print only the cited references: PDF with biblatex and biber if installed, other
 `refs.bib`.
 
 ## Writing the article
-<!-- verify after integration: button and screen names of the research screens (S-D) -->
 
-“Write the article” assembles an article from the project: title, authors, abstract, sections, one block per
-dossier. Each block is an editable, versioned draft. The verification table gives, for each result: Lean name,
-state (verified, statement accepted, no), Lean version, Mathlib revision, axioms. Output: PDF, `.tex`, `.md`, and a
-`.zip` with the Lean files of the verified results.
+The project's “Article” screen is a visual LaTeX editor: the text you see *is* the LaTeX source (rendered
+formulas, theorem boxes, citations, figures), and “LaTeX source” shows the same text raw. On first opening,
+Madalean prepares the article from the project: an introduction and one block per dossier. The outline is on the
+left, the “PDF preview” on the right on a wide screen; “Compile” produces the PDF. The assistant (“Rewrite”,
+“Shorten”, “Make more formal”…) only makes suggestions, which you accept or reject in the text.
+
+When compiling, Madalean adds the bibliography (only the cited references), the **Lean verification table** (for
+each result: Lean name, verified or not, Lean and Mathlib versions, axioms) and, if you ask for it in “Advanced
+options”, an appendix with the Lean code. A theorem linked to a dossier whose proof is not verified by Lean is
+printed as a claim, never as a theorem.
+
+Under “More actions”: “Versions” (an automatic version at most every 2 minutes of writing, plus your own),
+“Download the PDF”, and “Overleaf…” to send the project to Overleaf (or download the project as a `.zip`) and take
+it back.
 
 ## From a paper to a blueprint
 
 1. Add the paper to your sources (preferably by its arXiv identifier: the LaTeX sources give a much better result
    than the PDF).
-2. “Extract the blueprint”: definitions, lemmas, theorems, with their number (“Lemma 2.3”), text, proof, and the
+2. In the source's reader, “Extract the blueprint”: definitions, lemmas, theorems, with their number (“Lemma 2.3”), text, proof, and the
    dependencies found in the proofs (`\ref`, “by Lemma 2.3”).
 3. Dependencies written in prose (“by the previous lemma”) often escape extraction: an optional model pass
-   proposes edges **marked “proposed”**, which you accept or reject.
-4. Create the dossiers: each node becomes a dossier linked to the source and to its location in the paper.
-5. The **blueprint graph** colours each node by its state: not created, stated, Lean statement accepted, defined,
-   proved, verified (proved and all its dependencies verified), blocked (uses a definition without an accepted Lean
-   statement). A click opens the dossier.
+   proposes links marked **“proposed (to confirm)”**, which you confirm (“Confirm”) or set aside
+   (“Discard”).
+4. “Create the dossiers”: each node becomes a dossier linked to the source and to its location in the paper.
+5. The “Blueprint” screen colours each result by its state: no dossier, stated in words, Lean statement accepted,
+   defined, proved (dependencies not verified), verified (proved and all its dependencies verified), blocked (uses
+   a definition without an accepted Lean statement), failed. “Open the dossier” opens the dossier.
 
 Honest measurement (three short arXiv papers, checked by hand): statements found 12 of 12 from the TeX and from the
 PDF; proofs 10 of 11 from the TeX, 8 of 11 from the PDF; dependencies written in prose: 2 of 7 without a model pass.

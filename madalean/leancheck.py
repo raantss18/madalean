@@ -91,7 +91,7 @@ def lean_code_only(text: str) -> str:
 def exec_risks(code: str) -> list[str]:
     """Reasons why compiling `code` could execute arbitrary code on the host (empty = safe to compile)."""
     text = lean_code_only(code)
-    return [label for pat, label in EXEC_RISKS if re.search(pat, text)]
+    return list(dict.fromkeys(_(label) for pat, label in EXEC_RISKS if re.search(pat, text)))
 
 
 INITIAL_TEMPLATE = (

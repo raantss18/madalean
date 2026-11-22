@@ -24,6 +24,13 @@
   // Fallbacks carried by the QR code for the Android app (tailnet IP, LAN listener address), see docs/SHELLS.md.
   let fallback = $state<{ ip: string; lan: string[] }>({ ip: '', lan: [] });
 
+  // First start of Madalean's own Tailscale node: it must be approved once in Tailscale before devices can reach it.
+  let netLogin = $state('');
+  $effect(() => {
+    if (!local) return;
+    api.net().then((n) => { netLogin = n.state === 'needs_login' && /^https:\/\//.test(n.auth_url ?? '') ? n.auth_url! : ''; })
+      .catch(() => { netLogin = ''; });
+  });
   $effect(() => { if (app.m.devices) devices = app.m.devices; });
   $effect(() => { if (app.m.browsers) browsers = app.m.browsers; });
   $effect(() => {
@@ -92,6 +99,8 @@
   <section class="panel" aria-labelledby="pair-h">
     <h3 id="pair-h">{t('devices.add')}</h3>
     <p class="small">{t('devices.addLead')}</p>
+    {#if netLogin}<p class="notice small" role="note"><Icon name="info" size={14} /> {t('devices.netLogin')}
+      <a class="btn small" href={netLogin} target="_blank" rel="noopener noreferrer">{t('devices.netLoginOpen')}</a></p>{/if}
     {#if code && left > 0}
       <div class="pairing">
         <div>

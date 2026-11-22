@@ -22,21 +22,22 @@ avec des formules `$…$` et `$$…$$` et des blocs de code Lean.
 | `[[passage:ID]]` | un passage précis d'une source |
 | `[[lib:Nom]]` | un résultat de la bibliothèque (nom Lean) |
 
-Chaque note montre ses **rétroliens** (les notes qui pointent vers elle). Le **graphe** du projet relie notes,
-dossiers et sources ; il se filtre par étiquette. Les étiquettes s'écrivent `#étiquette` dans le texte.
+Chaque note montre ses **liens entrants** (les notes qui pointent vers elle). Le **graphe** du projet (bouton
+« Graphe ») relie notes, dossiers et sources ; il se filtre par étiquette. Les étiquettes s'écrivent `#étiquette` dans le texte.
 
 Renommer une note met à jour les liens `[[Ancien titre]]` des autres notes du projet.
 
 ## Lean dans les notes
 
-« Vérifier avec Lean » compile chaque bloc `lean` de la note dans l'espace du projet et affiche les erreurs à la
-bonne ligne. « Créer un dossier » à partir d'un bloc qui contient un théorème ouvre un dossier avec cet énoncé (ou,
-à partir d'un paragraphe, un dossier dont c'est le problème) et ajoute un lien vers lui sous le bloc.
-<!-- verify after integration: button labels in the notes editor (S-D) -->
+Sous l'éditeur, la partie « Blocs Lean » liste chaque bloc `lean` de la note. « Tout vérifier avec Lean » les
+compile tous dans l'espace du projet (« Vérifier avec Lean » sur un bloc ne vérifie que celui-là) ; chaque bloc
+affiche « Lean accepte » ou « Lean refuse », avec les erreurs à la bonne ligne. « En faire un dossier » ouvre un
+dossier avec l'énoncé du bloc et ajoute un lien vers lui sous le bloc.
 
 ## Journal de recherche
 
-« Note du jour » crée (ou ouvre) la note datée du jour, avec la liste des dossiers travaillés ce jour-là.
+« Note du jour » crée (ou ouvre) la note « Journal de recherche » datée du jour, avec la liste des dossiers
+travaillés ce jour-là.
 
 ## Versions et plusieurs appareils
 
@@ -47,7 +48,6 @@ Si la même note est modifiée sur deux appareils, les changements de lignes dif
 automatiquement. Si les deux appareils ont modifié les mêmes lignes, Madalean montre les deux versions de chaque
 passage en conflit et vous choisissez.
 
-## Pièces jointes et export
+## Export
 
-Images (PNG, JPEG, GIF, WebP) et PDF jusqu'à 10 Mo. Export d'une note ou de tout le carnet du projet en Markdown,
-HTML ou PDF.
+Le bouton « .md » de l'éditeur télécharge la note en Markdown.

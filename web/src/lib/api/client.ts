@@ -164,6 +164,7 @@ export const api = {
   resetLeaderboard: () => request<{ entries: LeaderboardRow[] }>('POST', '/models/leaderboard/reset', {}),
 
   system: () => request<SystemInfo>('GET', '/system'),
+  net: () => request<{ state: string; auth_url?: string }>('GET', '/net'),
   repair: (id: string) => request<Record<string, unknown>>('POST', `/system/repair/${enc(id)}`, {}),
   updates: () => request<UpdatesStatus>('GET', '/updates'),
   checkUpdates: () => request<{ checking: boolean }>('POST', '/updates/check', {}),

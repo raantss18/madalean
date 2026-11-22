@@ -14,20 +14,22 @@ puis supprimer l'ancienne version**. Un échec ne change rien et vous est signal
 
 ## Ce qui est mis à jour, et comment
 
+Tout se règle dans « Réglages › Mises à jour ».
+
 | Composant | Comportement par défaut |
 |---|---|
-| Madalean (serveur et interface) | téléchargé et vérifié en arrière-plan, installé à un moment calme (aucun travail en cours) ; version précédente gardée pour un retour en arrière en un clic |
-| Application de bureau (AppImage) | se remplace elle-même puis redémarre |
-| Application Android | téléchargée et vérifiée par l'application ; Android exige toujours **un appui** de votre part pour installer (règle du système) |
-| Lean, Mathlib, paquets Lean de l'espace « Lean récent » | automatique : installé à côté, vérifié (théorème de test et revérification des dossiers prouvés), basculé |
+| Madalean (serveur et interface), partie « Madalean lui-même » | cherché chaque semaine (sauf en mode *Local*), téléchargé, vérifié, installé à un moment calme (aucun travail en cours), puis redémarré ; « Installer » et « Redémarrer maintenant » le font tout de suite. La version précédente est gardée pour revenir en arrière |
+| Application de bureau (AppImage) | se remplace elle-même après vérification ; la nouvelle version s'ouvre au prochain démarrage (ou tout de suite avec « Redémarrer ») |
+| Application Android | réglage « Mises à jour automatiques » de l'application : elle vérifie au plus deux fois par jour, télécharge et contrôle la signature ; l'installation demande toujours votre confirmation (règle d'Android) |
+| Lean, Mathlib, paquets Lean de l'espace « Lean actuel », SageMath, LaTeX (partie « Composants suivis ») | automatique : installé à côté, vérifié (théorème de test et revérification des dossiers prouvés), basculé |
 | Modèles Goedel, catalogue des modèles en ligne | automatique, empreintes vérifiées |
 | Espace « Prouveur » (Lean 4.9) | **jamais** : épinglé, c'est l'environnement d'entraînement des modèles |
-| llama.cpp | notification seulement (version épinglée) |
-| SageMath, JupyterLab, TeX, poppler | notification, et un bouton « Installer » qui ouvre un terminal avec la commande exacte ; vous tapez votre mot de passe. Madalean ne lance jamais `sudo`, `pacman`, `apt` ou `dnf` lui-même. |
+| llama.cpp | notification seulement ; sa version épinglée change avec les versions de Madalean |
+| Programmes installés sur le système hors de Madalean (partie « Composants du système ») | notification seulement, avec la commande exacte et un bouton « Ouvrir un terminal avec la commande » ; vous tapez votre mot de passe. Madalean ne lance jamais `sudo`, `pacman`, `apt` ou `dnf` lui-même. |
 
-Le réglage « Demander avant d'installer » (« Réglages › Mises à jour ») remplace l'automatique par une notification.
-Les vérifications ont lieu chaque semaine et à la demande. En mode *Local*, aucune vérification ne touche le réseau.
-<!-- verify after integration: self-update installer, AppImage updater and APK download are built (§16); setting label -->
+Décochez « Installer automatiquement quand rien ne tourne » pour être prévenu avant chaque installation au lieu de
+l'installation automatique. « Chercher chaque semaine (rien ne s'installe sans votre clic) » règle la recherche
+automatique ; « Chercher des mises à jour » la lance tout de suite.
 
 ## Pourquoi une mise à jour de Madalean est sûre
 
@@ -40,12 +42,13 @@ Vérifier vous-même un téléchargement : voir la [page d'installation](site:in
 
 ## Après une mise à jour de Lean ou de Mathlib
 
-Les dossiers prouvés de l'espace concerné sont marqués « à revérifier », puis revérifiés automatiquement. Un dossier
+Les dossiers prouvés de l'espace concerné sont revérifiés automatiquement (partie « Revérification des preuves »,
+bouton « Revérifier maintenant »). Un dossier
 dont la preuve ne passe plus (un lemme renommé, une tactique changée) est signalé ; son ancien verdict n'est jamais
 affiché seul.
 
 ## Revenir en arrière
 
-« Réglages › Mises à jour › Revenir à la version précédente » pour Madalean. Pour Lean et Mathlib, la version
-précédente reste installée tant qu'un de vos projets l'utilise.
-<!-- verify after integration: rollback control exists and its label -->
+Pour Madalean : « Réglages › Mises à jour », partie « Madalean lui-même », bouton « Revenir à … » (avec le numéro de
+la version précédente). Pour Lean et Mathlib, l'ancienne version n'est remplacée qu'après une vérification réussie ;
+en cas d'échec, rien ne change.

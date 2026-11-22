@@ -16,9 +16,18 @@ export function isEditable(el: Element | null): boolean {
   return false;
 }
 
-/** Pure decision: is the keyboard open, given the tallest height seen for this width and the current height? */
-export function keyboardOpen(baseline: number, current: number, editing: boolean): boolean {
-  return editing && baseline > 0 && current < baseline * KB_RATIO;
+/** Pure decision: is the keyboard open, given the tallest height seen for this width and the current height?
+ *  It opens only while typing; once open it stays open while the page is still short, even if the focus moved to a
+ *  menu or a button (the keyboard is still on screen until the system hides it — S-AA: menus sat a bottom-bar's
+ *  height above the keyboard because the bottom bar came back too early). */
+export function keyboardOpen(baseline: number, current: number, editing: boolean, wasOpen = false): boolean {
+  return (editing || wasOpen) && baseline > 0 && current < baseline * KB_RATIO;
+}
+
+/** Space a fixed element must leave at the bottom of the layout viewport for a keyboard drawn over the page
+ *  (browsers that only shrink the visual viewport; 0 when the page itself was resized). */
+export function keyboardInset(innerHeight: number, visualHeight: number, visualTop: number): number {
+  return Math.max(0, Math.round(innerHeight - visualHeight - visualTop));
 }
 
 /** How far to scroll so that `target` (caret or field) sits `margin` px above the visible bottom (0 = nothing). */
@@ -68,25 +77,35 @@ export function watchKeyboard(): () => void {
     raf = requestAnimationFrame(() => {
       const h = height();
       const editing = isEditable(document.activeElement);
-      if (window.innerWidth !== width) { width = window.innerWidth; baseline = h; } // rotation, split screen
-      if (!editing || h > baseline) baseline = Math.max(h, editing ? baseline : 0);
-      const now = keyboardOpen(baseline, h, editing);
-      if (now !== open) {
-        open = now;
-        if (open) document.documentElement.dataset['kb'] = 'open';
-        else delete document.documentElement.dataset['kb'];
+      const root = document.documentElement;
+      if (window.innerWidth !== width) { width = window.innerWidth; baseline = h; open = false; } // rotation, split screen
+      // Keyboard still up after the focus left the field (a menu opened over it): keep the reference height.
+      const stillUp = open && h < baseline * KB_RATIO;
+      if (!stillUp && (!editing || h > baseline)) baseline = Math.max(h, editing ? baseline : 0);
+      open = keyboardOpen(baseline, h, editing, open);
+      if (open) {
+        if (root.dataset['kb'] !== 'open') root.dataset['kb'] = 'open';
+        // Sheets and floating panels sit right on the keyboard (Menu, Dialog, the article's suggestions read these).
+        root.style.setProperty('--kb-inset', `${keyboardInset(window.innerHeight, vv?.height ?? window.innerHeight, vv?.offsetTop ?? 0)}px`);
+        root.style.setProperty('--kb-vh', `${Math.round(h)}px`);
+        if (editing) reveal();
+      } else if (root.dataset['kb']) {
+        delete root.dataset['kb'];
+        root.style.removeProperty('--kb-inset');
+        root.style.removeProperty('--kb-vh');
       }
-      if (open) reveal();
     });
   };
 
   window.addEventListener('resize', update);
   vv?.addEventListener('resize', update);
+  vv?.addEventListener('scroll', update);
   document.addEventListener('focusin', update);
   document.addEventListener('focusout', update);
   return () => {
     window.removeEventListener('resize', update);
     vv?.removeEventListener('resize', update);
+    vv?.removeEventListener('scroll', update);
     document.removeEventListener('focusin', update);
     document.removeEventListener('focusout', update);
   };

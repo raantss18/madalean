@@ -51,5 +51,7 @@
     footer { padding-bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); flex-wrap: wrap-reverse; }
     footer :global(.btn) { flex: 1 1 auto; }
     .dlg:not(:has(footer)) .body { padding-bottom: calc(var(--s-4) + env(safe-area-inset-bottom)); }
+    /* On-screen keyboard drawn over the page: the sheet stays on top of it. */
+    :global(html[data-kb='open']) dialog { margin-bottom: var(--kb-inset, 0px); max-height: calc(var(--kb-vh, 100dvh) - 8px); }
   }
 </style>

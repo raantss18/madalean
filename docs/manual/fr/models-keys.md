@@ -25,7 +25,8 @@ répond mais pas lui) : sans Internet, il passe aussitôt aux modèles locaux ; 
 sauté pendant une minute. En mode *Automatique*, une preuve que les modèles en ligne ont cherchée sans la trouver
 n'est **pas** relancée sur le modèle local (le Goedel 32B en ligne est plus fort que le 8B local).
 
-Un projet peut être passé en « local uniquement » quel que soit le mode général. L'indicateur en haut de l'écran
+Pour un dossier précis, « Options de ce dossier » (sur l'accueil) permet de choisir un autre mode que le mode
+général. L'indicateur en haut de l'écran
 (« Qui reçoit quoi ») dit à chaque instant quel modèle reçoit votre travail. Chaque texte produit par un modèle
 indique son nom.
 
@@ -38,67 +39,73 @@ indique son nom.
 | Preuve | l'énoncé Lean, les messages d'erreur de Lean, des lemmes de Mathlib trouvés pour l'énoncé |
 | Explication, preuve rédigée | l'énoncé et la preuve Lean |
 | Questions sur les sources | votre question et les passages retenus de vos sources |
-| Assistant du carnet | le carnet ouvert (cellules et sorties) |
+| Calcul (cellule « Demander ») | votre demande et les noms déjà définis dans le carnet (pas les sorties complètes) |
 
 Ce qui n'est **jamais** envoyé à un modèle : vos clés d'API, vos jetons d'appareils, vos autres dossiers, vos
 fichiers. Une clé n'est envoyée qu'à **son** fournisseur : Madalean refuse de joindre une clé à une adresse qui n'est
 pas celle de ce fournisseur.
 
-Les fournisseurs gratuits sans compte (LLM7, OVHcloud, Kilo, Pollinations…) appliquent leurs propres conditions ;
-supposez que ce que vous leur envoyez peut être conservé. Pour un travail confidentiel, utilisez le mode *Local*.
-<!-- verify after integration: list of keyless providers in the shipped catalogue -->
+Les fournisseurs gratuits sans compte livrés avec Madalean (LLM7.io, OVHcloud AI Endpoints, Kilo Code,
+Pollinations) appliquent leurs propres conditions ; supposez que ce que vous leur envoyez peut être conservé. Pour un
+travail confidentiel, utilisez le mode *Local*.
 
 ## Ajouter une clé
 
-« Réglages › Clés » : collez la clé, Madalean la **teste aussitôt** (« Ça marche : N modèles disponibles », ou la
+« Réglages › Fournisseurs » range les services en ligne par usage, avec ce qui est gratuit et où partent vos
+données. Sur la carte d'un fournisseur, « Créer une clé » ouvre sa page de clés ; collez la clé, Madalean la
+**teste aussitôt** (« Ça marche : N modèles disponibles », ou la
 raison du refus). La clé est gardée dans le trousseau de l'ordinateur hôte (sinon dans un fichier lisible par vous
 seul) et ne s'affiche plus jamais. « Retirer la clé » la supprime en un clic.
 
-![Réglages › Clés](../img/settings-keys.png)
+![Réglages › Fournisseurs](../img/settings-keys.png)
 
 ### Clé Anthropic (Claude)
 
-1. Ouvrez la console d'Anthropic : <https://platform.claude.com/> et créez un compte.
-2. Ajoutez un moyen de paiement et achetez des crédits (facturation prépayée, à l'usage).
-3. « API keys › Create key », copiez la clé (elle commence par `sk-ant-`). Elle n'est montrée qu'une fois.
-4. Collez-la dans « Réglages › Clés › Anthropic ».
+1. Sur la carte Anthropic, « Créer une clé » ouvre la page des clés de la console d'Anthropic ; créez un compte si
+   besoin.
+2. Claude est payant à l'usage : suivez les indications d'Anthropic pour ajouter un moyen de paiement ou des
+   crédits.
+3. Créez une clé et copiez-la (elle commence par `sk-ant-`). Elle n'est en général montrée qu'une fois.
+4. Collez-la sur la carte Anthropic.
 
-Conseil : fixez une **limite de dépense** mensuelle dans la console.
-<!-- verify after integration: console URL and menu names at release time -->
+Conseil : si la console d'Anthropic le permet, fixez-y aussi une limite de dépense ; Madalean a de toute façon ses
+propres plafonds (voir plus bas).
 
 ### Clé Google Gemini
 
-1. Ouvrez Google AI Studio : <https://aistudio.google.com/apikey> avec un compte Google.
-2. « Create API key », copiez la clé.
-3. Collez-la dans « Réglages › Clés › Gemini ».
+1. Sur la carte Google Gemini, « Créer une clé » ouvre la page des clés de Google AI Studio (avec un compte
+   Google).
+2. Créez une clé et copiez-la.
+3. Collez-la sur la carte Google Gemini.
 
-L'offre gratuite de Gemini a des quotas ; quand ils sont atteints, Madalean passe au modèle suivant. Dans l'offre
-gratuite, Google peut utiliser les contenus envoyés pour améliorer ses produits : lisez ses conditions avant d'y
-envoyer un travail non publié.
-<!-- verify after integration: Gemini free-tier data-use terms at release time -->
+L'offre gratuite de Gemini a des quotas ; quand ils sont atteints, Madalean passe au modèle suivant. Les conditions
+d'utilisation des données diffèrent selon l'offre et peuvent changer : lisez celles de Google avant d'envoyer un
+travail non publié avec une clé gratuite.
 
 ### Jeton Hugging Face (Goedel-Prover 32B en ligne)
 
-Avec un jeton Hugging Face, **Goedel-Prover-V2-32B** (servi par un fournisseur d'Hugging Face, aujourd'hui
-Featherless AI) ouvre chaque preuve : c'est la même boucle que le Goedel local — mêmes prompts, ≤ 2 corrections par
+Avec un jeton Hugging Face, **Goedel-Prover-V2-32B** (servi en ligne par un fournisseur partenaire d'Hugging
+Face) ouvre chaque preuve : c'est la même boucle que le Goedel local — mêmes prompts, ≤ 2 corrections par
 piste, mêmes réglages d'échantillonnage —, avec le modèle 32B au lieu du 8B, sans occuper la carte graphique. S'il
 échoue, les modèles gratuits prennent le relais (tournoi). Le Goedel-Formalizer est utilisé de même dès qu'un
-fournisseur le sert en ligne (aucun aujourd'hui).
+fournisseur le sert en ligne.
 
-1. Créez un compte sur <https://huggingface.co>. Les comptes gratuits doivent **acheter des crédits** ; un compte PRO
-   reçoit 2 $ de crédits par mois. Hugging Face facture le prix du fournisseur, sans marge.
-2. « Réglages › Clés › Hugging Face › Obtenir une clé » ouvre <https://huggingface.co/settings/tokens> avec la
-   permission « Make calls to Inference Providers » pré-cochée ; créez le jeton (il commence par `hf_`).
+1. Créez un compte sur le site de Hugging Face (`huggingface.co`). Les appels sont payés avec des crédits Hugging Face (les
+   conditions de l'offre sont sur le site d'Hugging Face).
+2. Sur la carte Hugging Face, « Créer une clé » ouvre la page des jetons d'Hugging Face, prête à créer un jeton avec
+   la permission « Make calls to Inference Providers » ; créez le jeton (il commence par `hf_`).
 3. Collez-le : Madalean vérifie le jeton (sans rien facturer) et dit si Goedel 32B est disponible en ligne.
 
 Le jeton n'est envoyé qu'à `router.huggingface.co` (les calculs) et `huggingface.co` (la vérification du jeton).
 La liste des modèles Goedel servis en ligne est lue sur l'API publique de Hugging Face, **sans** le jeton.
-Désactivable dans « Réglages › Modèles › Avancé » (« Goedel-Prover 32B en ligne… »).
+Désactivable dans « Réglages › Modèles › Réglages avancés » (« Goedel-Prover 32B en ligne (Hugging Face) ouvre
+chaque preuve quand le jeton est enregistré »).
 
 ## Ce que cela coûte
 
-Les fournisseurs payants facturent au nombre de *tokens* (≈ ¾ de mot) envoyés et reçus. Ordres de grandeur, prix
-publics d'Anthropic en novembre 2026, par million de tokens (entrée / sortie) :
+Les fournisseurs payants facturent au nombre de *tokens* (≈ ¾ de mot) envoyés et reçus. Tarifs publics d'Anthropic
+qu'utilise cette version de Madalean pour ses estimations, par million de tokens (entrée / sortie) ; les prix en
+vigueur sont ceux du site d'Anthropic :
 
 | Modèle | Entrée | Sortie |
 |---|---|---|
@@ -106,37 +113,38 @@ publics d'Anthropic en novembre 2026, par million de tokens (entrée / sortie) :
 | Claude Sonnet 5.5 | 2 $ | 10 $ |
 | Claude Haiku 5.5 | 0,10 $ | 0,50 $ |
 
-Une recherche de preuve en mode agent avec Claude Opus coûte typiquement de quelques centimes à 50 centimes ; un
-énoncé difficile, avec beaucoup d'essais, davantage. Les limites (nombre d'étapes, durée, tokens) se règlent dans
-« Réglages › Modèles ». Par défaut, un modèle payant n'est utilisé que si vous l'avez choisi pour un rôle, ou si vous
-avez activé « payants d'abord ».
-<!-- verify after integration: prices and the per-proof estimate (BRAIN.md: ≈ $0.05–0.50) with a real key -->
+Le coût d'une preuve dépend de l'énoncé et du nombre d'essais ; il est borné par le plafond par preuve (voir plus
+bas), et chaque appel payant est affiché avec son coût sous les plafonds. Les limites (étapes et durée de l'agent,
+essais, durée d'une preuve) se règlent dans « Réglages › Modèles › Réglages avancés ». Un modèle payant n'est utilisé
+que si vous l'avez choisi pour une tâche, ou en renfort (Claude, ci-dessous).
 
 **Goedel-Prover 32B en ligne (Hugging Face).** Le fournisseur ne publie pas de prix par jeton pour ce modèle :
 Madalean utilise une **estimation prudente** de 1,00 $ (entrée) / 3,20 $ (sortie) par million de tokens, remplacée
 par le prix publié dès qu'Hugging Face en donne un. Une tentative Goedel (jusqu'à 32 768 tokens de réponse) coûte donc
-au plus ≈ 0,11 $ ; les 4 tentatives du premier round d'une preuve, au plus ≈ 0,45 $. Le coût réel se voit sur
-<https://huggingface.co/settings/billing>.
+au plus ≈ 0,11 $ ; les 4 tentatives du premier round d'une preuve, au plus ≈ 0,45 $. Le coût réel se voit dans
+l'espace de facturation de votre compte Hugging Face.
 
 ## Claude en renfort payant, avec plafonds
 
 Avec une clé Anthropic, Claude peut entrer **en dernier** dans le tournoi d'une preuve, seulement quand les modèles
-gratuits ont tous échoué (« Réglages › Modèles › Claude en renfort payant », activé par défaut quand la clé existe).
+gratuits ont tous échoué (« Réglages › Modèles », partie « Claude en renfort payant », case « Faire appel à Claude
+quand les modèles gratuits échouent », cochée par défaut).
 Deux plafonds, modifiables au même endroit :
 
-- **par preuve** (1,00 $ par défaut) ;
-- **par mois civil** (20 $ par défaut), pour tous les appels payants — Claude, y compris dans un rôle où vous l'avez
+- « Plafond par preuve » (1,00 $ par défaut) ;
+- « Plafond par mois », par mois civil (20 $ par défaut), pour tous les appels payants — Claude, y compris dans un rôle où vous l'avez
   choisi, et Goedel en ligne sur Hugging Face (mêmes plafonds, même registre).
 
 Avant chaque appel, Madalean estime le coût au tarif public (taille de la demande et longueur de réponse permise) et
 réduit la longueur de réponse si besoin ; si même une réponse courte dépasserait un plafond, l'appel **n'est pas
 fait** et la preuve le signale. Après l'appel, le coût réel est calculé d'après l'usage renvoyé par Anthropic (jetons
-d'entrée, de sortie, lus et écrits en cache) et noté dans un petit registre privé de l'hôte. Le total du mois est
-affiché sous les plafonds.
-<!-- verify after integration: a real Claude reinforcement round within the 1 $ cap, and the ledger total against the Anthropic console -->
+d'entrée, de sortie, lus et écrits en cache) et noté dans un petit registre privé de l'hôte. Le total du mois
+(« Dépensé en … ») et les derniers appels sont affichés sous les plafonds. Ce total est calculé au tarif public : la
+facture d'Anthropic fait foi.
 
 ## Choisir un modèle par rôle
 
-« Réglages › Modèles » montre, pour chaque rôle (comprendre, traduire, prouver, expliquer, assistant), le classement
-des modèles disponibles et la raison du classement. « Automatique » laisse le routeur choisir ; vous pouvez imposer
+« Réglages › Modèles », partie « Modèle par tâche », montre, pour chaque tâche (comprendre l'énoncé, traduire en
+Lean, prouver, expliquer, assistant…), le classement des modèles disponibles et la raison du classement
+(« Pourquoi ? »). « Automatique » laisse le routeur choisir ; vous pouvez imposer
 un modèle. Un modèle en erreur (quota, clé refusée, surcharge) est mis en pause et le suivant prend le relais.

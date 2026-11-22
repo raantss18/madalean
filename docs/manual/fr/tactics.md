@@ -48,7 +48,7 @@ theorem somme_impairs (n : ℕ) : ∑ i in Finset.range n, (2 * i + 1) = n ^ 2 :
 
 `induction n with | zero => … | succ n ih => …` produit le cas de base et l'hérédité ; `ih` est l'hypothèse de
 récurrence. `rcases`/`cases` traitent les cas d'un type inductif ou d'une disjonction ; `interval_cases n` énumère
-les valeurs d'un entier borné par les hypothèses. (Dans l'espace « Lean récent », écrivez `∑ i ∈ Finset.range n`.)
+les valeurs d'un entier borné par les hypothèses. (Dans l'espace « Lean actuel », écrivez `∑ i ∈ Finset.range n`.)
 
 ## Réécrire et simplifier
 

@@ -30,25 +30,35 @@ projet. Les exports n'impriment que les références citées : PDF avec biblatex
 BibTeX ; le `.zip` contient `refs.bib`.
 
 ## Rédiger l'article
-<!-- verify after integration: button and screen names of the research screens (S-D) -->
 
-« Rédiger l'article » assemble un article à partir du projet : titre, auteurs, résumé, sections, un bloc par
-dossier. Chaque bloc est un brouillon modifiable et versionné. Le tableau de vérification indique, pour chaque
-résultat : nom Lean, état (vérifié, énoncé accepté, non), version de Lean, révision de Mathlib, axiomes.
-Sortie : PDF, `.tex`, `.md`, et un `.zip` avec les fichiers Lean des résultats vérifiés.
+L'écran « Article » du projet est un éditeur LaTeX visuel : le texte affiché *est* la source LaTeX (formules
+rendues, encadrés de théorèmes, citations, figures), et « Source LaTeX » montre le même texte brut. À la première
+ouverture, Madalean prépare l'article à partir du projet : introduction et un bloc par dossier. Le plan est à
+gauche, l'« Aperçu PDF » à droite sur un grand écran ; « Compiler » produit le PDF. L'assistant (« Réécrire »,
+« Raccourcir », « Formaliser »…) ne fait que des suggestions, que vous acceptez ou refusez dans le texte.
+
+À la compilation, Madalean ajoute la bibliographie (seulement les références citées), la **table de vérification
+Lean** (pour chaque résultat : nom Lean, vérifié ou non, versions de Lean et de Mathlib, axiomes) et, si vous le
+demandez dans « Options avancées », une annexe avec le code Lean. Un théorème lié à un dossier dont la preuve n'est
+pas vérifiée par Lean est imprimé comme affirmation, jamais comme théorème.
+
+Sous « Plus d'actions » : « Versions » (une version automatique au plus toutes les 2 minutes d'écriture, et les
+vôtres), « Télécharger le PDF », et « Overleaf… » pour envoyer le projet vers Overleaf (ou télécharger le projet en
+`.zip`) puis le reprendre.
 
 ## D'un article à un blueprint
 
 1. Ajoutez l'article à vos sources (de préférence par son identifiant arXiv : les sources LaTeX donnent un bien
    meilleur résultat que le PDF).
-2. « Extraire le blueprint » : définitions, lemmes, théorèmes, avec leur numéro (« Lemme 2.3 »), leur texte, leur
+2. Dans le lecteur de la source, « Extraire le blueprint » : définitions, lemmes, théorèmes, avec leur numéro (« Lemme 2.3 »), leur texte, leur
    preuve, et les dépendances repérées dans les preuves (`\ref`, « par le lemme 2.3 »).
 3. Les dépendances écrites en prose (« par le lemme précédent ») échappent souvent à l'extraction : une passe de
-   modèle facultative propose des arêtes **marquées « proposées »**, que vous acceptez ou rejetez.
-4. Créez les dossiers : chaque nœud devient un dossier relié à la source et à son emplacement dans l'article.
-5. Le **graphe du blueprint** colore chaque nœud selon son état : non créé, énoncé, énoncé Lean accepté, défini,
-   prouvé, vérifié (prouvé et toutes ses dépendances vérifiées), bloqué (utilise une définition sans énoncé Lean
-   accepté). Un clic ouvre le dossier.
+   modèle facultative propose des liens marqués **« proposé (à confirmer) »**, que vous confirmez (« Confirmer ») ou
+   écartez (« Écarter »).
+4. « Créer les dossiers » : chaque nœud devient un dossier relié à la source et à son emplacement dans l'article.
+5. L'écran « Blueprint » colore chaque résultat selon son état : pas de dossier, énoncé en mots, énoncé Lean
+   accepté, défini, prouvé (dépendances non vérifiées), vérifié (prouvé et toutes ses dépendances vérifiées),
+   bloqué (utilise une définition sans énoncé Lean accepté), échec. « Ouvrir le dossier » ouvre le dossier.
 
 Mesure honnête (trois articles arXiv courts, vérifiés à la main) : énoncés trouvés 12 sur 12 depuis le TeX comme
 depuis le PDF ; preuves 10 sur 11 depuis le TeX, 8 sur 11 depuis le PDF ; dépendances écrites en prose : 2 sur 7

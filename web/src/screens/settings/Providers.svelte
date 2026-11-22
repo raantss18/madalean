@@ -150,7 +150,7 @@
   .cards li.panel + li.panel { margin-top: 0; }
   .card { display: flex; flex-direction: column; gap: 4px; }
   .card.set { border-color: color-mix(in srgb, var(--proved) 40%, var(--line)); }
-  .card.off { opacity: 0.8; }
+  .card.off { border-style: dashed; background: var(--surface-2); }
   .head h4 { margin: 0; font-size: var(--fs-md); }
   .card p { margin: 0; }
   .good { color: var(--text); }

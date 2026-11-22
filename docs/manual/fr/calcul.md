@@ -4,50 +4,56 @@ title: Calcul (Sage et Python)
 order: 205
 section: research
 audience: researcher
-summary: Des cellules Sage ou Python dans un bac à sable hors ligne, l'assistant à côté, et un clic pour transformer un résultat en conjecture, note, dossier Lean ou bloc d'article.
+summary: Des carnets Sage ou Python dans un bac à sable hors ligne, un modèle qui écrit le code sur demande, et un clic pour transformer un résultat en conjecture, note, dossier Lean ou bloc d'article.
 ---
 
 # Calcul (Sage et Python)
 
-L'écran **Calcul** (menu du projet) est une feuille de calcul par projet : une suite de cellules SageMath ou
-Python, exécutées sur l'ordinateur hôte dans le **même bac à sable** que les expériences de l'atelier de
-conjectures : pas d'accès au réseau, pas d'accès à vos clés ni à vos fichiers personnels, temps et sortie limités.
-Les variables restent d'une cellule à l'autre (un noyau par projet).
+L'écran **Calcul** (menu du projet) contient les **carnets** du projet (« Nouveau carnet », SageMath ou Python).
+Un carnet est une suite de cellules qui partagent un même noyau : les variables restent d'une cellule à l'autre. Le
+fichier est un carnet Jupyter ordinaire : « Ouvrir dans JupyterLab » l'ouvre tel quel, « Télécharger (.ipynb) » en
+donne une copie. Le code s'exécute sur l'ordinateur hôte dans le **même bac à sable** que les expériences de
+l'atelier de conjectures : pas d'accès au réseau, pas d'accès à vos clés ni à vos fichiers personnels, temps et
+sortie limités.
 
 ## Qui peut exécuter quoi
 
-- **Vos cellules** (celles que vous tapez) s'exécutent quand vous cliquez sur **Exécuter** (ou Ctrl+Entrée).
-- **Les cellules de l'assistant** sont marquées « À relire » : elles ne s'exécutent qu'après **Approuver ce code**.
-  L'accord porte sur ce code précis : si vous ou l'assistant le modifiez, il faut le relire et l'approuver à nouveau.
-- Depuis un téléphone ou une tablette appairés, vous pouvez lire et écrire les cellules ; leur exécution n'est
-  permise que si l'hôte a activé « expériences depuis les appareils » (réglage réservé à l'hôte).
+- **Vos cellules** (celles que vous tapez) s'exécutent avec **Exécuter** (ou Ctrl+Entrée, Maj+Entrée pour passer à
+  la suivante). « Tout exécuter » relance le carnet entier.
+- **Le code écrit par le modèle** est marqué « À relire » : il ne s'exécute qu'après **Approuver et exécuter**.
+  L'accord porte sur ce code précis : s'il change, il faut le relire et l'approuver à nouveau.
+- Depuis un téléphone ou une tablette reliés, vous pouvez lire et écrire les cellules ; leur exécution n'est permise
+  que si l'hôte a coché « Autoriser les expériences depuis les appareils reliés » (« Réglages › Carnet et accès »,
+  réglage réservé à l'hôte).
 
-## L'assistant
+## Demander au modèle
 
-À droite (en haut sur téléphone), décrivez le calcul voulu : l'assistant **écrit une cellule**. Sous chaque cellule,
-**Corriger** propose une version réparée après une erreur, **Expliquer** commente le code et sa sortie. Un calcul
+Ajoutez une cellule « Demander », décrivez le calcul voulu, puis « Écrire le code » : le modèle écrit le code de la
+cellule, à relire avant de l'exécuter. Après une erreur, l'erreur est renvoyée au modèle, qui propose une correction
+(à relire elle aussi). Dans « Plus d'actions » d'une cellule, « Expliquer » commente le code et sa sortie. Un calcul
 ne prouve rien en général : il vérifie des cas.
 
 ## Sorties
 
-Texte, formules (avec `tex(x)`, affichées par KaTeX) et graphiques (PNG ou SVG, nettoyés avant affichage). Chaque
-cellule garde ses dernières exécutions et les versions de son code (**Historique**).
+Texte, formules (affichées comme en LaTeX) et graphiques. Une sortie devenue « Périmé » (code ou cellule au-dessus
+modifiés depuis) est signalée. Chaque cellule garde les versions de son code (« Historique »).
 
 ## Utiliser un résultat
 
-Sous une sortie réussie :
+Dans « Plus d'actions » d'une cellule qui a une sortie :
 
-| Bouton | Effet |
+| Action | Effet |
 |---|---|
-| → Conjecture | crée une conjecture du projet ; le calcul est joint comme motivation |
-| → Note | copie le code et sa sortie dans une note (étiquette « calcul ») |
-| → Dossier Lean | ouvre un dossier avec l'énoncé que vous écrivez ; rien ne démarre avant que vous l'ouvriez |
-| → Article | ajoute la formule ou la sortie comme bloc de l'article du projet |
+| Créer une conjecture | crée une conjecture du projet ; le code et sa sortie sont joints comme motivation |
+| Ajouter à une note | copie le code et sa sortie dans une nouvelle note |
+| Créer un dossier Lean | ouvre un dossier avec l'énoncé à prouver, prérempli depuis le résultat (à corriger si besoin) |
+| Insérer dans l'article | le résultat entre dans l'article ; le code va dans la section « Calculs » en fin d'article |
 
-Les graphiques ne sont pas encore copiés dans l'export PDF de l'article.
+Un graphique PNG de Calcul peut aussi être inséré comme figure de l'article (« Insérer › Figure… › Depuis Calcul »
+dans l'éditeur d'article).
 
 ## SageMath pas encore installé
 
-Les cellules Python fonctionnent tout de suite. SageMath (environ 2 Go) s'installe à la demande : bouton
-**Installer SageMath** sur l'hôte, avec la progression affichée.
-<!-- verify after integration: Sage on-demand install progress from the Calcul screen on a machine without Sage -->
+Les carnets Python fonctionnent tout de suite. SageMath s'installe à la demande (environ 1,5 Go à télécharger, près
+de 5 Go sur le disque) : bouton **Installer Sage** dans un carnet Sage, sur l'ordinateur hôte. L'écran affiche
+l'étape en cours et le pourcentage.

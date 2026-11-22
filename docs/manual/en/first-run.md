@@ -9,10 +9,12 @@ summary: Guided tour, choice of mode, first statement, demo mode.
 
 # First run
 
-The first time it opens on the host computer, Madalean checks its environment (Lean workspaces, models, TeX, fonts,
-disk) and shows what is missing, with a repair button when one exists. A short tour then presents the four ideas of
-the interface: write a statement, check the translation, let Lean judge, stay in control.
-<!-- verify after integration: first-run checks and tour wording -->
+On first opening (in *Learn* mode, the default), a short four-step tour presents the ideas of the interface: write
+a statement, check the translation, Lean checks every proof, you stay in control. “Skip the tour” closes it.
+
+The state of the installation (Lean workspaces, models, TeX, fonts, sandbox, disk) is shown in “Settings › System”,
+under “Health”: each problem is reported there, with a “Repair” button when a repair exists (to be started from the
+host computer).
 
 ## Three choices to make
 
@@ -34,7 +36,7 @@ On the home screen, write for example:
 
 > Show that the sum of two even integers is even.
 
-then start. The stages follow one another by themselves: understanding, translation into Lean, proof search,
+then “Translate and prove”. The stages follow one another by themselves: understanding, translation into Lean, proof search,
 explanation. What comes next is described in [From statement to proof](workflow.md).
 
 ## Trying without models or Lean: demo mode

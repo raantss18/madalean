@@ -13,32 +13,34 @@ A conjecture is a dossier of a particular kind, with an **evidence log**: everyt
 conjecture becomes a theorem only through a Lean proof.
 
 ## Where conjectures come from
-<!-- verify after integration: button and screen names of the research screens (S-D) -->
 
-- You write it (in plain language, and in Lean if you wish).
-- “Propose conjectures”: from the project context you select (notes, dossiers, library results, sources), a model
-  proposes a few with their motivation. Proposals that are already known (duplicate of a dossier, library result,
-  lemma found in Mathlib) are set aside and listed separately with the reason.
+Everything happens in the project's “Conjectures” screen.
+
+- “Write a conjecture”: you write it in plain language; “Translate to Lean” then proposes a Lean statement, or you
+  write one yourself (“Check and save the statement”).
+- “Propose”: from the project's notes, proved results and sources, a model proposes a few with their motivation;
+  “Keep this conjecture” keeps the ones you want. Proposals that are already known (duplicate, already a dossier,
+  already in the library, already in Mathlib) are set aside and listed separately with the reason.
 
 ## States of a conjecture
 
 | State | Meaning |
 |---|---|
 | proposed | stated, nothing tested |
-| tested on n cases | particular cases held (Lean or experiments) |
-| Lean statement | a Lean statement is accepted by Lean |
+| tested on cases | particular cases held (Lean or experiments) |
+| Lean statement accepted | a Lean statement is accepted by Lean |
 | proved | the dossier's current proof passes the strict verdict |
 | refuted | a counter-example was **checked again** independently |
 
 ## Testing before believing
 
-**Small cases in Lean.** Madalean writes one `example` per case (by default $n = 0, \dots, 9$ for the first integer
+**Small cases in Lean** (“Test small cases with Lean”). Madalean writes one `example` per case (by default $n = 0, \dots, 9$ for the first integer
 variable) and tries to close it by computation (`norm_num`, `decide`, `simp`, `omega`). Option: a bounded statement
 `∀ n < K, …` closed by `decide`. These tests prove nothing beyond the cases tested.
 
 **Sage or Python experiments.** The model writes (or you write) a two-part program: a predicate `holds(...)` and a
-search that calls `report(...)`. **The code is shown to you and runs only after you approve this exact code**; any
-edit cancels the approval. Runs are confined (see [Security](security.md#code-run-on-the-host)) and limited in time
+search that calls `report(...)`. **The code is shown to you and runs only after you approve this exact code** (“I read this code:
+approve and run”); any edit cancels the approval. Experiments only run from the host computer. Runs are confined (see [Security](security.md#code-run-on-the-host)) and limited in time
 and memory.
 
 **Counter-example.** An announced counter-example is not taken on trust: the predicate alone is re-evaluated at the
@@ -50,9 +52,9 @@ whether the statement is known.
 
 ## The evidence log
 
-Each test, experiment, check or search adds a dated entry (with the code run, the output, the model and the device).
+On screen it is called “Evidence log”. Each test, experiment, check or search adds a dated entry (with the code run, the output, the model and the device).
 The log is **append-only** and its entries are chained by SHA-256 fingerprints: an entry modified afterwards shows
-(“chain intact” / “chain broken”).
+(“log intact” / “log altered!”).
 
 ## Promoting
 

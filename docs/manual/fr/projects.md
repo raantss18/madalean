@@ -47,6 +47,6 @@ Chaque projet utilise un **espace de travail** Lean (« Réglages › Espaces Le
 
 - *Prouveur* : Lean 4.9 et la Mathlib d'entraînement des modèles Goedel. Épinglé : il n'est jamais mis à jour,
   pour que les modèles locaux restent efficaces.
-- *Lean récent* : dernière Mathlib, mise à jour automatiquement (voir [Mises à jour](updates.md)).
+- *Lean actuel* : dernière Mathlib, mise à jour automatiquement (voir [Mises à jour](updates.md)).
 
 Un résultat de la bibliothèque n'est réutilisable que dans l'espace où il a été prouvé.

@@ -14,20 +14,22 @@ then delete the old version**. A failure changes nothing and you are told.
 
 ## What is updated, and how
 
+Everything is set in “Settings › Updates”.
+
 | Component | Default behaviour |
 |---|---|
-| Madalean (server and interface) | downloaded and verified in the background, installed at a quiet moment (no running work); previous version kept for one-click rollback |
-| Desktop application (AppImage) | replaces itself, then restarts |
-| Android application | downloaded and verified by the app; Android always requires **one tap** from you to install (system rule) |
-| Lean, Mathlib, Lean packages of the “Recent Lean” workspace | automatic: installed alongside, verified (test theorem and re-check of the proved dossiers), switched |
+| Madalean (server and interface), “Madalean itself” part | checked every week (except in *Local* mode), downloaded, verified, installed at a quiet moment (no running work), then restarted; “Install” and “Restart now” do it at once. The previous version is kept for rolling back |
+| Desktop application (AppImage) | replaces itself after verification; the new version opens at the next start (or at once with “Restart”) |
+| Android application | the app's “Automatic updates” setting: it checks at most twice a day, downloads and verifies the signature; installing always asks for your confirmation (Android rule) |
+| Lean, Mathlib, Lean packages of the “Current Lean” workspace, SageMath, LaTeX (“Tracked components” part) | automatic: installed alongside, verified (test theorem and re-check of the proved dossiers), switched |
 | Goedel models, catalogue of online models | automatic, checksums verified |
 | “Prover” workspace (Lean 4.9) | **never**: pinned, it is the models' training environment |
-| llama.cpp | notification only (pinned version) |
-| SageMath, JupyterLab, TeX, poppler | notification, and an “Install” button that opens a terminal with the exact command; you type your password. Madalean never runs `sudo`, `pacman`, `apt` or `dnf` itself. |
+| llama.cpp | notification only; its pinned version changes with Madalean's versions |
+| Programs installed on the system outside Madalean (“System components” part) | notification only, with the exact command and an “Open a terminal with the command” button; you type your password. Madalean never runs `sudo`, `pacman`, `apt` or `dnf` itself. |
 
-The “Ask before installing” setting (“Settings › Updates”) replaces the automatic behaviour by a notification.
-Checks run every week and on demand. In *Local* mode, no check touches the network.
-<!-- verify after integration: self-update installer, AppImage updater and APK download are built (§16); setting label -->
+Untick “Install automatically when nothing is running” to be told before each installation instead of the automatic
+behaviour. “Check every week (nothing installs without your click)” sets the automatic check; “Check for updates”
+runs it at once.
 
 ## Why a Madalean update is safe
 
@@ -39,11 +41,12 @@ To verify a download yourself: see the [install page](site:install#verify).
 
 ## After a Lean or Mathlib update
 
-The proved dossiers of the affected workspace are marked “to re-check”, then re-checked automatically. A dossier
+The proved dossiers of the affected workspace are re-checked automatically (“Re-checking proofs” part, “Re-check
+now” button). A dossier
 whose proof no longer passes (a renamed lemma, a changed tactic) is flagged; its old verdict is never shown alone.
 
 ## Rolling back
 
-“Settings › Updates › Back to the previous version” for Madalean. For Lean and Mathlib, the previous version stays
-installed as long as one of your projects uses it.
-<!-- verify after integration: rollback control exists and its label -->
+For Madalean: “Settings › Updates”, “Madalean itself” part, “Go back to …” button (with the number of the previous
+version). For Lean and Mathlib, the old version is replaced only after a successful verification; if it fails,
+nothing changes.

@@ -17,7 +17,7 @@ données. Les autres appareils n'installent qu'une application légère (ou rien
 
 | | Minimum | Conseillé |
 |---|---|---|
-| Système | Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) | Arch ou Fedora récents |
+| Système | Linux 64 bits (x86_64), n'importe quelle distribution récente | — |
 | Carte graphique | aucune (modèles locaux sur le processeur, très lents) | NVIDIA ≥ 8 Go de mémoire |
 | Mémoire vive | 16 Go | 32 Go |
 | Disque | ≈ 40 Go libres | SSD |
@@ -25,51 +25,61 @@ données. Les autres appareils n'installent qu'une application légère (ou rien
 Sans carte NVIDIA, tout fonctionne, mais une preuve par un modèle local peut prendre plusieurs dizaines de minutes.
 Les modèles en ligne (gratuits ou avec une clé) ne dépendent pas de votre carte graphique.
 
-Le pilote NVIDIA et le CUDA Toolkit (`nvcc`) sont à installer **vous-même** avant : le script ne touche jamais aux
-pilotes.
-
-| Distribution | Pilote + CUDA |
-|---|---|
-| Arch / EndeavourOS | `sudo pacman -S nvidia-open nvidia-utils cuda` |
-| Fedora | pilote par RPM Fusion (`akmod-nvidia`, `xorg-x11-drv-nvidia-cuda`), CUDA par le dépôt NVIDIA |
-| Debian / Ubuntu | `sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit` (ou le dépôt NVIDIA) |
-| openSUSE | dépôt NVIDIA |
+Avec une carte NVIDIA, seul le **pilote NVIDIA** doit être installé (par vous, avec les outils de votre
+distribution) : le script ne touche jamais aux pilotes et n'a pas besoin du CUDA Toolkit. Si le pilote est trop
+ancien, le script installe le moteur pour le processeur.
 
 ## Installer
 
 ```bash
 git clone https://github.com/raantss18/madalean.git ~/madalean
 cd ~/madalean
-./install.sh --install-deps
+./install.sh
 ```
 
-`--install-deps` installe une fois les outils de compilation avec `sudo` (vous tapez votre mot de passe). Le script
-est relançable sans risque : il reprend où il s'était arrêté et ne refait pas ce qui est déjà fait.
+Pas de `sudo`, pas de paquet système : tout va dans un seul dossier, `~/.local/share/madalean`. Il suffit de
+`bash`, `curl` et `tar`. Le script est relançable sans risque : il reprend où il s'était arrêté et ne refait pas ce
+qui est déjà fait. Chaque téléchargement est vérifié par son empreinte SHA-256.
 
-Il installe, au niveau de l'utilisateur :
+Il installe :
 
-- le gestionnaire de versions Lean **elan** et deux **espaces de travail** Lean : « Prouveur » (Lean 4.9 et la
-  Mathlib sur laquelle les modèles Goedel ont été entraînés ; compilation de Mathlib depuis les sources, ≈ 1 h 30 une
-  seule fois) et « Lean récent » (dernière Mathlib) ;
-- le moteur **llama.cpp** compilé pour votre carte (version épinglée) ;
-- trois modèles locaux (≈ 5 Go chacun, empreintes SHA-256 vérifiées) : Goedel-Prover-V2-8B (preuves),
-  Goedel-Formalizer-V2-8B (traduction en Lean), Qwen3-8B (explications) ;
-- le serveur Madalean et son service systemd utilisateur `madalean.service`.
+- Madalean lui-même (serveur et interface) ;
+- un environnement Python avec JupyterLab, le moteur LaTeX et ses polices (l'export PDF marche ensuite sans
+  réseau) ;
+- le gestionnaire de versions Lean **elan** et les **espaces de travail** Lean (voir ci-dessous) ;
+- le moteur **llama.cpp** (version épinglée, pour votre carte ou pour le processeur) ;
+- le nœud Tailscale intégré de Madalean, pour joindre l'hôte depuis vos autres appareils (voir
+  [Tailscale](tailscale.md)) ;
+- trois modèles locaux (≈ 5 Go chacun) dans `~/models` : Goedel-Prover-V2-8B (preuves), Goedel-Formalizer-V2-8B
+  (traduction en Lean), Qwen3-8B (explications). Des modèles déjà présents dans `~/models` sont réutilisés ;
+- le service systemd utilisateur `madalean.service` et l'entrée « Madalean » du menu des applications.
+
+SageMath (pour l'écran « Calcul ») n'est pas installé d'avance : il s'installe à la demande, voir
+[Calcul](calcul.md).
+
+**Espaces Lean.** Le script reprend les espaces Lean déjà construits sur la machine (par exemple ceux de Lean AI
+Station 1.x), sans prendre de place en plus. S'il n'en trouve aucun, relancez-le avec `--build-workspace` : il
+construit l'espace « Lean actuel » (dernière Mathlib, ≈ 5 Go, réseau nécessaire). L'espace « Prouveur » (Lean 4.9,
+la Mathlib sur laquelle les modèles Goedel ont été entraînés) n'est pas construit par le script : il est repris s'il
+existe déjà.
 
 Options utiles (`./install.sh --help`) :
 
 | Option | Effet |
 |---|---|
-| `--backend cpu` | pas de carte graphique : moteur pour le processeur |
+| `--cpu` | moteur des modèles pour le processeur (pas de carte graphique) |
 | `--no-models` | ne télécharge pas les modèles locaux (≈ 15 Go) : seuls les modèles en ligne serviront |
-| `--no-prover49` | saute l'espace Lean 4.9 (la longue compilation de Mathlib) |
-| `--no-current` | saute l'espace « Lean récent » |
-| `--no-service` | n'installe pas le service systemd |
+| `--no-workspaces` | n'installe pas d'espace Lean |
+| `--build-workspace` | construit l'espace « Lean actuel » s'il n'en existe aucun |
+| `--no-systemd` | n'installe pas le service systemd |
+| `--no-desktop` | n'ajoute pas d'entrée au menu des applications |
+| `--offline DOSSIER` | installe sans réseau, depuis un export fait avec `./export_offline.sh` |
 
 ## Où sont les choses
 
 | Quoi | Où |
 |---|---|
+| Madalean et tous ses composants | `~/.local/share/madalean/` |
 | Réglages, projets, dossiers, appareils reliés | `~/.config/madalean/` |
 | Index de recherche, caches | `~/.cache/madalean/` |
 | Modèles locaux | `~/models/` |
@@ -88,12 +98,13 @@ systemctl --user restart madalean     # redémarrer
 journalctl --user -u madalean -e      # journal
 ```
 
-Ouvrez ensuite l'interface sur l'hôte : `http://127.0.0.1:11500`, ou l'application de bureau Madalean (AppImage),
-qui reconnaît l'hôte toute seule. Suite : [Premier démarrage](first-run.md).
-<!-- verify after integration: final repository name raantss18/madalean, install.sh installs the 2.0 server and unit, menu entry name -->
+Ouvrez ensuite l'interface sur l'hôte : « Madalean » dans le menu des applications, ou `http://127.0.0.1:11500`
+dans un navigateur. Suite : [Premier démarrage](first-run.md).
 
 ## Désinstaller
 
-`./uninstall.sh` liste exactement ce qui sera supprimé avant de le faire. Vos dossiers ne sont pas supprimés sans
-votre accord.
-<!-- verify after integration: uninstall.sh covers ~/.config/madalean and the systemd unit in 2.0 -->
+`./uninstall.sh` liste exactement ce qui sera supprimé et demande confirmation avant de le faire. Il supprime
+`~/.local/share/madalean`, `~/.cache/madalean`, le service systemd et l'entrée du menu. Il **garde** vos réglages,
+projets et dossiers (`~/.config/madalean`), vos modèles (`~/models`) et vos carnets (`~/Documents/Madalean`).
+`./uninstall.sh --purge` propose en plus, avec une question pour chacun, de supprimer `~/.config/madalean` et
+`~/models`.

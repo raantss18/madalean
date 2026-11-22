@@ -4,50 +4,54 @@ title: Compute (Sage and Python)
 order: 205
 section: research
 audience: researcher
-summary: Sage or Python cells in an offline sandbox, the assistant alongside, and one click to turn a result into a conjecture, a note, a Lean dossier or an article block.
+summary: Sage or Python notebooks in an offline sandbox, a model that writes code on request, and one click to turn a result into a conjecture, a note, a Lean dossier or an article block.
 ---
 
 # Compute (Sage and Python)
 
-The **Compute** screen (project menu) is one worksheet per project: a list of SageMath or Python cells run on the
-host computer in the **same sandbox** as the conjecture workshop's experiments: no network access, no access to your
-keys or personal files, limited time and output. Variables persist from one cell to the next (one kernel per
-project).
+The **Compute** screen (project menu) holds the project's **notebooks** (“New notebook”, SageMath or Python). A
+notebook is a list of cells sharing one kernel: variables persist from one cell to the next. The file is an ordinary
+Jupyter notebook: “Open in JupyterLab” opens it as is, “Download (.ipynb)” gives a copy. Code runs on the host
+computer in the **same sandbox** as the conjecture workshop's experiments: no network access, no access to your keys
+or personal files, limited time and output.
 
 ## Who can run what
 
-- **Your cells** (the ones you type) run when you click **Run** (or Ctrl+Enter).
-- **The assistant's cells** are marked “To review”: they run only after **Approve this code**. The approval is for
-  that exact code: if you or the assistant change it, read it and approve it again.
-- From a paired phone or tablet you can read and write cells; running them is allowed only when the host enabled
-  “experiments from devices” (host-only setting).
+- **Your cells** (the ones you type) run with **Run** (or Ctrl+Enter, Shift+Enter to move to the next one). “Run
+  all” runs the whole notebook again.
+- **Code written by the model** is marked “To review”: it runs only after **Approve and run**. The approval is for
+  that exact code: if it changes, read it and approve it again.
+- From a linked phone or tablet you can read and write cells; running them is allowed only when the host ticked
+  “Allow experiments from linked devices” (“Settings › Notebook and access”, host-only setting).
 
-## The assistant
+## Asking the model
 
-On the right (at the top on a phone), describe the computation you want: the assistant **writes a cell**. Under each
-cell, **Fix** proposes a repaired version after an error, **Explain** comments on the code and its output. A
-computation proves nothing in general: it checks cases.
+Add an “Ask” cell, describe the computation you want, then “Write the code”: the model writes the cell's code, to
+review before running it. After an error, the error is sent back to the model, which proposes a fix (to review as
+well). In a cell's “More actions”, “Explain” comments on the code and its output. A computation proves nothing in
+general: it checks cases.
 
 ## Outputs
 
-Text, formulas (with `tex(x)`, rendered by KaTeX) and plots (PNG or SVG, sanitised before display). Each cell keeps
-its latest runs and the versions of its code (**History**).
+Text, formulas (rendered as in LaTeX) and plots. An output that is “Out of date” (code or a cell above changed since)
+is flagged. Each cell keeps the versions of its code (“History”).
 
 ## Using a result
 
-Under a successful output:
+In the “More actions” of a cell that has an output:
 
-| Button | Effect |
+| Action | Effect |
 |---|---|
-| → Conjecture | creates a project conjecture; the computation is attached as motivation |
-| → Note | copies the code and its output into a note (tag “calcul”) |
-| → Lean dossier | opens a dossier with the statement you write; nothing starts before you open it |
-| → Article | adds the formula or the output as a block of the project's article |
+| Create a conjecture | creates a project conjecture; the code and its output are attached as motivation |
+| Add to a note | copies the code and its output into a new note |
+| Create a Lean dossier | opens a dossier with the statement to prove, prefilled from the result (correct it if needed) |
+| Insert in the article | the result goes into the article; the code goes to the “Computations” section at the end |
 
-Plots are not yet copied into the article's PDF export.
+A PNG plot from Compute can also be inserted as an article figure (“Insert › Figure… › From Calcul” in the article
+editor).
 
 ## SageMath not installed yet
 
-Python cells work right away. SageMath (about 2 GB) installs on demand: **Install SageMath** button on the host,
-with progress shown.
-<!-- verify after integration: Sage on-demand install progress from the Calcul screen on a machine without Sage -->
+Python notebooks work right away. SageMath is installed on demand (about 1.5 GB to download, nearly 5 GB on disk):
+**Install Sage** button in a Sage notebook, on the host computer. The screen shows the current step and the
+percentage.

@@ -459,8 +459,9 @@ bottom bar < 768 px, drawer rail < 1024 px, permanent rail ≥ 1024 px, side thr
 
 Patterns adopted (and where they come from):
 - **Bottom navigation on phones** (already there) + **bottom sheets** instead of drop-downs: every `Menu` (« ⋯ »,
-  « Insérer », « Plus d'actions ») opens as a sheet above the bottom bar below 600 px (thumb reach, never cut by the
-  screen edge); every `Dialog` becomes a full-width sheet anchored to the bottom with its actions above the system bar
+  « Insérer », « Plus d'actions ») opens as a sheet above the bottom bar below 768 px — the same width as the bottom
+  bar, so wherever the bar is shown menus are sheets and from 768 px they are popovers (thumb reach, never cut by the
+  screen edge; capped at 560 px and centred on wide phones and small tablets); every `Dialog` becomes a full-width sheet anchored to the bottom with its actions above the system bar
   (TONTOLO's modal bottom sheets, Mahay's compact dialogs).
 - **Overflow menu for cramped toolbars**: Calcul's « Ouvrir dans JupyterLab », « Télécharger (.ipynb) », « Redémarrer
   le noyau », « Effacer les sorties » go into one « ⋯ » on phones (header + toolbar: 5 rows → 2). The dossier, the
@@ -471,8 +472,12 @@ Patterns adopted (and where they come from):
   the letters that have entries, 44 px each.
 - **On-screen keyboard** (`web/src/lib/ui/keyboard.ts`, unit-tested): the viewport asks for
   `interactive-widget=resizes-content` (the Android shell already uses `adjustResize`); when a field is focused and the
-  page lost ≥ 22 % of its height, `html[data-kb=open]` hides fixed bars marked `.kb-hide` (bottom navigation, tour)
+  page lost ≥ 22 % of its height, `html[data-kb=open]` hides fixed bars marked `.kb-hide` (bottom navigation)
   and the caret (or the top of a tall editor) is scrolled just above the keyboard; rotation resets the reference height.
+  Once open, the state stays open while the page is still short even if the focus left the field (a menu was
+  opened over the keyboard), and `--kb-inset` / `--kb-vh` give the keyboard's height when the browser draws it over
+  the page instead of resizing it (visual viewport only); menu sheets, phone dialogs and the article's suggestions
+  sit on `--kb-inset`.
 - **Safe areas** (sampana): `viewport-fit=cover` + `env(safe-area-inset-*)` on the top bar, the page, the drawer, the
   bottom bar, sheets and toasts (landscape notches in a browser; the Android shell also wraps the web view in SafeArea).
 - **Touch targets ≥ 44 px** on touch screens, everywhere: disclosure headings (`summary`), selects, checkboxes and
@@ -480,8 +485,10 @@ Patterns adopted (and where they come from):
   tag chips, outline items (their tools are always visible on touch — no hover there), help contents, contact links.
 - **Top bar never squeezes the logo**: brand fixed at 44 px; the project picker and the privacy pill shrink instead
   (at 768 px the logo had been crushed to 6–18 px).
-- **Nothing under the bottom bar**: the article's suggestions panel and the tour sit above it; while the tour is shown
-  the page gets extra bottom room so every field can be scrolled clear of it.
+- **Nothing under the bottom bar**: the article's suggestions panel sits above it.
+- **First-run tour**: below 1024 px it is a card in the page flow, above « Que voulez-vous prouver ? » (it pushes the
+  page down instead of covering it); from 1024 px it floats in the bottom-right corner and the page gets extra bottom
+  room so everything can be scrolled clear of it (hidden while an on-screen keyboard is up).
 
 Verification: demo server on spare ports with a temporary config, built-in browser at 360×800, 412×915 (touch
 emulation), 768×1024, 1024×1366, 1366×1024, 1440×900, light and dark. A DOM audit (in-page script: horizontal page
@@ -495,3 +502,28 @@ graph node labels at desktop size). Screenshots were taken during the session bu
 
 Not verified: real devices (only emulation; the keyboard was simulated by shrinking the viewport with a field focused),
 WebKitGTK of the AppImage on a touch tablet, TalkBack.
+
+### Fixes after S-X (session S-AA, 2026-11-22)
+
+Three display defects reported by S-X are fixed (none remains open from that list):
+1. **The tour covered the home screen** at 360/412 px (statement field) and 768 px (« Importer un .tex », the send
+   hint, the examples): a fixed card in a corner, with 300 px of extra page room as the only remedy. Now the card is
+   part of the page below 1024 px (`App.svelte` renders it at the top of `main`, `Tour.svelte` positions it only from
+   1024 px) — nothing can sit under it; « Passer la visite » still dismisses it.
+2. **Gap between a menu sheet and the on-screen keyboard**: tapping « ⋯ » moves the focus out of the field, so
+   `keyboard.ts` dropped `data-kb` at once while the keyboard was still up; the bottom bar came back above the keyboard
+   and the sheet sat on top of it (60 px + margins of empty band). Now the keyboard state is kept while the page is
+   still short (`keyboardOpen(…, wasOpen)`), the sheet is placed on `--kb-inset` (0 when the page is resized, the
+   keyboard height when it is drawn over the page) and limited to the visible height; when the keyboard goes down
+   the bottom bar returns and the sheet moves above it. Editor bubbles (formula preview) are hidden while a sheet is
+   open (they used to show through it).
+3. **Menus between 600 and 767 px**: popovers there while the bottom bar is shown (a popover from a toolbar could run
+   under the bar, a sheet rule existed only below 600 px). Menus now switch at 768 px like the bottom bar, the toasts
+   and the tour; dialogs keep their own rule (sheet below 600 px, centred window above, which fits from 600 px).
+
+Tests: `e2e/responsive.spec.ts` (32 cases) — tour vs statement field and send button at 360, 412, 600, 700, 768,
+1024 px light and dark; sheet below 768 px / popover from 768 px at the same widths; menu opened with the keyboard
+up (simulated by shrinking the viewport with the editor focused) at 360–700 px sits on the keyboard, then above the
+bottom bar once it goes. Unit tests for `keyboardOpen(…, wasOpen)` and `keyboardInset`. `SHOTS_DIR=… npx playwright
+test e2e/responsive.spec.ts` saves a screenshot of every case (checked by eye, not committed); `MADALEAN_E2E_STATIC`
+runs the e2e suite against a build made elsewhere (`npx vite build --outDir …`) without touching `madalean/static`.

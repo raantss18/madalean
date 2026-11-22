@@ -22,21 +22,22 @@ with `$…$` and `$$…$$` formulas and Lean code blocks.
 | `[[passage:ID]]` | a specific passage of a source |
 | `[[lib:Name]]` | a library result (Lean name) |
 
-Each note shows its **backlinks** (the notes pointing to it). The project's **graph** connects notes, dossiers and
-sources; it can be filtered by tag. Tags are written `#tag` in the text.
+Each note shows its **backlinks** (the notes pointing to it). The project's **graph** (“Graph” button)
+connects notes, dossiers and sources; it can be filtered by tag. Tags are written `#tag` in the text.
 
 Renaming a note updates the `[[Old title]]` links in the project's other notes.
 
 ## Lean in notes
 
-“Check with Lean” compiles every `lean` block of the note in the project's workspace and shows the errors at the
-right line. “Create a dossier” from a block containing a theorem opens a dossier with that statement (or, from a
-paragraph, a dossier whose problem it is) and adds a link to it below the block.
-<!-- verify after integration: button labels in the notes editor (S-D) -->
+Below the editor, the “Lean blocks” part lists every `lean` block of the note. “Check all with Lean” compiles them
+all in the project's workspace (“Check with Lean” on one block checks only that one); each block shows “Lean
+accepts” or “Lean rejects”, with the errors at the right line. “Make it a dossier” opens a dossier with the block's
+statement and adds a link to it below the block.
 
 ## Research log
 
-“Today's note” creates (or opens) the note dated today, with the list of dossiers worked on that day.
+“Today’s note” creates (or opens) the “research log” note dated today, with the list of dossiers worked on that
+day.
 
 ## Versions and several devices
 
@@ -46,7 +47,6 @@ new revision: nothing is lost). A deleted note goes to the trash.
 If the same note is edited on two devices, changes to different lines are merged automatically. If both devices
 changed the same lines, Madalean shows both versions of each conflicting passage and you choose.
 
-## Attachments and export
+## Export
 
-Images (PNG, JPEG, GIF, WebP) and PDFs up to 10 MB. Export a note, or the whole notebook of the project, as
-Markdown, HTML or PDF.
+The “.md” button of the editor downloads the note as Markdown.

@@ -721,7 +721,7 @@
     .ae { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) 0; }
     .bar { padding: var(--s-2) var(--s-3); }
     .sugs { left: var(--s-2); right: var(--s-2); width: auto; bottom: calc(var(--bottomnav-h) + var(--s-2) + env(safe-area-inset-bottom)); max-height: 60dvh; z-index: 520; }
-    :global(html[data-kb='open']) .sugs { bottom: var(--s-2); }
+    :global(html[data-kb='open']) .sugs { bottom: calc(var(--kb-inset, 0px) + var(--s-2)); }
   }
   @media (pointer: coarse) {
     .node, .linkish { min-height: var(--touch); }

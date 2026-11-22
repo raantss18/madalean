@@ -16,7 +16,7 @@ devices install only a light app (or nothing at all: a browser is enough), see [
 
 | | Minimum | Recommended |
 |---|---|---|
-| System | Linux (Arch/EndeavourOS, Fedora, Debian, Ubuntu, openSUSE) | recent Arch or Fedora |
+| System | 64-bit Linux (x86_64), any recent distribution | — |
 | Graphics card | none (local models on the CPU, very slow) | NVIDIA with ≥ 8 GB of memory |
 | RAM | 16 GB | 32 GB |
 | Disk | ≈ 40 GB free | SSD |
@@ -24,50 +24,57 @@ devices install only a light app (or nothing at all: a browser is enough), see [
 Without an NVIDIA card everything works, but a proof by a local model can take tens of minutes. Online models (free
 or with a key) do not depend on your graphics card.
 
-The NVIDIA driver and the CUDA Toolkit (`nvcc`) must be installed **by you** beforehand: the script never touches
-drivers.
-
-| Distribution | Driver + CUDA |
-|---|---|
-| Arch / EndeavourOS | `sudo pacman -S nvidia-open nvidia-utils cuda` |
-| Fedora | driver from RPM Fusion (`akmod-nvidia`, `xorg-x11-drv-nvidia-cuda`), CUDA from the NVIDIA repository |
-| Debian / Ubuntu | `sudo apt install nvidia-driver-XXX nvidia-cuda-toolkit` (or the NVIDIA repository) |
-| openSUSE | NVIDIA repository |
+With an NVIDIA card, only the **NVIDIA driver** must be installed (by you, with your distribution's tools): the
+script never touches drivers and does not need the CUDA Toolkit. If the driver is too old, the script installs the
+CPU engine.
 
 ## Install
 
 ```bash
 git clone https://github.com/raantss18/madalean.git ~/madalean
 cd ~/madalean
-./install.sh --install-deps
+./install.sh
 ```
 
-`--install-deps` installs the build tools once with `sudo` (you type your password). The script can be re-run
-safely: it resumes where it stopped and does not redo what is already done.
+No `sudo`, no system package: everything goes into a single folder, `~/.local/share/madalean`. Only `bash`, `curl`
+and `tar` are needed. The script can be re-run safely: it resumes where it stopped and does not redo what is already
+done. Every download is checked against its SHA-256 checksum.
 
-It installs, at user level:
+It installs:
 
-- the Lean version manager **elan** and two Lean **workspaces**: “Prover” (Lean 4.9 and the Mathlib the Goedel
-  models were trained on; Mathlib is built from source, ≈ 1 h 30 once) and “Recent Lean” (latest Mathlib);
-- the **llama.cpp** engine built for your card (pinned version);
-- three local models (≈ 5 GB each, SHA-256 checksums verified): Goedel-Prover-V2-8B (proofs),
-  Goedel-Formalizer-V2-8B (translation into Lean), Qwen3-8B (explanations);
-- the Madalean server and its systemd user service `madalean.service`.
+- Madalean itself (server and interface);
+- a Python environment with JupyterLab, the LaTeX engine and its fonts (PDF export then works without network);
+- the Lean version manager **elan** and the Lean **workspaces** (see below);
+- the **llama.cpp** engine (pinned version, for your card or for the CPU);
+- Madalean's built-in Tailscale node, to reach the host from your other devices (see [Tailscale](tailscale.md));
+- three local models (≈ 5 GB each) in `~/models`: Goedel-Prover-V2-8B (proofs), Goedel-Formalizer-V2-8B
+  (translation into Lean), Qwen3-8B (explanations). Models already in `~/models` are reused;
+- the systemd user service `madalean.service` and the “Madalean” entry in the applications menu.
+
+SageMath (for the “Calcul” screen) is not installed in advance: it is installed on demand, see [Calcul](calcul.md).
+
+**Lean workspaces.** The script reuses the Lean workspaces already built on the machine (for example those of Lean
+AI Station 1.x), without taking extra space. If it finds none, run it again with `--build-workspace`: it builds the
+“Current Lean” workspace (latest Mathlib, ≈ 5 GB, network needed). The “Prover” workspace (Lean 4.9, the Mathlib the
+Goedel models were trained on) is not built by the script: it is reused if it already exists.
 
 Useful options (`./install.sh --help`):
 
 | Option | Effect |
 |---|---|
-| `--backend cpu` | no graphics card: engine for the CPU |
+| `--cpu` | model engine for the CPU (no graphics card) |
 | `--no-models` | does not download the local models (≈ 15 GB): only online models will be used |
-| `--no-prover49` | skips the Lean 4.9 workspace (the long Mathlib build) |
-| `--no-current` | skips the “Recent Lean” workspace |
-| `--no-service` | does not install the systemd service |
+| `--no-workspaces` | installs no Lean workspace |
+| `--build-workspace` | builds the “Current Lean” workspace if none exists |
+| `--no-systemd` | does not install the systemd service |
+| `--no-desktop` | adds no entry to the applications menu |
+| `--offline FOLDER` | installs without network, from an export made with `./export_offline.sh` |
 
 ## Where things are
 
 | What | Where |
 |---|---|
+| Madalean and all its components | `~/.local/share/madalean/` |
 | Settings, projects, dossiers, linked devices | `~/.config/madalean/` |
 | Search index, caches | `~/.cache/madalean/` |
 | Local models | `~/models/` |
@@ -86,12 +93,12 @@ systemctl --user restart madalean     # restart
 journalctl --user -u madalean -e      # log
 ```
 
-Then open the interface on the host: `http://127.0.0.1:11500`, or the Madalean desktop app (AppImage), which finds
-the host by itself. Next: [First run](first-run.md).
-<!-- verify after integration: final repository name raantss18/madalean, install.sh installs the 2.0 server and unit, menu entry name -->
+Then open the interface on the host: “Madalean” in the applications menu, or `http://127.0.0.1:11500` in a
+browser. Next: [First run](first-run.md).
 
 ## Uninstalling
 
-`./uninstall.sh` lists exactly what will be deleted before doing it. Your dossiers are not deleted without your
-consent.
-<!-- verify after integration: uninstall.sh covers ~/.config/madalean and the systemd unit in 2.0 -->
+`./uninstall.sh` lists exactly what will be deleted and asks for confirmation before doing it. It deletes
+`~/.local/share/madalean`, `~/.cache/madalean`, the systemd service and the menu entry. It **keeps** your settings,
+projects and dossiers (`~/.config/madalean`), your models (`~/models`) and your notebooks (`~/Documents/Madalean`).
+`./uninstall.sh --purge` additionally offers, with one question each, to delete `~/.config/madalean` and `~/models`.

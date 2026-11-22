@@ -124,6 +124,8 @@
         {:else if !app.m.loaded}
           <div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span><div class="skel"></div><div class="skel short"></div></div>
         {:else if def}
+          <!-- First-run tour: in the page flow below 1024 px (above the statement, never over it), floating card above. -->
+          {#if !prefs.tourDone && prefs.mode === 'learn' && route.name === 'home'}<Tour />{/if}
           {#await load(def)}
             <div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span></div>
           {:then Screen}
@@ -152,7 +154,6 @@
     {/if}
   </div>
   <CommandPalette bind:open={palette} />
-  {#if app.m.loaded && !prefs.tourDone && prefs.mode === 'learn' && route.name === 'home'}<Tour />{/if}
 {/if}
 <Toasts />
 
@@ -227,7 +228,6 @@
     .act-btn { display: none; }
     main { padding: var(--s-3) max(var(--s-3), env(safe-area-inset-right)) calc(var(--bottomnav-h) + var(--s-5) + env(safe-area-inset-bottom)) max(var(--s-3), env(safe-area-inset-left)); }
     :global(html[data-kb='open']) main { padding-bottom: var(--s-5); }
-    :global(html[data-tour]) main { padding-bottom: calc(var(--bottomnav-h) + 300px); }
     .bottomnav { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; position: fixed; z-index: 500; left: 0; right: 0; bottom: 0; height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom)); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--surface); border-top: 1px solid var(--line); }
     .bottomnav a { position: relative; display: grid; place-items: center; align-content: center; gap: 2px; color: var(--text-2); text-decoration: none; font-size: 12px; font-weight: 600; min-height: 48px; }
     .bottomnav a[aria-current='page'] { color: var(--accent); }

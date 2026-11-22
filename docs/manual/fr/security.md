@@ -18,6 +18,10 @@ Madalean écoute à deux portes, toutes deux fermées vers l'extérieur de l'ord
 2. **La porte des appareils** (`127.0.0.1:11501`), publiée sur votre réseau privé Tailscale. Toute requête doit
    présenter le **jeton** d'un appareil relié, sauf la page de liaison elle-même.
 
+Une troisième porte, sur le réseau local (port 11502), n'existe que si vous l'ouvrez depuis l'hôte (voir
+[Tailscale › Sans Tailscale](tailscale.md#sans-tailscale)) ; elle exige aussi le jeton d'un appareil relié, mais son
+trafic n'est pas chiffré.
+
 Il n'y a pas de compte Madalean, pas de serveur Madalean sur Internet, pas de télémétrie.
 
 ## Les appareils et les codes
@@ -51,17 +55,24 @@ fournisseur que le leur.
 - **Lean** compile les preuves écrites par les modèles. Les constructions interdites (`sorry`, nouveaux axiomes,
   commandes de recherche) sont refusées avant compilation.
 - **Lean peut aussi exécuter du code** pendant qu'il lit un fichier : `#eval`, `initialize`, `run_cmd`, des
-  tactiques, macros ou élaborateurs définis dans le fichier (`elab`, `macro`, `syntax`…), `unsafe`,
-  `implemented_by`. Comme le code Lean peut venir d'un modèle, du texte d'un article ou d'un appareil relié, Madalean
-  **refuse de compiler** tout fichier qui contient l'une de ces constructions, en un point unique par lequel passe
-  chaque compilation. Les `import` sont limités à Mathlib, Aesop, Batteries, Std, Qq, ProofWidgets et Plausible. Le
-  contrôle porte sur les mots, hors commentaires et chaînes : il peut refuser à tort un fichier légitime (une
-  variable nommée `prefix`, par exemple) ; le message de refus nomme la construction en cause.
+  tactiques, macros, notations ou élaborateurs définis dans le fichier (`elab`, `macro`, `syntax`, `notation`…),
+  des attributs qui enregistrent du code, `unsafe`, `implemented_by`, `IO`, `native_decide`. Comme le code Lean peut
+  venir d'un modèle, du texte d'un article ou d'un appareil relié, Madalean **refuse de compiler** tout fichier qui
+  contient l'une de ces constructions (« Refusé avant compilation : … »). Les `import` sont limités à Mathlib,
+  Aesop, Batteries, Std, Qq, ProofWidgets et Plausible. Le contrôle porte sur les mots, hors commentaires et
+  chaînes : il peut refuser à tort un fichier légitime (une variable nommée `prefix`, par exemple) ; le message de
+  refus indique le genre de construction en cause.
+- Ce filtre n'est qu'une première barrière. **Chaque compilation Lean tourne dans un bac à sable** (bubblewrap) :
+  sans réseau, sans accès à votre dossier personnel, avec Lean et Mathlib en lecture seule. Les compilations LaTeX
+  aussi. « Réglages › Système » indique si le bac à sable est actif ; sans bubblewrap (ou si le système ne le
+  permet pas), elles tournent sans cette isolation.
 - **Expériences de l'atelier de conjectures** : le code vous est montré, et ne s'exécute qu'après votre accord sur
   **ce code exact**. Il tourne avec des limites de temps, de mémoire et de taille de fichiers, sans vos clés ni
-  variables secrètes ; si `bubblewrap` est installé, avec un système de fichiers en lecture seule où votre dossier
-  de configuration, `~/.ssh` et vos trousseaux sont masqués. Le réseau n'est **pas** coupé pour ces expériences.
-- **Jupyter** exécute ce que vous y tapez, comme sur n'importe quelle installation de Jupyter.
+  variables secrètes ; dans le bac à sable, **sans réseau**, avec un système de fichiers en lecture seule où votre
+  dossier de configuration, `~/.ssh`, vos trousseaux et l'état de Tailscale sont masqués. Les carnets de Calcul
+  tournent dans le même bac à sable.
+- **Jupyter** (JupyterLab ouvert à part) exécute ce que vous y tapez, comme sur n'importe quelle installation de
+  Jupyter : ses noyaux ne sont pas dans le bac à sable.
 - Le texte d'un modèle ne devient jamais une commande système.
 
 ## Documents venant de l'extérieur
@@ -81,5 +92,5 @@ outil.
 - Publier quoi que ce soit sans que vous ayez validé, élément par élément, ce qui part.
 - Installer une mise à jour dont la signature n'est pas valide.
 
-Une revue de sécurité indépendante est faite avant chaque version majeure.
-<!-- verify after integration: S-H review done before 2.0.0; forbidden-construct list in leancheck -->
+Madalean 2.0 a fait l'objet d'une revue de sécurité indépendante avant sa première publication (ses auteurs n'ont
+pas fait la revue) ; ses conclusions et les risques acceptés sont dans `docs/SECURITY.md` du dépôt.

@@ -47,7 +47,7 @@ theorem sum_odds (n : ℕ) : ∑ i in Finset.range n, (2 * i + 1) = n ^ 2 := by
 
 `induction n with | zero => … | succ n ih => …` produces the base case and the inductive step; `ih` is the induction
 hypothesis. `rcases`/`cases` handle the cases of an inductive type or of a disjunction; `interval_cases n` enumerates
-the values of an integer bounded by the hypotheses. (In the “Recent Lean” workspace, write
+the values of an integer bounded by the hypotheses. (In the “Current Lean” workspace, write
 `∑ i ∈ Finset.range n`.)
 
 ## Rewriting and simplifying

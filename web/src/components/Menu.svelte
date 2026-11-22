@@ -54,12 +54,18 @@
   button[role='menuitem']:disabled { opacity: 0.5; cursor: not-allowed; }
   .h { margin-left: auto; }
   .sheet-scrim { display: none; }
-  /* Phones: the menu becomes a bottom sheet (thumb reach, never cut off at the screen edge). */
-  @media (max-width: 599px) {
+  /* Below 768 px (phones and small tablets, i.e. wherever the bottom bar is shown — docs/UI.md §12) the menu becomes a
+     bottom sheet: thumb reach, never cut off at the screen edge, never hidden by the bottom bar. Capped at 560 px and
+     centred on wide phones / small tablets. */
+  @media (max-width: 767px) {
     /* Clicking the scrim is an outside click: the window handler closes the menu. Above the bottom bar, which may
        sit in a higher stacking context than the toolbar holding this menu. */
     .sheet-scrim { display: block; position: fixed; inset: 0; z-index: 760; background: rgba(10, 14, 24, 0.4); }
-    ul, ul.left, ul.right { position: fixed; z-index: 770; left: 8px; right: 8px; top: auto; bottom: calc(var(--bottomnav-h) + 8px + env(safe-area-inset-bottom)); min-width: 0; max-height: min(70dvh, 520px); overflow: auto; padding: 6px; border-radius: var(--r-3); }
+    ul, ul.left, ul.right { position: fixed; z-index: 770; left: max(8px, calc(50% - 280px)); right: max(8px, calc(50% - 280px)); top: auto; bottom: calc(var(--bottomnav-h) + 8px + env(safe-area-inset-bottom)); min-width: 0; max-height: min(70dvh, 520px); overflow: auto; padding: 6px; border-radius: var(--r-3); }
     button[role='menuitem'] { min-height: 48px; font-size: var(--fs-md); }
+    /* On-screen keyboard up (the bottom bar is hidden): the sheet sits directly on the keyboard, and fits above it. */
+    /* Editor bubbles (formula preview, completions) live in other layers: hide them while a sheet is open. */
+    :global(body:has(.sheet-scrim) .cm-tooltip) { visibility: hidden; }
+    :global(html[data-kb='open']) ul { bottom: calc(var(--kb-inset, 0px) + 8px); max-height: min(520px, calc(var(--kb-vh, 100dvh) - 16px)); }
   }
 </style>

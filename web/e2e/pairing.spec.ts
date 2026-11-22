@@ -24,8 +24,8 @@ test('pairing on the remote listener: wrong code, then good code, then logout', 
   await page.getByLabel('Code à 6 chiffres').fill(code);
   await page.getByRole('button', { name: 'Relier' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Que voulez-vous prouver ?' })).toBeVisible();
-  const devices = await api<{ devices: { name: string; id: string }[] }>('GET', '/devices');
-  expect(devices.devices.some((d) => d.name === 'Téléphone de test')).toBe(true);
+  const devices = await api<{ devices: { name: string; id: string }[]; browsers: { name: string; id: string }[] }>('GET', '/devices');
+  expect([...devices.devices, ...devices.browsers].some((d) => d.name === 'Téléphone de test')).toBe(true);
   await page.goto(REMOTE() + '/reglages/carnet');
   await expect(page.getByText(/modifiable seulement depuis l’ordinateur hôte/)).toBeVisible();
   await expect(page.getByLabel('Ouvrir le carnet aux appareils reliés')).toBeDisabled();
@@ -47,8 +47,8 @@ test('revoking a device from the host sends the remote browser back to pairing',
   await page.getByLabel('Nom de cet appareil').fill('Tablette révoquée');
   await page.getByRole('button', { name: 'Relier' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Que voulez-vous prouver ?' })).toBeVisible();
-  const devices = await api<{ devices: { name: string; id: string }[] }>('GET', '/devices');
-  const dev = devices.devices.find((d) => d.name === 'Tablette révoquée')!;
+  const devices = await api<{ devices: { name: string; id: string }[]; browsers: { name: string; id: string }[] }>('GET', '/devices');
+  const dev = [...devices.devices, ...devices.browsers].find((d) => d.name === 'Tablette révoquée')!;
   await api('DELETE', `/devices/${dev.id}`);
   // Next API call (navigation to settings triggers fetches) → 401 → pairing screen.
   await page.goto(REMOTE() + '/bibliotheque');

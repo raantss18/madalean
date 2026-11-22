@@ -28,31 +28,39 @@ Sur l'ordinateur hôte lui-même, aucun code n'est nécessaire.
   l'accès dure le temps de la session, se ferme après **2 h sans activité** (réglable sur l'hôte) et au plus tard
   après **12 h**, et aussi quand l'hôte redémarre.
 
-## Étape 1 — Publier Madalean sur votre réseau Tailscale (une fois)
+## Étape 1 — Mettre l'hôte sur votre réseau Tailscale (une fois)
 
-Sur l'hôte, dans le dossier de Madalean :
+Madalean apporte **son propre nœud Tailscale** : sur votre tailnet, l'hôte apparaît comme une machine à part,
+nommée `madalean`, à l'adresse `https://madalean.tailXXXX.ts.net` (port HTTPS normal, aucun numéro de port à taper).
+Il n'y a rien à installer sur l'hôte pour cela : ni Tailscale du système, ni `tailscale serve`.
+
+La première fois, ce nœud doit être **approuvé** dans votre compte Tailscale (Madalean n'approuve jamais rien
+lui-même) : ouvrez le lien de connexion Tailscale qu'il fournit, connectez-vous et acceptez la machine `madalean`.
+Pour l'instant, ce lien se lit sur l'hôte, dans un terminal :
 
 ```bash
-scripts/tailscale_setup.sh
+curl -s http://127.0.0.1:11500/api/net
 ```
 
-Le script ajoute **une seule** règle, `tailscale serve --bg --https=10500 http://127.0.0.1:11501`, et affiche
-l'adresse de l'hôte vue des autres appareils, de la forme `https://nom-du-pc.tailXXXX.ts.net:10500`. Il ne touche
-à aucune autre règle `tailscale serve` de la machine et n'active jamais *Funnel* (l'ouverture sur Internet).
-`scripts/tailscale_setup.sh --print` montre les commandes sans rien changer ; `--remove` retire la règle.
+(ligne `auth_url`). Une fois le nœud approuvé, la même commande indique `"state": "running"` et le nom complet de
+l'hôte (`dns_name`). Le tailnet doit avoir les certificats HTTPS activés : voir
+[Tailscale › Activer HTTPS](tailscale.md#activer-https).
 
-Si le script signale que HTTPS n'est pas activé, suivez [Tailscale › Activer HTTPS](tailscale.md#activer-https).
-<!-- verify after integration: tailscale_setup.sh applied for real on the host; printed URL format -->
+Si vous préférez passer par le Tailscale déjà installé sur l'hôte, voir
+[Tailscale › Autre possibilité](tailscale.md#autre-possibilite-le-tailscale-du-systeme).
 
 ## Étape 2 — Afficher un code sur l'hôte
 
-Sur l'ordinateur hôte : « Réglages › Appareils › Ajouter un appareil ». Un code à 6 chiffres s'affiche, valable
-**5 minutes**, utilisable **une seule fois**, avec un QR code pour l'application Android.
+Sur l'ordinateur hôte : « Réglages › Appareils », partie « Ajouter un appareil », bouton « Afficher un code ». Un
+code à 6 chiffres s'affiche, valable **5 minutes**, utilisable **une seule fois**, avec un QR code.
 
 ![Réglages › Appareils : code et QR code](../img/devices-add.png)
 
-Vérifiez le champ « Adresse de cet ordinateur vue des autres appareils » : c'est l'adresse affichée par le script de
-l'étape 1, sans `https://` (par exemple `nitro.tail1234.ts.net:10500`). Elle sert à fabriquer le QR code.
+Le champ « Adresse de cet ordinateur vue des autres appareils » se remplit tout seul quand le nœud Tailscale de
+Madalean tourne (par exemple `madalean.tail1234.ts.net`). Il sert à fabriquer le QR code. Le QR code contient aussi
+des adresses de secours, que l'application Android essaie si le nom ne répond pas : l'adresse IP Tailscale de l'hôte
+et, si l'accès depuis le réseau local est activé, son adresse sur le réseau local (port 11502 par défaut, voir
+[Tailscale › Sans Tailscale](tailscale.md#sans-tailscale)).
 
 ## Étape 3 — Sur l'appareil
 
@@ -61,19 +69,20 @@ l'étape 1, sans `https://` (par exemple `nitro.tail1234.ts.net:10500`). Elle se
 1. Installez l'application **Tailscale** (Play Store) et connectez-vous avec **le même compte** que sur l'hôte.
 2. Installez l'application **Madalean** depuis la [page d'installation](site:install) (fichier APK ; Android
    demande d'autoriser l'installation depuis votre navigateur, une fois).
-3. Scannez le QR code de l'hôte avec l'appareil photo : l'application s'ouvre avec l'adresse et le code déjà
-   remplis. Sinon, tapez l'adresse et le code à la main.
-4. Donnez un nom à l'appareil (« Pixel de Marie ») et touchez « Relier ».
+3. Ouvrez Madalean et touchez « Scanner le QR code », puis visez le QR code affiché sur l'hôte : l'adresse et le code
+   se remplissent tout seuls. L'application demande l'accès à l'appareil photo, seulement pour lire ce QR code.
+   Sinon, « Ou saisir l'adresse et le code » permet de les taper à la main.
+4. Donnez un nom à l'appareil (« Pixel de Marie ») et touchez « Appairer et ouvrir ».
 
 ![Écran de liaison sur un téléphone](../img/pair-phone.png)
 
 ### iPhone, iPad, ou tout appareil avec un navigateur
 
-Il n'y a pas d'application iOS. Installez Tailscale (App Store), puis ouvrez dans le navigateur l'adresse
-`https://nom-du-pc.tailXXXX.ts.net:10500`. La page de liaison demande le code et un nom d'appareil.
+Il n'y a pas d'application iOS. Installez Tailscale (App Store), puis ouvrez dans le navigateur l'adresse de l'hôte,
+par exemple `https://madalean.tail1234.ts.net`. La page « Relier cet appareil » demande le code et un nom d'appareil,
+puis « Relier ». Scanner le QR code de l'hôte avec l'appareil photo ouvre directement cette page, code rempli.
 **Code à saisir à chaque connexion depuis un navigateur** : à la visite suivante (ou après 2 h sans activité),
 affichez un nouveau code sur l'hôte.
-<!-- verify after integration: browser pairing over the tailnet from Safari -->
 
 ### Autre ordinateur Linux
 
@@ -90,8 +99,7 @@ seule.
   navigateur, qu'aucune page ne peut lire) ; elle n'est jamais transformée en jeton permanent et n'est gardée qu'en
   mémoire par l'hôte.
 
- Cinq codes faux d'affilée bloquent la liaison 10 minutes.
-Détails : [Sécurité](security.md).
+Cinq codes faux d'affilée bloquent la liaison 10 minutes. Détails : [Sécurité](security.md).
 
 ## Délier un appareil
 
@@ -100,7 +108,8 @@ Détails : [Sécurité](security.md).
   **immédiatement** : une page déjà ouverte perd aussitôt sa connexion en direct, la réponse en cours d'écriture pour
   elle est arrêtée, et elle revient à l'écran de liaison. Il en va de même quand une session de navigateur se termine
   (inactivité, limite de 12 h) et quand l'appareil se délie lui-même.
-- Depuis l'appareil lui-même : « Réglages › Appareils › Délier cet appareil ».
+- Depuis l'appareil lui-même : « Réglages › Appareils › Délier cet appareil ». Dans l'application Android,
+  « Oublier » retire aussi un serveur enregistré de l'écran de connexion.
 
 Délier un téléphone perdu est la première chose à faire ; votre compte Tailscale permet aussi de retirer l'appareil
 du réseau privé.

@@ -61,6 +61,6 @@ test('devices (host): pairing code with countdown and QR, device list', async ({
   await expect(page.getByText(/Expire dans \d min/)).toBeVisible();
   await page.getByLabel('Adresse de cet ordinateur vue des autres appareils').fill('host.example.ts.net:10500');
   await expect(page.getByRole('img', { name: /QR code de liaison/ })).toBeVisible();
-  await expect(page.getByText(/madalean:\/\/pair\?host=host\.example\.ts\.net:10500&code=\d{6}/)).toBeVisible();
+  await expect(page.getByText(/https:\/\/host\.example\.ts\.net:10500\/pair\?code=\d{6}/)).toBeVisible();
   await axe(page, 'devices');
 });

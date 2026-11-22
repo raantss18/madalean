@@ -714,6 +714,8 @@ const fr = {
   // ---- end Hugging Face (S-T)
 
   'devices.add': 'Ajouter un appareil',
+  'devices.netLogin': 'Pour que vos autres appareils joignent cet ordinateur, approuvez-le une fois dans votre compte Tailscale.',
+  'devices.netLoginOpen': 'Approuver dans Tailscale',
   'devices.addLead': 'Téléphone, tablette ou autre ordinateur sur votre réseau Tailscale : ouvrez Madalean dessus, puis tapez le code ou scannez le QR code avec l’application.',
   'devices.start': 'Afficher un code',
   'devices.codeIs': 'Code : {code}',
@@ -752,7 +754,7 @@ const fr = {
   'updates.checking': 'Recherche…',
   'updates.last': 'Dernière recherche : {t}',
   'updates.never': 'Jamais cherché.',
-  'updates.weekly': 'Chercher chaque semaine (rien ne s’installe sans votre clic)',
+  'updates.weekly': 'Chercher les mises à jour chaque semaine',
   'updates.installed': 'Installé : Mathlib {m} ; modèles {models}.',
   'updates.installing': 'Installation : {title}',
   'updates.progress': 'Progression',

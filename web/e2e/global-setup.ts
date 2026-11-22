@@ -22,8 +22,10 @@ export default async function setup(): Promise<void> {
   const port = await freePort();
   let remote = await freePort();
   while (remote === port) remote = await freePort();
+  // MADALEAN_E2E_STATIC: test a web build made elsewhere (`npx vite build --outDir …`) without touching madalean/static.
+  const statik = process.env['MADALEAN_E2E_STATIC'] ? ['--static', process.env['MADALEAN_E2E_STATIC']] : [];
   const child = spawn(join(root, 'bin', 'madalean'), ['serve', '--demo', '--port', String(port), '--remote-port', String(remote),
-    '--config-dir', join(dir, 'config'), '--cache-dir', join(dir, 'cache')], { stdio: ['ignore', 'pipe', 'pipe'], detached: false,
+    '--config-dir', join(dir, 'config'), '--cache-dir', join(dir, 'cache'), ...statik], { stdio: ['ignore', 'pipe', 'pipe'], detached: false,
     // never the real prefix (~/.local/share/madalean): an empty MADALEAN_HOME = development checkout (S-R: the article
     // editor compiles with the prefix's tectonic, whose cache must not be the user's)
     env: { ...process.env, MADALEAN_HOME: process.env['MADALEAN_E2E_HOME'] ?? join(dir, 'home') } });

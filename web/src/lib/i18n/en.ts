@@ -715,6 +715,8 @@ const en: Record<keyof typeof fr, string> = {
   // ---- end Hugging Face (S-T)
 
   'devices.add': 'Add a device',
+  'devices.netLogin': 'For your other devices to reach this computer, approve it once in your Tailscale account.',
+  'devices.netLoginOpen': 'Approve in Tailscale',
   'devices.addLead': 'Phone, tablet or another computer on your Tailscale network: open Madalean on it, then type the code or scan the QR code with the app.',
   'devices.start': 'Show a code',
   'devices.codeIs': 'Code: {code}',
@@ -753,7 +755,7 @@ const en: Record<keyof typeof fr, string> = {
   'updates.checking': 'Checking…',
   'updates.last': 'Last check: {t}',
   'updates.never': 'Never checked.',
-  'updates.weekly': 'Check every week (nothing installs without your click)',
+  'updates.weekly': 'Check for updates every week',
   'updates.installed': 'Installed: Mathlib {m}; models {models}.',
   'updates.installing': 'Installing: {title}',
   'updates.progress': 'Progress',

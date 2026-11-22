@@ -46,6 +46,6 @@ Each project uses a Lean **workspace** (“Settings › Lean workspaces”):
 
 - *Prover*: Lean 4.9 and the Mathlib the Goedel models were trained on. Pinned: it is never updated, so that the
   local models remain effective.
-- *Recent Lean*: latest Mathlib, updated automatically (see [Updates](updates.md)).
+- *Current Lean*: latest Mathlib, updated automatically (see [Updates](updates.md)).
 
 A library result can be reused only in the workspace where it was proved.
