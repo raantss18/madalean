@@ -1,4 +1,4 @@
-# Madalean thin clients (shells) — desktop AppImage and Android APK
+# Madalean shells — desktop AppImage and Android APK (clients), « Madalean Server » (the host's own app)
 
 Owner: session S-C. Sources in `shells/`, build/setup scripts in `scripts/`.
 
@@ -64,7 +64,7 @@ shells accept both the shapes below and the server's: `403 wrong|expired|no_code
      `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, a CSP without scripts, and a body that moves on with
      a same-origin meta refresh:
      `<meta http-equiv="refresh" content="0;url=NEXT">` where NEXT = `next` HTML-escaped, accepted only if it is a
-     relative path starting with `/`, not `//`, without `\`; otherwise `/`.
+     relative path starting with `/`, not `//`, without ``; otherwise `/`.
      The cookie value may be the device token (as `POST /api/pair` does today) or, better, a fresh session secret
      bound to the device (revoked with it); the shells do not read it.
    - invalid / expired / reused ticket: `303` to `/?reason=ticket` (or `/pair?reason=ticket`, see 5), no cookie.
@@ -170,6 +170,69 @@ WebKitGTK 2.54.2, webkit2gtk-4.1), tauri-plugin-single-instance 2.5.5, -window-s
 keyring 3.6.3, reqwest 0.12.28 (rustls). Build host deps (Arch): `webkit2gtk-4.1 gtk3 libsoup3 librsvg patchelf`
 (+ `fuse2` to run AppImages). linuxdeploy is fetched by tauri-cli into `~/.cache/tauri`; the script sets
 `NO_STRIP=true` (linuxdeploy's strip cannot read current Arch libraries).
+
+## « Madalean Server » — the host's own desktop app (host mode of `shells/desktop`, D50)
+
+The AppImage is the **client** of the other computers. The host itself gets **« Madalean Server »**: the same binary
+started in host mode, installed by `install.sh` / the `.run` / the self-update — never built on the user's machine.
+
+- **Host mode** = `--host`, or the program called `madalean-server` (the installed file name). `--port N` (local
+  listener, default 11500) and `--unit NAME` (systemd user unit, default `madalean`) are written by the installer when
+  they differ. In host mode the shell sets its GTK program name to `madalean-server` (X11 WM_CLASS / Wayland app_id →
+  `madalean-server.desktop` and its icon in the task bar), its Tauri identifier to `mg.madalean.server` (own
+  single-instance D-Bus name and own data dir, so the client AppImage can run beside it), its window icon to the server
+  icon, its title to « Madalean Server », and does not run the AppImage updater (the app is updated with the server).
+- **Window**: starts on the bundled server panel `ui/host.html` and moves to the local web UI
+  (`http://127.0.0.1:<port>/`, trusted listener, no pairing) as soon as `/api/hello` answers `local:true`. When the
+  server stops answering, the window goes back to the panel and returns to the web UI by itself when it is back —
+  unless the user pressed « Arrêter ». Second launch → the first window is focused (single instance).
+- **Panel** (FR/EN, follows the host's language until the user picks one): state (« En marche » + version and address,
+  « Démarrage… », « Arrêt… », « Arrêté », « Arrêté après une erreur », « Service non installé » with the exact fix
+  `bash '<prefix>/current/install.sh'`, « Pas lancé » without systemd), « Ouvrir Madalean », « Démarrer », « Arrêter »,
+  « Redémarrer » (enabled only when they make sense; a server started by hand outside the unit is shown but not
+  stopped), « Ouvrir les journaux » (last 300 lines of `journalctl --user -u <unit>.service`, « Actualiser »),
+  « Ouvrir dans le navigateur » (system browser). The failing command's stderr is shown.
+- **Menu bar « Serveur »** (always there, also over the web UI): state line, Ouvrir Madalean, Panneau du serveur,
+  Démarrer / Arrêter / Redémarrer, Ouvrir les journaux, Ouvrir dans le navigateur, Quitter. **Tray icon** (state,
+  show window, start / stop / restart, quit) only when `libayatana-appindicator3.so.1` or `libappindicator3.so.1`
+  exists (libappindicator-sys aborts the program otherwise); KDE shows it, GNOME needs the AppIndicator extension.
+  Closing the window quits the app; the server keeps running (it is a service).
+- **Service control**: `systemctl --user show|start|stop|restart <unit>.service` only — never sudo, never the system
+  manager, unit name checked (`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`). A poller asks `/api/hello` + `systemctl --user show`
+  every 2 s (at once after an action; actions time out after 40 s).
+- **Bridge**: `window.madaleanShell.kind = "host"` and **no** `changeServer` (the web UI hides « Changer de serveur »);
+  Ctrl+Shift+K opens the server panel. The panel's commands (`host_status`, `host_action`, `host_logs`, `host_open`)
+  are granted to the bundled pages only, like the connect screen's, and refuse to run in the client.
+- **Code**: `src-tauri/src/host.rs` (pure: arguments, `systemctl show` parsing, phases, allowed actions, labels,
+  `install.sh` lookup, tray library probe — unit-tested), `src/hostapp.rs` (poller, actions, menus, tray, commands),
+  `ui/host.html` + `ui/host.js`.
+- **Shipping**: `scripts/build_host_app.sh` (release machine: `cargo build --release --locked`, 7 MB) →
+  `dist/host-app/madalean-server` (+ `.sha256`, git-ignored) → `scripts/build_installer.sh` appends it to
+  `madalean-server.tar.gz` as `madalean/dist/host-app/` (reproducible: owner 0, the commit's date, `gzip -n`; +2.7 MB
+  compressed) → `install.sh` copies it into `<prefix>/versions/<v>/dist/host-app/` with `shells/branding/` → step 8
+  runs `scripts/install_host_app.sh`. `scripts/stage_release.sh` builds it before the installer.
+- **Menu entry** (`scripts/install_host_app.sh`): `~/.local/share/applications/madalean-server.desktop`
+  (`Name=Madalean Server`, `Icon=madalean-server`, `StartupWMClass=madalean-server`, `X-Madalean-Prefix/Port/Unit/
+  Launcher`), icons `hicolor/{16,24,32,48,64,128,256,512}/apps/madalean-server.png` + `scalable/…svg`, then
+  `update-desktop-database`, `gtk-update-icon-cache -t -f`, `kbuildsycoca6`/`5` so the menu shows it at once.
+  Launcher, best first: **native** (the binary, when `ldd` finds every library — webkit2gtk-4.1, GTK 3, libsoup3);
+  **browser** (first of chromium, chromium-browser, google-chrome(-stable), brave(-browser), microsoft-edge-stable,
+  vivaldi-stable with `--app=http://127.0.0.1:<port>/ --class=madalean-server`); **xdg-open**. The installer summary
+  says which and why. It removes the 2.0.1 « Madalean » `xdg-open` entry; it never installs the client entry
+  (`madalean.desktop`, `scripts/install_desktop_entry.sh`, for a host that also wants the AppImage). Every file is
+  recorded in `<prefix>/installed-files.txt` → removed by `uninstall.sh` (which also refreshes the icon caches; the
+  app process, started from the prefix, is stopped with the others).
+- **Self-update**: the entry starts `<prefix>/current/dist/host-app/madalean-server`, so the new version's app is
+  used at its next start; after the switch `selfupdate.py` runs the new version's `install_host_app.sh --refresh
+  --prefix <root>` (icons, launcher choice, port/unit kept; acts only on an entry of that prefix, or on the 2.0.1
+  xdg-open entry recorded in its `installed-files.txt`; never fails the update; result in `selfupdate.json` `desktop`).
+  The graphical installer's « Ouvrir Madalean » runs the entry's `Exec` (else `xdg-open`).
+- **Tests**: `cargo test` (host.rs: 9 tests, lib.rs: bridge kind), `shells/desktop/tests/host_e2e.sh` (private kwin session, demo server,
+  fake systemctl/journalctl: stopped → start → starting → running → web UI by itself → stop → panel → start → web UI →
+  logs; not installed; no systemd in English; single instance; own data dir — 12/12 PASS), `--live` (read-only look at
+  the real host: screenshots only), `tests/test_host_app_install.py` (fake PATH + temporary HOME: native / browser /
+  xdg-open, port and unit, old entry replaced, client entry untouched, refresh gating, uninstall, dry run, install.sh
+  `--dry-run`, self-update hook, the installer's « Ouvrir Madalean », brand files reproducible + RGBA Tauri icons).
 
 ## Android shell (`shells/android`, Flutter)
 
@@ -307,15 +370,17 @@ Visual identity of D40 (docs/BRAND.md): the user's « Madal∃an » logo, navy #
 swoosh. `madalean-logo-source.png` is the original raster; `madalean-wordmark.svg` is the vector master traced from
 it (all paths, no font). Everything else is **generated** by `scripts/build_brand.py` (never edit by hand):
 `madalean-wordmark-dark.svg` / `-mono.svg`, `madalean-icon.svg` (orange ∃ + swoosh on a navy rounded square),
-`-icon-small.svg` (≤ 32 px: heavier glyph), `-icon-maskable.svg`, `-icon-round.svg`, `madalean-mark-mono.svg`
+`-icon-small.svg` (≤ 32 px: heavier glyph), `-icon-maskable.svg`, `-icon-round.svg`, `madalean-mark-mono.svg`,
+`madalean-server-icon(-small).svg` (« Madalean Server »: the same icon with a server badge, D50)
 (`currentColor`), `png/` exports (16 → 1024 px), plus the copies in `web/public/brand/`, the Android launcher /
 adaptive / monochrome icons, the Tauri icons, `shells/desktop/ui/icon.svg` and `docs/brand/`.
 
 ## Tests
 
-- Desktop: `cargo test` in `shells/desktop/src-tauri` — 12 unit tests (addresses, pair links, answer mapping for
-  both server shapes, saved servers + 0600/0700 files, token file store, file-name sanitising); 1 ignored test for
-  the real keyring.
+- Desktop: `cargo test` in `shells/desktop/src-tauri` — 27 unit tests (addresses, pair links, answer mapping for
+  both server shapes, saved servers + 0600/0700 files, token file store, file-name sanitising, updater; host mode:
+  arguments, `systemctl show` parsing, phases, allowed actions, labels, install.sh lookup, tray probe; bridge kind);
+  1 ignored test for the real keyring.
 - Android: `flutter test` in `shells/android` — 68 tests (addresses + pair links with fallbacks, route order,
   CONNECT tunnel on real sockets, API client incl. both server shapes, network-error mapping, controller flows:
   revocation, unreachable, re-auth loop guard, LAN / tailnet-IP fallback and remembered route, host language,

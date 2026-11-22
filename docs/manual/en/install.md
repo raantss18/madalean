@@ -150,7 +150,7 @@ an altered file is refused.
 | 5. Lean workspaces | Lean workspaces already built on the computer are reused (through hard links: no extra space); otherwise, with `--build-workspace`, the “Current Lean” workspace is built |
 | 6. Local models | the models chosen in the plan are downloaded into `~/models`; those already there are reused, never moved |
 | 7. Service | the systemd user service `madalean` is installed and started: Madalean runs in the background as soon as your session opens |
-| 8. Menu | a “Madalean” entry is added to the applications menu |
+| 8. Menu | the **“Madalean Server”** app is added to the applications menu (the Madalean icon with a small server badge): Madalean’s window on this computer, with the server’s status, Start / Stop / Restart buttons and the logs. Without the system library webkit2gtk-4.1, the entry opens a Chromium window (or Chrome, Brave, Edge, Vivaldi), else your browser; the final summary says which |
 | 9. Check | a health check of each component, then a connection test to the server |
 
 At the end, the script shows the time taken, the space used and the address to open: `http://127.0.0.1:11500`. The
@@ -231,8 +231,17 @@ library from `~/.config/lean-ai-station/`.
 
 ## Starting and stopping
 
-The service starts with your session. Open the interface on the host: “Madalean” in the applications menu, or
-`http://127.0.0.1:11500` in a browser. In a terminal, if needed:
+The service starts with your session. Open the interface on the host: **“Madalean Server”** in the applications
+menu, or `http://127.0.0.1:11500` in a browser.
+
+“Madalean Server” is the host computer’s app: it shows Madalean in its own window (no pairing code: it is this
+computer) and, in its **Server** menu (or its icon next to the clock), the server’s status, **Start**, **Stop**,
+**Restart**, **Open the logs** and **Open in the browser**. When the server stops, the window shows the server panel;
+when it comes back, the window returns to Madalean by itself. If the service is not installed, the panel says so and
+gives the command to reinstall it. The “Madalean” app (AppImage, no badge) is for the **other** computers: see
+[Link a device](pairing.md).
+
+In a terminal, if needed:
 
 ```bash
 systemctl --user status madalean      # status

@@ -4,19 +4,23 @@
 (function () {
   if (!/^https?:$/.test(location.protocol)) return;
   var go = function (path) { location.href = 'madalean://shell/' + path; };
+  // Filled in by the shell: 'desktop' (client AppImage) or 'host' (« Madalean Server », the host's own app: there is
+  // no other server to change to, so no changeServer; Ctrl+Shift+K opens the server panel instead).
+  var kind = '__MADALEAN_SHELL_KIND__';
+  var bridge = {
+    kind: kind,
+    version: '__MADALEAN_SHELL_VERSION__',
+    openExternal: function (url) { window.open(String(url), '_blank', 'noopener'); },
+  };
+  if (kind === 'desktop') bridge.changeServer = function () { go('change-server'); };
   try {
     Object.defineProperty(window, 'madaleanShell', {
-      value: Object.freeze({
-        kind: 'desktop',
-        version: '2.0.0',
-        changeServer: function () { go('change-server'); },
-        openExternal: function (url) { window.open(String(url), '_blank', 'noopener'); },
-      }),
+      value: Object.freeze(bridge),
       writable: false, configurable: false,
     });
   } catch (e) { /* already defined */ }
   window.addEventListener('online', function () { go('check'); });
-  // Ctrl+Shift+K: change server (works even if the web UI shows no button).
+  // Ctrl+Shift+K: change server / server panel (works even if the web UI shows no button).
   window.addEventListener('keydown', function (e) {
     if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) { e.preventDefault(); go('change-server'); }
   }, true);

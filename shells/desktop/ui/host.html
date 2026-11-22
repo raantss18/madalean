@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Madalean Server</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="host.js" defer></script>
+</head>
+<body>
+  <main class="card wide"aria-labelledby="title">
+    <header class="top">
+      <img class="mark" src="server-icon.svg" alt="" width="44" height="44">
+      <div>
+        <h1 id="title">Madalean Server</h1>
+        <p class="sub" data-t="intro">Le serveur Madalean de cet ordinateur : c’est lui qui fait tout le travail.</p>
+      </div>
+      <button type="button" id="lang" class="link" aria-label="Language">English</button>
+    </header>
+
+    <section class="state" aria-labelledby="state-h">
+      <h2 id="state-h" data-t="stateTitle">État</h2>
+      <div class="state-row" role="status" aria-live="polite">
+        <span id="dot" class="dot" aria-hidden="true"></span>
+        <span class="grow">
+          <b id="phase">…</b>
+          <small id="detail" class="help"></small>
+        </span>
+      </div>
+      <p id="hint" class="help" hidden></p>
+      <div id="fix" class="fix" hidden>
+        <p data-t="fixIntro">Pour l’installer, relancez l’installateur de Madalean (fichier « Madalean-installer.run »), ou dans un terminal :</p>
+        <pre id="fix-cmd"></pre>
+      </div>
+      <p id="error" class="error" role="alert" hidden></p>
+      <div class="actions-row">
+        <button type="button" id="open" class="btn primary-s" data-t="open" hidden>Ouvrir Madalean</button>
+        <button type="button" id="start" class="btn" data-t="start">Démarrer</button>
+        <button type="button" id="stop" class="btn" data-t="stop">Arrêter</button>
+        <button type="button" id="restart" class="btn" data-t="restart">Redémarrer</button>
+      </div>
+      <div class="actions-row">
+        <button type="button" id="logs-btn" class="btn small" data-t="logs" aria-expanded="false" aria-controls="logs">Ouvrir les journaux</button>
+        <button type="button" id="browser" class="btn small" data-t="browser">Ouvrir dans le navigateur</button>
+      </div>
+    </section>
+
+    <section id="logs" class="logs" hidden aria-labelledby="logs-h">
+      <div class="row logs-head">
+        <h2 id="logs-h" class="grow" data-t="logsTitle">Journaux du serveur</h2>
+        <button type="button" id="logs-refresh" class="btn small" data-t="refresh">Actualiser</button>
+      </div>
+      <pre id="logs-text" tabindex="0"></pre>
+    </section>
+
+    <footer class="foot">
+      <span data-t="foot">Sur les autres appareils (téléphone, autre ordinateur), utilisez l’application Madalean.</span>
+      <span id="version"></span>
+    </footer>
+  </main>
+</body>
+</html>

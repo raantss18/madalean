@@ -152,7 +152,7 @@ contenu) : un fichier altéré est refusé.
 | 5. Espaces Lean | les espaces Lean déjà construits sur la machine sont repris (par liens physiques : aucune place en plus) ; sinon, avec `--build-workspace`, l'espace « Lean actuel » est construit |
 | 6. Modèles locaux | les modèles retenus par le plan sont téléchargés dans `~/models` ; ceux qui y sont déjà sont réutilisés, jamais déplacés |
 | 7. Service | le service utilisateur systemd `madalean` est installé et démarré : Madalean tourne en arrière-plan dès l'ouverture de votre session |
-| 8. Menu | une entrée « Madalean » est ajoutée au menu des applications |
+| 8. Menu | l'application **« Madalean Server »** est ajoutée au menu des applications (icône Madalean avec un petit badge serveur) : la fenêtre de Madalean sur cet ordinateur, avec l'état du serveur et les boutons Démarrer / Arrêter / Redémarrer, les journaux. Sans la bibliothèque système webkit2gtk-4.1, l'entrée ouvre une fenêtre de Chromium (ou de Chrome, Brave, Edge, Vivaldi), sinon votre navigateur ; le bilan final le dit |
 | 9. Contrôle | un bilan de santé de chaque composant, puis un essai de connexion au serveur |
 
 À la fin, le script affiche la durée, la place occupée et l'adresse à ouvrir : `http://127.0.0.1:11500`. Le journal
@@ -234,8 +234,18 @@ réglages, dossiers et bibliothèque depuis `~/.config/lean-ai-station/`.
 
 ## Démarrer et arrêter
 
-Le service démarre avec votre session. Ouvrez l'interface sur l'hôte : « Madalean » dans le menu des applications,
-ou `http://127.0.0.1:11500` dans un navigateur. En terminal, si besoin :
+Le service démarre avec votre session. Ouvrez l'interface sur l'hôte : **« Madalean Server »** dans le menu des
+applications, ou `http://127.0.0.1:11500` dans un navigateur.
+
+« Madalean Server » est l'application de l'ordinateur hôte : elle montre Madalean dans sa propre fenêtre (sans code
+d'appairage : c'est cet ordinateur) et, dans son menu **Serveur** (ou son icône près de l'horloge), l'état du
+serveur, **Démarrer**, **Arrêter**, **Redémarrer**, **Ouvrir les journaux** et **Ouvrir dans le navigateur**. Quand
+le serveur s'arrête, la fenêtre affiche le panneau du serveur ; quand il repart, elle revient d'elle-même sur
+Madalean. Si le service n'est pas installé, le panneau le dit et donne la commande pour le réinstaller.
+L'application « Madalean » (AppImage, sans badge) est pour les **autres** ordinateurs : voir
+[Relier un appareil](pairing.md).
+
+En terminal, si besoin :
 
 ```bash
 systemctl --user status madalean      # état

@@ -154,7 +154,16 @@ strict ; les accélérations servent aux essais intermédiaires, jamais au verdi
     tard » + carte sur l'accueil, reprise là où tu t'étais arrêté (menu du logo, Réglages) — à essayer par toi ;
     téléchargement réel d'un modèle depuis l'assistant non essayé (testé avec un faux téléchargeur)
 27. ⬜ Texte « environ 2 Go » de l'écran Calcul sans SageMath : 1,5 Go à télécharger, 5 Go sur le disque (S-AK)
-28. ⬜ Icône 32x32 de l'AppImage à convertir en RGBA (`cargo check` refuse l'icône actuelle)
+28. ✅ Icône 32x32 de l'AppImage convertie en RGBA (`build_brand.py` écrit toutes les icônes Tauri en RGBA ; S-AR)
+29. ⚠️ **« Madalean Server »**, l'application de l'ordinateur hôte (S-AR, D50, branche feat/madalean-server-app) :
+    Madalean dans sa propre fenêtre + menu « Serveur » (état, Démarrer / Arrêter / Redémarrer, journaux, ouvrir dans
+    le navigateur) + icône près de l'horloge ; une seule entrée dans le menu des applications, avec l'icône Madalean
+    et un petit badge serveur (l'AppImage et l'APK gardent l'icône sans badge) ; installée par install.sh, le .run et
+    la mise à jour automatique, sans compilation chez toi. Essayée ici en vrai (lecture seule, fenêtre à part) — à
+    essayer par toi après la prochaine installation : le menu, l'icône dans la barre des tâches, l'icône près de
+    l'horloge, Arrêter / Démarrer sur le vrai service
+30. ⬜ Prochaine release : construire l'application serveur avec `scripts/stage_release.sh` (elle appelle
+    `scripts/build_host_app.sh`) pour qu'elle soit dans `madalean-server.tar.gz`
 
 ### D — Plus tard
 - ✅ Lever la pause d'un fournisseur quand on enregistre une nouvelle clé (S-AO, D47 : tous les fournisseurs ; pauses,

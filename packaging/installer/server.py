@@ -261,6 +261,40 @@ def make_handler(inst: Install, token: str, port_box: list, activity: list, quit
     return H
 
 
+def host_app_command(data_home: Path | None = None) -> list[str] | None:
+    """The Exec line of the « Madalean Server » menu entry install.sh just wrote (D50: the host's desktop app, else a
+    browser window), so « Ouvrir Madalean » opens the same thing as the menu. None when there is no such entry."""
+    import shlex
+    data = data_home or Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    entry = data / "applications" / "madalean-server.desktop"
+    try:
+        text = entry.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if "X-Madalean-Host=1" not in text:
+        return None
+    m = re.search(r"^Exec=(.+)$", text, re.M)
+    try:
+        cmd = shlex.split(m.group(1)) if m else []
+    except ValueError:
+        return None
+    cmd = [c for c in cmd if not c.startswith("%")]           # no field codes are written, but never pass one
+    return cmd if cmd and (Path(cmd[0]).is_file() or shutil.which(cmd[0])) else None
+
+
+def open_madalean(url: str) -> bool:
+    """« Ouvrir Madalean » at the end of the install: the Madalean Server app (menu entry), else the browser."""
+    cmd = host_app_command()
+    if cmd:
+        try:
+            subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+            return True
+        except OSError:
+            pass
+    return open_browser(url)
+
+
 def open_browser(url: str) -> bool:
     exe = shutil.which("xdg-open")
     if not exe:
@@ -294,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     activity = [time.monotonic()]
     quit_ev = threading.Event()
     inst = Install(src, install_sh, list(a.rest), None)
-    handler = make_handler(inst, token, port_box, activity, quit_ev, open_browser)
+    handler = make_handler(inst, token, port_box, activity, quit_ev, open_madalean)
     try:
         httpd = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), handler)
     except OSError as e:

@@ -363,6 +363,30 @@
           "markdownDescription": "Enables the forget command without any pre-configured scope."
         },
         {
+          "description": "Enables the host_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-host-action",
+          "markdownDescription": "Enables the host_action command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the host_logs command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-host-logs",
+          "markdownDescription": "Enables the host_logs command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the host_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-host-open",
+          "markdownDescription": "Enables the host_open command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the host_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-host-status",
+          "markdownDescription": "Enables the host_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the init_state command without any pre-configured scope.",
           "type": "string",
           "const": "allow-init-state",
@@ -427,6 +451,30 @@
           "type": "string",
           "const": "deny-forget",
           "markdownDescription": "Denies the forget command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the host_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-host-action",
+          "markdownDescription": "Denies the host_action command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the host_logs command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-host-logs",
+          "markdownDescription": "Denies the host_logs command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the host_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-host-open",
+          "markdownDescription": "Denies the host_open command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the host_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-host-status",
+          "markdownDescription": "Denies the host_status command without any pre-configured scope."
         },
         {
           "description": "Denies the init_state command without any pre-configured scope.",

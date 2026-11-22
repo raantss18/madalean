@@ -124,6 +124,11 @@ if [ $DRY = 1 ]; then
   echo "Étapes : 1 vérifications · 2 Madalean -> $PREFIX/versions · 3 environnement verrouillé ·"
   echo "  4 composants (llama.cpp : $VARIANT$([ "$PLAN_SAGE" = now ] && echo ', SageMath' || true)) ·" \
        "5 espaces Lean ($WSTXT) · 6 modèles (${PLAN_MODEL_LIST:-aucun}) · 7 service $UNIT · 8 menu · 9 contrôle"
+  if [ $DESKTOP = 1 ]; then
+    L=$(bash "$SRC/scripts/install_host_app.sh" --detect --port "$PORT" --binary "$SRC/dist/host-app/madalean-server" | sed -n 's/^LAUNCHER=//p')
+    echo "Menu : « Madalean Server » ($L)"
+    echo "DRY-RUN hostapp=$L"
+  fi
   echo "DRY-RUN models=$PLAN_MODELS variant=$VARIANT sage=$PLAN_SAGE tex=$PLAN_TEX workspaces=$WORKSPACES build=$BUILD_WS"
   exit 0
 fi
@@ -162,7 +167,9 @@ if [ "$SRC" != "$(readlink -f "$DEST" 2>/dev/null)" ]; then
       -cf - madalean bin scripts packaging LICENSE NOTICE $( [ -d site ] && echo site ) \
       $( [ -d docs/manual ] && echo docs/manual ) \
       README.md README.en.md install.sh uninstall.sh export_offline.sh $( [ -d data ] && echo data ) \
-      $( [ -d net ] && echo net ) $( [ -d dist/madalean-net ] && echo dist/madalean-net ) ) | tar -C "$DEST.tmp" -xf -
+      $( [ -d net ] && echo net ) $( [ -d dist/madalean-net ] && echo dist/madalean-net ) \
+      $( [ -d dist/host-app ] && echo dist/host-app ) $( [ -d shells/branding ] && echo shells/branding ) ) \
+    | tar -C "$DEST.tmp" -xf -
   [ -f "$DEST.tmp/madalean/static/index.html" ] || { echo "Interface web absente de madalean/static."; exit 1; }
   rm -rf "$DEST.old"; [ -d "$DEST" ] && mv "$DEST" "$DEST.old"
   mv "$DEST.tmp" "$DEST"; rm -rf "$DEST.old"
@@ -280,22 +287,22 @@ fi
 
 # ------------------------------------------------------------------ desktop entry
 step "8/9 Menu"
+# ONE entry on the host: « Madalean Server » (D50), the host's own desktop app (shipped prebuilt in the server
+# archive, dist/host-app/madalean-server) — else a Chromium-family app window, else the default browser. It replaces
+# the old « Madalean » xdg-open entry. The client AppImage is for the OTHER computers: never installed here (the user
+# can still add it with scripts/install_desktop_entry.sh).
+HOSTAPP_SUMMARY=""
 if [ $DESKTOP = 1 ]; then
-  APPIMG="$(ls -t "$SRC"/shells/desktop/dist/Madalean-*x86_64.AppImage 2>/dev/null | head -1 || true)"
-  DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
-  if [ -n "$APPIMG" ] && [ -x "$SRC/scripts/install_desktop_entry.sh" ]; then
-    OPT="${MADALEAN_OPT_DIR:-$HOME/.local/opt/madalean}"
-    [ -d "$(dirname "$OPT")" ] || record "$(dirname "$OPT")/"     # directories we create: removed if empty
-    [ -d "$OPT" ] || record "$OPT/"
-    "$SRC/scripts/install_desktop_entry.sh" --appimage "$APPIMG" >/dev/null && {
-      record "$DATA/applications/madalean.desktop"; record "${MADALEAN_OPT_DIR:-$HOME/.local/opt/madalean}/Madalean.AppImage"
-      for s in 48 128 256 512; do record "$DATA/icons/hicolor/${s}x${s}/apps/madalean.png"; done
-      record "$DATA/icons/hicolor/scalable/apps/madalean.svg"; echo "Menu : Madalean (client de bureau)."; }
-  else
-    D="$DATA/applications/$UNIT.desktop"; mkdir -p "$(dirname "$D")"
-    printf '[Desktop Entry]\nType=Application\nName=Madalean\nComment=Lean 4 proving assistant\nExec=xdg-open http://127.0.0.1:%s/\nIcon=applications-science\nCategories=Education;Science;Math;\nTerminal=false\n' "$PORT" > "$D"
-    record "$D"; echo "Menu : $D (ouvre http://127.0.0.1:$PORT/)"
-  fi
+  HOSTAPP_OUT="$(bash "$APP/scripts/install_host_app.sh" --prefix "$PREFIX" --port "$PORT" --unit "$UNIT" 2>&1)" \
+    || echo "⚠️  Entrée de menu non installée."
+  printf '%s\n' "$HOSTAPP_OUT" | grep -v '^LAUNCHER=' || true
+  case "$(printf '%s\n' "$HOSTAPP_OUT" | sed -n 's/^LAUNCHER=//p')" in
+    native)   HOSTAPP_SUMMARY="Ouvrez « Madalean Server » dans le menu des applications." ;;
+    browser)  HOSTAPP_SUMMARY="Ouvrez « Madalean Server » dans le menu (fenêtre du navigateur : webkit2gtk-4.1 manque)." ;;
+    xdg-open) HOSTAPP_SUMMARY="« Madalean Server » ouvre votre navigateur (webkit2gtk-4.1 et Chromium absents)." ;;
+  esac
+else
+  echo "(ignoré : --no-desktop)"
 fi
 
 # ------------------------------------------------------------------ summary
@@ -316,5 +323,6 @@ else
 fi
 echo
 echo "Installé en $(( $(date +%s) - T0 )) s — $(du -sh "$PREFIX" | cut -f1) dans $PREFIX"
-echo "Étape suivante : ouvrez http://127.0.0.1:$PORT/ ; pour un téléphone ou un autre PC, suivez le lien de"
+[ -n "$HOSTAPP_SUMMARY" ] && echo "$HOSTAPP_SUMMARY"
+echo "Étape suivante : ouvrez Madalean (http://127.0.0.1:$PORT/) ; pour un téléphone ou un autre PC, suivez le lien de"
 echo "connexion Tailscale affiché dans Système → Réseau, puis appairez l'appareil (madalean pair)."

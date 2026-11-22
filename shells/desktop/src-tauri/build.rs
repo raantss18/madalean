@@ -51,6 +51,11 @@ fn main() {
             "set_auto_update",
             "check_updates_now",
             "restart_now",
+            // host mode (« Madalean Server », D50); they refuse to run in the client shell
+            "host_status",
+            "host_action",
+            "host_logs",
+            "host_open",
         ]),
     ))
     .expect("tauri build");
