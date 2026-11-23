@@ -130,6 +130,8 @@ def holds(p, dom: str, env: dict | None = None) -> bool:
         return a == b if n == 0 else (a - b) % n == 0
     if h == "prime":
         n = evaluate(p[1], "N", env)
+        if n.bit_length() > 4096:
+            raise TooBig("number too large for a primality test")
         return is_prime(n)
     raise Unsupported(f"cannot decide {h}")
 

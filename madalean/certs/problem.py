@@ -152,19 +152,19 @@ def _closed_tasks(pb: Problem) -> list[Task]:
     h = g[0]
     if h == "prime":
         n = E.evaluate(g[1], E.domain(g, {}))
+        if n.bit_length() > pratt.MAX_BITS:
+            return []                    # too large for a certificate here (and for a quick primality test)
         if not E.is_prime(n):
             d = next((k for k in range(2, 100000) if n % k == 0), 0) if n > 1 else 0
             return [Task("prime", refuted=f"{n} = {d} × {n // d}" if d and d < n else f"{n}")]
         if n < pratt.SMALL:
             return [Task("prime", None, {"n": n, "expr": g[1]})]
-        if n.bit_length() > pratt.MAX_BITS:
-            return []
         return [Task("prime", {"kind": "pratt", "n": str(n), "small": pratt.SMALL}, {"n": n, "expr": g[1]})]
     if h == "not" and g[1][0] == "prime":
         n = E.evaluate(g[1][1], E.domain(g[1], {}))
         if n < 2:
             return [Task("arith", None, {})]
-        if E.is_prime(n):
+        if n.bit_length() > 2048 or E.is_prime(n):
             return []
         return [Task("composite", {"kind": "factor", "n": str(n)}, {"n": n, "expr": g[1][1]})]
     if h == "exists":

@@ -124,12 +124,17 @@ def test_every_third_party_import_is_in_the_main_lock():
     import ast
     root = Path(deps.__file__).resolve().parents[1]
     found = set()
+    in_sage = set()          # S-AT: certs/sage_producer.py is not imported by the server, it runs inside Sage
     for p in root.rglob("*.py"):
+        into = in_sage if p.name == "sage_producer.py" else found
         for n in ast.walk(ast.parse(p.read_text(encoding="utf-8"))):
             if isinstance(n, ast.Import):
-                found |= {a.name.split(".")[0] for a in n.names}
+                into |= {a.name.split(".")[0] for a in n.names}
             elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
-                found.add(n.module.split(".")[0])
+                into.add(n.module.split(".")[0])
+    sage_locked = {p.name for p in manifest.read_lock(manifest.lock_path(manifest.component("sage")))}
+    assert {"sage", "cvxopt"} <= in_sage
+    assert not {m for m in in_sage if m not in sys.stdlib_module_names and m not in sage_locked}
     local = {"madalean", "madasite"}                 # madasite = site/madasite, shipped with the app (S-F)
     third = {m for m in found if m not in sys.stdlib_module_names and m not in local}
     conda_name = {"PIL": "pillow", "fontTools": "fonttools"}
