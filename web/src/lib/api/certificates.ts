@@ -13,10 +13,10 @@ export interface CertOutcome {
 export interface CertKind { id: string; title: ApiMsg; sage: boolean; checker: string }
 
 export const certificates = {
-  info: () => request<{ enabled: boolean; sage: boolean; kinds: CertKind[] }>('GET', '/api/certificates'),
-  check: (statement: string, workspace?: string) => request<CertOutcome>('POST', '/api/certificates/check', { statement, workspace }),
+  info: () => request<{ enabled: boolean; sage: boolean; kinds: CertKind[] }>('GET', '/certificates'),
+  check: (statement: string, workspace?: string) => request<CertOutcome>('POST', '/certificates/check', { statement, workspace }),
   fromCell: (project_id: string, doc: string, cell_id: string) =>
-    request<CertOutcome>('POST', '/api/certificates/dossier', { project_id, doc, cell_id }),
+    request<CertOutcome>('POST', '/certificates/dossier', { project_id, doc, cell_id }),
 };
 
 /** Cells whose result Madalean knows how to state in Lean (the server decides; this only hides the action elsewhere). */

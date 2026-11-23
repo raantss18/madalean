@@ -8,10 +8,16 @@ Règle : on n'enlève rien de ce qui marche. Chaque ajout est un module à part,
 reste le verdict d'un Lean neuf et strict. Madalean ne concurrence pas les grands modèles : il les utilise tous, et
 gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par dollar) et l'atelier complet.
 
-1. 🔄 **Certificats : Sage calcule, Lean vérifie** (S-AT) — factorisations, primalité, bases de Gröbner / identités
-   polynomiales, intervalles certifiés, programmation linéaire et sommes de carrés, recherches exhaustives (SAT) :
-   le calcul produit un témoin, Lean ne fait que le vérifier ; ouvre nombres, algèbre, combinatoire, analyse,
-   optimisation, géométrie
+1. ✅ **Certificats : Sage calcule, Lean vérifie** (S-AT, D52, docs/CERTIFICATES.md) — douze familles vérifiées sur
+   les deux Lean (4.9 et 4.36) : primalité (jusqu'à 400 bits, sans faire confiance au compilateur), nombres composés,
+   calculs sur des entiers, puissances modulaires, identités polynomiales, conséquences d'équations polynomiales
+   (bases de Gröbner), inégalités linéaires (Farkas), inégalités polynomiales (sommes de carrés), existence et
+   contre-exemples (témoin trouvé par Sage), inégalités numériques (√, π, e, log 2), vérifications exhaustives.
+   Dans la preuve d'un dossier (essai « certificat », sans modèle, à côté de la recherche dans Mathlib), comme outil
+   du prouveur, et dans Calcul (« Certifier avec Lean » → un dossier). Un témoin faux est refusé par Lean et c'est dit.
+   - ⬜ reste : recherches exhaustives par SAT / DRAT (pas de solveur dans ce Sage, pas de vérificateur dans Lean sans
+     faire confiance au compilateur), graphes comme témoins, intégrales et fonctions générales par intervalles,
+     arithmétique entière (`omega` suffit), anneaux abstraits, le chef d'orchestre qui demande lui-même un témoin
 2. ✅ **Mesurer** (S-AU, D53, docs/BENCH.md) — `madalean bench` : miniF2F et PutnamBench (téléchargés à une version
    figée, jamais copiés), jeu de contrôle de 20 énoncés ; la vraie chaîne de l'application, sans interface ; seule
    compte la preuve qu'un Lean neuf et strict accepte ; une ligne par problème (essais, temps, jetons, coût, modèle)

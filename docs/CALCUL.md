@@ -264,6 +264,19 @@ Limits: probes for Sage cells only (a Python/sympy cell gets the model-only expl
 last expression; the re-evaluation re-runs the cell's code (≤ 60 s) — a cell with side effects (files, randomness)
 may differ and then loses its facts.
 
+### 3.8 « Certifier avec Lean » (S-AT, DECISIONS D52) — `madalean/certs/fromcalcul.py`
+
+A Sage result is a computation, not a proof. For the cells whose result has a certificate — `factor(n)`,
+`is_prime(n)`, `next_prime`, `gcd`, `lcm`, `xgcd`, `power_mod`, `inverse_mod`, `factorial`, `binomial`, an integer
+expression — the cell menu offers « Certifier avec Lean »: the cell's text and its stored result become a Lean
+statement (nothing is executed again; integer expressions only, names assigned on earlier lines of the same cell are
+substituted), Sage computes the witness that statement needs (a Pratt certificate for a prime, a divisor…) and a
+fresh strict Lean checks the proof. On success a dossier is created in the project with the statement and the proof,
+and the panel under the cell shows the witness, the size of the proof, the two times and « Ouvrir le dossier ». A
+refusal by Lean, a missing witness or an unsupported cell is said in plain words; nothing is ever shown as certified
+without Lean. Route `POST /api/certificates/dossier` (docs/API.md §6g), same permission as a run. Everything else
+about certificates: docs/CERTIFICATES.md.
+
 ## 4. Outputs
 
 LaTeX (KaTeX; for Sage results Madalean adds `text/latex` from `latex(_)` so JupyterLab shows it too), plots as

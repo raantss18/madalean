@@ -1153,3 +1153,34 @@
   mode, loop with a fake kernel, approval, planted false conjecture, real Lean on lean-prover49, real Sage and the
   real sandboxed kernel), vitest, svelte-check, e2e + axe. Not verified: a model-written experiment with a real
   provider (the path is tested with a scripted model); graph families in the browser (demo has no kernel).
+## D52 — Certificates: Sage computes, Lean only checks (TODO « Stratégie 2.1 » item 1, 2026-11-23, S-AT)
+- Request: « le calcul produit un témoin, Lean ne fait que le vérifier » — factorisations, primality, Gröbner /
+  polynomial identities, certified intervals, linear programming and sums of squares, exhaustive searches.
+- Decision (docs/CERTIFICATES.md): a registry of certificate kinds (`madalean/certs`, `engine.KINDS`), each = a
+  recognizer of the statement's shape (`problem.py` on a small reader of Lean arithmetic, `expr.py`), a producer in
+  Sage (`sage_producer.py`), a Lean checker template (`render.py`, one text for both workspaces, with `first | …`
+  alternatives where Mathlib's names or defaults differ), size limits and tests. Twelve kinds: prime, composite,
+  arith, powmod, identity, ideal, linear, sos, exists, counterexample, numeric, finite. Used (a) as an early proof
+  strategy beside Mathlib-first (D38 racer, no model), (b) as the prover agent's tool `sage_witness`, (c) in Calcul
+  (« Certifier avec Lean » → dossier), and through `POST /api/certificates/…`.
+- **Trust**: only Lean. The witness is read strictly (integers, rationals, polynomials) and never checked in Python
+  for its mathematics: a wrong witness must be refused by Lean and reported (« Certificat refusé par Lean »), which
+  the tests do with wrong witnesses of the right shape. Every accepted proof passed the fresh strict check.
+- **No `native_decide`** (it would put Lean's compiler in the trusted base, and D28 refuses it before compilation).
+  Consequence for primality: modular powers are evaluated by the kernel on a generated square-and-multiply function
+  proved equal to `a ^ e % p` (2²⁵⁵ − 19: about 4.5 s of checking on Lean 4.9); for finite claims: `decide`, up to 4000 cases.
+- **Sandbox**: the producer is one fixed program; requests are data (trees and integer lists), base64-wrapped so
+  that nothing is preparsed or evaluated; it runs in Calcul's sandboxed kernel. Since no model or user code is
+  involved, the pipeline may run it for any job (like a Lean check); the explicit API calls follow Calcul's rule
+  (host, or `experiments_remote`).
+- False claims found by the computation are reported, never « proved false » by this module and never when the
+  statement has hypotheses; the statement check keeps the decision.
+- Rejected: `native_decide` flagged as « less trusted » (two levels of « vérifiée » would blur the one promise);
+  letting the model write the Sage code for a witness (needs approval each time and can compute the wrong thing);
+  `polyrith` (needs the network and a remote Sage); checking the witness in Python before Lean (a second,
+  unverified judge); a per-bit chain of `have` for modular powers (quadratic elaboration: 127 bits did not pass in
+  200 s); a SAT / DRAT route (no real SAT solver in this Sage, and no DRAT checker in Lean without `native_decide`:
+  future work); integer linear arithmetic by certificates (`omega` already decides it without a witness).
+- Measured (docs/PERFORMANCE.md « Certificats (S-AT) »): the 64-statement corpus (60 true statements, 60/60 verified on each; 4 false ones reported) on lean-prover49 (4.9) and
+  lean-current (4.36), every kind on both.
+

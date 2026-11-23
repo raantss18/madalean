@@ -859,6 +859,30 @@ Events: `explore.updated` `{exploration, running}` at every step change; the exp
 `calcul.running` / `calcul.output` / `calcul.updated`. Evidence kinds added to a conjecture's log: `exploration`,
 `hunt` (and the existing `counterexample_check`).
 
+## 6g. Certificats — Sage computes, Lean checks (S-AT D52, plugin `certificates.py`)
+
+docs/CERTIFICATES.md. The two POSTs run Madalean's fixed producer in Calcul's sandboxed Sage kernel: allowed from the
+host, or from a paired device when `experiments_remote` is on (else 403 `experiments_host_only`). Every proof returned
+as `verified` passed a fresh strict Lean check in the request.
+
+- `GET /api/certificates` → `{enabled (setting `certificates`), sage: bool, kinds: [{id, title {key, params, text},
+  sage: bool, checker}]}`.
+- `POST /api/certificates/check {statement, workspace?}` — `statement`: a full `theorem … := by sorry` (with or
+  without header) or only `BINDERS : PROP` (`": ∃ x : ℕ, 17 * x % 3120 = 1"`). → `{status: verified | refuted |
+  rejected | no_witness | unavailable | none, kind, title, code (the checked Lean file), witness [{key, params,
+  text}], checker, axioms, reason, errors (Lean's messages when it refused the certificate), sage_seconds,
+  lean_seconds, seconds, lines, tried [{kind, status, reason?}], kinds, workspace}`. Nothing is stored. 400
+  `bad_statement`, 409 `workspace`.
+- `POST /api/certificates/dossier {statement | project_id + doc + cell_id, title?, workspace?, dry?}` — « Certifier
+  avec Lean ». With a cell: the statement is built from the cell's text and stored result (400
+  `certificate_unsupported` when the cell has no supported shape, or is stale / failed). `dry: true` → `{statement,
+  kinds, what}` without running anything. Otherwise the outcome as above plus `statement` and `dossier`: when Lean
+  accepted (201), a new dossier (in the project) holding the statement, the certificate proof (model
+  `certificat:<kind>`, meta `strategy: certificate, certificate, certificate_checker, certificate_witness`) and the
+  events `statement`, `proof`, `certificate`; `dossier: null` otherwise (200).
+- Dossier events: kind `certificate` (text = one line + the witness as a list; params `title, cert_kind, checker,
+  detail`). Job attempts: `kind: "certificate"`, model `certificat:<kind>`. Setting: `certificates: bool`.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

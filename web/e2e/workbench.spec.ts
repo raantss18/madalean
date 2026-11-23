@@ -143,6 +143,17 @@ test('calcul notebook: ordered cells, exact/approx, NL cell to review, keyboard,
   await expect(artDlg.getByLabel('Énoncé')).toHaveValue(/641 \\cdot 6700417/);
   await artDlg.getByRole('button', { name: '✕' }).click();
   await steps.getByRole('button', { name: 'Fermer' }).click();
+  // S-AT: « Certifier avec Lean » — the result becomes a Lean statement, the panel says what Lean checked
+  await firstCode.getByRole('button', { name: /Plus d’actions/ }).click();
+  await page.getByRole('menuitem', { name: 'Certifier avec Lean' }).click();
+  const cert = firstCode.getByRole('region', { name: 'Certificat' });
+  await expect(cert).toContainText('Vérifié par Lean');
+  await expect(cert.locator('.cert-w li')).toHaveCount(1);
+  await axe(page, 'calcul certificate');
+  await page.setViewportSize({ width: 375, height: 800 });
+  await noHorizontalScroll(page, 'calcul certificate (phone)');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await cert.getByRole('button', { name: 'Fermer' }).click();
   // a cell without a successful result has no such entry (the model's pending cell)
   await page.locator('li.cell.pending').first().getByRole('button', { name: /Plus d’actions/ }).click();
   await expect(page.getByRole('menuitem', { name: 'Expliquer les étapes du calcul' })).toHaveCount(0);

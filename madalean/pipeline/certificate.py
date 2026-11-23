@@ -64,6 +64,9 @@ async def run(ctx, io, statement: str, ws, timeout_s: int) -> CertificateResult:
     o = await engine.certify(statement, ws, check, producer.for_ctx(ctx), sage_seconds=SAGE_SECONDS, on_step=on_step)
     res = CertificateResult(o.ok, o.code if o.ok else "", o.kind, o.status, o.witness, o.checker, o.axioms, o.reason,
                             time.monotonic() - t0, o.sage_seconds)
+    if o.status in ("unavailable", "none") and hasattr(io, "drop_attempt"):
+        io.drop_attempt(a)             # no Sage here (Calcul not installed): nothing was tried, nothing to show
+        return res
     title = msg(engine.KINDS[o.kind]["title"])["text"] if o.kind else ""
     a.gen_seconds, a.compile_seconds, a.code = o.sage_seconds, o.lean_seconds, o.code
     a.model = res.model if o.kind else a.model

@@ -152,7 +152,12 @@ async def certificates_dossier(request: web.Request) -> web.Response:
     if ws is None or await ctx.lean.problems(ws):
         return error(409, "workspace", "L'espace de travail Lean n'est pas prêt.")
     if ctx.demo:
-        return error(409, "demo", "Indisponible dans la démonstration.")
+        # the demonstration server has neither Sage nor Lean: a canned outcome for the UI tests and screenshots
+        if not data.get("cell_id"):
+            return error(409, "demo", "Indisponible dans la démonstration.")
+        return ok({**engine.Outcome(status="verified", kind="arith", code=st, checker="norm_num / decide",
+                                    witness=[msg("Calcul direct sur des nombres.")], axioms=[], lean_seconds=2.1,
+                                    seconds=2.1).to_dict(), "statement": st, "workspace": ws.key, "dossier": None})
     if not engine.kinds_of(st):
         return error(400, "certificate_unsupported", "Ce résultat n'a pas de certificat pris en charge.")
     o = await _certify(request, ctx, st, ws)

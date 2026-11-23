@@ -50,20 +50,19 @@ def lean():
     return LeanRunner(Slots({"lean": 3}), Path(tempfile.mkdtemp(prefix="madalean-cert-lean-")))
 
 
-def _workspace(key: str):
+@pytest.fixture(scope="module", autouse=True)
+def extra_toolchains():
+    """`MADALEAN_TEST_TOOLCHAINS`: more places to look for Lean toolchains (read only), for this module only."""
     extra = [Path(p) for p in os.environ.get("MADALEAN_TEST_TOOLCHAINS", "").split(os.pathsep) if p]
     orig = W.toolchain_roots
     if extra:
         W.toolchain_roots = lambda: orig() + extra
-    try:
-        ws = next((w for w in W.all_workspaces(scan_user=False) if w.key == key and not w.problems), None)
-        if ws is not None and extra:
-            _ = ws.lean_bin                      # resolved now; keep the extra roots for the checks of this module
-            return ws
-        return ws
-    finally:
-        if not extra:
-            W.toolchain_roots = orig
+    yield
+    W.toolchain_roots = orig
+
+
+def _workspace(key: str):
+    return next((w for w in W.all_workspaces(scan_user=False) if w.key == key and not w.problems), None)
 
 
 @pytest.fixture(scope="module", params=["lean-prover49", "lean-current"])

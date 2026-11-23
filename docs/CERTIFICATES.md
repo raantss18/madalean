@@ -75,7 +75,8 @@ theorem madalean_cert_powmod_eq : ∀ f a e p, e < 2 ^ f → madalean_cert_powmo
 ```
 
 proved once by induction, and each power is then a `decide`: the kernel does one multiplication per bit with its
-big-number arithmetic. 2¹²⁷ − 1 is certified in about 2 s of Lean, 2²⁵⁵ − 19 in about 5 s, on both workspaces.
+big-number arithmetic. Measured on Lean 4.9, loading Mathlib not counted: 2¹²⁷ − 1 in about 2.4 s, 2²⁵⁵ − 19 in
+about 4.5 s (less on Lean 4.36); see docs/PERFORMANCE.md.
 
 ## 3. Where it is used
 
@@ -103,7 +104,7 @@ certificate, a dossier is created in the project with the statement and the proo
 theorem name), and added to the library. Same rule as every Calcul run: from the host, or from a paired device when
 `experiments_remote` is on.
 
-API: docs/API.md §6e.
+API: docs/API.md §6g.
 
 ## 4. Limits (what is not supported)
 
@@ -135,7 +136,7 @@ API: docs/API.md §6e.
 
 ## 5. Measured
 
-`scripts/dev/cert_bench.py` runs the corpus (`certs/corpus.py`, 63 statements: 59 true across the 12 kinds, 4 false)
+`scripts/dev/cert_bench.py` runs the corpus (`certs/corpus.py`, 64 statements: 60 true across the 12 kinds, 4 false)
 with the installed Sage and a fresh strict Lean on every built workspace; table in docs/PERFORMANCE.md
 « Certificats (S-AT) ». Tests: `tests/test_certificates.py` (reader, strict reading of witnesses, the producer in the
 real Sage, every kind with the real Lean on each workspace, wrong witnesses refused by Lean, pipeline, agent tool, API,

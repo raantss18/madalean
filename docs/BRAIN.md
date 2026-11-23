@@ -758,3 +758,25 @@ catalogue order (stable bytes for one request), within a token budget (prove 220
   (`sum_range`) Goedel first message 149 → 204, formalizer 77 → 132, agent task 76 → 131, conductor request block
   299 → 354; F_125 (`gf`) 150 → 237; primality / gcd ≈ +49; determinant +78; a request with nothing relevant
   (x² + 1 > 0): unchanged. The conductor's stable block: 384 tokens before and after (lean-prover49), 377 (current).
+
+## 20. Certificates: a proof strategy without a model, and a tool for the prover (session S-AT, DECISIONS D52)
+
+docs/CERTIFICATES.md has the kinds and the limits; here is what the brain sees.
+
+- **Strategy « certificat »** (`pipeline/certificate.py`, setting `certificates`). After the statement is accepted,
+  `certs.kinds_of(statement)` (a pure reader, microseconds) says whether the statement has a certificate shape. If
+  so, one attempt runs beside Mathlib-first and the search (D38 racers; sequentially when stages are not parallel):
+  Sage (sandbox, Madalean's fixed program) computes a witness, the proof that checks it is written by Madalean, and
+  the job's strict Lean check decides. No model, no token, no slot `online` / `gpu` (only `lean`, and the Sage
+  kernel). A success cancels the other racers like a Mathlib-first success; the proof is recorded with the model
+  `certificat:<kind>` (not ranked: no leaderboard entry) and `meta.strategy = "certificate"`. A failure costs a few
+  seconds and changes nothing for the search.
+- **Tool `sage_witness {claim}`** of the prover agent (`brain/prover_agent.py`, given when the pipeline passes
+  `witness`): certificate for the theorem or for an auxiliary claim written in Lean. Returns a Lean-accepted helper
+  lemma, « false » with the witness, or « no witness ». The model's text only ever becomes a Lean *statement* (which
+  goes through the D28 gate like every Lean file); it never reaches Sage as code.
+- **Conductor** (§18): it plans stages and models and has no tools; it sees the certificate attempt in the job.
+  Asking it to *request* a witness for a sub-goal is future work (it would go through the same tool).
+- A claim the computation finds false is reported in the thread (« Le calcul indique que l'énoncé est faux ») and
+  to the agent; the statement check (§S-K) stays the judge of what to do with the statement.
+

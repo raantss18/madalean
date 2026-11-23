@@ -859,3 +859,17 @@ the list, an open item, the settings section and Home with the card (`e2e/news.s
 field select, which is 44 px); the list count is announced politely.
 Screenshots: `docs/screenshots/v2/news-{list,item}-{360,820,1440}-{light,dark}.png`,
 `news-settings-{360,820,1440}-light.png`, `news-home-card-{360,1440}-light.png`.
+## 18. Certificates in the UI (S-AT, 2026-11-23, DECISIONS D52)
+
+- **Dossier thread**: an event of kind `certificate` (« Certificat (…) : témoin calculé par Sage, vérifié par Lean. »,
+  author shown as « Sage + Lean », green left border like a proof); the witness is under « Détails ». The attempt of
+  the job and the proof's model read « Certificat (Sage + Lean) » (`lib/status.ts`, provider `certificat`).
+- **Calcul**: cell menu « Certifier avec Lean » for a cell with a successful result whose last line is a supported
+  computation (`lib/api/certificates.ts: certifiable`; the server decides). A panel under the result (region
+  « Certificat ») says « Sage calcule un témoin, puis Lean le vérifie… », then either « Vérifié par Lean : … » with the
+  witness, the size of the proof, the two times and « Ouvrir le dossier », or in plain words why nothing was
+  certified (and the statement that was tried). Strings in `lib/calcul/strings.ts` (FR / EN).
+- **Réglages › Modèles › avancé**: « Certificats : laisser Sage calculer un témoin que Lean vérifie… » (`certificates`).
+- No jargon on screen: « témoin », « certificat », « vérifié par Lean »; tactic names appear only in the small
+  « contrôle : … » line of the Calcul panel and in the proof itself.
+- Tests: `e2e/workbench.spec.ts` (menu, panel, axe, phone width) against the demo server's canned outcome.

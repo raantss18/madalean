@@ -373,3 +373,114 @@ had the CPU build — see D51). `scripts/bench_gpu_share.py`; raw data `bench/gp
 
 Result: borrowing the card costs ≈ 1.5 s to Madalean and ≈ 3 s to the next Ollama request; no process is stopped and
 no generation is interrupted (Madalean waits up to 30 s, then falls back to the free memory or an online model).
+
+## Certificats (S-AT, DECISIONS D52) — Sage computes, Lean checks
+
+Measured on 2026-11-23 with `scripts/dev/cert_bench.py` (this machine, SageMath 10.10, three statements at a time,
+other sessions' tests running beside): the corpus of `madalean/certs/corpus.py`, 64 statements — 60 true ones across
+the 12 kinds and 4 false ones. Each proof is judged by a **fresh strict Lean** (`lean --json`, axiom probe).
+
+**Result: 60/60 verified on lean-prover49 (Lean 4.9) and 60/60 on lean-current (Lean 4.36); the 4 false claims are
+reported with their witness and not proved. No model call, no token.**
+
+| kind | statements | verified 4.9 | verified 4.36 | Sage s (median) | Lean s 4.9 (median / max) | Lean s 4.36 (median / max) | proof lines (median / max) |
+|---|---|---|---|---|---|---|---|
+| prime | 6 | 6 | 6 | 0.99 | 3.5 / 6.5 | 3.9 / 4.3 | 130 / 429 |
+| composite | 3 | 3 | 3 | 0.90 | 2.1 / 2.2 | 3.3 / 3.4 | 11 / 11 |
+| arith | 6 | 6 | 6 | 0.00 | 2.2 / 2.2 | 3.3 / 3.4 | 9 / 9 |
+| powmod | 3 | 3 | 3 | 0.00 | 2.5 / 2.5 | 3.7 / 3.7 | 49 / 50 |
+| identity | 3 | 3 | 3 | 0.00 | 2.3 / 2.3 | 3.2 / 3.5 | 9 / 9 |
+| ideal | 6 | 6 | 6 | 0.93 | 2.2 / 2.5 | 3.2 / 3.5 | 9 / 9 |
+| linear | 4 | 4 | 4 | 1.00 | 2.5 / 2.6 | 3.5 / 3.9 | 9 / 10 |
+| sos | 8 | 8 | 8 | 1.13 | 2.8 / 3.1 | 3.9 / 4.2 | 11 / 14 |
+| exists | 8 | 8 | 8 | 1.00 | 2.2 / 2.6 | 3.9 / 4.4 | 9 / 9 |
+| counterexample | 3 | 3 | 3 | 1.01 | 2.3 / 2.6 | 3.5 / 3.5 | 10 / 10 |
+| numeric | 6 | 6 | 6 | 0.91 | 3.1 / 3.6 | 4.2 / 4.7 | 16 / 21 |
+| finite | 4 | 4 | 4 | 0.00 | 2.0 / 2.0 | 3.2 / 3.6 | 11 / 11 |
+| **all** | 60 | 60 | 60 | 0.98 | 2.4 / 6.5 | 3.6 / 4.7 | 10 / 429 |
+
+How to read the times:
+- **Lean seconds include loading Mathlib** in a fresh process: about 2.0 s on 4.9 and 3.1 s on 4.36 (the time of the
+  trivial `arith` statements). The check of the certificate itself is the difference: under 2 s for every kind
+  except the big primes on 4.9 (2¹²⁷ − 1: about 2.4 s; 2²⁵⁵ − 19: about 4.5 s).
+- **Sage seconds include starting a Sage process** in this script (about 0.9 s each time); in the server the
+  certificates share one warm sandboxed kernel, so only the computation remains (a few tenths of a second at most
+  here, except `exists-root`: 5 s for one rational root).
+- Proof size: 9–16 lines for most kinds (header included); primality grows with the Pratt tree (2²⁵⁵ − 19: 429
+  lines, 37 kB).
+
+| statement | kind | Sage s | Lean s 4.9 | Lean s 4.36 | proof lines |
+|---|---|---|---|---|---|
+| prime-97 | prime | 0.00 | 2.6 | 3.8 | 9 |
+| prime-1e9+7 | prime | 1.04 | 3.4 | 3.6 | 128 |
+| prime-m61 | prime | 1.03 | 3.7 | 4.0 | 133 |
+| prime-m127 | prime | 0.95 | 4.4 | 4.3 | 237 |
+| prime-curve25519 | prime | 1.38 | 6.5 | 4.3 | 429 |
+| prime-293bits | prime | 0.95 | 3.0 | 3.8 | 83 |
+| composite-fermat5 | composite | 0.88 | 2.1 | 3.4 | 11 |
+| composite-m67 | composite | 0.95 | 2.2 | 3.2 | 11 |
+| composite-1000001 | composite | 0.90 | 2.1 | 3.3 | 11 |
+| arith-gcd | arith | 0.00 | 2.1 | 3.0 | 9 |
+| arith-lcm | arith | 0.00 | 2.2 | 3.3 | 9 |
+| arith-dvd | arith | 0.00 | 2.2 | 3.3 | 9 |
+| arith-modeq | arith | 0.00 | 2.2 | 3.4 | 9 |
+| arith-int | arith | 0.00 | 2.2 | 3.4 | 9 |
+| arith-factorial | arith | 0.00 | 2.1 | 3.4 | 9 |
+| powmod-1e6 | powmod | 0.00 | 2.5 | 3.7 | 49 |
+| powmod-1e18 | powmod | 0.00 | 2.5 | 3.7 | 49 |
+| powmod-modeq | powmod | 0.00 | 2.5 | 3.7 | 50 |
+| identity-cube | identity | 0.00 | 2.3 | 3.2 | 9 |
+| identity-int | identity | 0.00 | 2.1 | 3.1 | 9 |
+| identity-germain | identity | 0.00 | 2.3 | 3.5 | 9 |
+| ideal-sum-product | ideal | 0.94 | 2.2 | 3.3 | 9 |
+| ideal-cubes | ideal | 0.94 | 2.2 | 3.0 | 9 |
+| ideal-int | ideal | 0.90 | 2.1 | 3.5 | 9 |
+| ideal-system | ideal | 0.91 | 2.3 | 3.1 | 9 |
+| ideal-radical | ideal | 0.93 | 2.3 | 3.5 | 9 |
+| ideal-power | ideal | 0.92 | 2.5 | 3.1 | 9 |
+| linear-bound | linear | 0.98 | 2.6 | 3.7 | 9 |
+| linear-infeasible | linear | 1.06 | 2.5 | 3.2 | 9 |
+| linear-forall | linear | 1.03 | 2.4 | 3.2 | 10 |
+| linear-strict | linear | 0.97 | 2.5 | 3.9 | 9 |
+| sos-amgm2 | sos | 1.13 | 2.4 | 3.9 | 11 |
+| sos-form | sos | 1.10 | 2.7 | 3.7 | 11 |
+| sos-quartic | sos | 1.17 | 2.9 | 3.9 | 11 |
+| sos-three | sos | 1.09 | 2.9 | 4.2 | 11 |
+| sos-hyps | sos | 1.12 | 2.6 | 3.6 | 14 |
+| sos-quartic2 | sos | 1.13 | 3.1 | 4.2 | 11 |
+| sos-nonneg-vars | sos | 1.20 | 2.9 | 4.2 | 14 |
+| sos-product | sos | 1.18 | 2.8 | 3.6 | 13 |
+| exists-bezout | exists | 1.03 | 2.2 | 3.9 | 9 |
+| exists-inverse | exists | 1.03 | 2.3 | 3.4 | 9 |
+| exists-inverse-nat | exists | 0.97 | 2.1 | 4.0 | 9 |
+| exists-circle | exists | 0.95 | 2.1 | 3.1 | 9 |
+| exists-root | exists | 5.83 | 2.6 | 3.9 | 9 |
+| exists-prime | exists | 0.91 | 2.1 | 3.5 | 9 |
+| exists-factors | exists | 1.03 | 2.1 | 4.4 | 9 |
+| exists-system | exists | 0.93 | 2.6 | 4.1 | 9 |
+| cex-euler | counterexample | 1.06 | 2.3 | 3.5 | 10 |
+| cex-real | counterexample | 1.01 | 2.6 | 3.4 | 10 |
+| cex-freshman | counterexample | 1.00 | 2.2 | 3.5 | 10 |
+| numeric-sqrt | numeric | 1.04 | 2.9 | 4.3 | 21 |
+| numeric-sqrt-lower | numeric | 0.97 | 2.5 | 4.2 | 15 |
+| numeric-pi-square | numeric | 0.92 | 3.1 | 4.7 | 13 |
+| numeric-e-pi | numeric | 0.88 | 3.6 | 4.2 | 17 |
+| numeric-log | numeric | 0.85 | 3.2 | 4.0 | 13 |
+| numeric-sqrt-pi | numeric | 0.89 | 3.1 | 4.0 | 19 |
+| finite-ball | finite | 0.00 | 2.0 | 3.1 | 11 |
+| finite-imp | finite | 0.00 | 2.0 | 3.2 | 11 |
+| finite-two | finite | 0.00 | 2.0 | 3.6 | 11 |
+| finite-growth | finite | 0.00 | 2.0 | 2.9 | 11 |
+| false-prime | prime | — | reported false (91 = 7 × 13) | reported false | — |
+| false-finite | finite | — | reported false (n = 40) | reported false | — |
+| false-identity | identity | — | reported false (a = 1, b = 1) | reported false | — |
+| false-arith | arith | — | reported false (false) | reported false | — |
+
+Design measurements that decided the implementation (same machine):
+- primality of 10⁹ + 7 with one `have` per bit of each modular power: 8–10 s of Lean; of 2¹²⁷ − 1: no result in
+  200 s (heartbeat limit; elaboration is quadratic in the number of bits). With the generated square-and-multiply
+  function evaluated by the kernel (`decide`): about 1 s and 2.4 s. `norm_num` alone proves 1 000 003 prime and
+  fails at 10⁹ + 7 (recursion depth), on both workspaces.
+- `norm_num` does not evaluate `2 ^ 300 % 7` on Lean 4.36 (exponent threshold 256) and does on 4.9; the templates
+  try `norm_num`, then `norm_num` with the threshold raised, then `decide` — one text for both workspaces.
+- `linear_combination` proves inequalities on 4.36 only; `linarith only […]` is used on both.
