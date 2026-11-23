@@ -233,7 +233,8 @@ async def read(ctx, shelf: str, sha: str, *, mode: str, budget: Budget | None = 
             t = Q.clean(c.get("text", ""), 4000)
             if len(t) < Q.MIN_QUOTE:
                 continue
-            texts.append(SourceText("fulltext", "sources", t, locator=str(c.get("locator") or c.get("label") or "")[:80],
+            loc = str(c.get("locator") or c.get("label") or "")[:80]
+            texts.append(SourceText("fulltext", "sources", t, locator=loc,
                                     page=c.get("page") if isinstance(c.get("page"), int) else None,
                                     licence="your own file (Sources)", suspect=Q.suspect(t)))
             labels.append(str(c.get("kind")))

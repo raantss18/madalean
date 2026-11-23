@@ -156,7 +156,8 @@ def location(kind: str, sentence: int = 0, locator: str = "", page: int | None =
         return ", ".join(parts) or ("texte intégral" if fr else "full text")
     name = {"abstract": ("résumé", "abstract"), "review": ("recension zbMATH", "zbMATH review"),
             "summary": ("résumé (zbMATH)", "summary (zbMATH)"),
-            "transcription": ("transcription de l’image (pièce jointe)", "image transcription (attachment)")}.get(kind, (kind, kind))[0 if fr else 1]
+            "transcription": ("transcription de l’image (pièce jointe)", "image transcription (attachment)"),
+            }.get(kind, (kind, kind))[0 if fr else 1]
     if sentence:
         return f"{name}, {'phrase' if fr else 'sentence'} {sentence}"
     return name

@@ -187,7 +187,8 @@ class LiteratureItem:
     def node(self) -> dict:
         """The cited-lemma node consumed by the lemma graph (S-AY): enough to state, cite and track it."""
         q = self.quotes[0] if self.quotes else None
-        return {"id": self.id, "kind": "cited", "origin": self.origin, "label": self.label, "name": self.lean.name, "lean": self.lean.statement,
+        return {"id": self.id, "kind": "cited", "origin": self.origin, "label": self.label, "name": self.lean.name,
+                "lean": self.lean.statement,
                 "status": self.lean.status, "mathlib_name": self.lean.mathlib_name,
                 "library_name": self.lean.library_name, "conditional": self.lean.status == "to_prove",
                 "citation": {"ref": self.reference.id, "title": self.reference.title,
