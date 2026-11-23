@@ -1536,20 +1536,6 @@ class GraphService:
             if n is not None and n.get("lean") and t.get("reason") and not n.get("by_user"):
                 st.learn_approach(n["lean"], n["title"], t["reason"], env, did)
 
-    def on_plan(self, did: str) -> None:
-        """The plan changed: bring it into the graph (cheap, idempotent)."""
-        if not getattr(self.ctx.settings, "problem_graph", True):
-            return
-        data = self.store.load(did)
-        if data is None or self.store.current(did) is None:
-            return
-        try:
-            g = self.ensure(did)
-        except G.GraphError:
-            return
-        if g.get("plan_rev") != (self.store.current(did) or {}).get("rev") or True:
-            self.save(did)
-
     def prover_hint(self, d) -> str:
         """The compact memory digest for the provers of dossier `d` ("" when nothing useful is known)."""
         if not getattr(self.ctx.settings, "problem_graph", True) or d is None:

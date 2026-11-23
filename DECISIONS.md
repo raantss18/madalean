@@ -1268,3 +1268,48 @@
   models only, conditional proof never verified and upgraded with real Lean, API, pipeline stage, export),
   `tests/test_attachments.py`, `web/e2e/literature.spec.ts` (panel, labels, Sources, bibliography, attachment, English,
   360 px, axe).
+## D57 — The problem graph: memory, reasoned search with guards, explanations from the record; sub-dossiers and lessons (D57b) (TODO « Stratégie 2.1 » item 5, user requests of 2026-11-23, S-AY)
+- Request: « que Madalean réfléchisse sous forme de graphes de lemmes, se questionne si une piste est valide,
+  anticipe si une piste ne mène nulle part, ait la mémoire du problème… explique les choix de piste, les tactiques,
+  des bibliographies claires… généraliser une méthode existante. Attention aux boucles infinies, aux hallucinations,
+  et à ne pas casser ce qui est robuste. » Then: a lemma opened as a full sub-dossier; a sub-lemma used by two lemmas
+  proved once; understand the problem first (target, known, to prove); model-independent learning from mistakes.
+- **One graph per dossier, in the proof-plan file** (`research/proofgraph.py`, key `graph` of `PlanStore`): extends
+  the S-L plan (migrated / synced from it, idempotent) — no parallel store. Nodes: goal, lemmas, Mathlib, certificates,
+  cited / provided results, proposals; edges uses / generalises / special_case / refutes; « uses » never cycles (refused
+  and logged). Identity = the last theorem's binders and type, inside one top-level dossier and workspace: a DAG, a
+  shared sub-lemma is one node; another hypothesis = another node; another dossier's lemma is offered for reuse (via
+  the library), never merged. Versioned by `rev` + bounded log; bounded nodes, attempts, runs.
+- **Conditional is structural** (`effective`): cited / provided / admitted results are conditional, so is any proof
+  that uses one; it becomes verified when Lean proves them (composition of Lean-checked proofs of the same
+  statements; the dossier's own strict proof still comes only from a fresh strict check). A source's « proved » is
+  kept as `claimed`, never as a status.
+- **Reasoned search, bounded** (`research/graphsearch.py`): viability before work (deterministic signals + one labelled
+  model opinion), expected value per cost, Lean gate of every split (statements, combination, equivalence to the
+  parent), counterexample probes, attempts = recorded combination → closers → certificate → one model proof, strict
+  verdict. Guards: depth, nodes, attempts per run / branch / node, expansions per node, wall time, tokens, USD within
+  the conductor's cap (spend scope), no-progress (same Lean error twice; K steps with nothing new), cycles; a stop
+  record (reason, spent, what was tried). Abandoned nodes keep their reason and are retried only when Lean / Mathlib
+  or the set of verified lemmas changed. Started by the user (D31: nothing splits the user's plan by itself).
+- **Memory for the provers**: a bounded deterministic digest (« Cible », « Connu », « À prouver », failures, tactics,
+  errors) + lessons appended to the proof hint (one line in `runner.py`); empty for a fresh dossier (prompts and
+  caches unchanged).
+- **Explanations without a model**: the account (path and why, alternatives, lemmas, tactics with a fixed glossary,
+  failures, bibliography: Mathlib constants of the recorded proofs with links, cited works with verified records,
+  BibTeX) is templated from the record; a test checks that nothing outside the record is named. Exports: note,
+  LaTeX `\cite`, BibTeX; goal states per tactic through D45.
+- **Literature (S-AX)**: a small adapter (`research/literature_iface.py`) — `literature.search` items when the package
+  exists, verified references only, « indisponible » otherwise.
+- **D57b — sub-dossiers and lessons.** A sub-dossier is a dossier with `parent_id` (existing field, no second concept):
+  « Ouvrir comme sous-dossier » on a node, depth bounded by `plan_max_depth`, shared within the family (stays under
+  its first parent, « utilisé aussi par » elsewhere), verdict rolled up to every user; archive / move / delete /
+  restore follow the parent; breadcrumb and folded lists. **Lessons** (`research/lessons.py`): renames, fixes,
+  failed approaches, strategies keyed by normalised signatures, learned only from verified successes or recorded
+  reasons, with evidence and counters, decayed / dropped, bounded, exportable; used as a hint, as Lean feedback and as
+  a deterministic rename re-checked by Lean (graph attempts). Measured: a repeated wrong name costs 1 model proof
+  instead of 2 (real Lean test).
+- Rejected: a second graph store beside the plan (two truths); letting the search split the user's validated plan
+  automatically (D31); a model writing explanations (invention — the user asked for no hallucination); merging
+  lemmas across dossiers by similarity (two statements that differ by a hypothesis are different); rewriting the main
+  pipeline's proofs with lessons behind its back (its checked code and stored code must stay the same text); training
+  or fine-tuning a model (resources; the lessons are model-independent by design); a « proved » status from a source.

@@ -36,7 +36,7 @@ export interface Lesson { id: string; kind: 'rename' | 'fix' | 'approach' | 'str
   old?: string; new?: string; mathlib?: string; pattern?: string; shape?: string; tactics?: string[]; approach?: string; reason?: string;
   strategy?: string; evidence: { dossier?: string; workspace?: string; mathlib?: string; t: number }[] }
 
-const g = (id: string) => `/api/dossiers/${enc(id)}/graph`;
+const g = (id: string) => `/dossiers/${enc(id)}/graph`;
 
 export const graphApi = {
   get: (id: string, lang: string) => request<{ graph: Graph }>('GET', `${g(id)}?lang=${enc(lang)}`),
@@ -53,11 +53,11 @@ export const graphApi = {
     request<{ explanation: Explanation }>('GET', `${g(id)}/explain?lang=${enc(lang)}${node ? `&node=${enc(node)}` : ''}`),
   exportAs: (id: string, format: 'note' | 'latex' | 'bibtex' | 'markdown', lang: string, node?: string) =>
     request<{ note?: { id: string; title: string }; latex?: string; bibtex?: string; markdown?: string }>('POST', `${g(id)}/export`, { format, lang, node }),
-  lessons: () => request<{ lessons: Lesson[]; max: number }>('GET', '/api/lessons'),
-  deleteLesson: (lid: string) => request<{ deleted: boolean }>('DELETE', `/api/lessons/${enc(lid)}`),
-  clearLessons: () => request<{ deleted: number }>('DELETE', '/api/lessons'),
-  exportLessons: () => request<Record<string, unknown>>('GET', '/api/lessons/export'),
-  importLessons: (data: unknown) => request<{ imported: number }>('POST', '/api/lessons/import', data),
+  lessons: () => request<{ lessons: Lesson[]; max: number }>('GET', '/lessons'),
+  deleteLesson: (lid: string) => request<{ deleted: boolean }>('DELETE', `/lessons/${enc(lid)}`),
+  clearLessons: () => request<{ deleted: number }>('DELETE', '/lessons'),
+  exportLessons: () => request<Record<string, unknown>>('GET', '/lessons/export'),
+  importLessons: (data: unknown) => request<{ imported: number }>('POST', '/lessons/import', data),
 };
 
 /** Status shown for a node (state first, then the raw status for detail). Icon + words, never colour alone. */

@@ -797,3 +797,22 @@ docs/CERTIFICATES.md has the kinds and the limits; here is what the brain sees.
   by a strict check once every cited lemma has a Lean proof in the library.
 - **Attachments**: read once per project (SHA-256 digests); images through a vision model (free online; local in
   Local mode), the transcription kept, the image never re-sent.
+## 22. The problem graph, the reasoned search and the lessons (session S-AY, DECISIONS D57 / D57b)
+
+docs/PROOF_GRAPH.md. What the models see and do:
+
+- **Provers** (pipeline proof stage, any model): the hint ends with the problem memory (`pipeline/memory_hook.py`):
+  « Cible / Target », « Connu / Known » (Lean-proved; cited / provided, NOT proved), « À prouver / To prove », failed
+  approaches with reasons, refuted statements, tactics that worked, Lean errors already seen; then the relevant
+  lessons. Bounded (≈ 600 + 250 tokens), sorted (stable bytes for prompt caching), empty for a fresh dossier. The
+  agent's Lean feedback gets « Known renames » when Lean reports a name a lesson knows.
+- **Reasoned search** (`research/graphsearch.py`, user action « Recherche raisonnée »): role `prove` through
+  `complete_once` — lemma proposals (`[madalean:graph-expand]`, JSON, the digest inside), one short viability opinion
+  per new lemma (`[madalean:graph-viability]`, ≤ 300 tokens, `graph_viability_model`), one proof per attempt (Goedel's
+  prompt + digest). Spend scope `graph:<dossier>:<run>` with its cap = `min(graph_search_usd, conductor_cap_usd)`.
+  Lean decides everything: statements, combinations, counterexamples (negation probes), proofs (strict verdict).
+- **Adapter la méthode** (`[madalean:graph-adapt]`): generalised statement + lemmas, kept only when Lean accepts the
+  statements, labelled « proposition ».
+- **Explanations**: no model — templates over recorded facts (FR / EN).
+- **Lessons** (`research/lessons.py`): no training, no model — signatures, counters, evidence; deterministic renames
+  re-checked by Lean.

@@ -933,6 +933,36 @@ text, locator, licence, suspect}], quotes: [{text, text_index, start, end, locat
 statement, compiled, status: in_mathlib|proved|to_prove|unformalized, mathlib_name, library_name, model, note,
 child_dossier}, bibtex}` — `texts[q.text_index].text[q.start:q.end] == q.text` for every quote. Thread events of kind
 `literature`. Settings `literature` (bool, default on) and `literature_depth` (`quick` | `deep`).
+## 6j. Problem graph, reasoned search, lessons (session S-AY, DECISIONS D57 / D57b, plugin `research_workshop.py`)
+
+docs/PROOF_GRAPH.md. Errors: `{error: not_found | busy | no_statement | already_proved | not_running |
+not_abandoned | too_deep | no_method | cycle | too_many_nodes | bad_format}` with the usual statuses (404 / 409 / 400).
+
+| Method | Path | Body / query | Answer |
+| --- | --- | --- | --- |
+| GET | `/api/dossiers/{id}/graph` | `?lang=fr\|en` | `{graph}`: `{v, rev, root, nodes: {id: node + state, composed, rests_on, reason_text, uses, used_by}, edges: [[src, kind, dst]], runs, counts, budgets, run, memory, log}` |
+| POST | `…/graph/search` | `{budgets?: {max_depth, max_nodes, max_attempts, branch_attempts, max_expansions, wall_s, tokens, usd, no_progress}, mode?}` | `{graph}`; the run continues in the background (`graph.updated` events) |
+| POST | `…/graph/stop` | — | `{stopping: true}` (the run stops after the current step) |
+| GET | `…/graph/nodes/{nid}/why` | `?lang=` | `{viability, reason_text, why, alternatives, attempts, source, citation, state}` — « Pourquoi cette piste ? » |
+| POST | `…/graph/nodes/{nid}/abandon` | `{reason?}` | `{graph}` — « Arrêter cette piste » (a verified node: 409) |
+| POST | `…/graph/nodes/{nid}/resume` | — | `{graph}` — « Reprendre » |
+| POST | `…/graph/nodes/{nid}/open` | — | `{dossier_id, created, shared?}` — « Ouvrir comme sous-dossier » (shared when the family already has it) |
+| POST | `…/graph/nodes/{nid}/adapt` | — | `{added, refused, idea, graph}` — « Adapter la méthode » (proposals, Lean-checked statements) |
+| POST | `…/graph/nodes/{nid}/adopt` | — | `{graph}` — the goal uses this proposal |
+| GET | `…/graph/explain` | `?node=&lang=` | `{explanation: {title, state, conditional, rests_on, path, lemmas, alternatives, failures, tactics, attempts, proof, bibliography: {mathlib, works, bibtex}, text}}` |
+| POST | `…/graph/export` | `{format: note\|latex\|bibtex\|markdown, node?, lang?}` | `{note}` \| `{latex, bibtex}` \| `{bibtex}` \| `{markdown}` |
+| POST | `…/graph/cited` | `{items: [literature items], parent?, edge?}` | `{added: [{node, created}], graph}` (S-AX items; never « proved ») |
+| POST | `…/graph/literature` | `{node?}` | `{available: false}` without the literature package, else `{available, added, graph}` |
+| GET | `…/graph/digest` | — | `{digest}` (what the provers receive) |
+| GET | `/api/lessons` | — | `{lessons, max}` |
+| GET | `/api/lessons/export` | — | `{v, kind: "madalean-lessons", lessons}` |
+| POST | `/api/lessons/import` | an export | `{imported}` (host only) |
+| DELETE | `/api/lessons`, `/api/lessons/{lid}` | — | `{deleted}` |
+
+Event `graph.updated` `{dossier_id, rev, run}`. Deleting a dossier also moves its sub-dossiers to the trash (answer
+`children`); `POST /api/dossiers/{id}/restore` brings them back; `PATCH` of `archived` / `project_id` applies to them.
+Settings: `problem_graph`, `graph_viability_model`, `graph_search_minutes`, `graph_search_attempts`,
+`graph_search_usd` (≤ `conductor_cap_usd`), `lessons`.
 
 ## 7. Demo mode
 
