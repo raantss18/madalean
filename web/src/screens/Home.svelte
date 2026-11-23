@@ -18,6 +18,7 @@
   import EnterHint from '../components/EnterHint.svelte';
   import DossierList from '../components/DossierList.svelte';
   import SetupReminder from './setup/SetupReminder.svelte';
+  import NewsCard from './news/NewsCard.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const draft = loadJSON<{ text: string; lean: string; asLean: boolean; title?: string }>('draft.new', { text: '', lean: '', asLean: false });
@@ -152,6 +153,8 @@
       <DossierList uid="home" />
     </section>
   {/if}
+
+  <NewsCard />
 
   <section class="examples" aria-labelledby="ex-h">
     <h2 id="ex-h">{t('home.examples')}</h2>

@@ -1,0 +1,122 @@
+{
+ "items": [
+  {
+   "tags": [
+    "nt.number-theory",
+    "prime-numbers",
+    "open-problems",
+    "congruences",
+    "tetration"
+   ],
+   "owner": {
+    "display_name": "Marco Rip&#224;"
+   },
+   "is_answered": false,
+   "view_count": 163,
+   "answer_count": 0,
+   "score": 2,
+   "last_activity_date": 1794676994,
+   "creation_date": 1794676994,
+   "question_id": 516909,
+   "content_license": "CC BY-SA 4.0",
+   "link": "https://mathoverflow.net/questions/516909/can-a-mirimanoff-prime-p-satisfy-3p-1-equiv1-pmodp3",
+   "title": "Can a Mirimanoff prime $p$ satisfy $3^{p-1}\\equiv1\\pmod{p^3}$?",
+   "body": "<p>Let <span class=\"math-container\">$r \\geq 2$</span> be an integer radix. Consider the tetration sequence <span class=\"math-container\">${}^{b}3$</span>, with <span class=\"math-container\">$b \\geq 1$</span>.</p>\n<p>The <em>congruence speed</em> (a notion I introduced in 2011) measures the increase in the number of trailing radix-<span class=\"math-container\">$r$</span> digits shared by consecutive tetrations as the tower height increases. For some radices this speed eventually becomes constant, while for others it is eventually nonconstant periodic or nonperiodic. In my recent <a href=\"https://doi.org/10.13140/RG.2.2.30404.59524\" rel=\"nofollow noreferrer\">technical note</a>, motivated by the stable trailing digits of Graham's number in arbitrary radices, I computed the exact behavior for every <span class=\"math-container\">$2\\leq r\\leq100$</span>.<br />\nIn this range, the only eventual constant speeds are <span class=\"math-container\">$1$</span> and <span class=\"math-container\">$2$</span>.</p>\n<p>The general results on tetration congruence speeds lead to the following equivalence:\n<span class=\"math-container\">$$\n\\exists\\,r\\geq2:\\ V_r(3)\\geq3\n\\Leftrightarrow\n\\exists \\text{ a prime } p\\geq5:\\ \n3^{p-1}\\equiv1\\pmod{p^3},\n$$</span>\nwhere <span class=\"math-container\">$V_r(3)$</span> denotes the eventual constant congruence speed, whenever it exists.</p>\n<p>Let <span class=\"math-container\">$v_p(n)$</span> denote the exponent of the prime <span class=\"math-container\">$p$</span> in the factorization of the positive integer <span class=\"math-container\">$n$</span>. For any prime <span class=\"math-container\">$p\\geq5$</span>, the eventual speed in radix <span class=\"math-container\">$p$</span> is <span class=\"math-container\">$v_p(3^{p-1}-1)$</span>, while in any radix having a prime divisor different from <span class=\"math-container\">$3$</span>, the eventual behavior is controlled by the minimum of the corresponding prime-adic slopes: in radix <span class=\"math-container\">$2$</span>, the constant speed is <span class=\"math-container\">$2$</span>, whereas pure powers of <span class=\"math-container\">$3$</span> have nonperiodic behavior.</p>\n<p>So, my question arises from a simple observation... the only currently known <a href=\"https://oeis.org/A014127\" rel=\"nofollow noreferrer\">Mirimanoff primes</a> (Wieferich primes to base <span class=\"math-container\">$3$</span>) are <span class=\"math-container\">$11$</span> and <span class=\"math-container\">$1006003$</span>, and both satisfy <span class=\"math-container\">$v_p(3^{p-1}-1)=2$</span>. Since no example satisfying the stronger congruence modulo <span class=\"math-container\">$p^3$</span> is known to me, I started to suspect that <span class=\"math-container\">$V_r(3)$</span>, whenever it exists, cannot exceed <span class=\"math-container\">$2$</span> for any finite integer <span class=\"math-container\">$r\\geq2$</span>.</p>\n<p>Assuming <span class=\"math-container\">$m&gt;2$</span> be an integer, the related 2021 <a href=\"https://mathoverflow.net/questions/406297/ruling-out-an-extremely-specific-class-of-wieferich-like-primes\">MO question by JoshuaZ</a> concerns <em>hyper-Wieferich primes</em>, subject to the much stronger condition\n<span class=\"math-container\">$$\np^m=\\frac{q^{p-1}-1}{q-1}.\n$$</span>\nIn the above, Pace Nielsen's answer rules out that restricted class using results on cyclotomic polynomials. However, the present question only requires divisibility by <span class=\"math-container\">$p^3$</span>, without restrictions on the other prime factors of <span class=\"math-container\">$3^{p-1}-1$</span>.</p>\n<p><strong>Question.</strong> Is anything known that could rule out (or impose additional restrictions on) primes satisfying\n<span class=\"math-container\">$$\n3^{p-1}\\equiv1\\pmod{p^3}?\n$$</span>\nIn particular, is there any theoretical obstruction specific to base <span class=\"math-container\">$3$</span>, beyond the available computational evidence?</p>\n"
+  },
+  {
+   "tags": [
+    "nt.number-theory",
+    "prime-numbers",
+    "open-problems"
+   ],
+   "owner": {
+    "display_name": "何沛轩"
+   },
+   "is_answered": false,
+   "view_count": 94,
+   "answer_count": 0,
+   "score": 1,
+   "last_activity_date": 1794320194,
+   "creation_date": 1794273838,
+   "last_edit_date": 1794320194,
+   "question_id": 516812,
+   "content_license": "CC BY-SA 4.0",
+   "link": "https://mathoverflow.net/questions/516812/composite-repunits-and-near-repunit-primes-across-arbitrary-bases",
+   "title": "Composite repunits and near-repunit primes across arbitrary bases",
+   "body": "<p>Let <span class=\"math-container\">$b \\ge 2$</span> be an integer base. A repunit in base <span class=\"math-container\">$b$</span> is a number consisting entirely of <span class=\"math-container\">$1$</span>s, denoted by <span class=\"math-container\">$R_n(b) = \\frac{b^n - 1}{b - 1}$</span>. It is well known that for some bases, such as <span class=\"math-container\">$b=9$</span>, every repunit <span class=\"math-container\">$R_n(9)$</span> with <span class=\"math-container\">$n \\ge 2$</span> is composite (since <span class=\"math-container\">$9$</span> is a perfect power).</p>\n<p>In base 10, numbers obtained by changing a single internal digit of <span class=\"math-container\">$R_n(10)$</span> from 1 to 0 are known as near-repunit primes when the resulting number is prime. For example, while <span class=\"math-container\">$R_{12}(10)$</span> is composite, subtracting <span class=\"math-container\">$10^k$</span> for some <span class=\"math-container\">$1 \\le k \\le 10$</span> can yield a prime.</p>\n<p>This leads to the following natural extension and open question:</p>\n<p><strong>Question:</strong> Does every base <span class=\"math-container\">$b \\ge 2$</span> contain at least one <em>composite</em> repunit <span class=\"math-container\">$R_n(b)$</span> such that replacing exactly one internal digit &quot;1&quot; with a &quot;0&quot; yields a prime number?</p>\n<p>Equivalently, for every base <span class=\"math-container\">$b \\ge 2$</span>, do there always exist integers <span class=\"math-container\">$n \\ge 3$</span> and <span class=\"math-container\">$1 \\le k \\le n-2$</span> such that <span class=\"math-container\">$R_n(b)$</span> is composite and <span class=\"math-container\">$R_n(b) - b^k = \\frac{b^n - 1}{b - 1} - b^k$</span> is prime?</p>\n<p>While the existence and infinitude of near-repunit primes in base 10 have been studied computationally (see OEIS A034093 and A065083), the constraint that the original repunit must be composite, as well as the universality of this property across arbitrary bases, appears to remain unexplored in the literature.</p>\n<p>Computational evidence for small bases suggests an affirmative answer, but a general proof (or a counterexample base) remains elusive. Any references to prior work on the distribution of prime values of the form <span class=\"math-container\">$R_n(b) - b^k$</span>, or insights into why a specific base might fail to have such a composite repunit, would be greatly appreciated.</p>\n"
+  },
+  {
+   "tags": [
+    "big-list",
+    "open-problems",
+    "big-picture",
+    "artificial-intelligence"
+   ],
+   "owner": {
+    "display_name": "Nick Belane"
+   },
+   "is_answered": true,
+   "view_count": 3956,
+   "protected_date": 1793028695,
+   "answer_count": 2,
+   "community_owned_date": 1792856763,
+   "score": 41,
+   "last_activity_date": 1793187285,
+   "creation_date": 1792791441,
+   "last_edit_date": 1793176916,
+   "question_id": 516336,
+   "content_license": "CC BY-SA 4.0",
+   "link": "https://mathoverflow.net/questions/516336/are-there-ai-generated-mathematical-papers-devoted-to-developing-a-general-theor",
+   "title": "Are there AI-generated mathematical papers devoted to developing a general theory rather than solving a specific problem?",
+   "body": "<p>In his essay <em><a href=\"https://www.dpmms.cam.ac.uk/%7Ewtg10/2cultures.pdf\" rel=\"noreferrer\">The Two Cultures of Mathematics</a></em>, Timothy Gowers distinguishes between two broad mathematical cultures: <strong>problem-solvers</strong> and <strong>theory-builders</strong>.</p>\n<p>Recent advances in AI-assisted mathematics have demonstrated impressive problem-solving abilities, including the resolution of previously open conjectures. However, these achievements seem to belong primarily to the first of Gowers's two cultures.</p>\n<p>I am interested in whether AI has also made contributions to the second.</p>\n<p><strong>Are there examples of mathematical research papers produced substantially by AI in which the main goal, as stated already in the abstract and introduction, is not to prove a particular conjecture or solve a specific problem, but to develop and present a general mathematical theory?</strong></p>\n<p>More precisely, I am looking for papers whose primary contribution is the introduction of a broader conceptual framework, involving new definitions, structures, or general principles, from which various mathematical results can be derived.</p>\n<p>I am particularly interested in examples where this theory-building direction was initiated by the AI itself, rather than being specified in advance by human researchers.</p>\n<p>References to such papers, if any exist, would be greatly appreciated.</p>\n"
+  },
+  {
+   "tags": [
+    "ct.category-theory",
+    "open-problems",
+    "accessible-categories"
+   ],
+   "owner": {
+    "display_name": "Martin Brandenburg"
+   },
+   "is_answered": true,
+   "view_count": 382,
+   "accepted_answer_id": 515787,
+   "answer_count": 2,
+   "score": 4,
+   "last_activity_date": 1791343191,
+   "creation_date": 1790931818,
+   "question_id": 515678,
+   "content_license": "CC BY-SA 4.0",
+   "link": "https://mathoverflow.net/questions/515678/is-every-generalized-variety-finitely-accessible",
+   "title": "Is every generalized variety finitely accessible?",
+   "body": "<p>Is every generalized variety (definition below) finitely accessible? If not, what is a counterexample?</p>\n<p>A finitely accessible category is a category with filtered colimits and an essentially small collection of finitely presentable objects that generate the category under filtered colimits; here an object is finitely presentable when its hom-functor preserves filtered colimits.</p>\n<p>Replacing &quot;filtered colimits&quot; with &quot;sifted colimits&quot;, we obtain the notion of a <em>generalized variety</em>, studied by Adamek-Rosicky in <em>On sifted colimits and generalized varieties</em> (<a href=\"http://www.tac.mta.ca/tac/volumes/8/n3/8-03abs.html\" rel=\"nofollow noreferrer\">TAC</a>): this is a category with sifted colimits and an essentially small collection of strongly finitely presentable objects that generate the category under sifted colimits; here an object is strongly finitely presentable when its hom-functor preserves sifted colimits.</p>\n<p>In the end of the mentioned paper, the authors remark that every generalized variety is <span class=\"math-container\">$\\aleph_1$</span>-accessible, and they ask if every generalized variety is finitely accessible. This was an open problem when the paper was written. But this was 25 years ago, so maybe we have more insights now. Among the <a href=\"https://catdat.app/category-search/results?satisfied=generalized_variety\" rel=\"nofollow noreferrer\">52 generalized varieties</a> currently recorded in CatDat, <a href=\"https://catdat.app/category-search/results?satisfied=generalized_variety&amp;unsatisfied=finitely_accessible\" rel=\"nofollow noreferrer\">all are finitely accessible</a>. But there are many <a href=\"https://catdat.app/category-search/results?satisfied=finitely_accessible&amp;unsatisfied=generalized_variety\" rel=\"nofollow noreferrer\">finitely accessible categories that are no generalized varieties</a>.</p>\n<p>Every <em>cocomplete</em> generalized variety is a variety (Theorem 3.10 in op. cit.) and therefore finitely accessible.</p>\n"
+  },
+  {
+   "tags": [
+    "soft-question",
+    "open-problems",
+    "artificial-intelligence"
+   ],
+   "owner": {
+    "display_name": "Alexander Chervov"
+   },
+   "is_answered": true,
+   "view_count": 861,
+   "closed_date": 1790279112,
+   "answer_count": 1,
+   "score": 3,
+   "last_activity_date": 1790275869,
+   "creation_date": 1790273961,
+   "last_edit_date": 1790274167,
+   "question_id": 515517,
+   "link": "https://mathoverflow.net/questions/515517/what-open-problems-seems-to-be-difficult-enough-not-to-be-resolved-soon-despite",
+   "closed_reason": "Opinion-based",
+   "title": "What open problems seems to be difficult enough not to be resolved soon (despite AI advances)?",
+   "body": "<p>What open problems seems to be difficult enough not to be resolved soon (despite AI advances) ?</p>\n<p>Resolved by any means - AI, humans, AI+humans.</p>\n"
+  }
+ ],
+ "has_more": true,
+ "quota_max": 300,
+ "quota_remaining": 298
+}

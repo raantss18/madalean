@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Images des mathématiques</title>
+	<atom:link href="https://images.math.cnrs.fr/feed/" rel="self" type="application/rss+xml" />
+	<link>https://images.math.cnrs.fr</link>
+	<description>La recherche mathématique en mots et en images.</description>
+	<lastBuildDate>Thu, 05 Nov 2026 15:55:51 +0000</lastBuildDate>
+	<language>fr-FR</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.1.5</generator>
+
+<image>
+	<url>https://images.math.cnrs.fr/wp-content/uploads/2024/06/cropped-idm-logo-2-32x32.png</url>
+	<title>Images des mathématiques</title>
+	<link>https://images.math.cnrs.fr</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+	<item>
+		<title>Comment estimer une aire à partir d&#8217;une mosaïque aléatoire ?</title>
+		<link>https://images.math.cnrs.fr/comment-estimer-une-aire-a-partir-dune-mosaique-aleatoire/</link>
+					<comments>https://images.math.cnrs.fr/comment-estimer-une-aire-a-partir-dune-mosaique-aleatoire/#respond</comments>
+		
+		<dc:creator><![CDATA[Mai Sauvageot]]></dc:creator>
+		<pubDate>Thu, 05 Nov 2026 08:00:30 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[Probabilités]]></category>
+		<category><![CDATA[Géométrie aléatoire]]></category>
+		<guid isPermaLink="false">https://images.math.cnrs.fr/?p=46731</guid>
+
+					<description><![CDATA[Imaginons un domaine régulier du plan, par exemple un triangle, un rectangle, une ellipse, ou une figure plus générale. Supposons qu&#8217;il soit borné, c&#8217;est-à-dire qu&#8217;il puisse être entièrement...]]></description>
+										<wfw:commentRss>https://images.math.cnrs.fr/comment-estimer-une-aire-a-partir-dune-mosaique-aleatoire/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+			</item>
+		<item>
+		<title>Les premiers livres de mathématiques de la Bibliothèque des Amis de l’instruction du IIIe arrondissement</title>
+		<link>https://images.math.cnrs.fr/les-premiers-livres-de-mathematiques-de-la-bibliotheque-des-amis-de-linstruction-du-iiie-arrondissement/</link>
+					<comments>https://images.math.cnrs.fr/les-premiers-livres-de-mathematiques-de-la-bibliotheque-des-amis-de-linstruction-du-iiie-arrondissement/#respond</comments>
+		
+		<dc:creator><![CDATA[Mai Sauvageot]]></dc:creator>
+		<pubDate>Sun, 11 Oct 2026 07:00:15 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[Histoire des mathématiques]]></category>
+		<guid isPermaLink="false">https://images.math.cnrs.fr/?p=46537</guid>
+
+					<description><![CDATA[Cet article s’intéresse aux livres de mathématiques de la Bibliothèque des Amis de l’instruction du IIIe arrondissement, fondée à Paris en 1861 et l’une des...]]></description>
+										<wfw:commentRss>https://images.math.cnrs.fr/les-premiers-livres-de-mathematiques-de-la-bibliotheque-des-amis-de-linstruction-du-iiie-arrondissement/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+			</item>
+		<item>
+		<title>Le carré magique ultime</title>
+		<link>https://images.math.cnrs.fr/le-carre-magique-ultime/</link>
+					<comments>https://images.math.cnrs.fr/le-carre-magique-ultime/#respond</comments>
+		
+		<dc:creator><![CDATA[Carole Gaboriau]]></dc:creator>
+		<pubDate>Tue, 15 Sep 2026 07:00:09 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[Carré]]></category>
+		<guid isPermaLink="false">https://images.math.cnrs.fr/?p=46377</guid>
+
+					<description><![CDATA[Un carré magique est un arrangement des nombres entiers de 1 à \(n^2\) dans un tableau carré \(n \times n\) tel que la somme des...]]></description>
+										<wfw:commentRss>https://images.math.cnrs.fr/le-carre-magique-ultime/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+			</item>
+		<item>
+		<title>Des matrices pour des tresses</title>
+		<link>https://images.math.cnrs.fr/des-matrices-pour-des-tresses/</link>
+					<comments>https://images.math.cnrs.fr/des-matrices-pour-des-tresses/#respond</comments>
+		
+		<dc:creator><![CDATA[Carole Gaboriau]]></dc:creator>
+		<pubDate>Tue, 08 Sep 2026 07:00:32 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[Nœud]]></category>
+		<category><![CDATA[Matrice]]></category>
+		<guid isPermaLink="false">https://images.math.cnrs.fr/?p=46386</guid>
+
+					<description><![CDATA[Après 91 ans d’attente et beaucoup d’essais infructueux, la résolution d’une célèbre conjecture en théorie des tresses vient d’être annoncée par un trio de chercheuses,...]]></description>
+										<wfw:commentRss>https://images.math.cnrs.fr/des-matrices-pour-des-tresses/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+			</item>
+		<item>
+		<title>L&#8217;arithmétique des engrenages</title>
+		<link>https://images.math.cnrs.fr/larithmetique-des-engrenages/</link>
+					<comments>https://images.math.cnrs.fr/larithmetique-des-engrenages/#comments</comments>
+		
+		<dc:creator><![CDATA[Mai Sauvageot]]></dc:creator>
+		<pubDate>Tue, 28 Jul 2026 07:00:02 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[Arithmétique]]></category>
+		<category><![CDATA[Physique]]></category>
+		<guid isPermaLink="false">https://images.math.cnrs.fr/?p=46234</guid>
+
+					<description><![CDATA[Comment un assemblage d&#8217;engrenages peut-il permettre de contrôler avec précision la vitesse d&#8217;une roue ? C’est cette question, simple en apparence mais riche de nombreux...]]></description>
+										<wfw:commentRss>https://images.math.cnrs.fr/larithmetique-des-engrenages/feed/</wfw:commentRss>
+			<slash:comments>1</slash:comments>
+		
+		
+			</item>
+		</channel>
+</rss>

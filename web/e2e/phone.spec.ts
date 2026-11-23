@@ -8,7 +8,7 @@ test('phone layout: no bottom bar, no horizontal scroll, steps reachable, touch 
   // S-AK: the logo menu and the project bar replace the bottom navigation
   await expect(page.locator('.bottomnav')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Sections du projet' })).toBeVisible();
-  for (const path of ['/', '/activite', '/bibliotheque', '/reglages']) {
+  for (const path of ['/', '/activite', '/actualites', '/bibliotheque', '/reglages']) {
     await page.goto(process.env['MADALEAN_URL'] + path);
     await page.waitForTimeout(300);
     const [sw, w] = await page.evaluate(() => [document.documentElement.scrollWidth, innerWidth]);

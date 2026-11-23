@@ -812,3 +812,50 @@ hint ladder and `plan-real-compact-proved-desktop-light.png` — the latter now 
 d'un entier pair est pair », 7 nodes, 3 of 5 lemmas proved: the demo data has no fully proved plan), the user's own
 « Fonction continue sur un compact » dossier being unavailable to a test server; the file name is kept for the
 existing references).
+
+## 17. « Actualités » (session S-AV, 2026-11-22, DECISIONS D54, docs/NEWS.md)
+
+**Where.** A global destination: route `news` (`/actualites`, its own chunk, `screens/news/News.svelte`), listed in
+the logo menu between Activité and Bibliothèque (it appears there because the route has a `nav` entry — no change to
+the menu's list), in the command palette, and reached from the Home card. Settings: Réglages › Actualités
+(`/reglages/actualites`, `screens/settings/NewsSettings.svelte`, its own chunk). Help: `/aide/news`.
+
+**Hooks in existing files** (everything else is new files): one `addRoute` line; `<NewsCard />` on Home; one entry in
+the settings sections; the unread number beside « Actualités » in `AppMenu` (asked when the menu opens).
+
+**Screen.**
+- Header: title, help link, one status line (« Mis à jour : … · prochaine mise à jour : … », or the Local-mode /
+  demo / off sentence), « Mettre à jour » (disabled in Local mode), « Réglages ».
+- Filters, all live (no « Apply » button): search (single-line field, results while typing, 180 ms pause), field
+  and source selects (sources grouped; « Tout : <rubrique> »), toggle buttons with `aria-pressed`: « Non lus » (with
+  the count), « Mes domaines », « Problèmes ouverts », « Pour mes projets » (sorted by closeness), « Enregistrés ».
+  The filters other than the search text are remembered per device (`localStorage madalean.news.filters`).
+- List: 30 items, « Afficher la suite (n) ». An item is an `<article>`; its title is a real button
+  (`aria-expanded`, Enter / Space) that opens the abstract in place and marks the item read. Closed: title, source ·
+  date · authors, chips (« Problème ouvert », the fields — a click filters on that field —, « Pour : <projet> » with
+  the words in common as tooltip, « Enregistré », « Résumé en français »), two lines of text. Unread: accent bar and
+  dot, plus a hidden « Non lu : » for screen readers.
+- Open: warning when the text addresses a program; « Résumé automatique — écrit par <modèle> ; le texte d'origine
+  est en dessous » then « Texte d'origine »; the words shared with each project; categories; actions « Ouvrir sur
+  <site> » (new tab, `rel="noopener noreferrer"`), « Résumer en français », « Enregistrer », « Marquer non lu »; then
+  the group « Envoyer vers le projet « … » »: « Ajouter aux Sources du projet » (arXiv items), « Créer une
+  conjecture », « Créer un dossier à partir de ce problème », « Envoyer dans une note ». Each confirms with a toast
+  carrying « Ouvrir »; nothing navigates by itself. Without a project only the dossier button is active and the
+  group's label says why.
+- Empty states: no data yet (button « Mettre à jour »), Local mode (what to do), no match (« Enlever les filtres »).
+
+**Rules followed.** D43: no panel, so nothing to dismiss; Enter never sends anything here (search is live; the feed
+address in the settings is a single-line field, Enter validates it); every setting is saved at once. D48: the route
+and the settings section are lazy chunks; the Home card asks `GET /news/overview` when the browser is idle and
+renders nothing until it has data; the menu asks it when it opens; Markdown / KaTeX only through `LazyMd` (KaTeX on
+the first formula). No polling: the badge follows the `news.updated` event.
+
+**Untrusted text.** Titles, abstracts and summaries are rendered by `lib/md.ts` (no raw HTML, no images, sanitised);
+the two-line preview and the Home card show plain text.
+
+**Layouts and accessibility.** 360 / 820 / 1440 px, light and dark, no horizontal scroll; axe (WCAG 2.1 AA) clean on
+the list, an open item, the settings section and Home with the card (`e2e/news.spec.ts`, and `/actualites` in
+`e2e/a11y.spec.ts`); on coarse pointers the buttons, toggles and titles are ≥ 44 px high and the field chips 32 px (they repeat the
+field select, which is 44 px); the list count is announced politely.
+Screenshots: `docs/screenshots/v2/news-{list,item}-{360,820,1440}-{light,dark}.png`,
+`news-settings-{360,820,1440}-light.png`, `news-home-card-{360,1440}-light.png`.

@@ -15,6 +15,8 @@ addRoute({ name: 'conjectures', pattern: '/conjectures/:id?', load: () => import
 addRoute({ name: 'calcul', pattern: '/calcul', load: () => import('./screens/research/Calcul.svelte'), nav: { label: 'nav.calcul', icon: 'terminal', order: 15.5, group: 'project' } });
 addRoute({ name: 'publish', pattern: '/publier', load: () => import('./screens/research/Publish.svelte'), nav: { label: 'nav.publish', icon: 'globe', order: 16, group: 'project' } });
 addRoute({ name: 'activity', pattern: '/activite', load: () => import('./screens/Activity.svelte'), nav: { label: 'nav.activity', icon: 'activity', order: 20 } });
+// S-AV (D54): the mathematical watch — arXiv by domain, open problems, Lean / Mathlib, AI for maths (docs/NEWS.md)
+addRoute({ name: 'news', pattern: '/actualites', load: () => import('./screens/news/News.svelte'), nav: { label: 'nav.news', icon: 'globe', order: 20.5 } });
 addRoute({ name: 'library', pattern: '/bibliotheque', load: () => import('./screens/Library.svelte'), nav: { label: 'nav.library', icon: 'library', order: 21 } });
 addRoute({ name: 'glossary', pattern: '/glossaire', load: () => import('./screens/Glossary.svelte'), nav: { label: 'nav.glossary', icon: 'book', order: 22 } });
 addRoute({ name: 'notebook', pattern: '/carnet', load: () => import('./screens/Notebook.svelte'), nav: { label: 'nav.notebook', icon: 'notebook', order: 23 } });

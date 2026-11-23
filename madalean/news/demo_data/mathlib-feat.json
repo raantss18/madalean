@@ -1,0 +1,90 @@
+[
+ {
+  "sha": "a495318fed6482b3c90df686de5131b46a70fd5b",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/a495318fed6482b3c90df686de5131b46a70fd5b",
+  "commit": {
+   "message": "feat(RCLike): add `Continuous.re` and similar (#34419)\n\nThis PR adds dot notation for `re`, `im`, `conj` and `ofReal` for `Continuous`, `LipschitzWith` and `Memℓp`.\r\nGiven `hf : Continuous f` it allows to use `hf.re` to express `Continuous (fun x ↦ (f x).re)`, similarly to the usual `hf.add hg`.\r\n\r\nI also can add the same features for `Summable` but I am not sure where to place them, suggestions are appreciated!\n\nCo-authored-by: ster99 <user@example.org>",
+   "author": {
+    "name": "Stefano Rocca",
+    "date": "2026-11-21T15:54:27Z"
+   }
+  }
+ },
+ {
+  "sha": "6c6d782d91ae56dcde45c8cc2b774035e70c7a0e",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/6c6d782d91ae56dcde45c8cc2b774035e70c7a0e",
+  "commit": {
+   "message": "feat(RingTheory): some API for `LinearMap.baseChange` (#45419)",
+   "author": {
+    "name": "Monica Omar",
+    "date": "2026-11-20T17:06:02Z"
+   }
+  }
+ },
+ {
+  "sha": "591aee7b22adf8af55e11dc93f9bda299d252cd0",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/591aee7b22adf8af55e11dc93f9bda299d252cd0",
+  "commit": {
+   "message": "feat(Analysis/Normed/Module): real scalars on a complete normed `ℚ`-algebra (#43908)\n\nWe show that a complete normed `ℚ`-algebra carries a unique `NormedAlgebra ℝ 𝔸` structure.",
+   "author": {
+    "name": "Bingyu Xia",
+    "date": "2026-11-20T17:05:58Z"
+   }
+  }
+ },
+ {
+  "sha": "a205649cf4e6ce1ae4ef6f0a3466f58a30fcdd22",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/a205649cf4e6ce1ae4ef6f0a3466f58a30fcdd22",
+  "commit": {
+   "message": "feat(Linter/Multigoal): also lint in conv mode (#45124)\n\nThis PR activates the multi-goal linter inside `conv` mode.\r\n\r\nAdaptations require replacing uses of `congr` with a focused congruence tactic like `enter`. The only case in which this doesn't work is the `apply_congr` tactic, which unfortunately cannot be replaced with `enter`.",
+   "author": {
+    "name": "Jovan Gerbscheid",
+    "date": "2026-11-20T16:28:43Z"
+   }
+  }
+ },
+ {
+  "sha": "a1c366fa78621ef7a76fb0183de576200eec5dad",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/a1c366fa78621ef7a76fb0183de576200eec5dad",
+  "commit": {
+   "message": "feat(GroupTheory/QuotientGroup/UnitsModPow): add Units.ModPow and API (#44614)\n\nThis is a first step toward extending Mathlib's coverage of Selmer groups of rings of S-integers in étale algebras over number fields, ultimately aiming at the Mordell-Weil Theorem for elliptic curves.\r\n\r\nWe add `Units.ModPow`, an `abbrev` for the quotient of the unit group of a commutative monoid by the subgroup consisting of `n`th powers, together with some basic API, in a new module (and some helper lemmas in other modules, including a few missing `to_additive` attributes).\r\n\r\nThis is upstreamed from [EllipticCurves](https://github.com/MichaelStollBayreuth/EllipticCurves). The code was originally written by Claude and then reviewed by me.\n\nCo-authored-by: pre-commit-ci-lite[bot] <117423508+pre-commit-ci-lite[bot]@users.noreply.github.com>",
+   "author": {
+    "name": "Michael Stoll",
+    "date": "2026-11-20T15:41:06Z"
+   }
+  }
+ },
+ {
+  "sha": "aae515f5bd5b03032b071c0e2484af5c688a1037",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/aae515f5bd5b03032b071c0e2484af5c688a1037",
+  "commit": {
+   "message": "feat(CategoryTheory): equivalence of categories of elements (#45873)",
+   "author": {
+    "name": "Joël Riou",
+    "date": "2026-11-20T14:52:03Z"
+   }
+  }
+ },
+ {
+  "sha": "a5701f34166a0a5ae1b18e9018bd172c55d848d7",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/a5701f34166a0a5ae1b18e9018bd172c55d848d7",
+  "commit": {
+   "message": "feat(Algebra/Polynomial/FieldDivision): add mul_add_mod_of_degree_lt and mul_add_div_of_degree_lt (#46275)\n\nalso add `Polynomial.add_div` which is the counterpart of [`Polynomial.add_mod`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/Algebra/Polynomial/FieldDivision.html#Polynomial.add_mod) and used in the proof of `mul_add_div_of_degree_lt`.\n\n`Polynomial.add_div` is protected (similar to [`Polynomial.div_eq_zero_iff`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/Algebra/Polynomial/FieldDivision.html#Polynomial.div_eq_zero_iff) because otherwise it would clash with the existing `add_div`.",
+   "author": {
+    "name": "Paul Cadman",
+    "date": "2026-11-20T14:11:36Z"
+   }
+  }
+ },
+ {
+  "sha": "d9420445c5b5561293647127334e7c204aba99ca",
+  "html_url": "https://github.com/leanprover-community/mathlib4/commit/d9420445c5b5561293647127334e7c204aba99ca",
+  "commit": {
+   "message": "feat(Analysis/Normed): continuity of `Unitization.toProd` (#46267)\n\nThis PR adds a continuity lemma for `Unitization.toProd`. Currently, only the continuity of `fst` and `snd` is proved, but these are syntactic sugar for `.toProd.{fst,snd}`. Since these are compositions, `fun_prop` cannot use these lemmas unless they match the goal exactly.",
+   "author": {
+    "name": "Attila Gáspár",
+    "date": "2026-11-20T13:28:23Z"
+   }
+  }
+ }
+]

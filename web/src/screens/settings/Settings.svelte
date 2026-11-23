@@ -15,6 +15,7 @@
     { id: 'appareils', help: 'pairing', label: 'settings.sec.devices', icon: 'device', load: () => import('./Devices.svelte') },
     { id: 'espaces', label: 'settings.sec.workspaces', icon: 'folder', load: () => import('./Workspaces.svelte') },
     { id: 'mises-a-jour', help: 'updates', label: 'settings.sec.updates', icon: 'refresh', load: () => import('./Updates.svelte') },
+    { id: 'actualites', help: 'news', label: 'settings.sec.news', icon: 'globe', load: () => import('./NewsSettings.svelte') },
     { id: 'profil', label: 'settings.sec.profile', icon: 'heart', load: () => import('./Profile.svelte') },
     { id: 'langue', help: 'first-run', label: 'settings.sec.language', icon: 'globe', load: () => import('./Language.svelte') },
     { id: 'apparence', help: 'shortcuts', label: 'settings.sec.appearance', icon: 'sun', load: () => import('./Appearance.svelte') },
