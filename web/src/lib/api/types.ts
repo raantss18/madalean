@@ -30,7 +30,7 @@ export interface Version {
 }
 export type VersionKind = 'statement' | 'proof' | 'explanation';
 
-export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'check' | 'proof' | 'explanation' | 'informal' | 'info' | 'error' | 'certificate';
+export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'check' | 'proof' | 'explanation' | 'informal' | 'info' | 'error' | 'certificate' | 'literature';
 /** `check` event params (statement check, S-K). */
 export interface CheckIssue { kind: string; severity: 'high' | 'low'; explanation: string; fix: string; checked: string }
 export type CheckVerdict = 'faithful' | 'doubtful' | 'false' | 'unknown';
@@ -154,7 +154,7 @@ export interface Settings {
   language: 'fr' | 'en'; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;
   workspace: string; model_path: string; prove_attempts: number; translate_attempts: number;
   pause_after_translation: boolean; profile: string; statement_notes: boolean; informal_proof: boolean;
-  statement_check: boolean; mathlib_first: boolean; certificates?: boolean; lean_warm: boolean; lean_warm_idle_minutes: number; calcul_warm: boolean;
+  statement_check: boolean; mathlib_first: boolean; certificates?: boolean; literature?: boolean; literature_depth?: 'quick' | 'deep'; lean_warm: boolean; lean_warm_idle_minutes: number; calcul_warm: boolean;
   compile_timeout_s: number; check_updates: boolean; overleaf_url: string; autoload_model: boolean;
   agent_max_steps: number; agent_max_seconds: number; host_name: string; wizard_done: boolean; offline: boolean;
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;

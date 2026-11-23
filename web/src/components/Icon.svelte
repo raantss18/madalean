@@ -68,6 +68,7 @@
     clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3.5 2',                           // a version of the article
     texfile: 'M14 3H6v18h12V7zM14 3v4h4M10 11.5l-2 2.5 2 2.5M14 11.5l2 2.5-2 2.5',          // a .tex file
     bookmark: 'M6 3h12v18l-6-4.5L6 21z',                                                   // bibliography (refs.bib)
+    paperclip: 'M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9', // attach a file
     sliders: 'M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4',          // settings file
     folderOpen: 'M3 19V5h6l2 2h8v3M3 19l3-8h15l-3 8z',
     panelLeft: 'M3 4h18v16H3zM9 4v16',

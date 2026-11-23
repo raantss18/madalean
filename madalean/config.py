@@ -82,6 +82,9 @@ class Settings:
     statement_check: bool = True            # « Vérifier l'énoncé »: fidelity (model) + truth probes (Lean)
     mathlib_first: bool = True              # look for the theorem in Mathlib before the prover models
     certificates: bool = True               # S-AT (D52): « Sage calcule, Lean vérifie » before the prover models
+    # S-AX (D56): « Chercher dans la littérature » beside Mathlib-first (never in Local mode); quick | deep
+    literature: bool = True
+    literature_depth: str = "quick"
     # S-AF (D38): once Lean accepts the statement, guided reading, statement check, Mathlib search and proof search
     # run together (explanation and informal proof too); off = the 1.x order, one stage after the other
     parallel_stages: bool = True

@@ -302,6 +302,8 @@ def file_kind(data: bytes) -> str:
         return "archive"
     if k == "epub":
         return "epub"
+    if k == "image":
+        return "image"                  # S-AX: an attached image (read once by a vision model)
     if k == "tex":
         return "tex"
     return "other"
@@ -338,7 +340,7 @@ def attach_file(shelf: Shelf, src: dict, data: bytes, name: str, role: str = "ma
             shelf.unpacked(sha)                  # validate now: a hostile archive is refused at upload time
         except UnsafeInput as e:
             raise SourceError("bad_archive", 422, reason=e.kind)
-    ext = {"pdf": ".pdf", "tex": ".tex", "archive": ".tar.gz", "epub": ".epub"}[kind]
+    ext = {"pdf": ".pdf", "tex": ".tex", "archive": ".tar.gz", "epub": ".epub", "image": ".img"}[kind]
     f = {"sha256": sha, "name": safe_name(name, f"{src['key']}{ext}"), "kind": kind, "size": len(data),
          "role": role, "added": time.time()}
     src["files"].append(f)

@@ -38,6 +38,17 @@ class UnsafeInput(Exception):
 
 
 # ---------------------------------------------------------------- sniffing
+def image_type(data: bytes) -> str:
+    """'image/png' | 'image/jpeg' | 'image/webp' | '' from the first bytes."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) > 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return ""
+
+
 def sniff(data: bytes, name: str = "") -> str:
     """pdf | gzip | zip | epub | tar | tex | bib | ris | csljson | html | text | binary."""
     head = data[:2048]
@@ -51,6 +62,8 @@ def sniff(data: bytes, name: str = "") -> str:
         return "zip"
     if len(data) > 262 and data[257:262] == b"ustar":
         return "tar"
+    if image_type(data):
+        return "image"                    # S-AX attachments: PNG / JPEG / WebP only (magic bytes, never the name)
     if b"%PDF-" in head[:1024] and not head[:4].isascii():
         return "pdf"                      # junk before the header (allowed by the PDF spec)
     if b"\x00" in head:

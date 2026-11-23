@@ -1227,3 +1227,44 @@
 - UI: Réglages › Outils (MCP) (lazy-loaded section, FR + EN, D43 autosave, axe clean in both themes): the switch,
   the exact command / JSON to copy for this installation, the HTTP and Sage switches, the tool list; external servers
   (add by command or address, test, enable, tick tools, remove); the call log.
+## D56 — « Littérature d'abord »: published results and attachments as cited lemmas, never as proofs (TODO « Stratégie 2.1 » item 5, 2026-11-23, S-AX)
+- Request: for each statement, look first in the reviewed literature for related results, transcribe them into Lean
+  if Mathlib lacks them, link and use them as lemmas, to help design and validate the statement; beware of endless
+  searches, hallucinations, breaking what is robust; clear bibliographies. Extension (same day): attach an image, a
+  PDF, LaTeX or a URL anywhere, read once into a project memory; understand the target first, then the known results.
+- Decision (docs/LITERATURE.md): a package `madalean/literature/` with a plain async API (`search(statement, ctx,
+  budget) -> LiteratureResult`, typed items, `node()` for the lemma graph of S-AY, callable by the MCP exposure of
+  S-AZ), a pipeline stage `literature` beside Mathlib-first (≈ 10 lines in `runner.py`), a plugin, a lazy panel.
+  Sources: zbMATH Open (reviews, MSC), OpenAlex, arXiv, Crossref and the DOI registry (confirmation), the user's
+  Sources, the Mathlib index. Rejected: Semantic Scholar (rate-limited without a key; adds no reviewed venue);
+  downloading open-access PDFs during the search (time, licences; « Ajouter aux Sources » imports them explicitly);
+  web search engines (no record to verify).
+- **Anti-hallucination, hard rules**: references only from retrieved records with a resolving identifier (DOI
+  confirmed by Crossref, else the DOI registry — the first recording showed that DataCite DOIs such as arXiv's and
+  Zenodo's are not in Crossref, so a Crossref 404 alone is not « invented »); quotes string-matched against the
+  retrieved, deterministically cleaned text; models only propose keywords (filtered to words) or pick numbered
+  passages; peer-reviewed / preprint from Crossref / zbMATH types; withdrawn works dropped; « rien de fiable trouvé »
+  said as such. Rejected: letting a model summarise the result (a paraphrase is not a citation); fuzzy matching of
+  quotes (an altered formula must fail).
+- **Conditional proofs**: the « admitted lemma » form of proof plans (S-L): cited lemmas stated with `sorry` before the
+  theorem; Lean checks the implication, the strict verdict refuses it, it is stored in `extra.conditional_proof`
+  (`source: literature`) and shown « preuve conditionnelle : repose sur [réf.] » in the proof step, the header chip,
+  the library catalogue and the exports; « Prouver ce lemme » creates a lemma dossier keeping the `cited_…` name, and
+  when it is proved the composed file passes the strict check before anything is « vérifiée ». Rejected: hypotheses
+  `(h : cited)` in the theorem (changes the statement the user validated); `axiom` declarations (D28 refuses them).
+- **Loops and budgets**: each phase runs once; quick 45 s / 10 requests / 3 model calls / 8 Lean checks, deep 150 s /
+  24 / 8 / 24; cancellable (« Arrêter », `literature/stop`); a cited lemma's dossier never searches; stage cache 30
+  days. The benchmark switches the stage off (it measures proofs, D53).
+- **Attachments, read once**: a Source of the project (existing import, limits, SSRF-safe URLs), a digest per SHA-256
+  and extractor version (reused by every dossier of the project, « Relire » on demand), statements as typed items
+  `origin: attachment` with verbatim quotes and optional Lean statements; images through one vision call (free online,
+  local in Local mode, else « non lue »). The stage states « À prouver » and, apart, « résultats fournis » with their
+  origin; follow-ups naming « pièce jointe N, lemme X » get the digest's quote. Rejected: re-reading documents per
+  request (cost, latency); merging provided results into the target statement.
+- Cut for now (stated in LITERATURE.md §7): paperclip on the new-problem input and on Calcul's « Demande » cell (API
+  ready: `cell`), notation tables and Sage code in digests, a real vision provider measured end to end.
+- Verified: `tests/test_literature.py` (recorded answers of one real polite query per source from this machine,
+  verbatim rule, invented DOI, Local mode zero requests, host allow-list, injection, budget / cancel / cache, free
+  models only, conditional proof never verified and upgraded with real Lean, API, pipeline stage, export),
+  `tests/test_attachments.py`, `web/e2e/literature.spec.ts` (panel, labels, Sources, bibliography, attachment, English,
+  360 px, axe).

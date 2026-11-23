@@ -907,6 +907,32 @@ docs/MCP.md. Every route answers 403 `host_only` on the remote / LAN listeners. 
 - `External = {id, name, transport, command: [argv], url, enabled, allowed, tools: [{name, title, description,
   inputSchema (sanitised), safe}], timeout_s, status, created}`.
 - WebSocket event `mcp.updated {server, removed?}`.
+## 6i. Littérature et pièces jointes (S-AX D56, plugin `literature.py`, docs/LITERATURE.md)
+
+| | |
+|---|---|
+| `GET /dossiers/{id}/literature` | `{literature: LiteratureResult \| null, running, enabled, depth, mode, stale, conditional}` (`conditional` = the dossier's literature conditional proof, never a verified one) |
+| `POST /dossiers/{id}/literature` `{depth?: quick\|deep, refresh?}` | `202 {started}`; event `literature.updated {dossier_id}` when done; `409 local_mode \| no_statement \| busy` |
+| `POST /dossiers/{id}/literature/stop` | `{stopped}` (also stops the running job's literature stage) |
+| `POST /dossiers/{id}/literature/items/{item}/source` `{shelf?}` | the retrieved record → the project's Sources (else global) → `201 {source, duplicate:null}` / `200 {source, duplicate}` |
+| `POST /dossiers/{id}/literature/items/{item}/cite` | Sources + the dossier's `refs` (the article's bibliography prints it) → `{key, source, refs}` |
+| `POST /dossiers/{id}/literature/items/{item}/prove` | lemma dossier with the cited Lean statement (`extra.cited_from`, theorem keeps the `cited_…` name), proof job started → `201 {dossier, job}`; `409 not_formalized \| nothing_to_prove` |
+| `POST /dossiers/{id}/literature/conditional` | try the conditional proof now → `{conditional \| null}` |
+| `POST /literature/search` `{statement, text?, depth?, workspace?, project_id?}` | `{result}` (nothing stored; Local mode → local Sources and Mathlib only) |
+| `GET /dossiers/{id}/attachments` | `{attachments: [{n, sha, shelf, source_id, name, kind, state: reading\|read\|unread, verified, reference, transcription, items}]}` |
+| `POST /dossiers/{id}/attachments` multipart `file` (+ `cell`) or `{url, cell?}` | `201 {attachment, read}` — `read: false` when the project already read this file (SHA-256): nothing is read twice; `415 bad_type`, `413 too_large`, `409 local_mode` (URL), `409 too_many` |
+| `POST /dossiers/{id}/attachments/{n}/reread` | « Relire » → `202` |
+
+`LiteratureResult = {statement, depth, query: {keywords, extra_keywords, lean_names, msc, queries}, items:
+[LiteratureItem], mathlib: [{name, signature}], providers: {name: {ok, count, error, requests}}, rejected:
+{unresolved_dois?, invented_passages?, unknown_passage_ids?, suspect_texts?, no_identifier?, withdrawn?},
+local_mode, cancelled, cached, message: found|nothing_reliable|local_nothing|cancelled, seconds, usage}`;
+`LiteratureItem = {id, origin: literature|attachment, label, reference: {id, title, authors, year, venue, doi, arxiv,
+kind: journal|book|proceedings|preprint|thesis|unknown, peer_reviewed, confirmed_by, csl}, texts: [{kind, provider,
+text, locator, licence, suspect}], quotes: [{text, text_index, start, end, location, picked_by}], lean: {name,
+statement, compiled, status: in_mathlib|proved|to_prove|unformalized, mathlib_name, library_name, model, note,
+child_dossier}, bibtex}` — `texts[q.text_index].text[q.start:q.end] == q.text` for every quote. Thread events of kind
+`literature`. Settings `literature` (bool, default on) and `literature_depth` (`quick` | `deep`).
 
 ## 7. Demo mode
 

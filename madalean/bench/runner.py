@@ -190,6 +190,7 @@ def settings_for(cfg: BenchConfig) -> dict:
              tournament_max_minutes=max(1, int(cfg.time_per_problem // 60) + 1),
              agent_max_seconds=int(max(30, cfg.time_per_problem)), web_search=False, gpu_share_ollama=False,
              calcul_warm=False, experiments_auto=False, agent_exec=False,
+             literature=False,              # S-AX: the bench measures proofs; the literature stage is not a racer
              claude_reinforce=paid, hf_goedel=paid, conductor=False,
              claude_cap_proof_usd=min(1.0, cfg.paid_budget) if paid else 0.0,
              claude_cap_month_usd=cfg.paid_budget if paid else 0.0,

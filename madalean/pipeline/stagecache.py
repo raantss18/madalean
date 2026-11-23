@@ -23,7 +23,7 @@ from ..logs import get
 
 log = get("stagecache")
 MAX_ENTRIES = 400              # per kind
-KINDS = ("check", "mathlib")
+KINDS = ("check", "mathlib", "literature")      # literature: S-AX (D56), the search result of a statement
 
 
 def normalize_statement(statement: str) -> str:
@@ -89,3 +89,16 @@ class StageCache:
                 await asyncio.to_thread(config.atomic_write_text, self.path, text)
             except OSError as e:          # a cache that cannot be written is only a slower next run
                 log.warning("stage cache not saved: %s", e)
+
+
+def shared(ctx) -> StageCache:
+    """The one StageCache of a server context (the pipeline and the literature search write the same file: two
+    instances would overwrite each other's entries)."""
+    c = getattr(ctx, "_stage_cache", None)
+    if c is None:
+        c = StageCache(ctx.paths.cache / "stage-cache.json")
+        try:
+            ctx._stage_cache = c
+        except AttributeError:
+            pass
+    return c

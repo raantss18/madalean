@@ -780,3 +780,20 @@ docs/CERTIFICATES.md has the kinds and the limits; here is what the brain sees.
 - A claim the computation finds false is reported in the thread (« Le calcul indique que l'énoncé est faux ») and
   to the agent; the statement check (§S-K) stays the judge of what to do with the statement.
 
+## 21. Literature first and attachments (session S-AX, DECISIONS D56, docs/LITERATURE.md)
+
+- **Stage `literature`** (pipeline/literature_hook.py): beside Mathlib-first and certificates (D38), own owner
+  `<job>#literature`, bounded by `Budget` (time, requests, model calls, Lean checks); never a racer, never awaited by
+  the proof search; skipped in Local mode, when the setting is off, for a refinement, and for a cited lemma's own
+  dossier (loop guard). Cached in the stage cache (`kind: literature`).
+- **Models**: free online models only (`only=` pinned to a non-paid, non-local candidate; a paid answer is dropped):
+  a few extra search keywords (`understand`, filtered to plain words — never a reference), the choice of a passage
+  among numbered ids (« approfondi »), the formalization of a verified quote (`formalize`, Goedel prompt, Lean check).
+  Their output is never shown as a reference or a quotation.
+- **Provers**: `job.literature_hint` (Mathlib names of cited results first; then cited / provided results that are
+  not available in Lean, as statements to prove inline) is appended like `job.mathlib_hint` at each new attempt.
+- **Conditional proofs**: Lean checks the theorem with the cited lemmas stated with `sorry`; the strict verdict always
+  refuses it (`sorryAx`), so it is stored apart (`extra.conditional_proof`, `source: literature`) and upgraded only
+  by a strict check once every cited lemma has a Lean proof in the library.
+- **Attachments**: read once per project (SHA-256 digests); images through a vision model (free online; local in
+  Local mode), the transcription kept, the image never re-sent.

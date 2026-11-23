@@ -30,7 +30,7 @@ from .workspaces import Workspace, all_workspaces
 log = get("context")
 ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agent", "auto"), "language": tuple(i18n.LANGS),
          "sage_source": ("auto", "own", "system"), "tex_engine": ("auto", "tectonic", "system"),
-         "gpu_share_busy_fallback": ("cpu", "online")}
+         "gpu_share_busy_fallback": ("cpu", "online"), "literature_depth": ("quick", "deep")}
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
                       "experiments_remote", "updates_auto", "browser_session_idle_minutes", "calcul_warm",
                       "gpu_share_ollama", "gpu_share_busy_wait_s", "gpu_share_busy_fallback",

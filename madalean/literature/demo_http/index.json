@@ -1,0 +1,100 @@
+{
+ "https://api.crossref.org/works/10.1007/bf02834394": {
+  "file": "18759d30795ef3b1de24.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.1016/0898-1221(93)90071-3": {
+  "file": "a22a8e715d98fae72550.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.1016/j.disc.2007.07.049": {
+  "file": "664e7db53c4af28be18b.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.1080/00029890.2009.11920980": {
+  "file": "53a0b71b5a129267b7ba.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.1080/0025570x.2023.2231336": {
+  "file": "9bb176711bcc1213d672.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.48550/arxiv.0907.5232": {
+  "file": "8a1c859e9b88c867beb5.bin",
+  "headers": {
+   "content-type": "text/plain"
+  },
+  "status": 404
+ },
+ "https://api.crossref.org/works/10.5269/bspm.v31i2.15138": {
+  "file": "7649cbe3a6976ec16f71.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.crossref.org/works/10.5281/zenodo.19456391": {
+  "file": "f371a6bd42b00d966e6c.bin",
+  "headers": {
+   "content-type": "text/plain"
+  },
+  "status": 404
+ },
+ "https://api.openalex.org/works?search=Bertrand+postulate+prime&per-page=6": {
+  "file": "d4718c6024d63e3fa821.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.openalex.org/works?search=Bertrand+postulate+theorem&per-page=6": {
+  "file": "f9f0c7e0f2c746272230.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.zbmath.org/v1/document/_search?search_string=Bertrand+postulate+prime&page=0&results_per_page=6": {
+  "file": "8f5401eb54acc430b825.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://api.zbmath.org/v1/document/_search?search_string=Bertrand+postulate+theorem&page=0&results_per_page=6": {
+  "file": "f2b72dad38d6bc2b9838.bin",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "status": 200
+ },
+ "https://doi.org/api/handles/10.5281/zenodo.19456391": {
+  "file": "3a33d51ccc1cd0c398f8.bin",
+  "headers": {
+   "content-type": "application/json;charset=UTF-8"
+  },
+  "status": 200
+ },
+ "https://export.arxiv.org/api/query?search_query=all%3ABertrand+AND+all%3Apostulate+AND+all%3Aprime&start=0&max_results=6&sortBy=relevance": {
+  "file": "a783d08a72830ea59e2c.bin",
+  "headers": {
+   "content-type": "application/atom+xml; charset=utf-8"
+  },
+  "status": 200
+ }
+}

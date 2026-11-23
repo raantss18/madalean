@@ -37,15 +37,18 @@ def make_ctx(tmp: Path, ws=None, brain=None, fake_lean: bool = False, caps=None,
     ctx.settings.statement_check = False
     ctx.settings.mathlib_first = False
     ctx.settings.certificates = False    # S-AT: tests/test_certificates.py turns it on
+    ctx.settings.literature = False      # S-AX: never a network search from a test; tests/test_literature.py turns it on
     return ctx
 
 
 async def started(ctx: ServerContext) -> ServerContext:
     key, mode = ctx.settings.workspace, ctx.settings.mode
-    sk = (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates)
+    sk = (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates,
+          ctx.settings.literature)
     await ctx.start()
     ctx.settings.workspace, ctx.settings.mode = key, mode
-    ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates = sk
+    (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates,
+     ctx.settings.literature) = sk
     return ctx
 
 

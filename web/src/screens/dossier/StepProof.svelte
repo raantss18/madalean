@@ -24,6 +24,13 @@
   import { navigate } from '../../lib/router.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
+  // S-AX (D56): the « Littérature » panel is its own chunk, fetched with the proof step
+  let litChunk: Promise<typeof import('./LiteraturePanel.svelte').default> | null = null;
+  function loadLit() {
+    litChunk ??= import('./LiteraturePanel.svelte').then((m) => m.default);
+    litChunk.catch(() => { litChunk = null; });
+    return litChunk;
+  }
   const proving = $derived(job && ['proof', 'explanation', 'informal'].includes(job.stage));
   const proofV = $derived(d.proofs[d.cur_proof]);
   const hasProof = $derived(Boolean(d.current.proof) && d.current.proof_is_current);
@@ -41,7 +48,7 @@
   let splitting = $state(false);
   let textTab = $state<'informal' | 'explanation'>('informal');
   const extra = $derived((d['extra'] as Record<string, unknown> | undefined) ?? {});
-  const cond = $derived((extra['conditional_proof'] ?? d['conditional_proof']) as { verdict?: string; admitted?: string[]; code?: string } | undefined);
+  const cond = $derived((extra['conditional_proof'] ?? d['conditional_proof']) as { verdict?: string; admitted?: string[]; code?: string; source?: string; cited?: { short: string }[] } | undefined);
   const recheck = $derived(((extra['recheck'] ?? d['recheck']) as { state?: string } | undefined)?.state ?? '');
   const children = $derived(Object.values(app.m.dossiers).filter((c) => c.parent_id === d.id).sort((a, b) => a.created - b.created));
   const explV = $derived(d.explanations[d.cur_explanation]);
@@ -110,9 +117,13 @@
   {#if cond?.verdict === 'proved_modulo'}
     <section class="panel conditional" role="status" aria-labelledby="cond-h">
       <h2 id="cond-h"><Icon name="warn" size={16} /> {t('plan.conditional')}</h2>
-      <p class="small">{t('plan.conditionalText', { n: cond.admitted?.length ?? 0, names: (cond.admitted ?? []).join(', ') })}</p>
+      {#if cond.source === 'literature'}
+        <p class="small">{t('lit.conditionalText', { refs: (cond.cited ?? []).map((c) => c.short).join(', ') })}</p>
+      {:else}
+        <p class="small">{t('plan.conditionalText', { n: cond.admitted?.length ?? 0, names: (cond.admitted ?? []).join(', ') })}</p>
+      {/if}
       {#if cond.code}<details><summary class="small">{t('plan.conditionalCode')}</summary><pre class="errs neutral">{cond.code}</pre></details>{/if}
-      <a class="btn small" href="/d/{encodeURIComponent(d.id)}/plan">{t('plan.openPlan')}</a>
+      {#if cond.source !== 'literature'}<a class="btn small" href="/d/{encodeURIComponent(d.id)}/plan">{t('plan.openPlan')}</a>{/if}
     </section>
   {/if}
   {#if hasProof}
@@ -240,6 +251,7 @@
       </ul>
     </section>
   {/if}
+  {#await loadLit()}<div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span></div>{:then LiteraturePanel}<LiteraturePanel dossier={d} />{/await}
 </div>
 <SplitDialog dossier={d} bind:open={splitting} />
 

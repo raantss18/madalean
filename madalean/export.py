@@ -97,6 +97,7 @@ class Content:
     bib_path: Path | None = None
     bib: list = field(default_factory=list)          # [(key, CSL item)] cited by this document (research.biblio)
     bib_backend: str = ""                            # biblatex | bibtex | manual ("" = choose)
+    conditional: str = ""                            # S-AX: « preuve conditionnelle » note (never a verified proof)
 
 
 _LABEL = r"[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__|\*|_)?[ \t]*"
@@ -210,7 +211,25 @@ def collect(d: Dossier, lang: str = "fr", ws_info: dict | None = None, bib_keys:
         informal_is_explanation=proved and not informal and bool(d.explanation),
         proof=d.proof if proved else "", proved=proved, stamp=stamp,
         explanation=document_explanation(d.explanation) if (proved and informal) else "", date=_dt.date.today(), lang=lang if lang in T else "fr",
-        bib_keys=list(bib_keys or []), bib_path=bib_path, bib=_bib_entries(bib_entries, bib_keys, bib_path))
+        bib_keys=list(bib_keys or []), bib_path=bib_path, bib=_bib_entries(bib_entries, bib_keys, bib_path),
+        conditional="" if proved else conditional_note(d, lang))
+
+
+def conditional_note(d: Dossier, lang: str = "fr") -> str:
+    """S-AX (D56): a proof that Lean accepts only by admitting results (cited literature, attachments, admitted plan
+    lemmas) is printed as such — never as a proof — with what it rests on."""
+    cond = (d.extra or {}).get("conditional_proof")
+    if not isinstance(cond, dict) or cond.get("verdict") != "proved_modulo":
+        return ""
+    if cond.get("source") == "literature":
+        refs = ", ".join(f"{c.get('short', '')} — {c.get('title', '')}" for c in cond.get("cited") or [])
+        return (f"Preuve conditionnelle, NON vérifiée : Lean l'accepte en admettant {refs} (résultat cité, non prouvé "
+                "en Lean)." if lang == "fr" else
+                f"Conditional proof, NOT verified: Lean accepts it when it assumes {refs} (cited result, not proved "
+                "in Lean).")
+    names = ", ".join(cond.get("admitted") or [])
+    return (f"Preuve conditionnelle, NON vérifiée : repose sur des lemmes admis ({names})." if lang == "fr" else
+            f"Conditional proof, NOT verified: rests on admitted lemmas ({names}).")
 
 
 def _bib_entries(entries: list | None, keys: list[str] | None, path: Path | None) -> list:
@@ -337,6 +356,8 @@ def build_tex(c: Content, verbatim: bool = False, f: texio.Fonts | None = None) 
         parts += [r"\subsection*{" + t["gloss"] + "}", r"\MLainote{" + t["ai_gloss"] + "}", "", model_text(c.notes)]
     if not c.proved:
         parts += ["", r"\begin{MLwarnbox}", _esc(t["not_proved_text"], f), r"\end{MLwarnbox}"]
+        if c.conditional:
+            parts += ["", r"\begin{MLwarnbox}", _esc(c.conditional, f), r"\end{MLwarnbox}"]
     else:
         if c.informal.strip():
             parts += [r"\section*{" + t["informal"] + "}", r"\MLainote{" + t["ai_note"] + "}", "",
@@ -417,6 +438,8 @@ def build_md(c: Content) -> str:
         out += [f"### {t['gloss']}", "", f"*{t['ai_gloss']}*", "", c.notes.strip(), ""]
     if not c.proved:
         out += [f"> {t['not_proved_text']}", ""]
+        if c.conditional:
+            out += [f"> **{c.conditional}**", ""]
     else:
         if c.informal.strip():
             out += [f"## {t['informal']}", "", f"*{t['ai_note']}*", "", c.informal.strip(), ""]
@@ -496,6 +519,8 @@ def build_html(c: Content) -> str:
         out.append(f'<h3>{t["gloss"]}</h3><p class="note">{t["ai_gloss"]}</p>{md(c.notes)}')
     if not c.proved:
         out.append(f'<div class="warnbox">{html.escape(t["not_proved_text"])}</div>')
+        if c.conditional:
+            out.append(f'<div class="warnbox">{html.escape(c.conditional)}</div>')
     else:
         if c.informal.strip():
             out.append(f'<h2>{t["informal"]}</h2><p class="note">{t["ai_note"]}</p>{md(c.informal)}')
