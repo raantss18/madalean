@@ -735,6 +735,9 @@ class Planner:
                                                     "créer une nouvelle version proposée par l'IA (l'ancienne reste "
                                                     "disponible).")
         context, pname, psig = self._node_decl(plan, nid)
+        gs = getattr(getattr(self.ctx, "research", None), "graphs", None)
+        if gs is not None:          # S-AY (D57): known results first (« Cible / Connu / À prouver »), then the split
+            hint = (hint + "\n\n" + gs.prover_hint(d)).strip()
         lk = self.alocks.setdefault(did, asyncio.Lock())
         if self.analysing.get(did):
             raise PlanError("busy", 409, "Une analyse est déjà en cours pour ce plan.")
