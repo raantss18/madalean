@@ -182,3 +182,19 @@ per configuration, no confidence interval beyond the sample size: ±14 points at
 compile are apart, resume, per-problem timeout, paid budget stop and cost accounting, a paid call without budget
 stops the run, free-by-default provider filter, statement pinning, safe extraction and content pinning of the
 sets, Putnam answers, deterministic selection, the CLI and published summary names.
+
+## 2026-11-23 — strategy « certificate » (D52) and a correction
+
+Same 50 miniF2F « valid » problems (seed 1) and the smoke set, Lean v4.9.0-rc1, 0 $:
+
+| Set | Strategy | Verified | of which: certificate / Mathlib / free model (Goedel loop) |
+|---|---|---|---|
+| smoke | certificate | 15 / 20 | 1 / 14 / 0 |
+| miniF2F valid (50) | certificate | 7 / 50 | 2 / 3 / 2 |
+
+**Correction.** « mathlib » and « certificate » are not strictly model-free: after Mathlib-first (and the
+certificates), the Goedel loop runs if a Goedel-type model is reachable, which includes a free online tier
+(here NVIDIA's free Nemotron answered 2 problems). The strategy descriptions now say so; earlier « Mathlib-first
+only » rows were labelled « no model » too generously (on 2026-11-22 none of their proofs came from a model).
+Certificates added 2 miniF2F problems (`mathd_numbertheory_739` arithmetic, `mathd_numbertheory_236` modular power)
+that Mathlib-first did not solve.

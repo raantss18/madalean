@@ -1,5 +1,34 @@
 # Changelog
 
+## 2.1.0 — 2026-11-23
+
+**Certificats : Sage calcule, Lean vérifie**
+- Pour les énoncés qui s'y prêtent, Madalean ne demande rien à un modèle : Sage cherche un témoin (facteur,
+  certificat de primalité de Pratt, inverse, cofacteurs d'une base de Gröbner, somme de carrés, combinaison de Farkas,
+  contre-exemple, encadrement numérique) et Lean se contente de le vérifier. Un témoin faux est refusé par Lean.
+- 12 familles : primalité, nombres composés, arithmétique, puissances modulaires, identités, idéaux, arithmétique
+  linéaire, sommes de carrés, existence, contre-exemples, bornes numériques, cas finis — 60 énoncés sur 60 du banc
+  d'essai sur les deux versions de Lean, en 2 à 7 s.
+- Nouvelle stratégie de preuve « certificat » (sans coût), outil « témoin Sage » pour les modèles, et « Certifier
+  avec Lean » dans le menu d'une cellule Calcul.
+
+**Actualités** — veille mathématique permanente : nouveautés arXiv, IA pour les maths, problèmes ouverts (Erdős,
+MathOverflow, Polymath), Lean et Mathlib, annonces (AMS, Quanta, Images des maths, blog de Tao), tes propres flux ;
+tri par branche (15) et par pertinence pour tes projets, recherche, lecture hors ligne, « Ajouter aux Sources »,
+« Créer une conjecture », « Créer un dossier ». Les textes du web sont traités comme des données, jamais comme des
+consignes.
+
+**Moteur de conjectures** — Conjectures › « Explorer » : expérience Sage, reconnaissance (polynômes, récurrences,
+séries génératrices, multiplicativité, congruences, OEIS), énoncé précis en Lean avec une étiquette honnête
+(« vérifié jusqu'à n = … »), chasse au contre-exemple confirmée par Lean, puis « Tenter la preuve » ; tout est noté
+dans un journal.
+
+**Mesures** — `madalean bench` : miniF2F, PutnamBench et un jeu de contrôle avec la vraie chaîne de Madalean ; seule
+compte une preuve qu'un Lean neuf et strict accepte ; temps et coût par preuve vérifiée ; page « Mesures » du site.
+
+**Corrigé** — le noyau Sage ne démarrait plus sur les machines à beaucoup de cœurs (16 fils de calcul dépassaient la
+limite de mémoire du bac à sable) : 4 fils au plus et une marge pour la mémoire réservée mais inutilisée.
+
 ## 2.0.2 — 2026-11-22
 
 **« Madalean Server », l'application de l'ordinateur hôte**

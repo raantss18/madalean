@@ -1,0 +1,84 @@
+{
+ "format": 1,
+ "set": "minif2f",
+ "config": "certificate",
+ "strategy": "certificate",
+ "description": "no model: Mathlib-first + Sage computes, Lean checks (D52)",
+ "date": "2026-11-23",
+ "madalean": "2.0.3.dev0",
+ "commit": "cb00683ecefe",
+ "workspace": "lean-prover49",
+ "lean": "v4.9.0-rc1",
+ "mathlib": "2f65ba7f1a91 (checkout)",
+ "source": {
+  "repo": "yangky11/miniF2F-lean4",
+  "commit": "5746b7d6c47855ce1294bed87329618ff7f1bc31",
+  "licence": "MIT",
+  "content_sha256": "c5e5ab3da5028fec193f4b0e64aa1d0fbf40de7bea8227999b90a408b9b8ce73",
+  "problems": 488,
+  "upstream_lean": "leanprover/lean4:v4.24.0"
+ },
+ "selection": {
+  "split": "valid",
+  "set_size": 244,
+  "sample": 50,
+  "seed": 1,
+  "limit": 0,
+  "ids": false,
+  "count": 50
+ },
+ "budgets": {
+  "attempts": 4,
+  "rounds": 1,
+  "contestants": 3,
+  "time_per_problem_s": 120.0,
+  "time_budget_s": 0.0,
+  "paid_budget_usd": 0.0,
+  "jobs": 2,
+  "compile_timeout_s": 120
+ },
+ "selected": 50,
+ "attempted": 50,
+ "statement_errors": 0,
+ "statement_error_ids": [],
+ "solved": 7,
+ "solved_ids": [
+  "algebra_manipexpr_2erprsqpesqeqnrpnesq",
+  "algebra_sqineq_36azm9asqle36zsq",
+  "imo_1964_p1_2",
+  "mathd_numbertheory_149",
+  "mathd_numbertheory_155",
+  "mathd_numbertheory_236",
+  "mathd_numbertheory_739"
+ ],
+ "solved_without_model": 2,
+ "rate": 0.14,
+ "complete": true,
+ "stop": "done",
+ "by_status": {
+  "timeout": 43,
+  "verified": 7
+ },
+ "median_wall_s_solved": 11.3,
+ "median_wall_s_all": 120.0,
+ "median_lean_s_solved": 8.0,
+ "wall_s_total": 5472.6,
+ "elapsed_s": 2751.4,
+ "attempts_total": 148,
+ "tokens_in": 28826,
+ "tokens_out": 17958,
+ "model_calls": 10,
+ "cost_usd": 0.0,
+ "cost_per_verified_usd": 0.0,
+ "paid": false,
+ "found_by": {
+  "nvidia:nvidia/nemotron-3-ultra-550b-a55b": 2,
+  "mathlib (no model)": 2,
+  "mathlib-first (short proof written by a model)": 1,
+  "certificat:powmod": 1,
+  "certificat:arith": 1
+ },
+ "models": [
+  "nvidia:nvidia/nemotron-3-ultra-550b-a55b"
+ ]
+}

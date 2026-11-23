@@ -37,12 +37,12 @@ from . import sets as S
 log = get("bench")
 FORMAT = 1
 STRATEGIES = {
-    "mathlib": "Mathlib-first only: library search and templates, no model",
+    "mathlib": "Mathlib-first (library search and templates), then the Goedel loop only if a Goedel-type model is reachable (free online tier included); no tournament",
     "single": "one model (agent loop), no Mathlib-first, no tournament",
     "tournament": "the application's default: Mathlib-first, then the tournament of free online models",
     "conductor": "tournament directed by the conductor (the best free model unless a paid budget allows Claude)",
     "goedel-local": "the local Goedel-Prover GGUF on this machine's GPU (uses the GPU: never while it is lent)",
-    "certificate": "no model: Mathlib-first + Sage computes, Lean checks (D52)",
+    "certificate": "as « mathlib » plus certificates (Sage computes, Lean checks, D52); no tournament",
 }
 FINAL = ("verified", "failed", "timeout", "statement_error", "rejected")     # rows never redone on resume
 VERIFY_OWNER = "bench-verify"
