@@ -320,7 +320,30 @@ def launcher_env(cfg: dict, environ: dict[str, str]) -> dict[str, str]:
                 "MADALEAN_SANDBOX": "bwrap" if cfg.get("bwrap") else "rlimits",
                 "MADALEAN_MEM_MB": str(int(cfg.get("mem_bytes") or 0) >> 20),
                 "MADALEAN_FSIZE_MB": str(int(cfg.get("fsize_bytes") or 0) >> 20)})
+    # 2026-11-23: OpenBLAS / OpenMP start one thread per core (16 here), each reserving ~140 MB of address space:
+    # `import sage.all` reached ≈ 3.7 GB of virtual memory for 0.2 GB really used, over the RLIMIT_AS cap, and the
+    # kernel died at start (« KeyboardInterrupt » raised by cysignals in the middle of the import). Notebook
+    # computations do not need more than a few BLAS threads.
+    n = str(compute_threads())
+    for k in THREAD_VARS:
+        env.setdefault(k, n)
     return env
+
+
+THREAD_VARS = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "GOTO_NUM_THREADS",
+               "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS")
+MAX_COMPUTE_THREADS = 4
+# RLIMIT_AS counts reserved address space, not memory in use: the cap is the configured memory plus this margin
+# for reservations that are never touched (thread stacks, allocator arenas, mapped libraries).
+AS_MARGIN_BYTES = 2 << 30
+
+
+def compute_threads() -> int:
+    return max(1, min(MAX_COMPUTE_THREADS, os.cpu_count() or 1))
+
+
+def address_space_limit(mem_bytes: int) -> int:
+    return mem_bytes + AS_MARGIN_BYTES if mem_bytes > 0 else 0
 
 
 def bwrap_argv(cfg: dict, argv: list[str], isolate_net: bool = False) -> list[str]:
@@ -506,7 +529,7 @@ def launcher_main(args: list[str]) -> None:   # pragma: no cover (exec'd inside 
             pass
     cfg = {**cfg, "home_dir": real, "home": kernel_home(cfg, real)}
     env = launcher_env(cfg, dict(os.environ))
-    mem = int(cfg.get("mem_bytes") or 0)
+    mem = address_space_limit(int(cfg.get("mem_bytes") or 0))
     if mem:
         resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
     fsize = int(cfg.get("fsize_bytes") or 0)

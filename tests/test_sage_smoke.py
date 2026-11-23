@@ -342,3 +342,17 @@ async def test_selftest_lean_part_with_the_real_workspace(tmp_path, ws):
     res = await st._lean()
     assert res["state"] == "ok", res
     assert [i["id"] for i in res["items"]] == ["compile", "sandbox"]
+
+
+def test_kernel_env_caps_compute_threads_and_address_space(monkeypatch):
+    """2026-11-23 regression: 16 OpenBLAS threads pushed `import sage.all` over the 4 GB RLIMIT_AS cap (the kernel
+    died at start). The kernel gets at most MAX_COMPUTE_THREADS BLAS/OpenMP threads, and the cap keeps a margin for
+    reserved-but-unused address space."""
+    from madalean.research import sagebridge as sb
+    monkeypatch.setattr(sb.os, "cpu_count", lambda: 16)
+    env = sb.launcher_env({"workdir": "/tmp/w", "bwrap": None, "home": "/tmp/h"}, {"OPENBLAS_NUM_THREADS": "64"})
+    for k in sb.THREAD_VARS:
+        assert env[k] == str(sb.MAX_COMPUTE_THREADS)          # the server's own value never reaches the kernel
+    monkeypatch.setattr(sb.os, "cpu_count", lambda: 2)
+    assert sb.launcher_env({"workdir": "/tmp/w", "bwrap": None, "home": "/tmp/h"}, {})["OMP_NUM_THREADS"] == "2"
+    assert sb.address_space_limit(4 << 30) == (4 << 30) + sb.AS_MARGIN_BYTES and sb.address_space_limit(0) == 0
