@@ -443,3 +443,14 @@ otherwise):
 
 Running at once after opening (`--warm --now`): no regression (4.18 / 8.56 / 1.29 / 0.18 s in a new project), and
 the seed prepared aside makes the next new project's first integral 1.06 s instead of 8.7 s even without waiting.
+
+## 12. Explorations of the conjecture engine (S-AW, DECISIONS D55)
+
+The « Moteur de conjectures » (docs/CONJECTURES.md) stores each experiment as a cell of a notebook of the project,
+« Explorations (conjectures) » (`explorations.ipynb`; `explorations-python.ipynb` for Python): a title cell, then
+the experiment, whose output is the table. Nothing is special about it — same kernel and sandbox, same approval of
+model code by hash (`may_run`), same warm start (§11), same file in JupyterLab — except three names every
+experiment defines (`cj_columns`, `cj_index`, `cj_rows_for`), which the engine's fixed driver reads outside the
+history, like the step probes of §3.7. Catalogue experiments are written from the parsed request without a model
+(the sequence counterpart of §3.6) and are ordinary cells; an unrecognised request is written by a model and waits
+for « Approuver et exécuter ».

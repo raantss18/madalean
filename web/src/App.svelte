@@ -59,7 +59,7 @@
 
   // S-AK (docs/UI.md §14.2): one top bar (logo menu · context switcher · search · status) and, on the screens of a
   // project, the project bar. No rail, no drawer, no bottom bar.
-  const PROJECT_SCREENS = new Set(['home', 'dossier', 'project', 'sources', 'reader', 'notes', 'graph', 'blueprint', 'article', 'conjectures', 'calcul', 'publish']);
+  const PROJECT_SCREENS = new Set(['home', 'dossier', 'project', 'sources', 'reader', 'notes', 'graph', 'blueprint', 'article', 'conjectures', 'explore', 'calcul', 'publish']);
   const projectScreen = $derived(PROJECT_SCREENS.has(route.name));
   const barOnScreen = $derived(projectScreen && barShown());
 

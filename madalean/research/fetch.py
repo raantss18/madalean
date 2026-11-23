@@ -34,8 +34,9 @@ API_HOSTS = frozenset({
     "doi.org", "dx.doi.org", "api.crossref.org", "data.crossref.org", "api.datacite.org", "data.datacite.org",
     "export.arxiv.org", "arxiv.org", "api.openalex.org", "openlibrary.org", "api.zbmath.org", "zbmath.org",
     "api.semanticscholar.org",
+    "oeis.org",                    # S-AW: sequence look-up of the conjecture engine (research/oeis.py)
 })
-MIN_INTERVAL = {"export.arxiv.org": 3.0, "arxiv.org": 3.0, "api.semanticscholar.org": 1.1}
+MIN_INTERVAL = {"export.arxiv.org": 3.0, "arxiv.org": 3.0, "api.semanticscholar.org": 1.1, "oeis.org": 5.0}
 DEFAULT_INTERVAL = 0.25
 MAX_REDIRECTS = 5
 DEFAULT_MAX_BYTES = 8 * 1024 * 1024

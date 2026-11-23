@@ -22,6 +22,38 @@ Everything happens in the project's “Conjectures” screen.
   “Keep this conjecture” keeps the ones you want. Proposals that are already known (duplicate, already a dossier,
   already in the library, already in Mathlib) are set aside and listed separately with the reason.
 
+## Explore: the conjecture engine
+
+The “Explore” button of the “Conjectures” screen opens a guided process to **find what to prove**. You ask a
+question in words or with a formula (“the sum of the first n odd numbers”, “n^2 + n + 41”, a list of terms,
+“connected graphs on n vertices”), then the steps follow one another before your eyes; each can be stopped, and
+everything is recorded.
+
+1. **Explore.** Madalean computes a table of data with Sage, in the project's notebook “Explorations (conjectures)”
+   (the same protected space as Calcul). When the request is recognised, the code is written without a model,
+   always the same for the same request. Otherwise a model writes it: **this code is shown to you and runs only
+   after you approve this exact code**, as in [Calcul](calcul.md); an edit cancels the approval. Terms given by hand
+   need no computation.
+2. **Recognise.** The data are compared with the OEIS (the encyclopedia of integer sequences) and go through
+   pattern finders that run on your computer, without the network: polynomial or rational formula, recurrence,
+   generating function, multiplicativity, periodicity, congruences, order of growth, inequalities and relations
+   between quantities. A formula is fitted on part of the terms and then **validated on terms kept aside**; a
+   pattern that fails is discarded, and the journal says on which term. In Local mode the OEIS is not queried:
+   nothing leaves the computer. The LMFDB database is not queried (it cannot be searched by a list of terms).
+3. **State.** Each pattern kept becomes a precise conjecture, in words and formulas, with a Lean statement when
+   possible (Lean must accept it) and an honest label: “checked up to n = 59 (60 cases), not proved”, “heuristic”,
+   “agrees on 14 terms”. Never “true”.
+4. **Attack.** “Look for a counter-example” takes the computation further and by sampling. A counter-example is
+   kept only after a recomputation in a fresh kernel and, when there is a Lean statement, the check by Lean: the
+   conjecture is then kept as “refuted”, with its counter-example. If it resists, “Attempt the proof” sends it into
+   the usual pipeline (a dossier), or “Keep as an open conjecture” files it in the project.
+5. **Journal.** Everything that was tried — patterns kept, patterns discarded and why, look-ups, hunts — stays in
+   the exploration's journal, which you can export to a note or to the article. A conjecture already in the project
+   is flagged as a duplicate.
+
+Example of the demo mode: “n^2 + n + 41 up to 30” gives “always prime”, checked up to n = 30; the hunt finds
+n = 40, and the conjecture is kept, refuted.
+
 ## States of a conjecture
 
 | State | Meaning |

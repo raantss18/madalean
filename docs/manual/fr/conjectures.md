@@ -23,6 +23,39 @@ Tout se passe dans l'écran « Conjectures » du projet.
   connues (doublon, déjà un dossier, déjà dans la bibliothèque, déjà dans Mathlib) sont écartées et listées à part
   avec la raison.
 
+## Explorer : le moteur de conjectures
+
+Le bouton « Explorer » de l'écran « Conjectures » ouvre une démarche guidée pour **trouver quoi prouver**. Vous
+posez une question en mots ou par une formule (« la somme des n premiers nombres impairs », « n^2 + n + 41 », une
+liste de termes, « graphes connexes à n sommets »), puis les étapes s'enchaînent sous vos yeux ; chacune peut être
+arrêtée, et tout est noté.
+
+1. **Explorer.** Madalean calcule un tableau de données avec Sage, dans le carnet « Explorations (conjectures) » du
+   projet (le même espace protégé que Calcul). Quand la demande est reconnue, le code est écrit sans modèle,
+   toujours le même pour la même demande. Sinon un modèle l'écrit : **ce code vous est montré et ne s'exécute
+   qu'après votre accord sur ce code exact**, comme dans [Calcul](calcul.md) ; une modification annule l'accord.
+   Des termes donnés à la main ne demandent aucun calcul.
+2. **Reconnaître.** Les données sont comparées à l'OEIS (l'encyclopédie des suites d'entiers) et passées par des
+   chercheurs de motifs qui tournent sur votre ordinateur, sans réseau : formule polynomiale ou rationnelle,
+   récurrence, série génératrice, multiplicativité, périodicité, congruences, ordre de grandeur, inégalités et
+   relations entre quantités. Une formule est ajustée sur une partie des termes puis **validée sur des termes gardés
+   à part** ; un motif qui échoue est écarté, et le journal dit sur quel terme. En mode Local, l'OEIS n'est pas
+   interrogé : rien ne sort de l'ordinateur. La base LMFDB n'est pas interrogée (elle ne permet pas de chercher par
+   une liste de termes).
+3. **Énoncer.** Chaque motif retenu devient une conjecture précise, en mots et en formules, avec un énoncé Lean
+   quand c'est possible (il doit être accepté par Lean) et une mention honnête : « vérifié jusqu'à n = 59 (60 cas),
+   pas démontré », « heuristique », « coïncide sur 14 termes ». Jamais « vrai ».
+4. **Attaquer.** « Chercher un contre-exemple » reprend le calcul plus loin et par sondage. Un contre-exemple n'est
+   retenu qu'après un recalcul dans un noyau neuf et, s'il y a un énoncé Lean, la vérification par Lean : la
+   conjecture est alors gardée comme « réfutée », avec son contre-exemple. Si elle résiste, « Tenter la preuve »
+   l'envoie dans la chaîne habituelle (un dossier), ou « Garder comme conjecture ouverte » la range dans le projet.
+5. **Journal.** Tout ce qui a été essayé — motifs retenus, motifs écartés et pourquoi, recherches, chasses — reste
+   dans le journal de l'exploration, que vous pouvez exporter vers une note ou vers l'article. Une conjecture déjà
+   présente dans le projet est signalée comme doublon.
+
+Exemple du mode démo : « n^2 + n + 41 jusqu'à 30 » donne « toujours premier », vérifié jusqu'à n = 30 ; la chasse
+trouve n = 40, et la conjecture est gardée, réfutée.
+
 ## Les états d'une conjecture
 
 | État | Signification |

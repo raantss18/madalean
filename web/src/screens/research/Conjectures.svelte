@@ -142,6 +142,7 @@
         <div class="row">
           <button class="btn small primary" onclick={() => { proposing = true; void propose(); }}><Icon name="bulb" size={14} />{t('conj.propose')}</button>
           <button class="btn small" onclick={() => (writing = true)}><Icon name="edit" size={14} />{t('conj.write')}</button>
+          <a class="btn small" href="/explorer"><Icon name="search" size={14} />{t('conj.explore')}</a>
         </div>
         <ul>
           {#each list as x (x.id)}
