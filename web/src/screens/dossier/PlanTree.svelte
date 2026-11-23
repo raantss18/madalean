@@ -27,12 +27,15 @@
   let adding = $state<{ parent: string; title: string; statement_nl: string; lean: string } | null>(null);
   let overwrite = $state(false);
   let versionsOpen = $state(false);
-  function initialView(): 'map' | 'list' {
-    try { const v = localStorage.getItem('madalean.planView'); if (v === 'map' || v === 'list') return v; } catch { /* storage blocked */ }
+  function initialView(): 'map' | 'list' | 'graph' {
+    try { const v = localStorage.getItem('madalean.planView'); if (v === 'map' || v === 'list' || v === 'graph') return v; } catch { /* storage blocked */ }
     return typeof window !== 'undefined' && window.matchMedia?.('(max-width: 767px)').matches ? 'list' : 'map';
   }
-  let view = $state<'map' | 'list'>(initialView());
-  function setView(v: 'map' | 'list') { view = v; try { localStorage.setItem('madalean.planView', v); } catch { /* ignore */ } }
+  let view = $state<'map' | 'list' | 'graph'>(initialView());
+  function setView(v: 'map' | 'list' | 'graph') { view = v; try { localStorage.setItem('madalean.planView', v); } catch { /* ignore */ } }
+  // S-AY (D57): the problem graph (memory, reasoned search, explanations), its own chunk
+  let graphChunk: Promise<typeof import('./ProblemGraph.svelte').default> | null = null;
+  const loadGraph = () => (graphChunk ??= import('./ProblemGraph.svelte').then((m) => m.default));
 
   async function load() {
     try { plan = (await research.plan(d.id)).plan; missing = false; }
@@ -141,9 +144,13 @@
       <div class="seg" role="radiogroup" aria-label={t('plan.viewLabel')}>
         <label class:on={view === 'map'}><input type="radio" name="plan-view-{d.id}" checked={view === 'map'} onchange={() => setView('map')} /><Icon name="tree" size={14} />{t('plan.view.map')}</label>
         <label class:on={view === 'list'}><input type="radio" name="plan-view-{d.id}" checked={view === 'list'} onchange={() => setView('list')} /><Icon name="list" size={14} />{t('plan.view.list')}</label>
+        <label class:on={view === 'graph'}><input type="radio" name="plan-view-{d.id}" checked={view === 'graph'} onchange={() => setView('graph')} /><Icon name="split" size={14} />{t('plan.view.graph')}</label>
       </div>
     </div>
 
+    {#if view === 'graph'}
+      {#await loadGraph()}<p class="muted" aria-busy="true">{t('common.loading')}</p>{:then ProblemGraph}<ProblemGraph dossier={d} />{/await}
+    {:else}
     <div class="body" class:with-panel={Boolean(selected)}>
       <div class="view">
         {#if view === 'map'}<PlanMap {plan} {selected} onselect={(k) => (selected = k)} />
@@ -155,12 +162,16 @@
           onadd={(p) => (adding = { parent: p, title: '', statement_nl: '', lean: '' })} onclose={() => (selected = '')} />
       {/if}
     </div>
+    {/if}
     <div class="row more">
       <button class="btn small quiet" disabled={!!busy || analysing} onclick={() => split(true)}><Icon name="split" size={14} />{t('plan.resplitRoot')}</button>
       <span class="xs muted">{t('plan.limit', { n: plan.limit })}</span>
     </div>
   {:else if !missing && !plan}
     <p class="muted" aria-busy="true">{t('common.loading')}</p>
+  {/if}
+  {#if missing && !link}
+    {#await loadGraph() then ProblemGraph}<ProblemGraph dossier={d} />{/await}
   {/if}
 </section>
 

@@ -10,6 +10,7 @@
   interface Sec { id: string; label: Key; icon: string; load: () => Promise<{ default: Component }>; help?: string; hidden?: boolean }
   const sections: Sec[] = [
     { id: 'modeles', help: 'models-keys', label: 'settings.sec.models', icon: 'cpu', load: () => import('./Models.svelte') },
+    { id: 'apprentissage', help: 'proof-graph', label: 'settings.sec.lessons', icon: 'sparkle', load: () => import('./Lessons.svelte') },
     { id: 'fournisseurs', help: 'models-keys', label: 'settings.sec.providers', icon: 'key', load: () => import('./Providers.svelte') },
     { id: 'cles', help: 'models-keys', label: 'settings.sec.providers', icon: 'key', load: () => import('./Providers.svelte'), hidden: true },
     { id: 'appareils', help: 'pairing', label: 'settings.sec.devices', icon: 'device', load: () => import('./Devices.svelte') },

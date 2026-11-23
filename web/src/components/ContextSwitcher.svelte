@@ -29,7 +29,19 @@
   const projectId = $derived(dossier?.project_id ?? (SECTION_SCREENS.has(route.name) ? currentProjectId() : prefs.lastProject));
   const projectTitle = $derived(projectId ? app.m.projects[projectId]?.title ?? t('project.all') : t('project.all'));
   const dossierTitle = $derived(dossier ? dossier.title || dossier.theorem : '');
-  const full = $derived(dossierTitle ? `${projectTitle} › ${dossierTitle}` : projectTitle);
+  // S-AY (D57b): a sub-dossier is a dossier with a parent — « Projet › Dossier › Lemme » (bounded, cycle-safe)
+  const parents = $derived.by(() => {
+    const out: { id: string; title: string }[] = [];
+    const seen = new Set<string>();
+    let p = dossier?.parent_id ? app.m.dossiers[dossier.parent_id] : undefined;
+    while (p && !seen.has(p.id) && out.length < 6) {
+      seen.add(p.id);
+      out.unshift({ id: p.id, title: p.title || p.theorem });
+      p = p.parent_id ? app.m.dossiers[p.parent_id] : undefined;
+    }
+    return out;
+  });
+  const full = $derived(dossierTitle ? [projectTitle, ...parents.map((p) => p.title), dossierTitle].join(' › ') : projectTitle);
 
   function toggle() {
     open = !open;
@@ -71,7 +83,7 @@
     <Icon name="folder" size={16} />
     <span class="names">
       <span class="proj-name">{projectTitle}</span>
-      {#if dossierTitle}<span class="sep" aria-hidden="true">›</span><span class="dos-name">{dossierTitle}</span>{/if}
+      {#if dossierTitle}{#each parents as p (p.id)}<span class="sep" aria-hidden="true">›</span><span class="par-name">{p.title}</span>{/each}<span class="sep" aria-hidden="true">›</span><span class="dos-name">{dossierTitle}</span>{/if}
     </span>
     <span class="sr-only">{t('ctx.change')}</span>
     <Icon name="chevronDown" size={14} />

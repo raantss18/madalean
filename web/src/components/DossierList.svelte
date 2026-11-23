@@ -32,6 +32,16 @@
     return { roots, kids };
   });
   const current = $derived(route.name === 'dossier' ? route.params['id'] : '');
+  // S-AY (D57b): sub-dossiers are collapsed under their parent by default; the open dossier's ancestors (and any
+  // search) unfold them
+  let unfolded = $state<Record<string, boolean>>({});
+  const ancestors = $derived.by(() => {
+    const out = new Set<string>();
+    let x = current ? app.m.dossiers[current] : undefined;
+    while (x?.parent_id && !out.has(x.parent_id) && out.size < 20) { out.add(x.parent_id); x = app.m.dossiers[x.parent_id]; }
+    return out;
+  });
+  const isOpen = (id: string) => unfolded[id] ?? (Boolean(q.trim()) || ancestors.has(id));
 </script>
 
 <div class="dl">
@@ -58,7 +68,10 @@
   {@const job = app.activeJob(d.id)}
   {@const phase = phaseOf(d.status, job)}
   {@const kids = tree.kids.get(d.id) ?? []}
-  <li>
+  {@const open = kids.length > 0 && isOpen(d.id)}
+  <li class="li">
+    {#if kids.length}<button class="fold" aria-expanded={open} aria-label={t(open ? 'list.foldLemmas' : 'list.unfoldLemmas', { title: d.title || d.theorem })}
+      onclick={() => (unfolded[d.id] = !open)} style:left="{depth * 18}px"><span aria-hidden="true">{open ? '▾' : '▸'}</span></button>{/if}
     <a class="item" class:current={current === d.id} href="/d/{encodeURIComponent(d.id)}" aria-current={current === d.id ? 'page' : undefined} style:padding-left="{12 + depth * 18}px" onclick={() => onpick?.()}>
       <StatusMark {phase} />
       <span class="txt">
@@ -74,7 +87,7 @@
       </span>
       {#if kids.length}<span class="chip">{kids.filter((k) => k.proved).length}/{kids.length}</span>{/if}
     </a>
-    {#if kids.length}
+    {#if open}
       <ul role="list" aria-label={t('list.lemmasOf', { title: d.title })}>
         {#each kids.sort((a, b) => a.created - b.created) as k (k.id)}{@render row(k, depth + 1)}{/each}
       </ul>
@@ -87,6 +100,9 @@
   .search { padding: var(--s-2) var(--s-3); }
   .search .input { min-height: 36px; }
   ul { list-style: none; margin: 0; padding: 0; }
+  .li { position: relative; }
+  .fold { position: absolute; top: 6px; z-index: 1; width: 14px; height: 32px; padding: 0; border: 0; background: none; color: var(--text-2); font-size: 0.8rem; cursor: pointer; }
+  .fold:focus-visible { outline: 3px solid var(--focus); }
   .item { display: flex; align-items: center; gap: 10px; min-height: var(--touch); padding: 6px 12px; color: var(--text); text-decoration: none; border-left: 3px solid transparent; }
   .item:hover { background: var(--surface-2); }
   .item.current { background: var(--accent-soft); border-left-color: var(--accent); }
