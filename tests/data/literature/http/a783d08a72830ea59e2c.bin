@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/FUkaVI2raYv9Sb1q7rA7C5fESAE</id>
+  <title>arXiv Query: search_query=all:Bertrand AND all:postulate AND all:prime&amp;id_list=&amp;start=0&amp;max_results=6</title>
+  <updated>2026-11-23T19:27:30Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:Bertrand+AND+(all:postulate+AND+all:prime)&amp;start=0&amp;max_results=6&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>6</opensearch:itemsPerPage>
+  <opensearch:totalResults>29</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1901.07086v3</id>
+    <title>Generalization of Bertrand's Postulate for Gaussian Primes</title>
+    <updated>2024-09-06T10:04:53Z</updated>
+    <link href="https://arxiv.org/abs/1901.07086v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1901.07086v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Bertrand's Postulate states about the prime distribution for the real numbers. The generalization of Bertrand's Postulate was proved by Das et al. [Arxiv 2018]. In this paper, we have formalized this idea for the Gaussian primes (or the primes on the complex plane). This result gives information about the prime distribution on the complex plane.</summary>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-01-21T21:18:26Z</published>
+    <arxiv:comment>The claim of Main Theorem 1 is wrong. The prime counting function on the complex plan does not satisfy the inequality. The prime number Theorem contradicts the claim</arxiv:comment>
+    <arxiv:primary_category term="math.NT"/>
+    <author>
+      <name>Madhuparna Das</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/0907.5232v2</id>
+    <title>Ramanujan Primes and Bertrand's Postulate</title>
+    <updated>2010-10-16T13:34:56Z</updated>
+    <link href="https://arxiv.org/abs/0907.5232v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/0907.5232v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The $n$th Ramanujan prime is the smallest positive integer $R_n$ such that if $x \ge R_n$, then there are at least $n$ primes in the interval $(x/2,x]$. For example, Bertrand's postulate is $R_1 = 2$. Ramanujan proved that $R_n$ exists and gave the first five values as 2, 11, 17, 29, 41. In this note, we use inequalities of Rosser and Schoenfeld to prove that $2n \log 2n &lt; R_n &lt; 4n \log 4n$ for all $n$, and we use the Prime Number Theorem to show that $R_n$ is asymptotic to the $2n$th prime. We also estimate the length of the longest string of consecutive Ramanujan primes among the first $n$ primes, explain why there are more twin Ramanujan primes than expected, and make three conjectures (the first has since been proved by S. Laishram).</summary>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.HO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2009-07-29T22:45:50Z</published>
+    <arxiv:comment>7 pages, cited Shapiro's book for Ramanujan's proof of Bertrand's Postulate</arxiv:comment>
+    <arxiv:primary_category term="math.NT"/>
+    <arxiv:journal_ref>Amer. Math. Monthly 116 (2009) 630-635</arxiv:journal_ref>
+    <author>
+      <name>Jonathan Sondow</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2305.03821v1</id>
+    <title>Generalizations of Bertrand's Postulate to Sums of Any Number of Primes</title>
+    <updated>2023-05-05T19:54:45Z</updated>
+    <link href="https://arxiv.org/abs/2305.03821v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2305.03821v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In 1845, Bertrand conjectured that twice any prime strictly exceeds the next prime. Tchebichef proved Bertrand's postulate in 1850. In 1934, Ishikawa proved a stronger result: the sum of any two consecutive primes strictly exceeds the next prime, except for the only equality $2+3=5$. This observation is a special case of a more general result, perhaps not previously noticed: if $p_n$ denotes the $n$th prime, $n=1, 2, \ldots$, with $p_1=2, p_2=3, \ldots$, and if $c_1, \ldots, c_g$ are nonnegative integers (not necessarily distinct), and $d_1, \ldots, d_h$ are positive integers (not necessarily distinct), and $g&gt;h\ge 1$, then there exists a positive integer $N$ such that $p_{n-c_1}+p_{n-c_2}+\cdots +p_{n-c_g}&gt;p_{n+d_1}+\cdots +p_{n+d_h}$ for all $n\ge N$. We prove this result using only the prime number theorem. For any instance of this result, we sketch a way to find the least possible $N$. We give some numerical results and unanswered questions.</summary>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-05-05T19:54:45Z</published>
+    <arxiv:comment>Accepted for publication in Mathematics Magazine MATHMAG-D-21-00038R1 on September 03, 2021. 6 pages, 1 table, no figures</arxiv:comment>
+    <arxiv:primary_category term="math.NT"/>
+    <arxiv:journal_ref>Mathematics Magazine 96(4):428-432, 2023</arxiv:journal_ref>
+    <author>
+      <name>Joel E. Cohen</name>
+    </author>
+    <arxiv:doi>10.1080/0025570X.2023.2231336</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1080/0025570X.2023.2231336" title="doi"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/1608.07240v2</id>
+    <title>An Inductive Proof of Bertrand's Postulate</title>
+    <updated>2016-11-29T18:56:18Z</updated>
+    <link href="https://arxiv.org/abs/1608.07240v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1608.07240v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this paper, we are going to prove a famous problem concerning prime numbers. Bertrand postulate states that there is always a prime p with n &lt; p &lt; 2n, if n &gt; 1. Bertrand postulate is not a newer one to be proven, in fact, after his assumption and numerical evidence, Chebyshev was the first person who proved it. Subsequently, Ramanujan proved it using properties of Gamma function, and Erdös published a simpler proof with the help of Primorial function, p#. Our approach is unique in the sense that we have used mathematical induction for finding the upper and lower bounds for the second Chebyshev function, and they are even stronger than Ramanujan bounds finding using Gamma function. Otherwise, our approach is similar the way Ramanujan proved it.</summary>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2016-08-15T13:22:01Z</published>
+    <arxiv:primary_category term="math.NT"/>
+    <author>
+      <name>Bijoy Rahman Arif</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/math/0210312v3</id>
+    <title>Formulas for pi(n) and the n-th prime</title>
+    <updated>2014-03-23T16:40:30Z</updated>
+    <link href="https://arxiv.org/abs/math/0210312v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/math/0210312v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Using inequalities of Rosser and Schoenfeld, we prove formulas for pi(n) and the n-th prime that involve only the elementary operations +,-,/ on integers, together with the floor function. Pascal Sebah has pointed out that the formula for pi(n) operates in O(n^(3/2)) time. Similar formulas were proven using Bertrand's Postulate by Stephen Regimbal, An explicit formula for the k-th prime number, Mathematics Magazine, 48 (1975), 230-23</summary>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.HO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2002-10-21T13:22:44Z</published>
+    <arxiv:comment>4 pages; similar formulas were proven using Bertrand's Postulate by S. Regimbal, An explicit formula for the k-th prime number, Math. Mag., 48 (1975), 230-232</arxiv:comment>
+    <arxiv:primary_category term="math.NT"/>
+    <arxiv:journal_ref>Int. J. Math. Comput. Sci. 9 (2014), no. 2, 95-98</arxiv:journal_ref>
+    <author>
+      <name>Sebastian Martin Ruiz</name>
+    </author>
+    <author>
+      <name>Jonathan Sondow</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/0807.3690v6</id>
+    <title>On a certain relation between Legendre's conjecture and Bertrand's postulate</title>
+    <updated>2008-08-08T03:38:40Z</updated>
+    <link href="https://arxiv.org/abs/0807.3690v6" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/0807.3690v6" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  We prove a certain relation between Legendre's conjecture and Bertrand's postulate in terms of a certain transformation of Legendre's function phi. We show a certain property of a prime.</summary>
+    <category term="math.GM" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2008-07-23T14:52:58Z</published>
+    <arxiv:comment>6 pages; changed corollary in introduction; added [6] for references</arxiv:comment>
+    <arxiv:primary_category term="math.GM"/>
+    <author>
+      <name>Tsutomu Hashimoto</name>
+    </author>
+  </entry>
+</feed>

@@ -27,6 +27,7 @@ from .verify import CheckResult, StatementChecker
 from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
 from . import certificate as certstage
+from . import literature_hook
 from . import conductor_hook, leancat
 from .stagecache import StageCache, make_key, normalize_text
 
@@ -408,17 +409,18 @@ class DossierPipeline:
                 job.explained.set()
                 await self.event(d, job, "error", f.key, **f.params)
                 live(job).discard(job.id)
-                await asyncio.gather(*side, return_exceptions=True)    # optional stages end on their own
+                await asyncio.gather(*side, *getattr(job, "bg_tasks", []), return_exceptions=True)
                 return
             job.explained.set()
             live(job).discard(job.id)
-            await asyncio.gather(*side, return_exceptions=True)
+            # optional stages end on their own; the literature stage too (bounded by its own budget, D56)
+            await asyncio.gather(*side, *getattr(job, "bg_tasks", []), return_exceptions=True)
             if d.status in ("translating", "proving"):
                 d.status = "proved" if d.proof_is_current else "draft"
                 await self.ctx.repo.save(d)
             await hook.finish()              # S-AI: final coherence check (statement ↔ proof ↔ explanation)
         finally:
-            await self._stop(side)          # « Arrêter » / crash: nothing keeps running after the job
+            await self._stop(side + list(getattr(job, "bg_tasks", [])))  # « Arrêter » / crash: nothing outlives the job
             await hook.close()
 
     # ------------------------------------------------------------ stages
@@ -840,6 +842,7 @@ class DossierPipeline:
                                         stream="proof")
             else:
                 cert = await self._certificate(job, d, io, ws, statement)
+        literature_hook.start(self, job, d, io, ws, refine)     # S-AX (D56): beside the others, never awaited here
         res: ProveResult | None = None
         if mf is not None and mf.ok:
             res, strategy = self._mathlib_proof(mf), "mathlib"
@@ -879,6 +882,7 @@ class DossierPipeline:
                         certificate_sage_seconds=round(cert.sage_seconds, 2))
         idx = d.add_proof(res.code, note=req, model=res.model, meta=meta)
         d.status = "proved"
+        literature_hook.after_proof(d)          # a literature conditional proof is history now (D56)
         await self.event(d, job, "proof", "Preuve trouvée et vérifiée par Lean (essai {i}, {s:.0f} s).", ref=idx,
                          model=res.model, i=meta["attempts"], s=res.seconds, seconds=stage_seconds(job, "proof"))
         if certified:
@@ -943,7 +947,8 @@ class DossierPipeline:
                 for _i in range(max(1, min(s.prove_attempts, 4))):
                     st: dict = {}
                     res = await self._agent(job, d, io, ws, statement,
-                                            ((hint or req) + "\n\n" + job.mathlib_hint).strip(), stats=st)
+                                            ((hint or req) + "\n\n" + job.mathlib_hint + "\n\n"
+                                             + getattr(job, "literature_hint", "")).strip(), stats=st)
                     ran = ran or (res is not None and not st.get("unavailable"))
                     if res is None or res.ok:
                         break
@@ -1211,7 +1216,8 @@ class DossierPipeline:
     def _cache(self) -> StageCache:
         c = getattr(self, "_stage_cache", None)
         if c is None:
-            c = self._stage_cache = StageCache(self.ctx.paths.cache / "stage-cache.json")
+            from .stagecache import shared            # S-AX: one instance per context (literature writes it too)
+            c = self._stage_cache = shared(self.ctx)
         return c
 
     def _versions(self, ws) -> dict:
@@ -1373,7 +1379,8 @@ class DossierPipeline:
                         break
                     st: dict = {}
                     r = await self._agent(job, d, rio, ws, statement,
-                                          (hint + "\n\n" + getattr(job, "mathlib_hint", "")).strip(),
+                                          (hint + "\n\n" + getattr(job, "mathlib_hint", "") + "\n\n"
+                                           + getattr(job, "literature_hint", "")).strip(),
                                           only=c.key if pins else None,
                                           release_local=not pins, stats=st,
                                           max_seconds=min(float(s.agent_max_seconds), left))

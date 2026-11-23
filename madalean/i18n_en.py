@@ -1477,3 +1477,40 @@ EN.update({
         "{n} intermediate primes certified in the same way.",
     "Écriture comme somme de carrés{c} :": "Written as a sum of squares{c}:",
 })
+
+# ---------------------------------------------------------------- literature first (S-AX, D56)
+EN.update({
+    "Aucun résultat cité n'a d'énoncé Lean à utiliser.": "No cited result has a Lean statement to use.",
+    "Ce résultat est déjà prouvé (Mathlib ou bibliothèque).": "This result is already proved (Mathlib or library).",
+    "Ce résultat n'a pas d'énoncé Lean qui compile : rien à prouver.":
+        "This result has no Lean statement that compiles: nothing to prove.",
+    "Le dossier a déjà une preuve vérifiée.": "The dossier already has a verified proof.",
+    "Lemme cité confié aux prouveurs : {title}.": "Cited lemma handed to the provers: {title}.",
+    "Les résultats cités sont maintenant prouvés en Lean : la preuve est vérifiée (verdict strict).":
+        "The cited results are now proved in Lean: the proof is verified (strict verdict).",
+    "Littérature : mode local, aucune recherche en ligne.": "Literature: local mode, no online search.",
+    "Littérature : rien de fiable trouvé pour cet énoncé (aucune référence avec un énoncé cité).":
+        "Literature: nothing reliable found for this statement (no reference with a quoted statement).",
+    "Littérature : {n} référence(s) avec un énoncé cité mot pour mot ({peer} publiée(s) dans une revue, "
+    "{pre} prépublication(s)).":
+        "Literature: {n} reference(s) with a statement quoted word for word ({peer} published in a journal, "
+        "{pre} preprint(s)).",
+    "Mode local : aucune recherche n'est envoyée sur le réseau (changez de mode pour chercher dans la littérature).":
+        "Local mode: no search is sent over the network (change the mode to search the literature).",
+    "Pas d'énoncé : écrivez ou traduisez d'abord l'énoncé.": "No statement: write or translate the statement first.",
+    "Preuve conditionnelle : repose sur {refs} (résultat cité, non prouvé en Lean). Ce n'est PAS une preuve "
+    "vérifiée.":
+        "Conditional proof: relies on {refs} (cited result, not proved in Lean). This is NOT a verified proof.",
+    "Référence ajoutée à la bibliographie : {ref}.": "Reference added to the bibliography: {ref}.",
+    "Une recherche dans la littérature est déjà en cours pour ce dossier.":
+        "A literature search is already running for this dossier.",
+    "dans Mathlib : {name}": "in Mathlib: {name}",
+    "prouvé en Lean": "proved in Lean",
+    "énoncé Lean à prouver (preuve conditionnelle)": "Lean statement to prove (conditional proof)",
+    "revue": "journal",
+    "actes de conférence": "conference proceedings",
+    "livre": "book",
+    "prépublication": "preprint",
+    "thèse": "thesis",
+    "type inconnu": "unknown type",
+})
