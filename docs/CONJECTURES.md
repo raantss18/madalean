@@ -4,7 +4,7 @@ A guided loop that helps a mathematician find **what to prove**: from a question
 patterns, to precise conjectures with a Lean statement, to a counter-example hunt, to a proof attempt — every step
 visible, stoppable and recorded. It sits on top of what existed (the conjecture workshop of
 [RESEARCH_WORKSHOP.md](RESEARCH_WORKSHOP.md) §3, the Calcul notebook of [CALCUL.md](CALCUL.md), the proof pipeline)
-and replaces none of it. Screen: Conjectures › « Explorer » (`/explorer`). API: [API.md](API.md) §6e.
+and replaces none of it. Screen: Conjectures › « Explorer » (`/explorer`). API: [API.md](API.md) §6f.
 
 Nothing in this module says « true ». A candidate carries the range it was tested on (« vérifié jusqu'à n = 59
 (60 cas…), pas démontré »); `proved` only comes from the normal pipeline (a fresh strict Lean); `refuted` only from
