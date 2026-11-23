@@ -41,6 +41,18 @@ T = {
             ("devices", "Appareils", "L'ordinateur hôte calcule ; téléphone, tablette et autres PC s'y relient par "
              "votre réseau privé Tailscale, avec l'application ou un simple navigateur.", "pairing.html",
              "Relier un appareil"),
+            ("cert", "Certificats", "Sage cherche un témoin — facteur, certificat de primalité, somme de carrés, "
+             "contre-exemple — et Lean ne fait que le vérifier : sans modèle, sans coût, en quelques secondes.",
+             "certificates.html", "Certificats"),
+            ("conj", "Conjectures", "« Explorer » : une expérience Sage, des motifs reconnus (OEIS, récurrences, "
+             "séries génératrices), un énoncé Lean précis, la chasse au contre-exemple, puis la preuve.",
+             "conjectures.html", "Le moteur de conjectures"),
+            ("news", "Actualités", "Veille permanente : nouveautés arXiv, problèmes ouverts (Erdős, MathOverflow), "
+             "Lean et Mathlib, annonces ; triées par branche et par vos projets, lisibles hors ligne.",
+             "news.html", "Actualités"),
+            ("bench", "Mesures", "Madalean se mesure lui-même sur miniF2F et PutnamBench : seules comptent les "
+             "preuves qu'un Lean neuf et strict accepte, avec le temps et le coût de chacune.",
+             "measures.html", "Mesures"),
         ],
         "shots_h": "Un aperçu",
         "shots": [("home.png", "L'accueil : vos dossiers, leur état et ce qui tourne."),
@@ -130,6 +142,17 @@ T = {
              "build: readers see what is proved, and by what.", "publish.html", "Publishing a project"),
             ("devices", "Devices", "The host computer computes; phone, tablet and other PCs link to it over your "
              "private Tailscale network, with the app or just a browser.", "pairing.html", "Linking a device"),
+            ("cert", "Certificates", "Sage finds a witness — a factor, a primality certificate, a sum of squares, a "
+             "counterexample — and Lean only checks it: no model, no cost, in a few seconds.",
+             "certificates.html", "Certificates"),
+            ("conj", "Conjectures", "« Explore »: a Sage experiment, recognised patterns (OEIS, recurrences, "
+             "generating functions), a precise Lean statement, a counterexample hunt, then the proof.",
+             "conjectures.html", "The conjecture engine"),
+            ("news", "News", "A permanent watch: new arXiv papers, open problems (Erdős, MathOverflow), Lean and "
+             "Mathlib, announcements; sorted by branch and by your projects, readable offline.",
+             "news.html", "News"),
+            ("bench", "Measurements", "Madalean measures itself on miniF2F and PutnamBench: only proofs accepted by a "
+             "fresh strict Lean count, with the time and cost of each.", "measures.html", "Measurements"),
         ],
         "shots_h": "A glimpse",
         "shots": [("home.png", "Home: your files, their state and what is running."),
@@ -198,6 +221,10 @@ ICONS = {   # 24×24 line icons (currentColor)
     "article": '<path d="M7 3.5h7l4 4V20.5H7z"/><path d="M14 3.5v4h4M9.5 12h6M9.5 15.5h6"/>',
     "publish": '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 2.6 14.6 0 17M12 3.5c-2.6 2.4-2.6 14.6 0 17"/>',
     "devices": '<rect x="3" y="5" width="13" height="10" rx="1.5"/><path d="M1.5 18.5h16"/><rect x="17.5" y="9" width="5" height="10" rx="1.2"/>',
+    "cert": '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+    "conj": '<path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 1-1 1.7v.5"/><circle cx="12" cy="17" r=".6"/><circle cx="12" cy="12" r="9"/>',
+    "news": '<rect x="3.5" y="5" width="13" height="14" rx="1.5"/><path d="M16.5 9h3v8.5a1.5 1.5 0 0 1-3 0M7 9h6M7 12.5h6M7 16h4"/>',
+    "bench": '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
 }
 
 

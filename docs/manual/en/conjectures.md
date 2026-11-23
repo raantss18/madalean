@@ -94,3 +94,30 @@ When the conjecture is proved, “Promote to theorem” changes its kind; the hi
 
 Example from demo mode: “$n^2 + n + 41$ is prime for every $n$” holds for $n = 0, \dots, 9$ in Lean, then an
 experiment finds $n = 40$ ($40^2 + 40 + 41 = 41^2$), checked again: refuted.
+
+## Explore: the conjecture engine
+
+The « Explore » button of the « Conjectures » screen opens a guided process to **find what to prove**. Ask a question
+in words or as a formula (“the sum of the first n odd numbers”, “n^2 + n + 41”, a list of terms, “connected graphs on
+n vertices”); the steps then run in front of you, each can be stopped, and everything is logged.
+
+1. **Explore.** Madalean computes a data table with Sage in the project's « Explorations (conjectures) » notebook
+   (the same sandbox as Calcul). When the request is recognised, the code is written without a model, always the
+   same for the same request. Otherwise a model writes it: **that code is shown to you and runs only after you approve
+   that exact code**, as in [Calcul](calcul.md); editing it cancels the approval. Terms typed by hand need no
+   computation.
+2. **Recognise.** The data is compared with the OEIS (the encyclopedia of integer sequences) and run through pattern
+   finders on your own computer, with no network: polynomial or rational formula, recurrence, generating function,
+   multiplicativity, periodicity, congruences, growth, inequalities and relations between quantities. A formula is
+   fitted on part of the terms and then **validated on held-out terms**; a pattern that fails is discarded, and the
+   log says on which term. In Local mode the OEIS is not queried: nothing leaves the computer. The LMFDB is not
+   queried (it cannot be searched by a list of terms).
+3. **State.** Each surviving pattern becomes a precise conjecture, in words and formulas, with a Lean statement when
+   possible (it must be accepted by Lean) and an honest label: “checked up to n = 59 (60 cases), not proved”,
+   “heuristic”, “matches 14 terms”. Never “true”.
+4. **Attack.** « Look for a counterexample » computes further and by random sampling. A counterexample counts only
+   after a recomputation in a fresh kernel and, when there is a Lean statement, Lean's check: the conjecture is then
+   kept as « refuted », with its counterexample. If it survives, « Try the proof » sends it to the usual pipeline (a
+   dossier), or « Keep as an open conjecture » files it in the project.
+5. **Log.** Everything tried — kept and discarded patterns, with the reason — stays in the conjecture's history, and
+   can be exported to a note or the article.
