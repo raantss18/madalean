@@ -18,6 +18,10 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    - ⬜ reste : recherches exhaustives par SAT / DRAT (pas de solveur dans ce Sage, pas de vérificateur dans Lean sans
      faire confiance au compilateur), graphes comme témoins, intégrales et fonctions générales par intervalles,
      arithmétique entière (`omega` suffit), anneaux abstraits, le chef d'orchestre qui demande lui-même un témoin
+   Essayé chez toi le 23/11 (après correction du démarrage du noyau Sage : 4 fils de calcul au plus) : primalité de
+   1 000 003 (Pratt, 7 s), inverse modulaire, x² + y² ≥ 2xy (somme de carrés), contre-exemple n = 40 à « n² + n + 41
+   premier » — tous vérifiés par Lean. Banc : miniF2F (50) 7/50 avec certificats contre 4/50 sans (2 problèmes
+   gagnés par les certificats), 0 $.
 2. ✅ **Mesurer** (S-AU, D53, docs/BENCH.md) — `madalean bench` : miniF2F et PutnamBench (téléchargés à une version
    figée, jamais copiés), jeu de contrôle de 20 énoncés ; la vraie chaîne de l'application, sans interface ; seule
    compte la preuve qu'un Lean neuf et strict accepte ; une ligne par problème (essais, temps, jetons, coût, modèle)
