@@ -47,15 +47,24 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    noyau neuf + Lean) → « Tenter la preuve » ou conjecture ouverte ; journal de tout ce qui a été essayé, export
    vers une note ou l'article. À essayer par toi. Reste : LMFDB (pas de recherche par liste de termes dans son
    interface), énoncés Lean pour les graphes et les séries génératrices (laissés à la traduction habituelle)
-5. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
+5. 🔄 **Littérature d'abord, puis graphe de lemmes raisonné** (demande du 23/11) — pour chaque énoncé, avant et
+   pendant la preuve : chercher dans la littérature vérifiée (zbMATH Open, OpenAlex / Crossref, arXiv, tes Sources,
+   Mathlib) les résultats liés ; en extraire l'énoncé exact avec la citation (texte cité mot pour mot, référence
+   vérifiée qui existe vraiment) ; le formaliser en Lean s'il n'est pas dans Mathlib ; s'en servir comme lemme,
+   pour concevoir et valider l'énoncé ; raisonner en graphe de lemmes (pistes évaluées, pistes sans issue anticipées,
+   budgets et garde-fous contre les boucles, mémoire du problème à jour) ; expliquer chaque choix de piste et de
+   tactique avec une bibliographie claire ; généraliser une méthode existante. Règle de fiabilité : un résultat
+   cité mais non prouvé en Lean n'est jamais compté comme prouvé — la preuve est alors « conditionnelle, repose
+   sur [réf.] », jamais « vérifiée ». Outils exposés et utilisés par MCP. (S-AX, S-AY, S-AZ)
+6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
-6. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
+7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
    demande
-7. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
+8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
    olympiades), parcours « Apprendre »
-8. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
+9. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
    preuves vérifiées
-9. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
+10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
 
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 
