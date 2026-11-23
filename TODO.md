@@ -64,6 +64,14 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      local (erreur Lean → correction qui a passé Lean, pistes sans issue, noms Mathlib renommés, stratégies qui
      réussissent par domaine), donné à n'importe quel modèle avant un essai ; chaque leçon a sa preuve, s'efface
      si elle ne sert plus ; visible et supprimable dans Réglages (« Ce que Madalean a appris »).
+   - 🔄 **Pièces jointes lues une seule fois** (session S-AX) : image, PDF, LaTeX ou adresse web joints à un
+     énoncé, une preuve ou un calcul ; lus une fois (même fichier = même empreinte), transformés en mémoire du
+     projet (référence vérifiée, énoncés cités mot pour mot, notations, énoncés Lean, code Sage) ; images lues par
+     un modèle gratuit en ligne, local hors connexion ; ensuite seule cette mémoire sert, jamais le document.
+   - 🔄 **Comprendre d'abord** : la cible (théorème ou conjecture à prouver) est énoncée à part des résultats
+     connus ou fournis (pièces jointes, littérature, bibliothèque, Mathlib), chacun avec son origine.
+   - 🔄 **Sous-lemme partagé** (session S-AY) : prouvé et calculé une seule fois, rangé sous le premier parent,
+     « utilise aussi … » chez les autres ; deux lemmes proches aux hypothèses différentes restent distincts.
    Budget : quota hebdomadaire limité — trois sessions au plus, pas de nouvelle session avant leur fin.
 6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
