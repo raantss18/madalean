@@ -1,4 +1,5 @@
-"""Command line: `madalean serve [--demo]`, `madalean pair`, `madalean status`, `madalean bench …` (docs/BENCH.md).
+"""Command line: `madalean serve [--demo]`, `madalean pair`, `madalean status`, `madalean bench …` (docs/BENCH.md),
+`madalean mcp serve` (the stdio MCP server for a local client, docs/MCP.md).
 
 The config/cache directories are fixed before any other madalean module is imported (they read them at import)."""
 from __future__ import annotations
@@ -27,7 +28,11 @@ def _parser() -> argparse.ArgumentParser:
         c = sub.add_parser(name, help="print a pairing code" if name == "pair" else "show the server status")
         c.add_argument("--port", type=int, help="local listener port (default: from server.json, else 11500)")
         c.add_argument("--json", action="store_true")
-    for c in (s, *[sub.choices[n] for n in ("pair", "status")]):
+    m = sub.add_parser("mcp", help="Model Context Protocol (docs/MCP.md)")
+    msub = m.add_subparsers(dest="mcp_cmd", required=True)
+    ms = msub.add_parser("serve", help="stdio MCP server for a local client (relays to the running Madalean)")
+    ms.add_argument("--port", type=int, help="local listener port (default: from server.json, else 11500)")
+    for c in (s, ms, *[sub.choices[n] for n in ("pair", "status")]):
         c.add_argument("--config-dir", type=Path, help="default ~/.config/madalean (demo: ~/.config/madalean-demo)")
         c.add_argument("--cache-dir", type=Path)
     from .bench.cli import add_parser          # « Mesurer » (D53): `madalean bench …`, its own private directories
@@ -52,6 +57,9 @@ def main(argv: list[str] | None = None) -> int:
         from .bench import cli as bench_cli
         return bench_cli.main(args)
     _set_dirs(args)
+    if args.cmd == "mcp":
+        from .mcp.bridge import main as mcp_main
+        return mcp_main(_port(args))
     if args.cmd == "serve":
         return serve(args)
     return client(args)

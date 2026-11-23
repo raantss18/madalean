@@ -1512,6 +1512,10 @@ class DossierPipeline:
             kw["request"] = "\n".join(leancat.job_texts(d))
         if getattr(self.settings, "certificates", True) and not self.ctx.demo and _accepts(fn, "witness"):
             kw["witness"] = witness
+        if _accepts(fn, "extra_tools"):          # S-AZ (D58): external MCP tools the user allowed
+            from ..mcp import agent_tools
+            if mcp_tools := agent_tools(self.ctx):
+                kw["extra_tools"] = mcp_tools
         try:
             out = await fn(self.ctx.brain, self.ctx.retriever, statement=statement, workspace_key=ws.key, check=check,
                            library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode,

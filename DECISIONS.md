@@ -1184,3 +1184,46 @@
 - Measured (docs/PERFORMANCE.md « Certificats (S-AT) »): the 64-statement corpus (60 true statements, 60/60 verified on each; 4 false ones reported) on lean-prover49 (4.9) and
   lean-current (4.36), every kind on both.
 
+
+## D58 — MCP both ways: Madalean as a read-mostly MCP server for the host's clients, external MCP servers as untrusted tools of the prover (user request « les meilleures technologies d'IA, comme le RAG, MCP », 2026-11-23, S-AZ)
+- Request: use the Model Context Protocol so that (1) other assistants of the host (Claude Code, Claude Desktop,
+  agents the user launches) can use Madalean's tools, and (2) Madalean's provers can use external MCP tools —
+  safely. TODO « Stratégie 2.1 » item 5 (MCP part). Reference: docs/MCP.md; threat model in docs/SECURITY.md « MCP ».
+- **Protocol: Madalean's own subset, no SDK.** JSON-RPC 2.0, MCP 2025-06-18 (2025-03-26 and 2024-11-05 accepted):
+  `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`; nothing else (no resources,
+  prompts, sampling, roots, elicitation — servers asking for them get « method not found »); batches refused.
+  Rejected: vendoring the official Python SDK — it brings pydantic (compiled), starlette, uvicorn, httpx, anyio,
+  sse-starlette, pydantic-settings and jsonschema, a second web stack beside aiohttp that is not in the signed conda
+  lock (and could not be added without a release of the lock); the subset is a few hundred lines with no dependency,
+  and its conformance is tested with a raw harness that does not share code with Madalean's client.
+- **Server: one place for the tools, two transports.** The tools need the server's Lean runner, index, library and
+  dossiers, and the server holds the config lock: `madalean mcp serve` (stdio, started by the client) is a thin
+  bridge that answers `initialize`/`ping` and relays `tools/*` to `POST /api/mcp/rpc` on the local listener; the
+  streamable HTTP transport is `POST /api/mcp/http` on the same listener. Both host-only, both behind the existing
+  local-listener checks. Switches (host-only settings, default off): `mcp_server`, `mcp_server_http` (its own switch:
+  an address is easier to reach than a command), `mcp_server_sage`. Rejected: an in-process server for stdio (a second
+  context would fight for the lock and duplicate the warm Lean, the index and the caches); exposing it to paired
+  devices or the LAN (not requested; revisit explicitly); SSE streams and sessions (calls are short and bounded).
+- **Tools** (registry `mcp/tools.py`, `register()` for new ones): `search_mathlib`, `check_lean` (statement pinned,
+  fresh strict verdict, D28 refusal first, never the warm Lean, writes nothing), `certify` (D52), `explain_lean`
+  (D45), `library_search`, `dossier_status`, `literature_search` (listed only when S-AX's package provides
+  `madalean.literature.mcp_search(ctx, query, k)`), `sage_compute` (only Madalean's verified catalogue code, D39, from
+  a request in words; never the client's code; its own switch). Strict input schemas (unknown keys refused, no
+  coercion), JSON outputs (text + `structuredContent`), rate limits, every call in `logs/mcp-activity.jsonl`.
+- **Client: everything off, the user allows each tool.** `mcp-servers.json` (0600, host-only API). A new server is
+  disabled with an empty allow-list; « Tester » lists its tools; the user enables it and ticks tools. Refused before
+  sending: disabled server, tool not allowed, tool marked unsafe (its description addresses a model), arguments that
+  fail the sanitised schema. Output is untrusted data (`wrap_untrusted`, `UNTRUSTED_RULE`, markers removed, flagged
+  when it addresses a model, capped). No keys reach a server (allow-listed environment, private directory and
+  TMPDIR, no cookies / Authorization). Time and size limits; idle stdio servers stopped. The prover agent receives
+  the allowed tools as `mcp__<server>__<tool>` (`prove_with_agent(extra_tools=…)`, one hook in `pipeline/runner.py`);
+  it can never replace `lean_check` / `submit`, and the server re-checks every proof. The conductor makes no tool
+  calls (structured decisions only); its plan and proof-fix prompts name the allowed tools so its plans can rely on
+  them. Rejected: sandboxing stdio servers by default (a Lean language-server MCP must read the user's projects;
+  accepted risk R-12, the program is the user's choice, added on the host); letting models call any tool of an
+  enabled server (allow-list per tool instead); passing user-defined environment variables (a way to leak keys).
+- **Lean MCP servers**: `lean-lsp-mcp` can be installed by the user without sudo (`uvx lean-lsp-mcp`); the manual
+  page and docs/MCP.md say how to add it. Nothing is installed by Madalean.
+- UI: Réglages › Outils (MCP) (lazy-loaded section, FR + EN, D43 autosave, axe clean in both themes): the switch,
+  the exact command / JSON to copy for this installation, the HTTP and Sage switches, the tool list; external servers
+  (add by command or address, test, enable, tick tools, remove); the call log.

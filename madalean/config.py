@@ -136,6 +136,11 @@ class Settings:
     # S-AL (D44): reuse of system tools chosen at install (setup.json, applied once at first start)
     sage_source: str = "auto"               # auto (Madalean's SageMath first, else the system's) | own | system
     tex_engine: str = "auto"                # auto (tectonic first, system TeX Live as fallback) | tectonic | system
+    # S-AZ (D58): Madalean as an MCP server for clients of this computer (host-only switches, all off by default):
+    # stdio (`madalean mcp serve`) and HTTP on 127.0.0.1 only; `sage_compute` (catalogue code only) needs its own switch
+    mcp_server: bool = False
+    mcp_server_http: bool = False
+    mcp_server_sage: bool = False
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 

@@ -883,6 +883,31 @@ as `verified` passed a fresh strict Lean check in the request.
 - Dossier events: kind `certificate` (text = one line + the witness as a list; params `title, cert_kind, checker,
   detail`). Job attempts: `kind: "certificate"`, model `certificat:<kind>`. Setting: `certificates: bool`.
 
+## 6h. MCP — Madalean as a server and as a client (S-AZ D58, plugin `mcp.py`, all **host** only)
+
+docs/MCP.md. Every route answers 403 `host_only` on the remote / LAN listeners. Settings (host-only, default off):
+`mcp_server` (both transports), `mcp_server_http`, `mcp_server_sage`.
+
+- `GET /api/mcp` → `{server: {enabled, http, sage, protocol, tools: [{name, title, description, inputSchema,
+  annotations, available, rate}], connect: {command, args, shell, claude_code, json, http_url, claude_code_http}},
+  servers: [External], max_timeout}`.
+- `POST /api/mcp/rpc` — one JSON-RPC message (`Content-Type: application/json`, ≤ 2 MB) from the stdio bridge
+  `madalean mcp serve`. 403 `mcp_off` when `mcp_server` is off; 415 otherwise-typed bodies; 400 with a JSON-RPC
+  error body for unparsable / invalid messages; 202 (empty) for notifications; else 200 with the JSON-RPC response.
+- `POST /api/mcp/http` — MCP streamable HTTP (same answers; also needs `mcp_server_http`). `GET` / `DELETE` → 405
+  (`Allow: POST`); unknown `MCP-Protocol-Version` → 400 `protocol_version`; `Accept` without JSON → 406.
+- `GET /api/mcp/activity?dir=in|out` → `{activity: [{t, dir, transport, server, tool, ok, ms, in, out, args,
+  error}]}` (newest first, 100 at most).
+- `POST /api/mcp/servers {name?, transport: stdio | http, command | url}` → 201 `{server: External}` (disabled,
+  `allowed: []`). 400 `bad_command | bad_url | local_mode | too_many | bad_transport`.
+- `PATCH /api/mcp/servers/{id} {name?, enabled?, allowed?: [tool], timeout_s? (1–120)}` → `{server}`; `allowed`
+  accepts only tested tools marked `safe` (400 `unknown_tools`). Disabling stops a running stdio server.
+- `DELETE /api/mcp/servers/{id}` → `{removed}`; `POST /api/mcp/servers/{id}/test` → `{server}` (start, list tools,
+  stop; `status: {ok, t, error, name, version, protocol, tools, stderr?}`).
+- `External = {id, name, transport, command: [argv], url, enabled, allowed, tools: [{name, title, description,
+  inputSchema (sanitised), safe}], timeout_s, status, created}`.
+- WebSocket event `mcp.updated {server, removed?}`.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

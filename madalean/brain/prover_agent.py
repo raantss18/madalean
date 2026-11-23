@@ -222,11 +222,13 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
                            check: CheckFn, library_search: Callable[[str], Awaitable[Any]] | None = None,
                            hint: str = "", on_chunk: OnChunk | None = None, mode: str = "auto", max_steps: int = 24,
                            max_seconds: float = 900, only: str | None = None, request: str = "",
-                           witness: Callable[[str], Awaitable[str]] | None = None) -> dict:
+                           witness: Callable[[str], Awaitable[str]] | None = None,
+                           extra_tools: list[ToolSpec] | None = None) -> dict:
     """Agentic proof search. Returns {code, model, steps, finish, transcript, checks, seconds}; `code` is the best
     code Lean accepted (the server re-checks it), finish: proved | max_steps | budget | error | gave_up.
     `only`: run on this model key alone (tournament contestant, pipeline/tournament.py). `request`: the problem in
-    words (S-AM, D45): with the statement, it selects the verified catalogue constructions given in the task."""
+    words (S-AM, D45): with the statement, it selects the verified catalogue constructions given in the task.
+    `extra_tools`: tools of external MCP servers the user allowed (S-AZ, D58): untrusted, never a judge."""
     t0 = time.monotonic()
     s = _Session(statement, check, retriever, workspace_key, on_chunk)
     settings = getattr(brain, "settings", {}) or {}
@@ -327,6 +329,9 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
         if online_ok:
             tools.append(spec("lean_leansearch", "LeanSearch: natural-language search of (recent) Mathlib.", t_online))
             tools.append(spec("lean_loogle", "Loogle: search Mathlib by name or type pattern.", t_online))
+    names_used = {t.name for t in tools} | {"submit"}
+    extra = [t for t in (extra_tools or []) if t.name not in names_used]
+    tools += extra
     tools.append(spec("submit", "Finish: submit the complete accepted proof (`proof` or `code`).", t_submit))
 
     ws_note = WORKSPACE_NOTES.get(workspace_key, "")
@@ -348,6 +353,9 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
     system = SYSTEM_PROMPT.format(workspace=workspace_key, version_note=ws_note, header=leancheck.GOEDEL_HEADER,
                                   online_tool=ONLINE_TOOL if online_ok else "",
                                   witness_tool=WITNESS_TOOL if witness is not None else "")
+    if extra:
+        from ..mcp.client import agent_rules
+        system += agent_rules(extra)
     premises_txt = ""
     if retriever is not None:
         try:
