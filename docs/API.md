@@ -815,6 +815,50 @@ Available to paired devices (the store holds public information; settings are no
 - Event `news.updated {unread, new, summaries?}` after a refresh that brought something, new summaries or a
   settings change.
 
+## 6f. Conjecture engine (session S-AW, DECISIONS D55, plugin `conjecture_engine.py`)
+
+Reference: docs/CONJECTURES.md. The conjecture API of §RESEARCH_WORKSHOP (`/api/conjectures…`) is unchanged; a kept
+candidate is created through it and carries `origin.engine = {exploration, candidate, norm, kind, question}`.
+Running an experiment needs a device allowed to execute (the host, or `experiments_remote`), else 403
+`experiments_host_only`; model code not approved for its current hash → 403 `not_approved` (approve with
+`POST /api/calcul/{pid}/docs/{doc}/cells/{cid}/approve`, §6b).
+
+| Method, path | Body → answer |
+|---|---|
+| `GET /api/explore/status?project=` | → `{available {sage, python}, auto, remote_allowed, local, demo, oeis: "on" \| "off", lmfdb: "not_queried", mode, examples [{fr, en}]}` |
+| `GET /api/projects/{pid}/explorations` | → `{explorations: [brief]}` (newest first) |
+| `POST /api/projects/{pid}/explorations` | `{question, language?: "sage" \| "python"}` → 201 `View`; 400 `empty`, 413 `too_many` |
+| `GET /api/explorations/{xid}` | → `View` |
+| `PATCH /api/explorations/{xid}` | `{code}` → `View`; 422 `bad_contract` (the three `cj_…` names are required), 409 `busy` |
+| `DELETE /api/explorations/{xid}` | → `{deleted}`; 409 `busy` |
+| `POST /api/explorations/{xid}/run` | → 202 `{started, …View}`: Explore → Recognise → State in the background; 409 `busy` |
+| `POST /api/explorations/{xid}/stop` | → `View` (task cancelled, kernel interrupted) |
+| `POST /api/explorations/{xid}/warm` | → `{warm}`: the kernel of the experiment's notebook prepared in advance (D47) |
+| `POST /api/explorations/{xid}/candidates/{cid}/attack` | → 202: the counter-example hunt in the background |
+| `POST /api/explorations/{xid}/candidates/{cid}/keep` | → 201 `{conjecture_id, duplicate: false, …View}`; 200 with `duplicate: true` when it already exists |
+| `POST /api/explorations/{xid}/candidates/{cid}/prove` | `{mode?}` → 202 `{job, conjecture_id, …View}` (normal pipeline); 409 `refuted`, 409 `busy` + `job` |
+| `POST /api/explorations/{xid}/candidates/{cid}/discard` | `{reason?}` → `View` |
+| `POST /api/explorations/{xid}/export` | `{to: "note" \| "article"}` → `{note_id}` or `{article: true}` |
+
+`View` = `{exploration, cell, running, exec_allowed}`. `cell` (null for given terms) = `{doc, id, code, code_hash,
+origin: "user" | "assistant", model, approved, may_run, language}` — what the screen needs for the approval prompt;
+the workbench checks the notebook itself at run time. `exploration` = `{id, project_id, question, language, origin:
+"catalogue" | "model" | "user" | "data", intent {kind, key, recognised, summary, sequences […]}, code, model, steps
+{explore | recognise | state | attack: {state, error, seconds, detail?, candidate?}}, table {columns, rows (first
+200), total, labels?}, oeis {column: {status: ok | none | off | too_short | error | unrecorded, matches [{number,
+name, offset, shift, matched, formulas, url, data}], rejected […], url, cached}}, findings […], candidates […],
+journal [{t, step, kind, fr, en, data}], lmfdb: "not_queried"}`.
+
+A candidate = `{id, kind, columns, text {fr, en}, lean (null when the formalizer must write it), lean_ok, lean_error,
+strength {kind: tested | heuristic | oeis, from, to, cases, fr, en}, status: candidate | kept | survived | refuted |
+disputed | discarded, conjecture_id, duplicate_of {id, title} | null, hunt {cases, to, max, sparse} | null,
+counterexample {witness, detail, sage, lean, lean_check {ok, code, errors}, verified} | null, finding {kind, status,
+columns, params, tested {from, to, cases, fit, held_out}, reason, detail, heuristic}, norm}`.
+
+Events: `explore.updated` `{exploration, running}` at every step change; the experiment's cell publishes the usual
+`calcul.running` / `calcul.output` / `calcul.updated`. Evidence kinds added to a conjecture's log: `exploration`,
+`hunt` (and the existing `counterexample_check`).
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at
@@ -825,3 +869,4 @@ with « Montrer que la somme de deux entiers pairs est paire. » runs the whole 
 « Actualités » is seeded from the recorded answers of `madalean/news/demo_data/` (dates shifted to now, one user
 feed « Flux de démonstration » with a hostile sample), without any request.
 Try: `madalean serve --demo --port 11600 --remote-port 11601`.
+Conjecture engine in the demo (§6e): recognised sequences are computed by the catalogue's reference implementation (no kernel), OEIS answers from one recorded look-up, an unrecognised question gets a scripted model answer and waits for approval.

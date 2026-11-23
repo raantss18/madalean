@@ -437,3 +437,9 @@ evidence log (10 Lean cases, a Python experiment, the counter-example n = 40 re-
 « n² + n est pair » (`tested-n-cases`), a proof plan tree (3 claims, one accepted) on the draft dossier, and a hint
 ladder on the proven dossier (levels 1–2 revealed for `host`). The scripted brain answers the workshop's prompts
 (generation, experiment code, plan draft, hints, explain-back).
+
+## Conjecture engine (S-AW)
+
+The guided loop « Explorer » (experiment → patterns and OEIS → conjecture with a Lean statement → counter-example
+hunt → proof attempt, with a journal) builds on this workshop: see docs/CONJECTURES.md. Kept candidates are ordinary
+conjectures created through `Workshop.create`, with `origin.engine` and the evidence kinds `exploration` and `hunt`.

@@ -12,6 +12,8 @@ addRoute({ name: 'graph', pattern: '/graphe', load: () => import('./screens/rese
 addRoute({ name: 'blueprint', pattern: '/blueprint', load: () => import('./screens/research/Blueprint.svelte'), nav: { label: 'nav.blueprint', icon: 'tree', order: 13, group: 'project' } });
 addRoute({ name: 'article', pattern: '/article', load: () => import('./screens/research/Article.svelte'), nav: { label: 'nav.article', icon: 'file', order: 14, group: 'project' } });
 addRoute({ name: 'conjectures', pattern: '/conjectures/:id?', load: () => import('./screens/research/Conjectures.svelte'), nav: { label: 'nav.conjectures', icon: 'bulb', order: 15, group: 'project' } });
+// S-AW: the guided « Explorer » flow of the conjecture engine, its own chunk, reached from Conjectures (no nav entry)
+addRoute({ name: 'explore', pattern: '/explorer/:id?', load: () => import('./screens/research/Explore.svelte') });
 addRoute({ name: 'calcul', pattern: '/calcul', load: () => import('./screens/research/Calcul.svelte'), nav: { label: 'nav.calcul', icon: 'terminal', order: 15.5, group: 'project' } });
 addRoute({ name: 'publish', pattern: '/publier', load: () => import('./screens/research/Publish.svelte'), nav: { label: 'nav.publish', icon: 'globe', order: 16, group: 'project' } });
 addRoute({ name: 'activity', pattern: '/activite', load: () => import('./screens/Activity.svelte'), nav: { label: 'nav.activity', icon: 'activity', order: 20 } });

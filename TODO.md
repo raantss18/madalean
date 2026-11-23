@@ -30,8 +30,13 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    Reste à essayer par toi : une vraie mise à jour sur ton serveur, un résumé avec un vrai modèle gratuit, le réglage
    de tes domaines. Sources écartées : OEIS (son robots.txt ferme la recherche aux robots), Open Problem Garden, listes AIM,
    EMS / IMU / SMF (pas de flux utilisable)
-4. 🔄 **Moteur de conjectures** (S-AW) — expérience Sage → recherche OEIS / LMFDB → conjecture en Lean → chasse au
-   contre-exemple → tentative de preuve ; journal de ce qui a été essayé
+4. ⚠️ **Moteur de conjectures** (S-AW, D55, docs/CONJECTURES.md) — Conjectures › « Explorer » : expérience Sage
+   (code du catalogue sans modèle, ou code du modèle après ton accord) → motifs (formules, récurrences, séries
+   génératrices, multiplicativité, congruences, relations entre invariants de graphes) + OEIS (coupé en mode Local)
+   → conjecture en mots, LaTeX et Lean avec « vérifié jusqu'à n = … » → chasse au contre-exemple (recalcul dans un
+   noyau neuf + Lean) → « Tenter la preuve » ou conjecture ouverte ; journal de tout ce qui a été essayé, export
+   vers une note ou l'article. À essayer par toi. Reste : LMFDB (pas de recherche par liste de termes dans son
+   interface), énoncés Lean pour les graphes et les séries génératrices (laissés à la traduction habituelle)
 5. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
 6. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la

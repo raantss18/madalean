@@ -1097,3 +1097,59 @@
   `web/e2e/news.spec.ts` (screen, filters, actions, card, settings, English, 360 / 820 / 1440, light / dark, axe),
   one real fetch of every source (`scripts/dev/news_check.py`). Not verified: a real provider writing summaries; a
   live `304`; the user's own server (not touched).
+
+## D55 — « Moteur de conjectures »: Explore → Recognise → State → Attack → Journal, on the existing notebook, workshop and pipeline (TODO Stratégie 2.1 item 4, 2026-11-23, S-AW)
+- Request: a guided loop that helps find what to prove — data from Sage, look-up (OEIS / LMFDB) and local pattern
+  finders, a precise conjecture with a Lean statement and an honest strength label, an automatic counter-example
+  hunt, then a proof attempt or an open conjecture; everything tried recorded.
+- Decision (docs/CONJECTURES.md): a new module beside the conjecture workshop, not a second system. An exploration
+  is a JSON file per project; its experiment is a **cell of the project's Calcul notebook « explorations »** (same
+  kernel, sandbox, limits, warm start, file); a kept candidate is an ordinary conjecture created through the
+  unchanged `Workshop.create` (S-AV and others keep the same creation API); a proof attempt is the normal pipeline;
+  a refutation reuses `conjectures.negation_file`. Rejected: a separate kernel pool or sandbox for explorations (a
+  second execution boundary to audit); a new kind of dossier (the conjecture workshop already has the evidence log,
+  the statuses and the promotion rule).
+- **Recognised without a model** (`cjcatalog.py`, the D39 idea for sequences): named arithmetic functions, « somme
+  des n premiers … », formulas in n (strict parser), given terms, graph families. One expression tree gives the
+  Sage / Python code, the exact value in-process, the LaTeX and the Lean term per Mathlib flavour. Unknown words →
+  not recognised → a model writes the experiment. Rejected: a model to classify the request (non-deterministic);
+  `eval` of the user's formula (the tree is evaluated with exact rationals instead).
+- **Approval rule unchanged**: the engine never executes; `Workbench.run_cell` applies `may_run` (model code only
+  once this exact code is approved on this host, or `experiments_auto`; an edited model cell stays model code).
+  Catalogue code is Madalean's deterministic program and is stored as an ordinary cell, like the user's code —
+  the user asked for this computation and no free text reaches it. The engine's own programs (driver, Sage guesser)
+  are fixed, take numbers only, and run after the same check (as D42's probes). Rejected: asking approval for
+  catalogue code too (a prompt on every click for code no model wrote teaches the user to approve without reading).
+- **Finders** (`cjpatterns.py`): pure Python, exact rationals, in the server process (bounded: ≤ 240 terms,
+  ≤ 6000-bit entries for the linear algebra, run in a thread). Every fit is validated on held-out terms with ≥ 3
+  surplus equations; failures are journalled with the failing term. Polynomial, rational, Berlekamp–Massey +
+  generating function, polynomial-coefficient recurrences, algebraic generating functions, multiplicativity,
+  periodicity / congruences, primes / squares / monotony, growth (heuristic, labelled, no Lean), relations between
+  columns. Rejected: running the finders in the kernel (they would need the experiment's approval and a Sage);
+  `ore_algebra` as a dependency (not installed with Sage here; reported when present); floating-point fits presented
+  as statements.
+- **OEIS** (`oeis.py`): the official JSON search through the research layer's `Fetcher` (the layer's one network
+  client: https, allow-list, no cookie, contact-less client name), one request per look-up, ≥ 5 s apart, disk cache;
+  **nothing in Local mode or for a « local only » project**; a match needs every computed term to agree. The brief
+  named `brain/net.py`: that client is the model engine's (provider keys, SSE); the research layer's rule
+  (ARCHITECTURE §15) is `fetch.py`, which enforces the same Local-mode ban plus SSRF checks and replay fixtures, so
+  the engine uses it (`oeis.org` added to its allow-list). One real query was made from this machine (Catalan
+  terms → A000108) and recorded, trimmed, as the fixture of the demo and the tests.
+- **LMFDB left out, said in the UI and the journal**: its API answers (checked) but is declared beta and is keyed
+  by object fields, not by a list of terms; no look-up fits the Recognise step until the catalogue knows elliptic
+  curves, number fields and modular forms.
+- **State**: words + LaTeX in French and English, a deterministic Lean statement when every sequence has a Lean
+  term (compiled, all candidates in one file; refused ones are shown as refused), else the pipeline's formalizer on
+  demand. Label = what was tested (« vérifié jusqu'à n = … (… cas), pas démontré »), « heuristique » for fits,
+  « coïncide sur k termes » for OEIS; never « vrai ». Duplicates by normalised key, Lean statement or words.
+- **Attack**: larger contiguous range + structured and random indices (seeded), exact re-check; a violation counts
+  only after a recomputation in a fresh kernel and, with a Lean statement, Lean closing the negation at the witness
+  (else « non confirmé »); a refuted candidate is kept as a conjecture with its counter-example. Survivors may go
+  to « Tenter la preuve » (normal pipeline) or stay open.
+- **UI**: Conjectures › « Explorer » (`/explorer`, its own lazy chunk — D48), steps as cards with live state, the
+  approval prompt of Calcul, table + small SVG plot, candidates with evidence and actions, journal with export to a
+  note / the article; strings in `web/src/lib/conjectures/strings.ts` (FR / EN); D43 rules.
+- Verified: `tests/test_conjecture_engine.py` (20 tests: finders, catalogue, OEIS fixture + zero requests in Local
+  mode, loop with a fake kernel, approval, planted false conjecture, real Lean on lean-prover49, real Sage and the
+  real sandboxed kernel), vitest, svelte-check, e2e + axe. Not verified: a model-written experiment with a real
+  provider (the path is tested with a scripted model); graph families in the browser (demo has no kernel).
