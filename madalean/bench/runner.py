@@ -42,7 +42,7 @@ STRATEGIES = {
     "tournament": "the application's default: Mathlib-first, then the tournament of free online models",
     "conductor": "tournament directed by the conductor (the best free model unless a paid budget allows Claude)",
     "goedel-local": "the local Goedel-Prover GGUF on this machine's GPU (uses the GPU: never while it is lent)",
-    "certificate": "Sage computes, Lean checks (S-AT) — available once the certificate strategy is in the pipeline",
+    "certificate": "no model: Mathlib-first + Sage computes, Lean checks (D52)",
 }
 FINAL = ("verified", "failed", "timeout", "statement_error", "rejected")     # rows never redone on resume
 VERIFY_OWNER = "bench-verify"
@@ -195,7 +195,8 @@ def settings_for(cfg: BenchConfig) -> dict:
              claude_cap_month_usd=cfg.paid_budget if paid else 0.0,
              conductor_cap_usd=min(1.0, cfg.paid_budget) if paid else 0.0)
     if cfg.strategy == "mathlib":
-        s.update(mode="online", prove_strategy="goedel", mathlib_first=True, tournament_enabled=False)
+        s.update(mode="online", prove_strategy="goedel", mathlib_first=True, tournament_enabled=False,
+                 certificates=False)                 # comparable with the 2.0.2 runs (no certificate strategy)
     elif cfg.strategy == "single":
         if not cfg.model:
             raise BenchError("strategy « single » needs --model provider:model_id")
@@ -208,7 +209,9 @@ def settings_for(cfg: BenchConfig) -> dict:
     elif cfg.strategy == "goedel-local":
         s.update(mode="local", prove_strategy="goedel", tournament_enabled=False, autoload_model=True)
     elif cfg.strategy == "certificate":
-        raise BenchError("strategy « certificate » is not in this version of the pipeline yet (S-AT)")
+        # no model at all: Mathlib-first + « Sage computes, Lean checks » (D52)
+        s.update(mode="online", prove_strategy="goedel", mathlib_first=True, tournament_enabled=False,
+                 certificates=True)
     else:
         raise BenchError(f"unknown strategy: {cfg.strategy} (known: {', '.join(STRATEGIES)})")
     return s

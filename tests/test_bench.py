@@ -166,8 +166,9 @@ def test_free_by_default_paid_only_with_a_budget():
     assert R.settings_for(R.BenchConfig(strategy="conductor"))["conductor"] is True
     with pytest.raises(R.BenchError):
         R.settings_for(R.BenchConfig(strategy="single"))
-    with pytest.raises(R.BenchError):
-        R.settings_for(R.BenchConfig(strategy="certificate"))
+    cert = R.settings_for(R.BenchConfig(strategy="certificate"))
+    assert cert["certificates"] is True and cert["mathlib_first"] is True and cert["tournament_enabled"] is False
+    assert R.settings_for(R.BenchConfig(strategy="mathlib"))["certificates"] is False
 
     class Store:
         def get(self, p):
@@ -315,7 +316,7 @@ def test_cli_and_published_summary(tmp_path, monkeypatch, capsys):
     assert "smoke" in out and "yangky11/miniF2F-lean4@5746b7d6c478" in out and "not fetched" in out
     assert cli.main(["bench", "run", "minif2f", "--sample", "3"]) == 2                 # not fetched: says how
     assert "madalean bench fetch minif2f" in capsys.readouterr().err
-    assert cli.main(["bench", "run", "smoke", "--strategy", "certificate"]) == 2
+    assert cli.main(["bench", "run", "smoke", "--strategy", "nonexistent"]) == 2
     s = {"set": "minif2f", "config": "single:groq:llama/x", "workspace": "lean-prover49", "solved": 1, "attempted": 2,
          "selected": 2, "statement_errors": 0, "stop": "done",
          "selection": {"split": "valid", "count": 2, "set_size": 244, "seed": 1}}
