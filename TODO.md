@@ -56,6 +56,15 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    tactique avec une bibliographie claire ; généraliser une méthode existante. Règle de fiabilité : un résultat
    cité mais non prouvé en Lean n'est jamais compté comme prouvé — la preuve est alors « conditionnelle, repose
    sur [réf.] », jamais « vérifiée ». Outils exposés et utilisés par MCP. (S-AX, S-AY, S-AZ)
+   Ajouts du 23/11 au soir (dans la même session S-AY, pour économiser le quota) :
+   - 🔄 **Sous-dossiers** : un lemme du graphe s'ouvre comme un dossier entier (preuve, sous-graphe, calculs,
+     notes, certificats), tout en restant un enfant : fil d'Ariane « Projet › Dossier › Lemme », statut qui remonte
+     au parent, enfants rangés sous leur parent. Une seule règle : un sous-dossier est un dossier qui a un parent.
+   - 🔄 **Apprendre de ses erreurs, quel que soit le modèle** : pas d'entraînement lourd ; un carnet de « leçons »
+     local (erreur Lean → correction qui a passé Lean, pistes sans issue, noms Mathlib renommés, stratégies qui
+     réussissent par domaine), donné à n'importe quel modèle avant un essai ; chaque leçon a sa preuve, s'efface
+     si elle ne sert plus ; visible et supprimable dans Réglages (« Ce que Madalean a appris »).
+   Budget : quota hebdomadaire limité — trois sessions au plus, pas de nouvelle session avant leur fin.
 6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
