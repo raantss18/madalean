@@ -29,6 +29,7 @@ from . import tournament as tourn
 from . import certificate as certstage
 from . import literature_hook
 from . import conductor_hook, leancat
+from .memory_hook import error_hint, memory_hint
 from .stagecache import StageCache, make_key, normalize_text
 
 log = get("pipeline")
@@ -809,6 +810,7 @@ class DossierPipeline:
         refine = (d.proof, req) if (req and d.proof_is_current) else None
         hint = req if (req and not d.proof_is_current) else ""
         hint = (hint + conductor_hook.hook_of(job).hint("prove")).strip()       # S-AI: the conductor's advice
+        hint = (hint + "\n\n" + memory_hint(self.ctx, d)).strip()               # S-AY (D57): problem memory, lessons
         strategy = self._choose_strategy(job)
         if job.mode == "auto" and strategy == "agent" and not await self._internet(job.mode):
             # no Internet (S-T): the local models do the work, without waiting for every online model to time out
@@ -1485,6 +1487,7 @@ class DossierPipeline:
                 return {"ok": False, "feedback": str(e), "verdict": {"ok": False, "summary": str(e)}}
             r = await io.check(leancheck.with_axiom_probe(assembled, name), ws, self.settings.compile_timeout_s, name)
             fb = "" if r.verdict.ok else leancheck.errors_for_feedback(r.code, r.verdict)
+            fb += error_hint(self.ctx, d, fb) if fb else ""                   # S-AY (D57b): known renames
             return {"ok": r.verdict.ok, "feedback": fb, "verdict": r.to_dict()}
 
         async def library_search(query: str, k: int = 8) -> list[dict]:

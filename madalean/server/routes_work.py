@@ -212,6 +212,17 @@ async def dossiers_patch(request: web.Request) -> web.Response:
         return error(400, "bad_fields", "Champs refusés : {fields}.", fields=", ".join(bad))
     d.touch()
     await ctx.repo.save(d)
+    if "archived" in data or ("project_id" in data and data.get("project_id")):
+        # S-AY (D57b): sub-dossiers follow their parent (archive / move), one rule for the whole family
+        for c in descendants(ctx, d.id):
+            changed = False
+            if "archived" in data and c.archived != d.archived:
+                c.archived, changed = d.archived, True
+            if data.get("project_id") and c.project_id != d.project_id:
+                c.project_id, changed = d.project_id, True
+            if changed:
+                c.touch()
+                await ctx.repo.save(c)
     return ok({"dossier": dossier_api(d)})
 
 
@@ -219,17 +230,45 @@ async def dossiers_patch(request: web.Request) -> web.Response:
 async def dossiers_delete(request: web.Request) -> web.Response:
     ctx = ctx_of(request)
     d = _dossier(request)
-    act = ctx.orchestrator.active_for(d.id)
-    if act:
-        return _busy(DossierBusy(act))
-    await ctx.repo.delete(d.id)
-    return ok({"ok": True, "undo": f"/api/dossiers/{d.id}/restore"})
+    # S-AY (D57b): a sub-dossier is a dossier with a parent — deleting the parent moves its sub-dossiers to the
+    # trash with it (never orphans), and « Annuler » brings them back together
+    family = [d] + descendants(ctx, d.id)
+    for x in family:
+        act = ctx.orchestrator.active_for(x.id)
+        if act:
+            return _busy(DossierBusy(act))
+    kids = [x.id for x in family[1:]]
+    if kids:
+        d.extra["deleted_children"] = kids
+        await ctx.repo.save(d)
+    for x in reversed(family):
+        await ctx.repo.delete(x.id)
+    return ok({"ok": True, "undo": f"/api/dossiers/{d.id}/restore", "children": kids})
+
+
+def descendants(ctx, did: str, limit: int = 200) -> list:
+    """Sub-dossiers of `did`, recursively (parents first), bounded and cycle-safe."""
+    out, seen, stack = [], {did}, [did]
+    while stack and len(out) < limit:
+        x = stack.pop(0)
+        for c in ctx.repo.children(x):
+            if c.id not in seen:
+                seen.add(c.id)
+                out.append(c)
+                stack.append(c.id)
+    return out
 
 
 @routes.post("/api/dossiers/{id}/restore")
 async def dossiers_restore(request: web.Request) -> web.Response:
-    d = await ctx_of(request).repo.restore(valid_id(request.match_info["id"]))
-    return ok({"dossier": dossier_api(d)}) if d else error(404, "not_found")
+    ctx = ctx_of(request)
+    d = await ctx.repo.restore(valid_id(request.match_info["id"]))
+    if d is None:
+        return error(404, "not_found")
+    for cid in d.extra.pop("deleted_children", []) or []:
+        await ctx.repo.restore(cid)
+    await ctx.repo.save(d)
+    return ok({"dossier": dossier_api(d)})
 
 
 def _route_available(ctx, mode: str) -> bool:

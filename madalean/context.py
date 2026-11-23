@@ -40,7 +40,8 @@ LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), 
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
           "tournament_attempts_per_model": (1, 16), "claude_cap_proof_usd": (0, 100),
           "claude_cap_month_usd": (0, 1000), "conductor_cap_usd": (0, 100), "plan_max_depth": (1, 5),
-          "plan_budget_minutes": (10, 1440), "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440),
+          "plan_budget_minutes": (10, 1440), "graph_search_minutes": (1, 240),
+          "graph_search_attempts": (1, 200), "graph_search_usd": (0, 5), "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440),
           "lean_warm_idle_minutes": (1, 240), "gpu_share_busy_wait_s": (0, 600)}
 
 

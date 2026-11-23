@@ -32,6 +32,8 @@ class Research:
         self.bridge = SageBridge(ctx)
         self.workshop = Workshop(ctx, self.bridge, self.notes)
         self.planner = Planner(ctx, PlanStore(root / "plans"))
+        from ...research.graphsearch import GraphService      # S-AY (D57): the problem graph, same files as plans
+        self.graphs = GraphService(ctx, self.planner)
         self.tutor = Tutor(ctx, LearnStore(root / "learn"))
         from ...update_checkers.recheck import Rechecker
         self.rechecker = Rechecker(ctx, root / "recheck.json")
@@ -884,6 +886,144 @@ async def plan_version_restore(request):
         d.id, _int(request.match_info["rev"], -1), device_of(request)))
 
 
+# ================================================================ problem graph (S-AY, D57)
+async def _graph_call(request, fn):
+    from ...research.proofgraph import GraphError
+    try:
+        res = fn()
+        res = await res if asyncio.iscoroutine(res) else res
+    except (GraphError, PlanError) as e:
+        return fail(e)
+    return ok(res if (isinstance(res, dict) and "nodes" not in res) else {"graph": res})
+
+
+def _lang(request) -> str:
+    q = request.query.get("lang") or ctx_of(request).settings.language or "fr"
+    return "en" if str(q).startswith("en") else "fr"
+
+
+async def graph_get(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.public(d.id, _lang(request)))
+
+
+async def graph_search(request):
+    d = _dossier(request)
+    data = await body(request)
+    mode = data.get("mode") if data.get("mode") in ("local", "auto", "online") else None
+    budgets = data.get("budgets") if isinstance(data.get("budgets"), dict) else None
+    return await _graph_call(request, lambda: R(request).graphs.start(d.id, budgets, mode))
+
+
+async def graph_stop(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.stop(d.id))
+
+
+async def graph_abandon(request):
+    d = _dossier(request)
+    data = await body(request)
+    return await _graph_call(request, lambda: R(request).graphs.abandon(d.id, request.match_info["nid"],
+                                                                         str(data.get("reason", ""))[:300]))
+
+
+async def graph_resume(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.resume(d.id, request.match_info["nid"]))
+
+
+async def graph_why(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.why(d.id, request.match_info["nid"], _lang(request)))
+
+
+async def graph_explain(request):
+    d = _dossier(request)
+    nid = request.query.get("node") or None
+    return await _graph_call(request, lambda: {"explanation": R(request).graphs.explain(d.id, nid, _lang(request))})
+
+
+async def graph_export(request):
+    d = _dossier(request)
+    data = await body(request)
+    fmt = str(data.get("format", "markdown"))
+    nid = str(data["node"]) if data.get("node") else None
+    lang = "en" if str(data.get("lang") or _lang(request)).startswith("en") else "fr"
+    return await _graph_call(request, lambda: R(request).graphs.export(d.id, nid, fmt, lang, device_of(request)))
+
+
+async def graph_cited(request):
+    d = _dossier(request)
+    data = await body(request)
+    items = data.get("items") if isinstance(data.get("items"), list) else []
+    return await _graph_call(request, lambda: R(request).graphs.add_cited(
+        d.id, items, str(data["parent"]) if data.get("parent") else None, str(data.get("edge") or "uses")))
+
+
+async def graph_literature(request):
+    d = _dossier(request)
+    data = await body(request)
+    return await _graph_call(request, lambda: R(request).graphs.literature(
+        d.id, str(data["node"]) if data.get("node") else None))
+
+
+async def graph_adapt(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.adapt(d.id, request.match_info["nid"]))
+
+
+async def graph_adopt(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.adopt(d.id, request.match_info["nid"]))
+
+
+async def graph_open(request):
+    d = _dossier(request)
+    return await _graph_call(request, lambda: R(request).graphs.open_node(d.id, request.match_info["nid"],
+                                                                           device_of(request)))
+
+
+def _lessons(request):
+    from ...research import lessons
+    st = lessons.store_of(ctx_of(request))
+    if st is None:
+        raise web.HTTPConflict(text='{"error":"lessons_off"}', content_type="application/json")
+    return st
+
+
+async def lessons_list(request):
+    st = _lessons(request)
+    return ok({"lessons": st.list(), "max": __import__("madalean.research.lessons", fromlist=["x"]).MAX_LESSONS})
+
+
+async def lessons_delete(request):
+    st = _lessons(request)
+    return ok({"deleted": st.delete(request.match_info["lid"])})
+
+
+async def lessons_clear(request):
+    return ok({"deleted": _lessons(request).clear()})
+
+
+async def lessons_export(request):
+    return ok(_lessons(request).export())
+
+
+@host_only
+async def lessons_import(request):
+    data = await body(request)
+    try:
+        n = _lessons(request).import_(data)
+    except ValueError as e:
+        return error(400, "bad_file", "{why}", why=str(e))
+    return ok({"imported": n})
+
+
+async def graph_digest(request):
+    d = _dossier(request)
+    return ok({"digest": R(request).graphs.prover_hint(d)})
+
+
 # ================================================================ learn
 async def _learn(request, coro_fn):
     try:
@@ -1250,6 +1390,25 @@ def register(app: web.Application, ctx) -> None:
     a.add_post("/api/conjectures/{id}/promote", conj_promote)
     # proof plans
     a.add_get("/api/dossiers/{id}/plan", plan_get)
+    a.add_get("/api/dossiers/{id}/graph", graph_get)
+    a.add_post("/api/dossiers/{id}/graph/search", graph_search)
+    a.add_post("/api/dossiers/{id}/graph/stop", graph_stop)
+    a.add_get("/api/dossiers/{id}/graph/explain", graph_explain)
+    a.add_post("/api/dossiers/{id}/graph/export", graph_export)
+    a.add_post("/api/dossiers/{id}/graph/cited", graph_cited)
+    a.add_post("/api/dossiers/{id}/graph/literature", graph_literature)
+    a.add_get("/api/dossiers/{id}/graph/digest", graph_digest)
+    a.add_get("/api/dossiers/{id}/graph/nodes/{nid}/why", graph_why)
+    a.add_post("/api/dossiers/{id}/graph/nodes/{nid}/abandon", graph_abandon)
+    a.add_post("/api/dossiers/{id}/graph/nodes/{nid}/resume", graph_resume)
+    a.add_post("/api/dossiers/{id}/graph/nodes/{nid}/adapt", graph_adapt)
+    a.add_post("/api/dossiers/{id}/graph/nodes/{nid}/adopt", graph_adopt)
+    a.add_post("/api/dossiers/{id}/graph/nodes/{nid}/open", graph_open)
+    a.add_get("/api/lessons", lessons_list)
+    a.add_get("/api/lessons/export", lessons_export)
+    a.add_post("/api/lessons/import", lessons_import)
+    a.add_delete("/api/lessons", lessons_clear)
+    a.add_delete("/api/lessons/{lid}", lessons_delete)
     a.add_post("/api/dossiers/{id}/plan", plan_create)
     a.add_post("/api/dossiers/{id}/plan/draft", plan_draft)
     a.add_post("/api/dossiers/{id}/plan/nodes", plan_node_add)
@@ -1357,6 +1516,10 @@ async def _watch_jobs(ctx, rs: Research) -> None:
                     await rs.planner.on_job(ev["job"])
                 except Exception:  # noqa: BLE001
                     log.exception("plan watcher")
+                try:
+                    await rs.graphs.on_job(ev["job"])          # S-AY: the problem memory records the job
+                except Exception:  # noqa: BLE001
+                    log.exception("graph watcher")
     finally:
         ctx.bus.unsubscribe(q)
 

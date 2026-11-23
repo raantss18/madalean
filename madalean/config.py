@@ -96,6 +96,13 @@ class Settings:
     # proof plans (S-L): decomposition into lemmas, bounded
     plan_max_depth: int = 3                 # levels of decomposition below the theorem
     plan_budget_minutes: int = 180          # total time of one plan run (all its lemmas)
+    # S-AY (D57): the problem graph — memory of each problem (digest for the provers), reasoned search budgets
+    problem_graph: bool = True              # record attempts / lemmas per dossier and give provers the memory digest
+    graph_viability_model: bool = True      # one short model opinion per lemma before work (deterministic otherwise)
+    graph_search_minutes: int = 20          # wall time of one reasoned search
+    graph_search_attempts: int = 24         # proof attempts of one reasoned search
+    graph_search_usd: float = 0.5           # paid models in one search (never above conductor_cap_usd)
+    lessons: bool = True                    # S-AY (D57b): learn from verified fixes, model-independent
     # Claude as paid reinforcement (S-M, user decision 2026-11-21): final tournament round, within these caps
     claude_reinforce: bool = True
     claude_model: str = "auto"
