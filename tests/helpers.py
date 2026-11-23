@@ -36,15 +36,16 @@ def make_ctx(tmp: Path, ws=None, brain=None, fake_lean: bool = False, caps=None,
     # chain keep their exact sequences; tests/test_statement_check.py turns them on
     ctx.settings.statement_check = False
     ctx.settings.mathlib_first = False
+    ctx.settings.certificates = False    # S-AT: tests/test_certificates.py turns it on
     return ctx
 
 
 async def started(ctx: ServerContext) -> ServerContext:
     key, mode = ctx.settings.workspace, ctx.settings.mode
-    sk = (ctx.settings.statement_check, ctx.settings.mathlib_first)
+    sk = (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates)
     await ctx.start()
     ctx.settings.workspace, ctx.settings.mode = key, mode
-    ctx.settings.statement_check, ctx.settings.mathlib_first = sk
+    ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates = sk
     return ctx
 
 

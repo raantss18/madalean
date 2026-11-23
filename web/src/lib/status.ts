@@ -30,13 +30,14 @@ export function modelLabel(key: string): { name: string; provider: string; local
   const slash = name.lastIndexOf('/');
   if (slash >= 0) name = name.slice(slash + 1);
   if (provider === 'mathlib') return { name: `Mathlib : ${key.slice(i + 1)}`, provider, local: true };   // S-K
+  if (provider === 'certificat') return { name: 'Certificat (Sage + Lean)', provider, local: true };   // S-AT (D52)
   return { name, provider, local: provider === 'local' || provider === 'ollama' };
 }
 
 export const PROVIDER_NAMES: Record<string, string> = {
   local: 'Madalean (local)', ollama: 'Ollama', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter',
   groq: 'Groq', mistral: 'Mistral', cerebras: 'Cerebras', openai: 'OpenAI', deepseek: 'DeepSeek', huggingface: 'Hugging Face', llm7: 'LLM7',
-  ovh: 'OVHcloud', kilo: 'Kilo', pollinations: 'Pollinations', fake: 'Démo', 'lean': 'Lean', mathlib: 'Mathlib',
+  ovh: 'OVHcloud', kilo: 'Kilo', pollinations: 'Pollinations', fake: 'Démo', 'lean': 'Lean', mathlib: 'Mathlib', certificat: 'Sage + Lean',
 };
 
 export function providerName(p: string): string {

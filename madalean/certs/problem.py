@@ -39,6 +39,7 @@ class Problem:
     goal0: tuple                         # as written
     intros: list[str] = field(default_factory=list)
     outer: int = 0                       # number of variables that come from the theorem's binders
+    unread: int = 0                      # binders that were not understood (never used; no refutation then)
 
 
 @dataclass
@@ -55,6 +56,7 @@ def read(statement: str) -> Problem | None:
         return None
     vars_: dict[str, str] = {}
     hyps: list[Hyp] = []
+    unread = 0
     for name, typ in P.explicit_binders(sig.binders):
         t = typ.strip()
         if t in E.TYPES:
@@ -63,7 +65,7 @@ def read(statement: str) -> Problem | None:
         try:
             hyps.append(Hyp(name, E.parse_prop(t)))
         except E.Unsupported:
-            continue                     # a binder we do not read (a type, a function…): simply not used
+            unread += 1                  # a binder we do not read (a type, a function…): simply not used
     try:
         goal0 = E.parse_prop(sig.concl)
     except (E.Unsupported, RecursionError):
@@ -88,7 +90,7 @@ def read(statement: str) -> Problem | None:
             goal = goal[2]
     if len(vars_) > 3 * MAX_VARS or len(hyps) > 4 * MAX_HYPS:
         return None
-    return Problem(sig.name, vars_, hyps, goal, goal0, intros, outer)
+    return Problem(sig.name, vars_, hyps, goal, goal0, intros, outer, unread)
 
 
 # ---------------------------------------------------------------- helpers
@@ -138,12 +140,14 @@ def tasks(pb: Problem) -> list[Task]:
             out += fn(pb)
         except (E.Unsupported, RecursionError, ZeroDivisionError, OverflowError):
             continue
+    if pb.hyps or pb.unread:             # a claim under hypotheses is never called false from its conclusion alone
+        out = [t for t in out if not t.refuted]
     return out
 
 
 def _closed_tasks(pb: Problem) -> list[Task]:
     g = pb.goal0
-    if E.variables(g):
+    if E.variables(g) or g[0] in ("true", "false"):
         return []
     h = g[0]
     if h == "prime":

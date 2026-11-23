@@ -1414,3 +1414,66 @@ EN.update({
     "Historique compacté : {events} événements plus anciens ({jobs} travaux) résumés ; le détail est conservé à part.":
         "History compacted: {events} older events ({jobs} jobs) summarised; the details are kept aside.",
 })
+# ---- certificates: Sage computes, Lean checks (S-AT, D52)
+EN.update({
+    "Primalité": "Primality",
+    "Nombre composé": "Composite number",
+    "Calcul sur des nombres": "Arithmetic on numbers",
+    "Puissance modulaire": "Modular power",
+    "Identité polynomiale": "Polynomial identity",
+    "Conséquence d'équations polynomiales": "Consequence of polynomial equations",
+    "Inégalités linéaires": "Linear inequalities",
+    "Inégalité polynomiale (somme de carrés)": "Polynomial inequality (sum of squares)",
+    "Existence (témoin)": "Existence (witness)",
+    "Contre-exemple": "Counterexample",
+    "Inégalité numérique": "Numerical inequality",
+    "Vérification exhaustive": "Exhaustive check",
+    " plus la constante {c}": " plus the constant {c}",
+    ", pour la puissance {k} du but": ", for the power {k} of the goal",
+    "Aucun témoin trouvé par Sage ({title}).": "Sage found no witness ({title}).",
+    "Calcul direct sur des nombres.": "Direct computation on numbers.",
+    "Ce résultat n'a pas de certificat pris en charge.": "No supported certificate for this result.",
+    "Certificat": "Certificate",
+    "Certificat : Lean vérifie le témoin…": "Certificate: Lean is checking the witness…",
+    "Certificat : calcul d'un témoin par Sage…": "Certificate: Sage is computing a witness…",
+    "Certificat : {what}": "Certificate: {what}",
+    "Certificat impossible : SageMath n'est pas disponible ({title}).":
+        "No certificate: SageMath is not available ({title}).",
+    "Certificat refusé par Lean ({title}) : le témoin calculé ne passe pas la vérification.":
+        "Certificate refused by Lean ({title}): the computed witness does not pass the check.",
+    "Certificat vérifié par Lean ({title}).": "Certificate checked by Lean ({title}).",
+    "Certificat ({title}) : témoin calculé par Sage, vérifié par Lean.":
+        "Certificate ({title}): witness computed by Sage, checked by Lean.",
+    "Certificat ({title}) : vérifié par Lean par un calcul direct.":
+        "Certificate ({title}): checked by Lean by a direct computation.",
+    "Combinaison des hypothèses trouvée (base de Gröbner){pw} :": "Combination of the hypotheses found (Gröbner basis){pw}:",
+    "Combinaison linéaire des hypothèses qui donne le résultat (certificat de Farkas) :":
+        "Linear combination of the hypotheses that gives the result (Farkas certificate):",
+    "Contre-exemple : {w}.": "Counterexample: {w}.",
+    "Diviseur trouvé : {n} = {d} × {q}.": "Divisor found: {n} = {d} × {q}.",
+    "Encadrements calculés par Sage, vérifiés par Lean :": "Bounds computed by Sage, checked by Lean:",
+    "Identité polynomiale : les deux membres ont le même développement.":
+        "Polynomial identity: both sides expand to the same polynomial.",
+    "Indisponible dans la démonstration.": "Not available in the demo.",
+    "L'espace de travail Lean n'est pas prêt.": "The Lean workspace is not ready.",
+    "Le calcul indique que l'énoncé est faux ({title} : {why}).":
+        "The computation says the statement is false ({title}: {why}).",
+    "Pas de certificat pour cet énoncé.": "No certificate for this statement.",
+    "Petit nombre : Lean essaie lui-même tous les diviseurs possibles.":
+        "Small number: Lean tries every possible divisor itself.",
+    "Puissance modulaire par carrés successifs ({k} étapes) : reste {r}.":
+        "Modular power by repeated squaring ({k} steps): remainder {r}.",
+    "Témoin : {w}.": "Witness: {w}.",
+    "Témoin de primalité (Pratt) : a = {a} est d'ordre p − 1 modulo p, avec p − 1 = {fact}.":
+        "Primality witness (Pratt): a = {a} has order p − 1 modulo p, with p − 1 = {fact}.",
+    "Vérification exhaustive : {n} cas.": "Exhaustive check: {n} cases.",
+    "aucune hypothèse nécessaire": "no hypothesis needed",
+    "{c} × ({f})²": "{c} × ({f})²",
+    "{c} × {h}": "{c} × {h}",
+    "{h} multipliée par {c}": "{h} multiplied by {c}",
+    "{h} × {c} × ({f})²": "{h} × {c} × ({f})²",
+    "{lo} < {x} < {hi}": "{lo} < {x} < {hi}",
+    "{n} nombres premiers intermédiaires certifiés de la même façon.":
+        "{n} intermediate primes certified in the same way.",
+    "Écriture comme somme de carrés{c} :": "Written as a sum of squares{c}:",
+})

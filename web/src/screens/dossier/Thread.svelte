@@ -54,7 +54,7 @@
           <div class="bubble">
             <span class="meta xs">
               {#if ev.kind === 'error'}<Icon name="warn" size={12} />{/if}
-              {ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' ? 'Madalean' : 'Lean'} · {fmtTime(ev.t)}
+              {ev.kind === 'certificate' ? 'Sage + Lean' : ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' ? 'Madalean' : 'Lean'} · {fmtTime(ev.t)}
             </span>
             <p class="first">{firstLine(ev)}</p>
             {#if ev.kind === 'check'}<StatementVerdict id={d.id} params={ev.params} busy={Boolean(job)}
@@ -96,6 +96,7 @@
   .ev.error .bubble { background: var(--failed-soft); }
   .ev.proof .bubble { border-left: 3px solid var(--proved); }
   .ev.check .bubble { border-left: 3px solid var(--accent); }
+  .ev.certificate .bubble { border-left: 3px solid var(--proved); }
   .ev.info .bubble { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
   .meta { display: flex; align-items: center; gap: 4px; color: var(--text-3); font-weight: 600; margin-bottom: 2px; }
   details summary { cursor: pointer; color: var(--text-2); }

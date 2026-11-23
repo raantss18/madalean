@@ -168,7 +168,7 @@
               onchange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v >= (min as number) && v <= (max as number)) void saveSettings({ [k as string]: v }); else toast('error', t('settings.range', { min: Number(min), max: Number(max) })); }} />
           </div>
         {/each}
-        {#each ['statement_check', 'mathlib_first', 'tournament_enabled', 'hf_goedel', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model', 'lean_warm'] as k}
+        {#each ['statement_check', 'mathlib_first', 'certificates', 'tournament_enabled', 'hf_goedel', 'pause_after_translation', 'statement_notes', 'informal_proof', 'autoload_model', 'lean_warm'] as k}
           <label class="switch"><input type="checkbox" checked={Boolean(s[k])} onchange={(e) => saveSettings({ [k]: (e.target as HTMLInputElement).checked })} />{tk(`adv.${k}`, k)}</label>
         {/each}
       </div>

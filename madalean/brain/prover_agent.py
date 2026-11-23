@@ -46,7 +46,7 @@ their position and the goal state, or "accepted".
 "Finset sum le", "Polynomial roots card"). Returns exact names and signatures.
 - `read_declaration`: the exact signature, docstring and module of one name (and close names if it does not exist).
 - `library_search`: results the user already proved in Madalean (reusable as lemmas: copy them above the theorem).
-{online_tool}- `submit`: finish with the complete accepted code. The run ends only when `submit` succeeds.
+{online_tool}{witness_tool}- `submit`: finish with the complete accepted code. The run ends only when `submit` succeeds.
 
 # Method — follow it
 1. Plan first, briefly (2–6 lines, in your text): the mathematical argument and the Mathlib facts it needs.
@@ -70,7 +70,15 @@ analysis (`rcases`, `obtain ⟨x, hx⟩ := h`, `by_cases`), contraposition, or u
 ONLINE_TOOL = ("- `lean_search_online`: query public Lean search engines (LeanSearch, Loogle) with a short query. "
                "They index a RECENT Mathlib: confirm every name with read_declaration before using it.\n")
 
+WITNESS_TOOL = ("- `sage_witness`: ask the computer algebra system for a certificate of the theorem or of an auxiliary "
+                "claim (primality, a factor, a polynomial identity or consequence of polynomial equations, a linear or "
+                "polynomial inequality over ℝ, an explicit witness for ∃, a counterexample, a numerical bound, a bounded "
+                "exhaustive check). You get back a proof that Lean has ALREADY accepted, to use as a helper lemma.\n")
+
 TOOLS_PARAMS = {
+    "sage_witness": {"type": "object", "properties": {
+        "claim": {"type": "string", "description": "Binders and proposition as after a theorem name, e.g. "
+                  "`(x y : ℝ) (h : 0 ≤ x) : x ^ 3 + y ^ 2 ≥ 0`. Empty: the theorem itself."}}, "required": []},
     "lean_check": {"type": "object", "properties": {
         "proof": {"type": "string", "description": "Tactic block after `:= by` (statement added automatically)."},
         "code": {"type": "string", "description": "Helper lemmas + the theorem with the identical statement."}},
@@ -213,7 +221,8 @@ class _Session:
 async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, statement: str, workspace_key: str,
                            check: CheckFn, library_search: Callable[[str], Awaitable[Any]] | None = None,
                            hint: str = "", on_chunk: OnChunk | None = None, mode: str = "auto", max_steps: int = 24,
-                           max_seconds: float = 900, only: str | None = None, request: str = "") -> dict:
+                           max_seconds: float = 900, only: str | None = None, request: str = "",
+                           witness: Callable[[str], Awaitable[str]] | None = None) -> dict:
     """Agentic proof search. Returns {code, model, steps, finish, transcript, checks, seconds}; `code` is the best
     code Lean accepted (the server re-checks it), finish: proved | max_steps | budget | error | gave_up.
     `only`: run on this model key alone (tournament contestant, pipeline/tournament.py). `request`: the problem in
@@ -298,6 +307,14 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
         spec("read_declaration", "Exact signature, doc and module of a declaration of this workspace.", t_read),
         spec("library_search", "Search the user's library of already proven results.", t_library),
     ]
+    if witness is not None:
+        # S-AT (D52): Madalean's fixed program computes the witness in the Sage sandbox (the model sends a claim,
+        # never code); the answer is a proof that the strict Lean check has accepted
+        async def t_witness(a: dict) -> str:
+            return await witness(str(a.get("claim") or "")[:4000])
+        tools.append(spec("sage_witness", "Certificate for the theorem or an auxiliary claim: computed by a computer "
+                          "algebra system, checked by Lean. Returns a Lean-accepted proof or says why there is none.",
+                          t_witness))
     if online_ok:
         tools.append(spec("lean_search_online", "Ask LeanSearch / Loogle (recent Mathlib) about a short query.", t_online))
     if only and "leanstral" in only.lower():
@@ -329,7 +346,8 @@ async def prove_with_agent(brain: Brain, retriever: Retriever | None, *, stateme
     if card:
         ws_note = (ws_note + "\n\n" + card).strip()
     system = SYSTEM_PROMPT.format(workspace=workspace_key, version_note=ws_note, header=leancheck.GOEDEL_HEADER,
-                                  online_tool=ONLINE_TOOL if online_ok else "")
+                                  online_tool=ONLINE_TOOL if online_ok else "",
+                                  witness_tool=WITNESS_TOOL if witness is not None else "")
     premises_txt = ""
     if retriever is not None:
         try:

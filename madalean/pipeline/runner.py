@@ -26,6 +26,7 @@ from .mathlib_first import MathlibFirst, MathlibResult
 from .verify import CheckResult, StatementChecker
 from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
+from . import certificate as certstage
 from . import conductor_hook, leancat
 from .stagecache import StageCache, make_key, normalize_text
 
@@ -829,20 +830,36 @@ class DossierPipeline:
             elif mf is None:
                 mf = await self._mathlib(job, d, io, ws, statement)
                 await self._remember_mathlib(mkey, mf)
+        # S-AT (D52): « certificat » — Sage computes a witness, Lean checks it; no model, beside the other racers
+        cert: certstage.CertificateResult | None = None
+        cert_task: asyncio.Task | None = None
+        if getattr(s, "certificates", True) and refine is None and not self.ctx.demo \
+                and not (mf is not None and mf.ok) and certstage.matches(statement):
+            if parallel:
+                cert_task = self._spawn(job, "certificate", lambda: self._certificate(job, d, io, ws, statement),
+                                        stream="proof")
+            else:
+                cert = await self._certificate(job, d, io, ws, statement)
         res: ProveResult | None = None
         if mf is not None and mf.ok:
             res, strategy = self._mathlib_proof(mf), "mathlib"
+        elif cert is not None and cert.ok:
+            res, strategy = self._certificate_proof(cert), "certificate"
         else:
             if mf is not None:
                 job.mathlib_hint = mf.hint()
             search = lambda: self._search(job, d, io, ws, statement, strategy, refine, hint, req)  # noqa: E731
-            if gate is None and mf_task is None:
+            if gate is None and mf_task is None and cert_task is None:
                 res, strategy = await search()
             else:
-                out = await self._race(job, d, io, ws, statement, req, gate, mf_task, search, mkey)
+                out = await self._race(job, d, io, ws, statement, req, gate, mf_task, search, mkey, cert_task)
                 if out is None:
                     return                 # the statement check stopped the proof (« faux » / « douteux »)
-                res, strategy, mf = out
+                res, strategy, extra = out
+                if isinstance(extra, certstage.CertificateResult):
+                    cert = extra
+                else:
+                    mf = extra
         if not res.ok:
             d.status = "failed"
             raise Failed("Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, "
@@ -855,10 +872,21 @@ class DossierPipeline:
         if mf is not None and mf.ok:
             meta.update(mathlib_lemma=mf.lemma, mathlib_source=mf.source, mathlib_tactic=mf.tactic,
                         **({"adapted_by": mf.model} if mf.model else {}))
+        certified = strategy == "certificate" and cert is not None and cert.ok
+        if certified:
+            meta.update(certificate=cert.kind, certificate_checker=cert.checker,
+                        certificate_witness=[w["text"] for w in cert.witness][:20],
+                        certificate_sage_seconds=round(cert.sage_seconds, 2))
         idx = d.add_proof(res.code, note=req, model=res.model, meta=meta)
         d.status = "proved"
         await self.event(d, job, "proof", "Preuve trouvée et vérifiée par Lean (essai {i}, {s:.0f} s).", ref=idx,
                          model=res.model, i=meta["attempts"], s=res.seconds, seconds=stage_seconds(job, "proof"))
+        if certified:
+            title = msg(certstage.engine.KINDS[cert.kind]["title"])["text"]
+            key = ("Certificat ({title}) : témoin calculé par Sage, vérifié par Lean." if cert.sage_seconds else
+                   "Certificat ({title}) : vérifié par Lean par un calcul direct.")
+            await self.event(d, job, "certificate", key, ref=idx, detail=cert.witness_text(), title=title,
+                             cert_kind=cert.kind, checker=cert.checker)
         if mf is not None and mf.ok and mf.lemma:
             await self.event(d, job, "info", "Ce théorème est dans Mathlib sous le nom « {name} » : la preuve "
                              "l'utilise directement.", name=mf.lemma)
@@ -867,6 +895,26 @@ class DossierPipeline:
             self.ctx.bus.publish("library.updated", {"added": entry.name})
             await self.event(d, job, "info", "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans "
                              "vos prochaines preuves.", name=entry.name)
+
+    async def _certificate(self, job: Job, d: Dossier, io: JobIO, ws, statement: str):
+        """The certificate attempt; never raises (a failure only means: the usual search goes on)."""
+        try:
+            res = await certstage.run(self.ctx, io, statement, ws, self.settings.compile_timeout_s)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            log.warning("certificate stage failed: %s", e)
+            return certstage.CertificateResult()
+        if res.status in ("refuted", "rejected"):
+            title = msg(certstage.engine.KINDS[res.kind]["title"])["text"] if res.kind else ""
+            m = certstage.summary(res.status, title, res.reason)
+            await self.event(d, job, "info", m["key"], **m["params"])
+        return res
+
+    @staticmethod
+    def _certificate_proof(c) -> ProveResult:
+        return ProveResult(True, c.code, msg("Certificat vérifié par Lean ({title}).", title=c.kind), [], c.model,
+                           c.axioms, c.seconds)
 
     @staticmethod
     def _mathlib_proof(mf: MathlibResult) -> ProveResult:
@@ -932,7 +980,7 @@ class DossierPipeline:
         return res, strategy
 
     async def _race(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, req: str, gate: asyncio.Task | None,
-                    mf_task: asyncio.Task | None, search, mkey: str):
+                    mf_task: asyncio.Task | None, search, mkey: str, cert_task: asyncio.Task | None = None):
         """D38: the statement check, Mathlib-first and the proof search run together.
 
         - the first Lean-verified proof (Mathlib-first, a quick proof found by the check, or the search) wins and the
@@ -944,16 +992,20 @@ class DossierPipeline:
         Returns (result, strategy, Mathlib-first result or None)."""
         live(job).discard(job.id)          # this coroutine only waits for the racers from here on
         try:
-            return await self._race_body(job, d, io, ws, statement, req, gate, mf_task, search, mkey)
+            return await self._race_body(job, d, io, ws, statement, req, gate, mf_task, search, mkey, cert_task)
         finally:
             live(job).add(job.id)
 
     async def _race_body(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, req: str,
-                         gate: asyncio.Task | None, mf_task: asyncio.Task | None, search, mkey: str):
+                         gate: asyncio.Task | None, mf_task: asyncio.Task | None, search, mkey: str,
+                         cert_task: asyncio.Task | None = None):
         search_task = self._spawn(job, "search", search, stream="proof")
         racers: dict[asyncio.Task, str] = {search_task: "search"}
         if mf_task is not None:
             racers[mf_task] = "mathlib"
+        if cert_task is not None:
+            racers[cert_task] = "certificate"
+        cert = None
         pending: set[asyncio.Task] = set(racers) | ({gate} if gate is not None else set())
         winner: tuple[ProveResult, str] | None = None
         lost: tuple[ProveResult, str] | None = None
@@ -1022,6 +1074,11 @@ class DossierPipeline:
                             mf = out
                             winner = (self._mathlib_proof(mf), "mathlib")
                             await cancel_racers()
+                    elif kind == "certificate":
+                        if out is not None and out.ok and winner is None:
+                            cert = out
+                            winner = (self._certificate_proof(out), "certificate")
+                            await cancel_racers()
                     elif kind == "search":
                         res, strategy = out
                         if res is not None and res.ok and winner is None:
@@ -1032,7 +1089,8 @@ class DossierPipeline:
         finally:
             await self._stop(list(racers))
         if winner is not None:
-            return winner[0], winner[1], (mf if winner[1] == "mathlib" else None)
+            return winner[0], winner[1], (mf if winner[1] == "mathlib" else cert if winner[1] == "certificate"
+                                          else None)
         if error is not None:
             raise error
         res, strategy = lost or (ProveResult(False), "agent")
@@ -1066,6 +1124,8 @@ class DossierPipeline:
                 return out[0], out[1], None
             if kind in ("mathlib", "quick") and out is not None and out.ok:
                 return self._mathlib_proof(out), "mathlib", out
+            if kind == "certificate" and out is not None and out.ok:
+                return self._certificate_proof(out), "certificate", None
         return None
 
     async def _keep_pending(self, job: Job, d: Dossier, ws, statement: str, found: tuple, verdict: str) -> None:
@@ -1437,6 +1497,11 @@ class DossierPipeline:
             if ch.kind in ("text", "thinking", "tool_call", "tool_result", "info"):
                 self.ctx.bus.token(job.id, "proof", a.index, ch.text, ch.kind)
 
+        async def witness(claim: str) -> str:          # S-AT (D52): « ask Sage for a witness », Lean-checked
+            async def strict(code: str, nm: str):
+                return await io.check(code, ws, min(self.settings.compile_timeout_s, certstage.STRICT_TIMEOUT), nm)
+            return await certstage.tool_answer(self.ctx, statement, claim, ws, strict)
+
         need_online = job.mode != "local"
         if need_online:
             owner = job_owner(job)
@@ -1445,6 +1510,8 @@ class DossierPipeline:
         kw = {"only": only} if only and _accepts(fn, "only") else {}
         if _accepts(fn, "request"):              # S-AM (D45): the request, for the verified catalogue entries
             kw["request"] = "\n".join(leancat.job_texts(d))
+        if getattr(self.settings, "certificates", True) and not self.ctx.demo and _accepts(fn, "witness"):
+            kw["witness"] = witness
         try:
             out = await fn(self.ctx.brain, self.ctx.retriever, statement=statement, workspace_key=ws.key, check=check,
                            library_search=library_search, hint=hint, on_chunk=on_chunk, mode=job.mode,

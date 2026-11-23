@@ -127,6 +127,7 @@ const fr = {
   'stage.verify': 'Vérification de l’énoncé',
   'adv.statement_check': 'Vérifier chaque énoncé avant de le prouver (fidélité, contre-exemples)',
   'adv.mathlib_first': 'Chercher d’abord le théorème dans Mathlib',
+  'adv.certificates': 'Certificats : laisser Sage calculer un témoin que Lean vérifie (primalité, identités, inégalités…)',
   'stage.notes': 'Glose de l’énoncé',
   'stage.proof': 'Recherche de preuve',
   'stage.explanation': 'Explication',

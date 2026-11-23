@@ -12,6 +12,7 @@
   import { ApiError } from '../../lib/api/client';
   import { nb, wb, type NbCell, type NbDocInfo, type NbOutput, type NbView, type CalcTarget, type NbExplainError, type NbExplainLine, type NbExplainSteps } from '../../lib/api/workbench';
   import { request } from '../../lib/api/client';
+  import { certificates, certifiable, type CertOutcome } from '../../lib/api/certificates';
   import { guessKind, type Guess } from '../../lib/calcul/detect';
   import { breakable } from '../../lib/calcul/texwrap';
   import { app } from '../../lib/store/app.svelte';
@@ -75,6 +76,8 @@
   // S-AJ (D42): « Expliquer les étapes du calcul » — facts computed by Sage + the derivation, streamed while written
   let expSteps = $state<Record<string, NbExplainSteps | 'loading'>>({});
   let stepsLive = $state<Record<string, string>>({});
+  // S-AT (D52): « Certifier avec Lean » — Sage's result becomes a Lean statement, proved by a checked certificate
+  let cert = $state<Record<string, CertOutcome | 'loading'>>({});
   let stepsFolded = $state<Record<string, boolean>>({});
   let recipesOpen = $state(false);
   let recipes = $state<{ id: string; request: string; code: string; version: string; hits?: number }[]>([]);
@@ -283,6 +286,16 @@
     catch (e) { delete expSteps[c.id]; if (!(e instanceof ApiError && e.kind === 'replaced')) toast('error', errorText(e)); }
     finally { delete stepsLive[c.id]; }
   }
+  async function certify(c: NbCell) {
+    cert[c.id] = 'loading';
+    try { cert[c.id] = await certificates.fromCell(loadedFor, docId, c.id); }
+    catch (e) {
+      delete cert[c.id];
+      toast(e instanceof ApiError && e.kind === 'certificate_unsupported' ? 'info' : 'error',
+        e instanceof ApiError && e.kind === 'certificate_unsupported' ? ct('certUnsupported')
+          : e instanceof ApiError && e.kind === 'experiments_host_only' ? ct('hostOnly') : errorText(e));
+    }
+  }
   function stepsMarkdown(x: NbExplainSteps): string {
     const facts = x.facts.filter((f) => f.status !== 'failed').map((f) => `- ${f.text} (${ct(`fact.${f.status}`)})`);
     return (facts.length ? `${ct('stepsFacts')} :\n\n${facts.join('\n')}\n\n` : '') + x.text;
@@ -477,6 +490,7 @@
     }
     if (isCode(c) && (drafts[c.id] ?? c.source).trim()) items.push({ label: ct('explainLines'), run: () => explainLines(c) });
     if (hasResult(c)) items.push({ label: ct('explainSteps'), run: () => explainSteps(c) });
+    if (hasResult(c) && v?.doc.language === 'sage' && certifiable(c.source)) items.push({ label: ct('certify'), run: () => certify(c), disabled: cert[c.id] === 'loading' });
     if (c.type === 'ask' && (prompts[c.id] ?? c.prompt ?? '').trim() && c.source.trim()) items.push({ label: ct('otherVersion'), run: () => write(c, true), disabled: writing === c.id });
     items.push({ label: ct('moveUp'), run: () => move(c, idx(c.id) - 1), disabled: idx(c.id) === 0 });
     items.push({ label: ct('moveDown'), run: () => move(c, idx(c.id) + 1), disabled: idx(c.id) === cells.length - 1 });
@@ -749,6 +763,22 @@
                       {/if}
                     </div>
                   {/if}
+                  {#if cert[c.id]}
+                    {@const x = cert[c.id]!}
+                    <div class="explain cert" role="region" aria-label={ct('certTitle')}>
+                      <div class="row"><strong class="xs">{ct('certTitle')}</strong><span class="spacer"></span><button class="btn xsmall quiet" onclick={() => delete cert[c.id]}>{ct('closeExplain')}</button></div>
+                      {#if x === 'loading'}<p class="xs muted" role="status">{ct('certWorking')}</p>
+                      {:else if x.status === 'verified'}
+                        <p class="cert-ok"><Icon name="check" size={14} />{ct(x.sage_seconds ? 'certVerified' : 'certVerifiedDirect', { title: x.title?.text ?? '' })}</p>
+                        {#if x.witness.length}<ul class="xs cert-w">{#each x.witness as w}<li>{w.text}</li>{/each}</ul>{/if}
+                        <p class="xs muted">{ct('certStats', { lines: x.lines, sage: x.sage_seconds.toFixed(1), lean: x.lean_seconds.toFixed(1), checker: x.checker })}</p>
+                        {#if x.dossier}<a class="btn small" href="/d/{encodeURIComponent(x.dossier.id)}">{ct('certOpen')}</a>{/if}
+                      {:else}
+                        <p class="unverified" role="note">{ct(`cert.${x.status}`, { why: x.reason })}</p>
+                        {#if x.statement}<pre class="xs cert-st">{x.statement.split('\n').filter((l) => l.startsWith('theorem')).join('\n')}</pre>{/if}
+                      {/if}
+                    </div>
+                  {/if}
                   {#if expErr[c.id]}
                     {@const x = expErr[c.id]!}
                     <div class="explain" role="region" aria-label={ct('explainError')}>
@@ -960,6 +990,9 @@
   .mark.verified { background: var(--proved-soft); color: var(--proved); }
   .mark.computed { background: var(--surface); color: var(--text-2); border: 1px solid var(--line); }
   .mark.failed { background: var(--running-soft); color: var(--running); }
+  .cert-ok { display: flex; align-items: center; gap: 6px; color: var(--proved); font-weight: 600; margin: var(--s-1) 0; }
+  .cert-w { margin: var(--s-1) 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
+  .cert-st { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--s-1) 0; }
   .unverified { color: var(--text-2); border-left: 3px solid var(--running); padding-left: var(--s-2); margin: var(--s-2) 0; }
   .explain.steps :global(.katex-display), .fact :global(.katex-display) { overflow-x: auto; overflow-y: hidden; }
   .line-list { list-style: none; padding: 0; margin: var(--s-1) 0 0; display: grid; gap: 4px; }

@@ -128,6 +128,7 @@ const en: Record<keyof typeof fr, string> = {
   'stage.verify': 'Checking the statement',
   'adv.statement_check': 'Check every statement before proving it (faithfulness, counterexamples)',
   'adv.mathlib_first': 'Look for the theorem in Mathlib first',
+  'adv.certificates': 'Certificates: let Sage compute a witness that Lean checks (primality, identities, inequalities…)',
   'stage.notes': 'Glossing the statement',
   'stage.proof': 'Searching for a proof',
   'stage.explanation': 'Explaining',
