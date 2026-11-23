@@ -255,6 +255,11 @@ async def dossiers_message(request: web.Request) -> web.Response:
         return _busy(DossierBusy(act))
     opts = _opts(data)
     plan, shown = plan_for_message(d, text, stage, _route_available(ctx, opts.get("mode", ctx.settings.mode)))
+    if d.extra.get("attachments"):           # S-AX (D56): « d'après la pièce jointe 2, lemme 3.1 » → its digest
+        from ..literature.attach import with_mentions
+        full = with_mentions(ctx, d, text)
+        if full != text:
+            plan = [{**p, "request": full} if p.get("request") == text else p for p in plan]
     d.add_event("user", text, stage=shown)
     await ctx.repo.save(d)
     job = ctx.orchestrator.submit(d.id, plan, **opts)

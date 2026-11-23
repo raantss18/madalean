@@ -373,3 +373,17 @@ async def test_pipeline_stage_runs_beside_the_proof_and_never_blocks_it(tmp_path
         if r.status == 202:
             await wait_job(ctx, (await r.json())["job"]["id"], 120)
             assert len(t.requests) == n
+
+
+def test_export_prints_a_conditional_proof_as_not_verified():
+    from madalean import export
+    from madalean.dossiers import Dossier
+    d = Dossier(id="x", title="T", problem="p")
+    d.extra["conditional_proof"] = {"verdict": "proved_modulo", "source": "literature", "code": "theorem x : True",
+                                    "cited": [{"short": "Meher (2009)", "title": "Ramanujan Primes"}]}
+    for lang, word in (("fr", "NON vérifiée"), ("en", "NOT verified")):
+        c = export.collect(d, lang)
+        assert not c.proved and c.proof == "" and word in c.conditional and "Meher (2009)" in c.conditional
+        assert word in export.build_md(c) and word in export.build_html(c)
+    d.extra["conditional_proof"]["verdict"] = "superseded"
+    assert export.collect(d, "fr").conditional == ""

@@ -1513,4 +1513,9 @@ EN.update({
     "prépublication": "preprint",
     "thèse": "thesis",
     "type inconnu": "unknown type",
+    "Pièce jointe {n} : {name}.": "Attachment {n}: {name}.",
+    "À prouver : {target}. Résultats fournis (pièces jointes, Sources du projet) : {n}.":
+        "To prove: {target}. Results provided (attachments, project Sources): {n}.",
+    "non formalisé": "not formalized",
+    "dans Mathlib": "in Mathlib",
 })

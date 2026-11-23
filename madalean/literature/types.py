@@ -177,6 +177,8 @@ class LiteratureItem:
     matched: list[str] = field(default_factory=list)          # query keywords found in its title / texts
     bibtex: str = ""
     key: str = ""                   # BibTeX key proposed (the shelf may choose another one when added)
+    origin: str = "literature"      # literature (search) | attachment (a file / URL the user gave, read once)
+    label: str = ""                 # « Theorem 3.1 » when the source numbers it
 
     @property
     def is_cited_lemma(self) -> bool:
@@ -185,7 +187,7 @@ class LiteratureItem:
     def node(self) -> dict:
         """The cited-lemma node consumed by the lemma graph (S-AY): enough to state, cite and track it."""
         q = self.quotes[0] if self.quotes else None
-        return {"id": self.id, "kind": "cited", "name": self.lean.name, "lean": self.lean.statement,
+        return {"id": self.id, "kind": "cited", "origin": self.origin, "label": self.label, "name": self.lean.name, "lean": self.lean.statement,
                 "status": self.lean.status, "mathlib_name": self.lean.mathlib_name,
                 "library_name": self.lean.library_name, "conditional": self.lean.status == "to_prove",
                 "citation": {"ref": self.reference.id, "title": self.reference.title,

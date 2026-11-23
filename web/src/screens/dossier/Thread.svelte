@@ -11,6 +11,21 @@
   import StatementVerdict from './StatementVerdict.svelte';
   import EnterHint from '../../components/EnterHint.svelte';
   import { enterSubmit } from '../../lib/ui/enter';
+  import { literature, ATTACH_ACCEPT } from '../../lib/api/literature';
+  import { toast } from '../../lib/ui/toasts.svelte';
+  import { reportError } from './actions';
+
+  // S-AX (D56): attach an image / PDF / LaTeX from the follow-up field; it is read once (project memory) and can
+  // then be named in a request (« pièce jointe 2, lemme 3.1 »)
+  async function attachFiles(input: HTMLInputElement) {
+    for (const f of Array.from(input.files ?? [])) {
+      try {
+        const r = await literature.attachFile(d.id, f);
+        toast('ok', t('lit.attached', { name: `${t('lit.attachmentN', { n: r.attachment.n })} — ${f.name}` }));
+      } catch (e) { reportError(e, d.id); }
+    }
+    input.value = '';
+  }
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
   let text = $state('');
@@ -21,7 +36,7 @@
   let all = $state(false);
   $effect(() => { if (loadedFor === d.id) saveJSON(`draft.thread.${d.id}`, text); });
   const events = $derived(all ? d.events : d.events.slice(-60));
-  const STEP_OF: Record<string, string> = { understood: 'enonce', statement: 'lean', notes: 'lean', check: 'lean', proof: 'preuve', explanation: 'preuve', informal: 'preuve' };
+  const STEP_OF: Record<string, string> = { understood: 'enonce', statement: 'lean', notes: 'lean', check: 'lean', literature: 'preuve', proof: 'preuve', explanation: 'preuve', informal: 'preuve' };
 
   async function send() {
     if (!text.trim() || sending) return;
@@ -54,7 +69,7 @@
           <div class="bubble">
             <span class="meta xs">
               {#if ev.kind === 'error'}<Icon name="warn" size={12} />{/if}
-              {ev.kind === 'certificate' ? 'Sage + Lean' : ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' ? 'Madalean' : 'Lean'} · {fmtTime(ev.t)}
+              {ev.kind === 'certificate' ? 'Sage + Lean' : ev.kind === 'literature' ? t('lit.title') : ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' ? 'Madalean' : 'Lean'} · {fmtTime(ev.t)}
             </span>
             <p class="first">{firstLine(ev)}</p>
             {#if ev.kind === 'check'}<StatementVerdict id={d.id} params={ev.params} busy={Boolean(job)}
@@ -77,6 +92,8 @@
       <select id="follow-stage-{d.id}" class="input stage" bind:value={stage}>
         {#each ['auto', 'statement', 'proof', 'explanation'] as s}<option value={s}>{tk(`follow.${s}`, s)}</option>{/each}
       </select>
+      <input id="follow-file-{d.id}" class="sr-only" type="file" accept={ATTACH_ACCEPT} multiple onchange={(e) => void attachFiles(e.target as HTMLInputElement)} />
+      <label for="follow-file-{d.id}" class="btn quiet clip" title={t('lit.attachFile')}><Icon name="paperclip" size={16} /><span class="sr-only">{t('lit.attachFile')}</span></label>
       {#if job}
         <button class="btn danger" type="button" onclick={() => stop(d.id)}><Icon name="stop" size={14} />{t('common.stop')}</button>
       {:else}
@@ -97,6 +114,7 @@
   .ev.proof .bubble { border-left: 3px solid var(--proved); }
   .ev.check .bubble { border-left: 3px solid var(--accent); }
   .ev.certificate .bubble { border-left: 3px solid var(--proved); }
+  .ev.literature .bubble { border-left: 3px solid var(--line-strong); }
   .ev.info .bubble { background: transparent; border: 1px dashed var(--line); color: var(--text-2); }
   .meta { display: flex; align-items: center; gap: 4px; color: var(--text-3); font-weight: 600; margin-bottom: 2px; }
   details summary { cursor: pointer; color: var(--text-2); }

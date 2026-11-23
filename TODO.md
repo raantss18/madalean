@@ -56,6 +56,15 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    tactique avec une bibliographie claire ; généraliser une méthode existante. Règle de fiabilité : un résultat
    cité mais non prouvé en Lean n'est jamais compté comme prouvé — la preuve est alors « conditionnelle, repose
    sur [réf.] », jamais « vérifiée ». Outils exposés et utilisés par MCP. (S-AX, S-AY, S-AZ)
+   - ✅ S-AX (D56, docs/LITERATURE.md) : étape « Littérature » à côté de la recherche dans Mathlib — zbMATH Open,
+     OpenAlex, arXiv, confirmation Crossref / registre des DOI, tes Sources, Mathlib ; références issues des bases
+     seulement, énoncés cités mot pour mot avec leur place, revue / prépublication ; traduction en Lean (modèles
+     gratuits), « dans Mathlib » / « prouvé » / « à prouver » ; preuve conditionnelle (jamais « vérifiée », partout
+     signalée) qui devient vérifiée quand Lean prouve le résultat cité ; panneau « Littérature » (Sources,
+     bibliographie de l'article, « Prouver ce lemme ») ; pièces jointes (image, PDF, LaTeX, BibTeX, adresse) lues une
+     seule fois pour le projet, « à prouver » et « résultats fournis » séparés. Reste : trombone sur la saisie d'un
+     nouveau problème et dans Calcul, tableau des notations et code Sage des pièces jointes, essai avec un vrai modèle
+     qui lit les images, essai chez toi.
 6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la

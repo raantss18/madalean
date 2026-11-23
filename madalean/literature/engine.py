@@ -284,8 +284,7 @@ async def search(statement: str, ctx, budget: Budget | None = None, *, text: str
             return hit
     if fetcher is None and mode != "local":
         try:
-            from ..research.sources import library
-            fetcher = library(ctx).fetcher
+            fetcher = _fetcher(ctx)
         except Exception:  # noqa: BLE001
             fetcher = None
     io = formal.LitIO(ctx, mode, budget, owner=owner, warm=owner != "literature")
@@ -369,6 +368,20 @@ async def search(statement: str, ctx, budget: Budget | None = None, *, text: str
     if key and not res.cancelled and not budget.cancelled and _complete_enough(res):
         await _cache_put(ctx, key, res)
     return res
+
+
+def _fetcher(ctx):
+    """The research layer's fetcher (one per server: same politeness clock); in `serve --demo` the answers recorded
+    once from this machine (literature/demo_http: a search about Bertrand's postulate), never the network."""
+    if getattr(ctx, "demo", False):
+        f = getattr(ctx, "_literature_demo_fetcher", None)
+        if f is None:
+            from pathlib import Path
+            from ..research.fetch import Fetcher, ReplayTransport
+            f = ctx._literature_demo_fetcher = Fetcher(ReplayTransport(Path(__file__).resolve().parent / "demo_http"))
+        return f
+    from ..research.sources import library
+    return library(ctx).fetcher
 
 
 def _complete_enough(res: LiteratureResult) -> bool:

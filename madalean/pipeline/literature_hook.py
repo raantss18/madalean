@@ -22,10 +22,12 @@ MAX_HINT_ITEMS = 4
 MAX_STORED_TEXT = 3000
 BADGES = {"journal": "revue", "proceedings": "actes de conférence", "book": "livre", "preprint": "prépublication",
           "thesis": "thèse"}
-STATUS_TEXT = {"proved": "prouvé en Lean", "to_prove": "énoncé Lean à prouver (preuve conditionnelle)"}
+STATUS_TEXT = {"proved": "prouvé en Lean", "to_prove": "énoncé Lean à prouver (preuve conditionnelle)",
+               "in_mathlib": "dans Mathlib"}
 
 
 def enabled(pipe, job, d, refine) -> bool:
+    """May this job search the literature (network)?"""
     s = pipe.settings
     if not getattr(s, "literature", True) or job.mode == "local" or refine is not None:
         return False
@@ -34,9 +36,25 @@ def enabled(pipe, job, d, refine) -> bool:
     return True
 
 
+def _provided(pipe, d) -> list:
+    """The project's attachment digests (read once; no network, no model): « résultats fournis »."""
+    if isinstance(d.extra.get("cited_from"), dict):
+        return []
+    try:
+        from ..literature import attach
+        return attach.provided_items(pipe.ctx, d)
+    except Exception as e:  # noqa: BLE001
+        log.info("provided results unavailable: %s", e)
+        return []
+
+
 def start(pipe, job, d, io, ws, refine) -> asyncio.Task | None:
-    """Spawn the stage (or nothing). The task is added to `job.bg_tasks`, gathered / cancelled with the side stages."""
-    if not enabled(pipe, job, d, refine):
+    """Spawn the stage (or nothing). The task is added to `job.bg_tasks`, gathered / cancelled with the side stages.
+    It runs when the job may search the literature, or when attachments of the project give « résultats fournis »
+    (then without any request, in every mode)."""
+    if refine is not None:
+        return None
+    if not enabled(pipe, job, d, refine) and not _provided(pipe, d):
         return None
     task = pipe._spawn(job, "literature", lambda: run(pipe, job, d, ws), track="literature")
     tasks = getattr(job, "bg_tasks", None)
@@ -57,23 +75,40 @@ def stored(res) -> dict:
     return data
 
 
-def hint(res) -> str:
-    """For the provers: Mathlib names first (usable), then cited results that are NOT available as lemmas."""
+def hint(items) -> str:
+    """For the provers: Mathlib names first (usable), then cited / provided results that are NOT available as
+    lemmas. `items`: a LiteratureResult or a list of LiteratureItem."""
+    items = list(getattr(items, "items", items) or [])
     lines: list[str] = []
-    for it in res.items:
+    for it in items:
         if it.lean.status == "in_mathlib" and it.lean.mathlib_name:
             lines.append(f"- In Mathlib: `{it.lean.mathlib_name}` states a published result ({it.reference.short()}).")
         elif it.lean.status == "proved" and it.lean.library_name:
             lines.append(f"- In the library: `{it.lean.library_name}` ({it.reference.short()}).")
-    cited = [it for it in res.items if it.is_cited_lemma][:MAX_HINT_ITEMS]
+    cited = [it for it in items if it.is_cited_lemma][:MAX_HINT_ITEMS]
     if cited:
-        lines.append("- Published results NOT available in Lean (you cannot cite them; prove what you need inline):")
+        lines.append("- Results NOT available in Lean (published or given by the user; you cannot cite them, prove "
+                     "what you need inline):")
         for it in cited:
             decl = it.lean.statement.split("theorem", 1)[-1].strip()[:500]
             lines.append(f"  - ({it.reference.short()}) theorem {decl}")
     if not lines:
         return ""
-    return "Related results found in the literature:\n" + "\n".join(lines)
+    return "Related results (literature and attachments):\n" + "\n".join(lines)
+
+
+def provided_event(d, provided) -> tuple[dict, str]:
+    """Target first, then the results already known / provided, each with its origin — never merged."""
+    target = (d.understood_display or d.understood or d.problem or "").strip().split("\n")[0][:400]
+    m = msg("À prouver : {target}. Résultats fournis (pièces jointes, Sources du projet) : {n}.", target=target or
+            d.theorem, n=len(provided))
+    lines = []
+    for it in provided[:8]:
+        q = it.quotes[0] if it.quotes else None
+        st = msg(STATUS_TEXT.get(it.lean.status, "non formalisé"))["text"]
+        lines.append(f"- {it.label or ''} {it.reference.title} ({q.location if q else ''}) — {st}\n"
+                     f"  > « {q.text if q else ''} »")
+    return m, "\n".join(lines)
 
 
 def summary_event(res) -> tuple[dict, str]:
@@ -112,24 +147,31 @@ async def run(pipe, job, d, ws) -> None:
     budget = literature.Budget.for_depth(depth)
     job.literature_budget = budget
     statement, cur = d.statement, d.cur_statement
-    try:
-        res = await literature.search(statement, ctx, budget, text=d.understood or d.problem, depth=depth,
-                                      mode=job.mode, project_id=d.project_id, ws=ws, owner=f"{job.id}#literature",
-                                      lang=language())
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:  # noqa: BLE001 (the literature never fails a job)
-        log.warning("literature stage of %s failed: %s", job.id, e)
-        return
+    provided = _provided(pipe, d)
+    if provided:                       # C: what is to be proved, then what is already given — kept apart
+        m, detail = provided_event(d, provided)
+        await pipe.event(d, job, "literature", m["key"], detail=detail, **m["params"], provided=len(provided))
+    res = None
+    if enabled(pipe, job, d, None):
+        try:
+            res = await literature.search(statement, ctx, budget, text=d.understood or d.problem, depth=depth,
+                                          mode=job.mode, project_id=d.project_id, ws=ws,
+                                          owner=f"{job.id}#literature", lang=language())
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001 (the literature never fails a job)
+            log.warning("literature stage of %s failed: %s", job.id, e)
     if d.statement != statement or d.cur_statement != cur:
         return                         # the statement changed meanwhile: this search is about the old one
-    d.extra["literature"] = stored(res) | {"statement_index": cur}
-    job.literature_hint = hint(res)
-    m, detail = summary_event(res)
-    await pipe.event(d, job, "literature", m["key"], detail=detail, **m["params"], cached=res.cached,
-                     seconds=res.seconds)
-    ctx.publish("literature.updated", {"dossier_id": d.id})
-    cited = res.cited_lemmas()
+    found_items = list(res.items) if res is not None else []
+    job.literature_hint = hint(found_items + provided)
+    if res is not None:
+        d.extra["literature"] = stored(res) | {"statement_index": cur}
+        m, detail = summary_event(res)
+        await pipe.event(d, job, "literature", m["key"], detail=detail, **m["params"], cached=res.cached,
+                         seconds=res.seconds)
+        ctx.publish("literature.updated", {"dossier_id": d.id})
+    cited = [it for it in found_items + provided if it.is_cited_lemma]
     if cited and not d.proof_is_current and not budget.over:
         io = formal.LitIO(ctx, job.mode, budget, owner=f"{job.id}#literature", warm=True)
         try:

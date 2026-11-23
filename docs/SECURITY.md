@@ -380,3 +380,21 @@ Non-blocking but recommended for 2.0.x: R-1 capability for the local door, `MADA
 and secret scanning switched on, and an investigation of the flaky test F13.
 
 - **R-11 (accepted by the user, D32)** — LAN listener over plain HTTP: pairing code and browser session cookie are unencrypted on the local network while a session is open. Mitigations: code at every browser visit, short sessions (2 h idle / 12 h max), host-only switch; Tailscale recommended.
+
+## 10. Literature search and attachments (S-AX, D56)
+
+- **Network**: only through `research/fetch.py` (https, public addresses, resolve-then-connect, no cookies, contact-
+  less User-Agent, politeness, limits) and, per source, a host allow-list (`literature/retrieve.py: SOURCE_HOSTS`:
+  `api.zbmath.org`, `api.openalex.org`, `export.arxiv.org`, `api.crossref.org`, `doi.org`) with a request budget;
+  Local mode: zero requests (tested). Sent: search words from the statement, DOIs / arXiv ids; never project texts,
+  keys or names.
+- **Hostile text**: abstracts, reviews and attachment texts are data — stored as plain text, rendered as text (no
+  HTML), flagged when they address a model and then never sent to one; others are wrapped (`wrap_untrusted`).
+  Tested with an injection in an abstract.
+- **No invented reference or quote**: records come from API answers (DOIs confirmed by Crossref / the DOI registry);
+  quotes are string-matched against the retrieved text; a model may only pick numbered passages. Tested.
+- **No false « vérifiée »**: a proof through a cited lemma is conditional (strict verdict refuses `sorryAx`), never in
+  `proofs` or the library; tested with real Lean, including the upgrade once the lemma is proved.
+- **Attachments** go through the Sources import (size limit, type from magic bytes — PNG / JPEG / WebP / PDF / TeX /
+  BibTeX / archives, hostile archives refused); URLs through the SSRF-safe fetcher; images are sent once to a vision
+  model (free online, or local in Local mode), never to a paid one.

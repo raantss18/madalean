@@ -356,9 +356,84 @@ async def _on_job_end(ctx, job: dict) -> None:
         ctx.publish("literature.updated", {"dossier_id": parent.id})
 
 
+# ---------------------------------------------------------------- attachments (read once, D56)
+def _attachment_view(ctx, d, a: dict) -> dict:
+    from ...literature import attach
+    dig = attach.load_digest(ctx, a.get("shelf", ""), a.get("sha", "")) or {}
+    return {**a, "state": dig.get("state", "reading"), "verified": bool((dig.get("record") or {}).get("verified")),
+            "reference": dig.get("reference"), "transcription": dig.get("transcription"),
+            "items": dig.get("items") or [], "version": dig.get("version", "")}
+
+
+async def list_attachments(request: web.Request) -> web.Response:
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    return ok({"attachments": [_attachment_view(ctx, d, a) for a in d.extra.get("attachments") or []]})
+
+
+async def _read_bg(ctx, d, a: dict, mode: str, force: bool = False) -> None:
+    from ...literature import attach
+    try:
+        await attach.read(ctx, a["shelf"], a["sha"], mode=mode, force=force, lang=language())
+    except Exception:  # noqa: BLE001
+        log.exception("reading attachment %s", a.get("name"))
+    finally:
+        ctx.publish("literature.updated", {"dossier_id": d.id, "attachment": a.get("n")})
+
+
+async def add_attachment(request: web.Request) -> web.Response:
+    """multipart `file` (image / PDF / LaTeX / BibTeX, + `cell`) or JSON {url, cell?} → 201 {attachment, read}.
+    A file the project already read is linked only (`read: false`): nothing is read twice."""
+    from ...literature import attach
+    from ...research.sources import SourceError
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    mode = _mode(ctx, d)
+    try:
+        if request.content_type.startswith("multipart/"):
+            from .research_sources import _read_upload
+            name, data, fields = await _read_upload(request)
+            entry, fresh = await attach.attach_file(ctx, d, name, data, mode=mode, cell=fields.get("cell", "")[:80])
+        else:
+            data = await body(request)
+            url = str(data.get("url") or "").strip()
+            if not re.match(r"^https://\S+$", url):
+                return error(400, "bad_url")
+            entry, fresh = await attach.attach_url(ctx, d, url, mode=mode, cell=str(data.get("cell") or "")[:80])
+    except attach.AttachError as e:
+        return error(e.status, e.kind)
+    except SourceError as e:
+        return error(getattr(e, "status", 400), e.kind)
+    m = msg("Pièce jointe {n} : {name}.", n=entry["n"], name=entry["name"][:120])
+    d.add_event("info", m["text"], key=m["key"], params=m["params"])
+    await ctx.repo.save(d)
+    if fresh:
+        ctx.spawn(_read_bg(ctx, d, entry, mode))
+    ctx.publish("literature.updated", {"dossier_id": d.id, "attachment": entry["n"]})
+    return ok({"attachment": _attachment_view(ctx, d, entry), "read": fresh}, status=201)
+
+
+async def reread_attachment(request: web.Request) -> web.Response:
+    """« Relire » : the only way an attachment is read again (new extractor version, better model…)."""
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    try:
+        n = int(request.match_info["n"])
+    except ValueError:
+        return error(400, "bad_id")
+    a = next((x for x in d.extra.get("attachments") or [] if x.get("n") == n), None)
+    if a is None:
+        return error(404, "not_found")
+    ctx.spawn(_read_bg(ctx, d, a, _mode(ctx, d), force=True))
+    return ok({"started": True}, status=202)
+
+
 def register(app: web.Application, ctx) -> None:
     app[TASKS] = {}
     r = app.router
+    r.add_get("/api/dossiers/{id}/attachments", list_attachments)
+    r.add_post("/api/dossiers/{id}/attachments", add_attachment)
+    r.add_post("/api/dossiers/{id}/attachments/{n}/reread", reread_attachment)
     base = "/api/dossiers/{id}/literature"
     r.add_get(base, get_literature)
     r.add_post(base, start_search)
