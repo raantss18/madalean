@@ -133,7 +133,7 @@ async def test_resume_redoes_only_what_is_not_final(tmp_path):
 
 
 async def test_problem_timeout_is_a_failure_of_that_problem(tmp_path):
-    s, rows, _ = await run(tmp_path, [problem("t_ok"), problem("t_slow")], time_per_problem=5.0)
+    s, rows, _ = await run(tmp_path, [problem("t_ok"), problem("t_slow")], time_per_problem=5.0, jobs=1)   # one at a time: the fast one never queues behind the slow one
     assert rows["t_slow"]["status"] == "timeout" and rows["t_ok"]["status"] == "verified"
     assert s["attempted"] == 2 and s["solved"] == 1 and s["complete"]
 
