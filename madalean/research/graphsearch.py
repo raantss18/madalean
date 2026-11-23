@@ -952,6 +952,17 @@ class GraphService:
             data["graph"] = g
             self.store.cache[did] = data
             G.touch(g, "created", g["root"])
+        atts = d.extra.get("attachments") if isinstance(d.extra.get("attachments"), list) else []
+        if len(atts) != g.get("attachments_seen", 0):
+            # « Comprendre d'abord »: the results provided with the problem are placed as known (cited) nodes,
+            # apart from the target; never « proved » until Lean says so
+            from . import literature_iface as LI
+            for it in LI.provided(self.ctx, d):
+                try:
+                    G.add_node(g, G.cited_node(it))
+                except G.GraphError:
+                    break
+            g["attachments_seen"] = len(atts)
         root = g["nodes"][g["root"]]
         if d.statement and root.get("lean") != d.statement:          # the statement was corrected
             root["lean"] = d.statement[:8000]
@@ -1247,10 +1258,12 @@ class GraphService:
             raise G.GraphError("not_found", 404)
         n = g["nodes"][nid]
         items = await LI.search(self.ctx, n.get("statement_nl") or n["title"], lean=n.get("lean", ""), limit=limit)
-        if items is None:
+        d = self.ctx.repo.get(did)
+        provided = LI.provided(self.ctx, d) if d is not None else []
+        if items is None and not provided:
             return {"available": False, "added": [], "graph": self.public(did)}
-        res = self.add_cited(did, items, parent=None)
-        return {"available": True, **res}
+        res = self.add_cited(did, list(provided) + list(items or []), parent=None)
+        return {"available": items is not None, **res}
 
     async def adapt(self, did: str, nid: str, mode: str | None = None) -> dict:
         """« Adapter la méthode »: from a node with a recorded method (its Lean proof, or the quoted text of a cited

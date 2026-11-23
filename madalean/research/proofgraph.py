@@ -645,6 +645,8 @@ def cited_node(item) -> dict:
     origin = str(get("origin") or "literature")
     if origin in ("provided", "attachment", "library", "literature", "mathlib"):
         n["source"]["kind"] = origin
+    if get("mathlib_name"):
+        n["source"]["name"] = str(get("mathlib_name"))[:200]
     claimed = str(get("status") or "")
     if claimed:
         n["claimed"] = claimed[:20]      # what the source says (« proved », « mathlib »…): only Lean decides here

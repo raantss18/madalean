@@ -364,9 +364,10 @@ async def test_api_graph_views_actions_and_persistence(tmp_path):
         assert r.status == 200 and (await r.json())["note"]["title"].startswith("Explication")
         r = await s.post(base + "/export", json={"format": "latex"})
         assert "\\subsection*" in (await r.json())["latex"]
-        # the literature package is not installed here: said, nothing invented
+        # the literature package (S-AX) in Local mode makes no request: nothing is invented
         r = await s.post(base + "/literature", json={})
-        assert (await r.json())["available"] is False
+        j = await r.json()
+        assert r.status == 200 and j["added"] == [], j
         await wait_idle(ctx, 30)
     # persistence: the graph is in the plan file of the dossier, reloaded by a new server
     ctx2 = make_ctx(tmp_path, brain=FakeBrain(graph_brain))
@@ -474,3 +475,23 @@ async def test_shared_subdossier_rolls_up_to_every_parent(tmp_path):
         gs.rollup(sd)
         assert gs.get(da)["nodes"][na]["status"] == "proved" and gs.get(db)["nodes"][nb]["status"] == "proved"
         await wait_idle(ctx, 30)
+
+
+def test_literature_items_from_sax_are_never_promoted():
+    from madalean.literature.types import LeanLink, LiteratureItem, Quote, Reference
+    from madalean.research import literature_iface as LI
+    it = LiteratureItem(id="x1", reference=Reference(id="doi:10.1/x", title="On squares", authors=["A. Author"],
+                                                     year=1990, doi="10.1/x", confirmed_by=["crossref"]),
+                        quotes=[Quote(text="Every square is …", text_index=0, start=0, end=10, location="abstract")],
+                        lean=LeanLink(name="cited_sq", statement="theorem cited_sq (n : ℕ) : 0 ≤ n ^ 2 := by sorry",
+                                      status="in_mathlib", mathlib_name="sq_nonneg"),
+                        origin="attachment", label="Theorem 2")
+    item = LI.to_item(it)
+    n = G.cited_node(item)
+    assert n["status"] == "cited" and n["claimed"] == "in_mathlib" and n["source"]["kind"] == "attachment"
+    assert n["source"]["name"] == "sq_nonneg" and n["citation"]["verified"] and n["citation"]["DOI"] == "10.1/x"
+    g = G.new_graph("d", "p", "Goal", PARITY)
+    G.add_node(g, n, parent=g["root"])
+    assert G.effective(g, n["id"])["state"] == "conditional"
+    e = G.explain(g, lang="en")
+    assert e["bibliography"]["works"][0]["quote"].startswith("Every square")

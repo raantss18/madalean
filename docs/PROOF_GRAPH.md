@@ -101,11 +101,14 @@ model proof instead of 2.
 
 ## 8. The literature (S-AX)
 
-`literature_iface.search(ctx, query, lean=, limit=)` looks for `madalean.literature.search` (or
-`madalean.research.literature.search`) and returns its items, verified references only, or None when the package is
-absent (« indisponible », nothing invented). Items (dict or object): `title, statement_nl, lean, status, origin
-(literature | provided | attachment | library | mathlib), citation (CSL-JSON + verified, quote, locator)`.
-`POST …/graph/cited` takes the same items.
+`research/literature_iface.py` adapts S-AX's API (docs/LITERATURE.md §6): `search` runs `literature.search` (quick
+budget, no request in Local mode) and `provided` reads the dossier's attachment digests (`attach.provided_items`).
+Each `LiteratureItem` becomes `{title (label — title), statement_nl (verbatim quote), lean, status (S-AX's claim:
+in_mathlib | proved | to_prove | unformalized), origin (literature | attachment), mathlib_name, citation (the
+retrieved CSL record + verified, quote, locator, key)}`; `cited_node` keeps the claim as `claimed` — the node stays
+« cité » (conditional) until Lean proves it. Provided results are placed as known nodes when the graph is created
+and whenever the dossier's attachments change (« comprendre d'abord »: target apart from the known results).
+« Littérature » (`POST …/graph/literature`) adds both; `POST …/graph/cited` takes plain items of the same shape.
 
 ## 9. Limits
 

@@ -1,59 +1,81 @@
-"""The small interface the problem graph (S-AY) expects from the literature package (S-AX).
+"""The problem graph (S-AY) ← the literature package (S-AX, `madalean.literature`, docs/LITERATURE.md §6).
 
-S-AX exposes `literature.search(...)` with typed items. Until it is merged, this adapter looks for it and says
-« unavailable » otherwise — the graph never invents a reference. Each item is mapped to the shape
-`proofgraph.cited_node` reads (a dict or an object with these attributes):
+`search` runs `literature.search` (quick budget; no request in Local mode, cached by S-AX) and `provided` reads the
+dossier's attachment digests (`attach.provided_items`, origin « attachment »). Both return items in the shape
+`proofgraph.cited_node` reads:
 
-    {"id": str, "title": str, "statement_nl": str, "lean": str (optional, Lean statement with sorry),
-     "status": "cited" | "mathlib" | "proved",
-     "citation": CSL-JSON item + {"verified": bool, "quote": verbatim text, "locator": "Thm 2.1"}}
+    {"id", "title", "statement_nl", "lean" (statement with sorry, may be empty), "status" (S-AX's claim),
+     "origin" (literature | attachment), "mathlib_name",
+     "citation": CSL-JSON of the retrieved record + {verified, quote, locator, key}}
 
-Only `verified` references are kept by default (S-AX checks that the reference exists)."""
+S-AX's status (« in_mathlib », « proved ») is only a claim here: the graph keeps such a node « cité » until Lean
+proves it. Without the package (or on any failure) the answer is None / [] — the graph never invents a reference."""
 from __future__ import annotations
-
-import inspect
 
 from ..logs import get
 
 log = get("literature_iface")
 
 
-def _module():
-    for name in ("madalean.literature", "madalean.research.literature"):
-        try:
-            mod = __import__(name, fromlist=["search"])
-        except ImportError:
-            continue
-        if hasattr(mod, "search"):
-            return mod
-    return None
+def _lit():
+    try:
+        from .. import literature
+        return literature
+    except ImportError:
+        return None
 
 
-def _field(it, k, default=None):
-    return it.get(k, default) if isinstance(it, dict) else getattr(it, k, default)
+def to_item(it) -> dict:
+    """A `LiteratureItem` (or an already plain dict) → the graph's item shape."""
+    if isinstance(it, dict):
+        return it
+    ref = it.reference
+    q = it.quotes[0] if it.quotes else None
+    csl = dict(ref.csl or {})
+    csl.setdefault("title", ref.title)
+    if ref.doi:
+        csl.setdefault("DOI", ref.doi)
+    if ref.url:
+        csl.setdefault("URL", ref.url)
+    if ref.arxiv:
+        csl.setdefault("arxiv", ref.arxiv)
+    if ref.year and "issued" not in csl:
+        csl["issued"] = {"date-parts": [[ref.year]]}
+    if ref.authors and "author" not in csl:
+        csl["author"] = [{"literal": a} for a in ref.authors]
+    csl.update({"verified": bool(getattr(ref, "source_verified", True)) and bool(ref.confirmed_by or ref.shelf
+                                                                                  or it.origin == "attachment"),
+                "quote": q.text if q else "", "locator": (it.label or (q.location if q else "")), "key": it.key})
+    title = (it.label + " — " if it.label else "") + (ref.title or "")
+    return {"id": it.id, "title": title[:200] or "résultat cité", "statement_nl": q.text if q else "",
+            "lean": it.lean.statement or "", "status": it.lean.status, "origin": it.origin,
+            "mathlib_name": it.lean.mathlib_name, "citation": csl}
 
 
 async def search(ctx, query: str, *, lean: str = "", limit: int = 5, verified_only: bool = True) -> list | None:
-    """Items for `query`, or None when no literature package is installed. Never raises."""
-    mod = _module()
-    if mod is None:
+    lit = _lit()
+    if lit is None:
         return None
     try:
-        fn = mod.search
-        kw = {k: v for k, v in {"ctx": ctx, "lean": lean, "limit": limit}.items()
-              if k in inspect.signature(fn).parameters}
-        res = fn(query, **kw)
-        if inspect.isawaitable(res):
-            res = await res
+        res = await lit.search(lean or "", ctx, lit.Budget.for_depth("quick"), text=query, owner="graph-literature")
+    except TypeError:                       # older signature without `owner`
+        try:
+            res = await lit.search(lean or "", ctx, lit.Budget.for_depth("quick"), text=query)
+        except Exception as e:  # noqa: BLE001
+            log.info("literature search failed: %s", e)
+            return []
     except Exception as e:  # noqa: BLE001
         log.info("literature search failed: %s", e)
         return []
-    items = list(_field(res, "items", res) or [])[:limit]
-    out = []
-    for it in items:
-        cit = _field(it, "citation") or {}
-        verified = cit.get("verified") if isinstance(cit, dict) else getattr(cit, "verified", False)
-        if verified_only and not verified:
-            continue
-        out.append(it)
-    return out
+    out = [to_item(it) for it in list(getattr(res, "items", []) or [])[:limit]]
+    return [x for x in out if x["citation"].get("verified") or not verified_only]
+
+
+def provided(ctx, d) -> list[dict]:
+    """« Résultats fournis »: the statements of the dossier's attachments (read once by S-AX)."""
+    try:
+        from ..literature import attach
+        return [to_item(it) for it in attach.provided_items(ctx, d)][:20]
+    except Exception as e:  # noqa: BLE001
+        log.info("provided items unavailable: %s", e)
+        return []
