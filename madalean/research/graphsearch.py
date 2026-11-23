@@ -257,12 +257,6 @@ class ReasonedSearch:
     def _reuse(self, nid: str, v: dict) -> bool:
         """A statement already verified elsewhere (project dossier, library) is reused, not proved again."""
         n = self._n(nid)
-        if v.get("known_project"):
-            p = v["known_project"]
-            G.set_status(self.g, nid, "proved", "", source_reuse={"kind": "project", "dossier": p.get("dossier_id"),
-                                                                  "node": p.get("node")})
-            n["self_contained"] = True
-            return True
         if v.get("library"):
             G.set_status(self.g, nid, "proved", "", source_reuse={"kind": "library", "name": v["library"]})
             n["self_contained"] = True
@@ -575,7 +569,9 @@ def expand_messages(goal_nl: str, lean: str, digest: str, failed: list[str]) -> 
                "each simpler, preferably independent, and from which the statement follows. Answer with JSON only:\n"
                '{"idea": "one sentence", "lemmas": [{"name": "snake_case", "title": "short", "statement": "in words", '
                '"why": "its role", "lean": "theorem name BINDERS : PROP := by sorry"}], '
-               '"combination": "the Lean tactic proof of the statement using the lemmas by name"}\n\n'
+               '"combination": "the Lean tactic proof of the statement using the lemmas by name"}\n'
+               "First place the KNOWN results listed below (use them by their statement, do not re-prove them), "
+               "then propose only the MISSING lemmas.\n\n"
                f"Statement ({goal_nl[:400]}):\n```lean4\n{lean.strip()}\n```\n"
                + (f"\n{digest}\n" if digest else "") + fail)
     return [{"role": "user", "content": content}]
@@ -1347,6 +1343,21 @@ class GraphService:
         if n.get("dossier_id") and self.ctx.repo.get(n["dossier_id"]) is not None:
             return {"dossier_id": n["dossier_id"], "created": False}
         d = self.ctx.repo.get(did)
+        shared = self._family_dossier(did, n["key"], d.workspace)
+        if shared is not None:
+            # the same statement is already a sub-dossier of this family: one dossier, several users
+            also = shared.extra.setdefault("graph_also", [])
+            link = {"graph_dossier": did, "node": nid}
+            if link not in also and shared.extra.get("graph") != link:
+                also.append(link)
+                del also[:-20]
+                await self.ctx.repo.save(shared)
+            n["dossier_id"] = shared.id
+            G.touch(g, "sub_dossier_shared", nid, dossier=shared.id)
+            self.save(did)
+            self.rollup(shared)
+            self.publish(did)
+            return {"dossier_id": shared.id, "created": False, "shared": True}
         limit = max(1, int(getattr(self.ctx.settings, "plan_max_depth", 3) or 3))
         if self.chain_depth(did) + 1 > limit:
             raise G.GraphError("too_deep", 409, n=limit)
@@ -1369,29 +1380,61 @@ class GraphService:
         self.publish(did)
         return {"dossier_id": child.id, "created": True}
 
+    def family(self, did: str) -> list:
+        """The top-level dossier of `did` and all its sub-dossiers (bounded)."""
+        from ..server.routes_work import descendants
+        top, seen = self.ctx.repo.get(did), set()
+        while top is not None and top.parent_id and top.id not in seen and len(seen) < 50:
+            seen.add(top.id)
+            up = self.ctx.repo.get(top.parent_id)
+            if up is None:
+                break
+            top = up
+        return [top] + descendants(self.ctx, top.id) if top is not None else []
+
+    def _family_dossier(self, did: str, key: str, workspace: str):
+        """A sub-dossier of the same top-level dossier and workspace whose statement has this key."""
+        if not key:
+            return None
+        for x in self.family(did):
+            if x.id == did or not x.parent_id or (x.workspace or "") != (workspace or ""):
+                continue
+            g = self.get(x.id)
+            if g is not None and g["nodes"][g["root"]].get("key") == key:
+                return x
+            if g is None and x.statement and G.statement_key(x.statement) == key:
+                return x
+        return None
+
     def rollup(self, child) -> None:
-        """A sub-dossier changed: its verdict rolls up into the parent's graph node, then up the chain."""
-        seen = set()
-        while child is not None and child.id not in seen and len(seen) < 20:
+        """A sub-dossier changed: its verdict rolls up into EVERY graph node that uses it (a shared sub-lemma has
+        several users), then up each chain. Bounded and cycle-safe."""
+        seen: set[str] = set()
+        queue = [child]
+        while queue and len(seen) < 40:
+            child = queue.pop(0)
+            if child is None or child.id in seen:
+                continue
             seen.add(child.id)
-            link = child.extra.get("graph") if isinstance(child.extra.get("graph"), dict) else None
-            if not link or self.ctx.repo.get(link.get("graph_dossier", "")) is None:
-                return
-            pid = link["graph_dossier"]
-            pg = self.ensure(pid)
-            nid = link.get("node")
-            if nid not in pg["nodes"]:
-                return
+            links = [child.extra.get("graph")] + list(child.extra.get("graph_also") or [])
             cg = self.get(child.id)
             if cg is not None:
                 self._sync_dossier(cg, child)
-            if child.proof_is_current and pg["nodes"][nid].get("proof") != child.proof:
-                pg["nodes"][nid]["proof"] = (child.proof or "")[:G.MAX_PROOF_CHARS]
-                pg["nodes"][nid]["tactics"] = G.tactics_of(child.proof or "")
-            if G.rollup(pg, nid, cg, bool(child.proof_is_current)):
-                self.save(pid)
-                self.publish(pid)
-            child = self.ctx.repo.get(pid)
+            for link in links:
+                if not isinstance(link, dict) or self.ctx.repo.get(link.get("graph_dossier", "")) is None:
+                    continue
+                pid = link["graph_dossier"]
+                pg = self.ensure(pid)
+                nid = link.get("node")
+                if nid not in pg["nodes"]:
+                    continue
+                if child.proof_is_current and pg["nodes"][nid].get("proof") != child.proof:
+                    pg["nodes"][nid]["proof"] = (child.proof or "")[:G.MAX_PROOF_CHARS]
+                    pg["nodes"][nid]["tactics"] = G.tactics_of(child.proof or "")
+                if G.rollup(pg, nid, cg, bool(child.proof_is_current)):
+                    self.save(pid)
+                    self.publish(pid)
+                queue.append(self.ctx.repo.get(pid))
 
     # -- memory: recording finished jobs, the provers' digest
     def _graph_for(self, d) -> tuple[str, dict, str] | None:

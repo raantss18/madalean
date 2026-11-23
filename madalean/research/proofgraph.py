@@ -25,7 +25,7 @@ import time
 import uuid
 
 from .. import leancheck
-from ..pipeline.stagecache import normalize_statement, normalize_text
+from ..pipeline.stagecache import normalize_text
 
 GRAPH_VERSION = 1
 STATUSES = ("proved", "mathlib", "certified", "cited", "open", "refuted", "abandoned")
@@ -54,13 +54,11 @@ def statement_key(lean: str = "", nl: str = "") -> str:
     """Normalised statement key: the same Lean statement (whatever its name, comments, spacing) gives the same key in
     every run and every dossier of the project. Without a Lean statement, the normalised words (prefix `nl:`)."""
     if lean and lean.strip():
-        sig = lean
-        m = re.search(r"\b(?:theorem|lemma)\s+[^\s(:{\[]+", leancheck.remove_comments(lean))
-        if m:                                         # a lemma's name is not part of what it says
-            sig = lean[:m.start()] + "theorem _thm_" + lean[m.end():]
-        norm = normalize_statement(sig.replace("lemma ", "theorem ", 1))
-        norm = re.sub(r":=\s*by\b.*$", "", norm, flags=re.S).strip()
-        norm = re.sub(r":=\s*$", "", norm).strip()
+        from .proofplan import split_decl
+        parts = split_decl(lean)
+        # the last theorem's binders and type only: its name, comments, spacing, the header and the dossier's
+        # context (shared inside one top-level dossier) are not part of what it says
+        norm = re.sub(r"\s+", " ", parts[2]).strip() if parts else ""
         if norm:
             return "lean:" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:24]
     words = normalize_text(nl)
@@ -397,9 +395,11 @@ def viability_signals(g: dict, nid: str, *, env: dict | None = None, project: li
             return {"score": 1.0, "signals": sig, "skip": True, "known": other["id"]}
     for p in project or []:
         if p.get("key") == n["key"] and p.get("status") in VERIFIED:
+            # offered for reuse (through the library, with its own Lean proof), never silently merged
             sig.append({"code": "known_project", "params": {"title": p.get("title", "")[:80],
                                                             "dossier": p.get("dossier_id", "")}})
-            return {"score": 1.0, "signals": sig, "skip": True, "known_project": p}
+            score += 0.2
+            break
     if library_keys and n["key"] in library_keys:
         sig.append({"code": "in_library", "params": {"name": library_keys[n["key"]]}})
         return {"score": 1.0, "signals": sig, "skip": True, "library": library_keys[n["key"]]}
@@ -470,7 +470,7 @@ def priority(g: dict, nid: str) -> float:
 T = {
     "fr": {
         "known": "déjà prouvé dans ce graphe (« {title} »)",
-        "known_project": "déjà prouvé dans un autre dossier du projet (« {title} »)",
+        "known_project": "déjà prouvé dans un autre dossier du projet (« {title} ») : à réutiliser depuis la bibliothèque",
         "in_library": "déjà dans votre bibliothèque ({name})",
         "refuted": "réfuté : {reason}",
         "failed_before": "abandonné lors d'un essai précédent ({reason}) et rien n'a changé depuis",
@@ -490,7 +490,7 @@ T = {
     },
     "en": {
         "known": "already proved in this graph (“{title}”)",
-        "known_project": "already proved in another dossier of the project (“{title}”)",
+        "known_project": "already proved in another dossier of the project (“{title}”): reuse it from the library",
         "in_library": "already in your library ({name})",
         "refuted": "refuted: {reason}",
         "failed_before": "abandoned in an earlier run ({reason}) and nothing has changed since",
@@ -642,10 +642,12 @@ def cited_node(item) -> dict:
     n["citation"] = {k: cit[k] for k in ("type", "title", "author", "editor", "issued", "container-title", "volume",
                                          "issue", "page", "publisher", "DOI", "URL", "arxiv", "zbl", "mrnumber",
                                          "verified", "quote", "locator", "key") if k in cit}
-    st = str(get("status") or "")
-    if st in ("proved", "mathlib"):                        # the literature package found it in Mathlib / Lean
-        n["status"] = st
-        n["kind"] = "mathlib" if st == "mathlib" else "cited"
+    origin = str(get("origin") or "literature")
+    if origin in ("provided", "attachment", "library", "literature", "mathlib"):
+        n["source"]["kind"] = origin
+    claimed = str(get("status") or "")
+    if claimed:
+        n["claimed"] = claimed[:20]      # what the source says (« proved », « mathlib »…): only Lean decides here
     return n
 
 
@@ -667,8 +669,9 @@ def digest(g: dict, project: list[dict] | None = None, max_tokens: int = DIGEST_
               for n in nodes if n["status"] in VERIFIED]
     for p in sorted(project or [], key=lambda p: p.get("key", "")):
         if p.get("status") in VERIFIED and p.get("lean") and not any(n["key"] == p.get("key") for n in nodes):
-            proved.append(f"- {stmt(p)}  (proved in another dossier of the project)")
-    cited = [f"- {stmt(n)}  [cited: {_short_cite(n.get('citation') or {})}; NOT proved in Lean]"
+            proved.append(f"- {stmt(p)}  (proved in another dossier of the project: reuse it from the library)")
+    cited = [f"- {stmt(n)}  [{(n.get('source') or {}).get('kind', 'cited')}: "
+             f"{_short_cite(n.get('citation') or {})}; NOT proved in Lean]"
              for n in nodes if n["status"] == "cited"]
     failed = [f"- {stmt(n)} — {n.get('reason') or 'abandoned'}"[:400]
               for n in nodes if n["status"] == "abandoned"]
@@ -680,14 +683,27 @@ def digest(g: dict, project: list[dict] | None = None, max_tokens: int = DIGEST_
     tactics = [", ".join(sorted(tac, key=lambda t: (-tac[t], t))[:12])] if tac else []
     root = g["nodes"][g["root"]]
     root_errors = sorted({a["error"].splitlines()[0][:160] for a in root.get("attempts") or [] if a.get("error")})
-    sections += [("Known proved lemmas (Lean-verified; usable):", proved),
-                 ("Cited results (conditional: a proof using them is NOT verified):", cited),
+    reach, stack = set(), [g["root"]]
+    while stack:
+        x = stack.pop()
+        if x not in reach:
+            reach.add(x)
+            stack += uses_of(g, x)
+    todo = [f"- {stmt(n)}" for n in nodes if n["id"] in reach and n["status"] == "open" and not n.get("admitted")]
+    sections += [("Connu / Known — proved in Lean (usable):", proved),
+                 ("Connu / Known — cited or provided, NOT proved in Lean (a proof using them is conditional):",
+                  cited),
+                 ("À prouver / To prove (missing lemmas):", todo),
                  ("Approaches that failed (do not repeat them blindly):", failed),
                  ("Refuted (false) statements:", refuted),
                  ("Tactics that worked on this problem:", tactics),
                  ("Lean errors already seen on the main goal:", [f"- {e}" for e in root_errors[:4]])]
-    out = ["Problem memory (Madalean):"]
-    used = len(out[0])
+    if not any(lines for _h, lines in sections):
+        return ""
+    target = (root.get("lean") or "").strip() or root.get("statement_nl") or root["title"]
+    target = re.sub(r"\s+", " ", re.sub(r":=\s*by\s+sorry\s*$", "", target))[:600]
+    out = ["Problem memory (Madalean):", f"Cible / Target: {target}"]
+    used = sum(len(x) + 1 for x in out)
     for head, lines in sections:
         if not lines:
             continue
@@ -699,7 +715,7 @@ def digest(g: dict, project: list[dict] | None = None, max_tokens: int = DIGEST_
         if len(block) > 1:
             out += block
             used += sum(len(x) + 1 for x in block)
-    return "\n".join(out) if len(out) > 1 else ""
+    return "\n".join(out) if len(out) > 2 else ""
 
 
 def _short_cite(c: dict) -> str:

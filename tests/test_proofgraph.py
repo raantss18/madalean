@@ -77,13 +77,47 @@ def test_viability_signals_and_memory():
     # known in another dossier of the project / in the library
     z, _ = G.add_node(g, lemma("z", "theorem z (k : ℕ) : k ≤ k := by sorry"), parent=g["root"])
     rows = [{"key": z["key"], "status": "proved", "title": "z ailleurs", "dossier_id": "d2"}]
-    assert G.viability_signals(g, z["id"], project=rows)["signals"][0]["code"] == "known_project"
+    v = G.viability_signals(g, z["id"], project=rows)          # offered for reuse, never merged silently
+    assert v["signals"][0]["code"] == "known_project" and not v["skip"] and z["status"] == "open"
     assert G.viability_signals(g, z["id"], library_keys={z["key"]: "Lib.z"})["signals"][0]["code"] == "in_library"
     # digest: bounded, deterministic, mentions what failed and what is proved
     dg = G.digest(g, rows, max_tokens=200)
     assert "omega failed twice" in dg and "(2 : ℕ) = 1 + 1" in dg and len(dg) <= 200 * G.CHARS_PER_TOKEN
     assert dg == G.digest(g, list(reversed(rows)), max_tokens=200)
     assert G.digest(G.new_graph("d", "p")) == ""
+    lines = dg.split("\n")
+    assert lines[1].startswith("Cible / Target:") and "Even (a + b)" in lines[1]
+    order = [i for i, ln in enumerate(lines) if ln.startswith(("Connu", "À prouver"))]
+    assert order == sorted(order) and lines[order[0]].startswith("Connu")
+
+
+def test_identity_dag_and_provided_results():
+    g = G.new_graph("d1", "p1", "Goal", PARITY)
+    a, _ = G.add_node(g, lemma("A", "theorem la (n : ℕ) : n ≤ n * n + 1 := by sorry"), parent=g["root"])
+    b, _ = G.add_node(g, lemma("B", "theorem lb (n : ℕ) : 1 ≤ n * n + 1 := by sorry"), parent=g["root"])
+    # a shared sub-lemma: ONE node, used by both A and B (a DAG, not a tree)
+    s1, c1 = G.add_node(g, lemma("S", "theorem s (n : ℕ) : 0 ≤ n * n := by sorry"), parent=a["id"])
+    s2, c2 = G.add_node(g, lemma("S again", "theorem s_bis (n : ℕ) : 0 ≤ n * n := by sorry"), parent=b["id"])
+    assert c1 and not c2 and s1["id"] == s2["id"] and set(G.users_of(g, s1["id"])) == {a["id"], b["id"]}
+    # near-duplicate with a different hypothesis: a different statement, a different node
+    s3, c3 = G.add_node(g, lemma("S si n>0", "theorem s3 (n : ℕ) (h : 0 < n) : 0 ≤ n * n := by sorry"),
+                        parent=b["id"])
+    assert c3 and s3["id"] != s1["id"]
+    # proved once, both users see it
+    G.set_status(g, s1["id"], "proved")
+    G.set_status(g, a["id"], "proved", self_contained=False)
+    assert G.effective(g, a["id"])["state"] == "verified"
+    G.set_status(g, s3["id"], "proved")
+    G.set_status(g, b["id"], "proved", self_contained=False)
+    assert G.effective(g, b["id"])["state"] == "verified"
+    # a provided result (attachment / literature) says « proved »: kept as cited, never promoted without Lean
+    p = G.cited_node({"title": "Fourni", "lean": "theorem f (n : ℕ) : n = n := by sorry", "status": "proved",
+                      "origin": "attachment", "citation": {"title": "pièce jointe", "verified": True}})
+    assert p["status"] == "cited" and p["claimed"] == "proved" and p["source"]["kind"] == "attachment"
+    pn, _ = G.add_node(g, p, parent=g["root"])
+    assert G.effective(g, pn["id"])["state"] == "conditional"
+    dg = G.digest(g)
+    assert "attachment" in dg and "NOT proved in Lean" in dg
 
 
 def test_explanation_uses_only_recorded_facts():
@@ -399,4 +433,44 @@ async def test_subdossiers_open_rollup_bound_and_delete(tmp_path):
         assert ctx.repo.get(cid) is None and ctx.repo.get(gcid) is None
         r = await s.post(L + f"/api/dossiers/{d['id']}/restore")
         assert r.status == 200 and ctx.repo.get(cid) is not None and ctx.repo.get(gcid) is not None
+        await wait_idle(ctx, 30)
+
+
+async def test_shared_subdossier_rolls_up_to_every_parent(tmp_path):
+    ctx = make_ctx(tmp_path, brain=FakeBrain(graph_brain))
+    async with running(ctx) as (_s, L, _R), session() as s:
+        d, pid = await _dossier(s, L)
+        gs = ctx.research.graphs
+        g = gs.ensure(d["id"])
+        a, _ = G.add_node(g, lemma("A", "theorem la (n : ℕ) : n ≤ n * n + 1 := by sorry"), parent=g["root"])
+        b, _ = G.add_node(g, lemma("B", "theorem lb (n : ℕ) : 1 ≤ n * n + 1 := by sorry"), parent=g["root"])
+        gs.save(d["id"])
+        ja = await (await s.post(L + f"/api/dossiers/{d['id']}/graph/nodes/{a['id']}/open", json={})).json()
+        jb = await (await s.post(L + f"/api/dossiers/{d['id']}/graph/nodes/{b['id']}/open", json={})).json()
+        # both sub-dossiers need the same sub-lemma: it is created once, under the first parent
+        S = "theorem s (n : ℕ) : 0 ≤ n * n := by sorry"
+        out = []
+        for j in (ja, jb):
+            cg = gs.ensure(j["dossier_id"])
+            n, _ = G.add_node(cg, lemma("S", S), parent=cg["root"])
+            gs.save(j["dossier_id"])
+            out.append((j["dossier_id"], n["id"], (await (await s.post(
+                L + f"/api/dossiers/{j['dossier_id']}/graph/nodes/{n['id']}/open", json={})).json())))
+        (da, na, ra), (db, nb, rb) = out
+        assert ra["created"] and rb["shared"] and rb["dossier_id"] == ra["dossier_id"]
+        sd = ctx.repo.get(ra["dossier_id"])
+        assert sd.parent_id == da and sd.extra["graph_also"] == [{"graph_dossier": db, "node": nb}]
+        # near-duplicate with another hypothesis: its own sub-dossier
+        cgb = gs.get(db)
+        n2, _ = G.add_node(cgb, lemma("S'", "theorem s2 (n : ℕ) (h : 0 < n) : 0 ≤ n * n := by sorry"),
+                           parent=cgb["root"])
+        gs.save(db)
+        r2 = await (await s.post(L + f"/api/dossiers/{db}/graph/nodes/{n2['id']}/open", json={})).json()
+        assert r2["created"] and r2["dossier_id"] != sd.id
+        # proved once: both users updated
+        sd.add_proof(sd.statement.replace("sorry", "positivity"), meta={"strategy": "test"})
+        sd.status = "proved"
+        await ctx.repo.save(sd)
+        gs.rollup(sd)
+        assert gs.get(da)["nodes"][na]["status"] == "proved" and gs.get(db)["nodes"][nb]["status"] == "proved"
         await wait_idle(ctx, 30)
