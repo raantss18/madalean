@@ -1,0 +1,268 @@
+- number: "625"
+  prize: "$1000"
+  informal_status:
+    state: "solved"
+    last_update: "2025-08-31"
+  formal_status:
+    state: "Lean"
+    last_update: "2026-11-16"
+    url: "https://github.com/SamPetkov/Erdos/blob/22a2c9fd635c613113dab5c54414b7cd35d8eb58/625/formalization/Erdos625SelfContained.lean"
+    note: "Erdos625.erdos625: chi - zeta >= ((log 2)^2/4) log(200/153) n/(log n)^3
+      with high probability for G(n,1/2), along all n"
+  status:
+    state: "solved (Lean)"
+    last_update: "2026-11-16"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2026-11-19"
+  forum:
+    posts: 3
+    proof_claims: 3
+    proof_claim_posts: 14
+  tags: ["graph theory", "chromatic number"]
+
+- number: "137"
+  prize: "no"
+  informal_status:
+    state: "verifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "verifiable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2025-08-31"
+  forum:
+    posts: 5
+  tags: ["number theory", "powerful"]
+
+- number: "149"
+  prize: "no"
+  informal_status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "no"
+    last_update: "2025-08-31"
+  forum:
+    posts: 4
+  tags: ["graph theory"]
+
+- number: "151"
+  prize: "no"
+  informal_status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  oeis: ["possible"]
+  formalized:
+    state: "yes"
+    last_update: "2026-10-10"
+  forum:
+    posts: 3
+    proof_claims: 1
+  tags: ["graph theory"]
+
+- number: "595"
+  prize: "$250"
+  informal_status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2026-05-11"
+  tags: ["graph theory", "set theory"]
+
+- number: "601"
+  prize: "$500"
+  informal_status:
+    state: "not provable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "not provable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2026-10-23"
+  tags: ["graph theory", "set theory"]
+
+- number: "623"
+  prize: "no"
+  informal_status:
+    state: "independent"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "independent"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2025-11-12"
+  forum:
+    posts: 5
+    proof_claims: 2
+    proof_claim_posts: 1
+  tags: ["set theory"]
+
+- number: "677"
+  prize: "no"
+  informal_status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  oeis: ["A399050"]
+  formalized:
+    state: "yes"
+    last_update: "2025-12-02"
+  forum:
+    posts: 8
+  tags: ["number theory"]
+
+- number: "701"
+  prize: "no"
+  informal_status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2026-04-20"
+  forum:
+    posts: 6
+    proof_claims: 1
+  tags: ["combinatorics", "intersecting family"]
+
+- number: "740"
+  prize: "no"
+  informal_status:
+    state: "not provable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "not provable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2026-05-09"
+  forum:
+    posts: 1
+    proof_claims: 3
+    proof_claim_posts: 1
+  tags: ["graph theory", "chromatic number"]
+
+- number: "850"
+  prize: "no"
+  informal_status:
+    state: "verifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+    note: >-
+      Lean formalization contribution by Collin Yuanjie Ren (AI-assisted): Erdős’s
+      infinite
+      two-consecutive family and Makowski’s pair (75,1215); the three-consecutive
+      Erdős–Woods
+      question remains open. Proof and reproduction:
+      https://github.com/CollinYuanjieRen/awards/blob/70c7a40b2c89db7f18623fa32bebf62da0f9eaca/submissions/jsp-000703-cyr/README.md
+  status:
+    state: "verifiable"
+    last_update: "2026-10-26"
+  oeis: ["A343101"]
+  formalized:
+    state: "yes"
+    last_update: "2025-11-25"
+  forum:
+    posts: 4
+  comments: "Erdős-Woods conjecture"
+  tags: ["number theory", "primes"]
+
+- number: "918"
+  prize: "no"
+  informal_status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  oeis: ["N/A"]
+  formalized:
+    state: "yes"
+    last_update: "2025-11-21"
+  forum:
+    posts: 5
+  tags: ["graph theory", "chromatic number"]
+
+- number: "1160"
+  prize: "no"
+  informal_status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "falsifiable"
+    last_update: "2026-10-26"
+  formalized:
+    state: "yes"
+    last_update: "2026-11-03"
+  forum:
+    posts: 4
+  oeis: ["A000001"]
+  tags: ["group theory"]
+
+- number: "1168"
+  prize: "no"
+  informal_status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  formal_status:
+    state: "unformalized"
+  status:
+    state: "not disprovable"
+    last_update: "2026-10-26"
+  formalized:
+    state: "yes"
+    last_update: "2026-10-23"
+  forum:
+    posts: 1
+  oeis: ["N/A"]
+  tags: ["set theory", "ramsey theory"]
+

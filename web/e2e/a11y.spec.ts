@@ -7,7 +7,7 @@ for (const scheme of ['light', 'dark'] as const) {
     const d = (await api<{ dossiers: { id: string; status: string }[] }>('GET', '/dossiers')).dossiers.find((x) => x.status === 'proved')!;
     await open(page, '/', { mode: 'learn' });
     await axe(page, `home ${scheme}`);
-    for (const path of [`/d/${d.id}/enonce`, `/d/${d.id}/lean`, `/d/${d.id}/preuve`, '/activite', '/bibliotheque', '/glossaire', '/carnet',
+    for (const path of [`/d/${d.id}/enonce`, `/d/${d.id}/lean`, `/d/${d.id}/preuve`, '/activite', '/actualites', '/bibliotheque', '/glossaire', '/carnet',
       '/reglages/modeles', '/reglages/appareils', '/reglages/systeme', '/reglages/apparence', '/reglages/mises-a-jour',
       '/projet', '/sources', '/notes', '/graphe', '/blueprint', '/article', '/conjectures', '/calcul', '/publier', '/aide', '/aide/pairing', `/d/${d.id}/plan`]) {
       await page.goto(process.env['MADALEAN_URL'] + path);

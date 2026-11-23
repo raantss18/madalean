@@ -1,0 +1,236 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/AQ4wtbcboEp9vEmyZldD52OrERw</id>
+  <title>arXiv Query: search_query=(cat:cs.AI OR cat:cs.LG OR cat:cs.CL OR cat:cs.LO) AND (abs:"theorem proving" OR abs:autoformalization OR abs:Mathlib OR abs:"Lean 4" OR abs:miniF2F OR abs:"proof assistant" OR abs:"mathematical reasoning")&amp;id_list=&amp;start=0&amp;max_results=40</title>
+  <updated>2026-11-22T19:40:55Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=(cat:cs.AI+OR+(cat:cs.LG+OR+(cat:cs.CL+OR+cat:cs.LO)))+AND+(abs:%22theorem+proving%22+OR+(abs:autoformalization+OR+(abs:Mathlib+OR+(abs:%22Lean+4%22+OR+(abs:miniF2F+OR+(abs:%22proof+assistant%22+OR+abs:%22mathematical+reasoning%22))))))&amp;start=0&amp;max_results=40&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>40</opensearch:itemsPerPage>
+  <opensearch:totalResults>4041</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26221v1</id>
+    <title>Sightline: Calibrated Data-Flow Summaries for LLM-Integrated Applications</title>
+    <updated>2026-11-19T15:00:25Z</updated>
+    <link href="https://arxiv.org/abs/2611.26221v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26221v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Programs increasingly call large language models (LLMs), filling prompt placeholders with program values and consuming the output. Such a call crosses the boundary between natural language and programming language (NL/PL). To follow data across it, an analysis needs a data-flow summary of which placeholders the output uses, but no code describes what the model does. Analyses of these LLM-integrated applications therefore taint every output with every input, creating spurious flows, or ask a second model to label each call, which is costly. We prove, and mechanize in Lean 4, that a placeholder flows to the output of a transformer, to first order, only through the attention that reads it (no reading, no flow), and that a faint reading or sensitivity cannot certify that a placeholder does not flow. Unlike reading, the log-probability gradients and Fisher signals of existing methods vanish on confident outputs, and single-span removal fails on duplicated content. Our tool, Sightline, reads a recorded call in one forward pass, learns from labels which reads are uses, and calibrates the pruning to miss at most a chosen fraction $α$ of true flows, on average over call sites, when deployment is exchangeable with calibration. On 2,103 unseen repository families and four models, Sightline is the most accurate summary against the seven closest methods and a hidden-state probe. Calibrated at $α$ = 1%, it misses about 1% of true flows and prunes 43.9-65.6% of spurious flows, 1.6 to 2.6 times as many as the best baseline, and still 43.8-60.1% when calibrated on another collection. Through an open surrogate, it reads models treated as closed about as accurately as they read themselves, without their labels. In the information-flow control of an LLM agent, it removes about half of the labels from inputs that do not flow.</summary>
+    <category term="cs.PL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T15:00:25Z</published>
+    <arxiv:primary_category term="cs.PL"/>
+    <author>
+      <name>Zihao Xu</name>
+    </author>
+    <author>
+      <name>Yuekang Li</name>
+    </author>
+    <author>
+      <name>Ruitao Feng</name>
+    </author>
+    <author>
+      <name>Haifeng Shen</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26172v1</id>
+    <title>Budget Internalization: Fixed-Budget RLVR Trades Test-Time Scaling for In-Budget Accuracy</title>
+    <updated>2026-11-19T14:20:41Z</updated>
+    <link href="https://arxiv.org/abs/2611.26172v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26172v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Reasoning models often become more accurate when they can generate longer answers at test time. This behavior is known as test-time scaling. However, RL with verifiable rewards (RLVR) usually trains them with a fixed rollout cap. We find that this cap changes model behavior, not only training cost. After training, models use few additional tokens beyond the training budget. They outperform the base models near that budget, but their accuracy stops improving and falls below the base model at larger budgets. The rollout cap thus becomes a learned constraint, that limits model's test-time scaling. We call this effect budget internalization. We observe it across Qwen3.5-4B, Gemma4-E2B, and Nemotron-3-Nano-4B and two reasoning training tasks: mathematical reasoning and diverse, procedurally generated problems. This effect also transfers from math training to science and coding tasks. Training-objective level ablations on Qwen3.5-4B show that most changes recover little test-time scaling. Stronger KL regularization and lower training-data truncation preserve more scaling, but stronger KL reduces in-budget accuracy. Forcing an answer on truncated training rollouts largely removes budget internalization, but also removes most of the in-budget gain. SFT on artificially truncated traces reproduces budget internalization, whereas SFT on naturally short traces does not, which shows that the effect is not specific to RL. This result links budget internalization to length-censored post-training rather than to an RL-specific objective term. Thus, a rollout cap does not only control training cost. It can trade low-budget gains for lower performance when additional inference compute is available.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T14:20:41Z</published>
+    <arxiv:comment>39 pages, 26 figures, 16 tables. Checkpoints: https://huggingface.co/collections/JetBrains-Research/budget-internalization</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Ilia Zavidnyi</name>
+    </author>
+    <author>
+      <name>Alexander Kovrigin</name>
+    </author>
+    <author>
+      <name>Arina Puchkova</name>
+    </author>
+    <author>
+      <name>Kirill Gelvan</name>
+    </author>
+    <author>
+      <name>Sergey Titov</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.25763v1</id>
+    <title>Closing Performance Gap for Diffusion Language Models under Low Inference Budgets</title>
+    <updated>2026-11-19T09:03:43Z</updated>
+    <link href="https://arxiv.org/abs/2611.25763v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.25763v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Diffusion language models offer an architectural route to low-budget generation by updating multiple tokens in parallel, which can reduce the number of sequential decoding steps relative to token-by-token autoregressive decoding. However, realizing this advantage at low budgets is challenging, as generation quality often declines when the number of denoising and refinement steps is reduced. Editable diffusion models address this quality loss through post-draft refinement, but useful intermediate results may still be lost before final submission. We introduce CaRR (Commitment-aware Refinement and Recovery), a training-free framework which improves submission quality from a fixed editable checkpoint through updated-context refill and trajectory-based recovery within its existing forward schedule. Token Commitment Remasking (TCR) remasks selected native pure replacements and refills them on the next scheduled edit forward using the updated context. Submission Commitment Recovery (SCR) uses the resulting refinement trajectory to recover supported candidates when the final response does not satisfy task-specific output requirements. Both modules operate within the native mask/edit schedule without additional backbone forwards. Experiments on code generation and mathematical reasoning show consistent gains in average accuracy over native ME-DLM across four inference budgets, with the largest gains under tight budgets. At one-eighth of the full scheduled forward budget, CaRR improves the six-metric average accuracy by 7.44 pp, including gains of 11.37 and 10.05 on MBPP and MBPP+.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T09:03:43Z</published>
+    <arxiv:comment>23 pages, 3 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Hao Wu</name>
+    </author>
+    <author>
+      <name>Sipeng Chen</name>
+    </author>
+    <author>
+      <name>Jingwen Fu</name>
+    </author>
+    <author>
+      <name>Yuwang Wang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.25599v1</id>
+    <title>Tether: Verified Stateful Policy Engine for System-Level Monitoring of Agents</title>
+    <updated>2026-11-19T06:46:27Z</updated>
+    <link href="https://arxiv.org/abs/2611.25599v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.25599v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Autonomous AI agents are increasingly deployed for long-running tasks that execute arbitrary shell commands or programs. However, these actions can result in unauthorized network requests or persistent, malicious changes to the user's file system, processes, or privileges. Existing defense mechanisms rely on either LLM-based monitors, which lack provable safety guarantees, or stateless policy enforcement layers, which miss multi-step data flows and execution side-effects unmodeled by the policy language (e.g., network calls initiated inside a Python script). We introduce Tether, a framework for runtime enforcement of stateful security policies over the observed side-effects of an agent's actions. Tether executes each proposed action in an ephemeral, isolated sandbox, inferring abstract action semantics from observed system calls. Tether then enforces stateful policies over these inferred semantics, permitting actions to proceed only if they comply with the policy. Policies and action semantics are defined in an embedded DSL in Lean 4 capable of expressing diverse constraints, including information flow control (IFC), access control, and network security policies. Because actions can propagate labels from sources to destinations, a single rule can enforce fine-grained IFC policies across multi-step execution flows of arbitrary length. Expressing policies in Lean enables formal verification that they satisfy global security invariants (e.g., preventing network access after reading a sensitive file). We evaluate Tether on realistic coding-agent benchmarks across both benign and adversarial trajectories. With a single policy shared across all tasks, Tether blocks 100% of in-scope attacks while maintaining a benign false-positive rate under 5%.</summary>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T06:46:27Z</published>
+    <arxiv:primary_category term="cs.CR"/>
+    <author>
+      <name>Meghana Aparna Sistla</name>
+    </author>
+    <author>
+      <name>Alaia Solko-Breslin</name>
+    </author>
+    <author>
+      <name>Somesh Jha</name>
+    </author>
+    <author>
+      <name>Aditya Kanade</name>
+    </author>
+    <author>
+      <name>Krishnamurthy Dj Dvijotham</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24846v1</id>
+    <title>Atomic MathReasoner: Instance-Level Composition of Atomic Reasoning Skills for Mathematical LLMs</title>
+    <updated>2026-11-18T18:08:08Z</updated>
+    <link href="https://arxiv.org/abs/2611.24846v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24846v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Most existing approaches enhance mathematical reasoning in large language models (LLMs) as a monolithic capability, despite the fact that different mathematical problems require different reasoning skills. Recent work has explored a more fine-grained perspective by decomposing mathematical reasoning into atomic skills and developing specialized modules for individual capabilities. However, how to effectively utilize these atomic abilities remains underexplored. To address this challenge, we propose Atomic MathReasoner (AMR), an instance-level framework for composing atomic reasoning skills. AMR first trains a library of capability-specific LoRA experts and performs gradient-free optimization over held-out validation subsets to discover a diverse set of low-loss composition prototypes. It evaluates the preference of each prototype using the token-level negative log-likelihood of reference solutions, filters ambiguous assignments through a confidence margin, and distills the resulting pseudo-labels into a lightweight router. During inference, the router selects an appropriate composition prototype for each problem, enabling problem-specific utilization of atomic skills without costly online optimization. Experiments on the AtomicMath benchmark across general and mathematics-specialized LLMs demonstrate consistent improvements. On Qwen2.5-Math-Instruct-7B, AMR increases average field accuracy from 64.4% to 68.1% at Level 1 and from 59.3% to 63.7% at Level 2, while improving average logical reasoning performance from 39.4% to 46.8%. These results demonstrate that effectively composing specialized atomic skills provides a promising approach to strengthening mathematical reasoning in LLMs.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T18:08:08Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Jiashu Li</name>
+    </author>
+    <author>
+      <name>Tianyu Gao</name>
+    </author>
+    <author>
+      <name>Qinglong Liu</name>
+    </author>
+    <author>
+      <name>Jinping Wang</name>
+    </author>
+    <author>
+      <name>Ye Wei</name>
+    </author>
+    <author>
+      <name>Zhiqiang Gao</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.25003v1</id>
+    <title>A Model of Diverse Sampling from Language Models</title>
+    <updated>2026-11-18T17:56:26Z</updated>
+    <link href="https://arxiv.org/abs/2611.25003v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.25003v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Language models often produce high-quality individual samples but poor sets, with repeated samples clustering around the same semantic modes. We formalize diverse generation as sampling a size-$K$ subset of complete strings from a determinantal point process (DPP), where the likelihood encodes item quality, and the embedding geometry encodes repulsion between similar outputs. Exact inference over all strings is intractable, so we propose PoolDPP: draw a finite candidate pool from a tractable proposal, importance-weight the candidates toward the target quality, and run a $K$-DPP sampler on the induced pool kernel; a greedy MAP variant provides deterministic selection. We prove a finite-sample bound with an explicit constant: the KL divergence between the sampler's output and the target $K$-DPP decays as O(1/N) in the pool size. Empirically, PoolDPP extends the quality--diversity frontier on open-ended generation and the precision--recall frontier on ambiguous text-to-SQL (Ambrosia), and on mathematical reasoning (GSM8K), it raises diversity at about the same pass@$K$.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.FL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T17:56:26Z</published>
+    <arxiv:comment>NeurIPS 2026 paper</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Manuel Prada-Corral</name>
+    </author>
+    <author>
+      <name>Yahya Emara</name>
+    </author>
+    <author>
+      <name>Timothy J. O'Donnell</name>
+    </author>
+    <author>
+      <name>Ryan Cotterell</name>
+    </author>
+    <author>
+      <name>Tim Vieira</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24654v1</id>
+    <title>CurvDelta: Low-Curvature Delta Modeling For Surgical Learning and Unlearning</title>
+    <updated>2026-11-18T15:56:20Z</updated>
+    <link href="https://arxiv.org/abs/2611.24654v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24654v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A central challenge in adapting large language models (LLMs) is capability preservation: an adaptation can achieve its target while degrading general capabilities. We introduce CurvDelta, a scalable framework that incorporates the preservation constraint into the parameterization of the model update. By analyzing the local geometry of the preservation constraint around the pre-adaptation model, CurvDelta constructs a low-curvature space in which parameter updates leave the preservation loss nearly invariant. We make its construction practical for LLMs through Kronecker-factored approximate curvature (K-FAC) and a factorized projection. We also introduce CurvLoRA, a low-rank variant within the same preservation geometry, designed for more efficient adaptation. Both methods apply to preservation-constrained adaptation tasks such as capability learning and selective unlearning. We evaluate our methods on mathematical reasoning, code generation, and knowledge unlearning. For mathematical reasoning and code generation, our approaches achieve competitive downstream performance while better preserving general capabilities, offering a favorable acquisition--retention trade-off relative to the baselines. For knowledge unlearning, our main results on TOFU and MUSE show a better balance between targeted forgetting and knowledge retention than the baselines, with retention performance close to the from-scratch retraining reference.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T15:56:20Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Zeguan Xiao</name>
+    </author>
+    <author>
+      <name>Zhuocheng Liang</name>
+    </author>
+    <author>
+      <name>Yun Chen</name>
+    </author>
+    <author>
+      <name>Yong Wang</name>
+    </author>
+    <author>
+      <name>Guanhua Chen</name>
+    </author>
+    <author>
+      <name>Pinyan Lu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24626v1</id>
+    <title>Transferring an analysis of human brain organization to language models</title>
+    <updated>2026-11-18T15:39:35Z</updated>
+    <link href="https://arxiv.org/abs/2611.24626v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24626v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>During human cortical development, functional systems become increasingly differentiated. We asked whether improved reasoning in language models involves a comparable regional reorganization. Applying diffusion-map embedding, used to characterize cortical organization, to matched base and reasoning-trained models from three families, we found broadly preserved gradient profiles with localized changes within a contiguous layer span. Grafting weights from these spans into instruction-tuned hosts improved mathematical reasoning on average, with gains rising with region overlap, while retaining more previously solved problems than grafts elsewhere. Across training, the span formed gradually during the early rise in performance, and grafts from intermediate stages helped. Grafts shifted most hosts partly towards their donors' behaviour and sometimes improved on problems the donors failed; the same analysis located a transferable span in a medical model. Together, these findings identify a reasoning-related region whose weights improve reasoning with low interference in the host's existing mathematical competence.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T15:39:35Z</published>
+    <arxiv:comment>5 figures, 5 extended data figures, 5 extended data tables; includes Supplementary Information</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Donghyeok Lee</name>
+    </author>
+    <author>
+      <name>Sangwon Yu</name>
+    </author>
+    <author>
+      <name>Sangkwon Park</name>
+    </author>
+    <author>
+      <name>Hye Youn Park</name>
+    </author>
+    <author>
+      <name>Munyoung Chang</name>
+    </author>
+    <author>
+      <name>Sungroh Yoon</name>
+    </author>
+  </entry>
+  </feed>

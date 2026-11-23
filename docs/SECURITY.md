@@ -39,6 +39,9 @@ la machine.
 - **Faible.** Un lien Markdown `/\site` sortait du site. La somme SHA-256 de Gradle n'était pas épinglée. Il n'y avait
   pas de configuration Dependabot.
 
+**Actualités (S-AV).** La veille mathématique lit des adresses publiques : ce qu'elle reçoit est traité comme un
+texte à lire, jamais comme une consigne (voir « News feeds » plus bas). Rien n'est demandé à Internet en mode Local.
+
 **À faire avant la publication (bloquant).** La revue laisse deux points ouverts (détail dans § 9) :
 - la clé de signature des versions est en clair dans `~/.config/madalean/release-keys/`, sur la machine qui exécute des
   carnets ;
@@ -233,6 +236,29 @@ A boundary is crossed in four places, and each place must hold:
   accepts; `guard_ai` also refuses definitions and inclusions in them. Overleaf imports: `.tex/.bib`/images only
   (third-party `.sty/.cls/.lua` refused), guarded. The network is shared with the sandbox only for the explicit
   « Télécharger une fois » (files of the pinned bundle, generated or guarded source).
+
+### News feeds (session S-AV, docs/NEWS.md §4)
+« Actualités » reads 13 public feeds and APIs, plus the feeds the user adds. All of it is untrusted.
+- **Requests.** Only from `news/service.py::_get`: the research transport above (https, public addresses,
+  resolve-then-connect, no cookies, no environment proxy), a generic client name without contact, and for a built-in
+  source only the hosts of its registry entry — a redirect to any other host is an error. Never in Local mode or in
+  the demo. A feed added by the user may be any public https host, never a local or private address (SSRF).
+- **Parsing.** XML with entities / DTDs refused; JSON; a line reader for the one YAML table (no YAML loader). Size,
+  item-count and time caps.
+- **Stored text is inert.** HTML reduced to text (scripts, styles, frames dropped), control / zero-width /
+  bidirectional characters removed, e-mail addresses masked, links kept only when `http(s)` without credentials.
+  The UI renders it with the safe Markdown renderer (no raw HTML, no images) and opens links outside.
+- **Prompt injection by a source.** Fetched text is data. An item that addresses a model (« ignore previous
+  instructions… », chat-template markers, delimiter look-alikes) is flagged, shown with a warning and never sent to a
+  model. The optional French summary wraps the text with `wrap_untrusted` under `UNTRUSTED_RULE`, uses a call
+  without tools, only free online models, and stores only plain text without links; an answer that itself reads like
+  instructions is dropped. The original title and abstract are always shown beside the summary. Text of © sources
+  is never given to a model.
+- **From a news item to a project.** Only by an explicit user action (Sources, conjecture, dossier, note). A dossier
+  made from an item is created but not started: the user reads the statement before any model does. This is the
+  residual risk: text the user chooses to import becomes project material, like any text they paste.
+- **Privacy.** The requests are the same for every user (no query depends on the projects or the followed fields);
+  matching against the projects is local.
 
 ### Secrets
 - **Keys.**

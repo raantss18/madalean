@@ -10,6 +10,7 @@
   import { barShown, setBar } from '../lib/ui/layout.svelte';
   import { dismiss } from '../lib/ui/dismiss';
   import { currentProjectId } from '../lib/project.svelte';
+  import { newsBadge, loadNewsOverview } from '../lib/news.svelte';
   import Icon from './Icon.svelte';
   import Wordmark from './Wordmark.svelte';
 
@@ -27,6 +28,7 @@
   function items(): HTMLElement[] { return [...(list?.querySelectorAll<HTMLElement>('[role^=menuitem]') ?? [])]; }
   function show() {
     open = true;
+    void loadNewsOverview();                           // S-AV: the unread count of « Actualités », asked when the menu opens
     queueMicrotask(() => items()[0]?.focus());
   }
   function close(refocus = false) { open = false; if (refocus) btn?.focus(); }
@@ -77,7 +79,7 @@
       <div role="group" aria-label={t('menu.tools')}>
         {#each tools as r (r.name)}
           <a role="menuitem" href={href(r.pattern)} aria-current={cur(r.name) ? 'page' : undefined} onclick={() => close()}>
-            <Icon name={r.nav!.icon} size={18} />{t(r.nav!.label)}{#if r.name === 'activity' && active}<span class="count" aria-hidden="true">{active}</span><span class="sr-only">({t('activity.runningN', { n: active })})</span>{/if}
+            <Icon name={r.nav!.icon} size={18} />{t(r.nav!.label)}{#if r.name === 'activity' && active}<span class="count" aria-hidden="true">{active}</span><span class="sr-only">({t('activity.runningN', { n: active })})</span>{/if}{#if r.name === 'news' && newsBadge.show && newsBadge.unread}<span class="count quiet" aria-hidden="true">{newsBadge.unread > 99 ? '99+' : newsBadge.unread}</span><span class="sr-only">({t('news.unreadN', { n: newsBadge.unread })})</span>{/if}
           </a>
         {/each}
       </div>
@@ -116,6 +118,7 @@
   .kbd-h { margin-left: auto; color: var(--text-3); font-weight: 500; }
   .kbd-h + .tick { margin-left: 8px; }
   .count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--running-fill); color: #1a1200; font-size: 12px; font-weight: 700; display: inline-grid; place-items: center; }
+  .count.quiet { background: var(--accent-soft); color: var(--accent); }
   .scrim { display: none; }
   @media (pointer: coarse) { .panel a, .panel button { min-height: 44px; } }
   @media (max-width: 1023px) {

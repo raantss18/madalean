@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	xmlns:georss="http://www.georss.org/georss" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#" xmlns:media="http://search.yahoo.com/mrss/"
+	>
+
+<channel>
+	<title>Xena</title>
+	<atom:link href="https://xenaproject.wordpress.com/feed/" rel="self" type="application/rss+xml" />
+	<link>https://xenaproject.wordpress.com</link>
+	<description>Mathematicians learning Lean by doing.</description>
+	<lastBuildDate>Sat, 21 Nov 2026 17:16:37 +0000</lastBuildDate>
+	<language>en</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>http://wordpress.com/</generator>
+
+<image>
+	<url>https://xenaproject.wordpress.com/wp-content/uploads/2020/05/cropped-twitchpfc.png?w=32</url>
+	<title>Xena</title>
+	<link>https://xenaproject.wordpress.com</link>
+	<width>32</width>
+	<height>32</height>
+</image> 
+<site xmlns="com-wordpress:feed-additions:1">135737082</site><cloud domain='xenaproject.wordpress.com' port='80' path='/?rsscloud=notify' registerProcedure='' protocol='http-post' />
+<source:cloud xmlns:source='https://source.scripting.com/'>https://xenaproject.wordpress.com/?rsscloud=notify</source:cloud>
+<atom:link rel="search" type="application/opensearchdescription+xml" href="https://xenaproject.wordpress.com/osd.xml" title="Xena" />
+	<atom:link rel='hub' href='https://xenaproject.wordpress.com/?pushpress=hub'/>
+	<item>
+		<title>Lean for the working mathematician</title>
+		<link>https://xenaproject.wordpress.com/2026/11/21/lean-for-the-working-mathematician/</link>
+					<comments>https://xenaproject.wordpress.com/2026/11/21/lean-for-the-working-mathematician/#respond</comments>
+		
+		<dc:creator><![CDATA[xenaproject]]></dc:creator>
+		<pubDate>Sat, 21 Nov 2026 17:16:37 +0000</pubDate>
+				<category><![CDATA[autoformalization]]></category>
+		<category><![CDATA[Research formalisation]]></category>
+		<category><![CDATA[AI]]></category>
+		<category><![CDATA[Artificial Intelligence]]></category>
+		<category><![CDATA[autoformalisation]]></category>
+		<category><![CDATA[lean]]></category>
+		<category><![CDATA[math]]></category>
+		<category><![CDATA[mathematics]]></category>
+		<category><![CDATA[technology]]></category>
+		<guid isPermaLink="false">http://xenaproject.wordpress.com/?p=3966</guid>
+
+					<description><![CDATA[[(Kevin Buzzard says) This is a guest post by Mitchell Taylor, a mathematician who gave a talk at Imperial&#8217;s PDE seminar a few weeks ago on the topic below. If you had shown me this blog post in 2024 and &#8230; <a href="https://xenaproject.wordpress.com/2026/11/21/lean-for-the-working-mathematician/">Continue reading <span class="meta-nav">&#8594;</span></a>]]></description>
+										<wfw:commentRss>https://xenaproject.wordpress.com/2026/11/21/lean-for-the-working-mathematician/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">3966</post-id>
+		<media:content url="https://2.gravatar.com/avatar/e7ccfd42722fdb89c0fdea2f473152c14ab978bc1974acc4d67944906653f36e?s=96&#38;d=identicon&#38;r=G" medium="image">
+			<media:title type="html">xenaproject</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>&#8220;&#8230;and the proof is checked in Lean&#8221;</title>
+		<link>https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/</link>
+					<comments>https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/#comments</comments>
+		
+		<dc:creator><![CDATA[xenaproject]]></dc:creator>
+		<pubDate>Thu, 12 Nov 2026 00:50:07 +0000</pubDate>
+				<category><![CDATA[Fermat&#039;s Last Theorem]]></category>
+		<category><![CDATA[Machine Learning]]></category>
+		<category><![CDATA[Research formalisation]]></category>
+		<category><![CDATA[rigour]]></category>
+		<category><![CDATA[AI]]></category>
+		<category><![CDATA[Artificial Intelligence]]></category>
+		<category><![CDATA[lean]]></category>
+		<category><![CDATA[math]]></category>
+		<category><![CDATA[mathematics]]></category>
+		<category><![CDATA[OpenAI]]></category>
+		<category><![CDATA[philosophy]]></category>
+		<category><![CDATA[technology]]></category>
+		<category><![CDATA[trust]]></category>
+		<guid isPermaLink="false">http://xenaproject.wordpress.com/?p=3911</guid>
+
+					<description><![CDATA[This post is an attempt to explain in simple terms how to interpret claims of the form &#8220;this theorem is correct because it was checked in Lean&#8221;. The summary is: there is an important signal that can be extracted from &#8230; <a href="https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/">Continue reading <span class="meta-nav">&#8594;</span></a>]]></description>
+										<wfw:commentRss>https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/feed/</wfw:commentRss>
+			<slash:comments>12</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">3911</post-id>
+		<media:content url="https://2.gravatar.com/avatar/e7ccfd42722fdb89c0fdea2f473152c14ab978bc1974acc4d67944906653f36e?s=96&#38;d=identicon&#38;r=G" medium="image">
+			<media:title type="html">xenaproject</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>A Modern Reorganization of Mathematics</title>
+		<link>https://xenaproject.wordpress.com/2026/11/11/a-modern-reorganization-of-mathematics/</link>
+					<comments>https://xenaproject.wordpress.com/2026/11/11/a-modern-reorganization-of-mathematics/#respond</comments>
+		
+		<dc:creator><![CDATA[xenaproject]]></dc:creator>
+		<pubDate>Wed, 11 Nov 2026 05:23:28 +0000</pubDate>
+				<category><![CDATA[Uncategorized]]></category>
+		<category><![CDATA[AI]]></category>
+		<category><![CDATA[Artificial Intelligence]]></category>
+		<category><![CDATA[mathematics]]></category>
+		<category><![CDATA[philosophy]]></category>
+		<category><![CDATA[technology]]></category>
+		<guid isPermaLink="false">http://xenaproject.wordpress.com/?p=3953</guid>
+
+					<description><![CDATA[[Everyone is doing guest posts these days, so here&#8217;s one about the Weil conjectures from (in alphabetical order) Bin Dong, Nailin Guan, Jiedong Jiang, Ruochuan Liu, Christian Merten, Xiangyu Pan, Tingxiao Shi, Bin Wu, Edison Xie and Wei Yang] We &#8230; <a href="https://xenaproject.wordpress.com/2026/11/11/a-modern-reorganization-of-mathematics/">Continue reading <span class="meta-nav">&#8594;</span></a>]]></description>
+										<wfw:commentRss>https://xenaproject.wordpress.com/2026/11/11/a-modern-reorganization-of-mathematics/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">3953</post-id>
+		<media:content url="https://2.gravatar.com/avatar/e7ccfd42722fdb89c0fdea2f473152c14ab978bc1974acc4d67944906653f36e?s=96&#38;d=identicon&#38;r=G" medium="image">
+			<media:title type="html">xenaproject</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>How to Formalize All of Mathematics</title>
+		<link>https://xenaproject.wordpress.com/2026/10/16/how-to-formalize-all-of-mathematics/</link>
+					<comments>https://xenaproject.wordpress.com/2026/10/16/how-to-formalize-all-of-mathematics/#comments</comments>
+		
+		<dc:creator><![CDATA[xenaproject]]></dc:creator>
+		<pubDate>Fri, 16 Oct 2026 09:54:00 +0000</pubDate>
+				<category><![CDATA[Fermat&#039;s Last Theorem]]></category>
+		<category><![CDATA[Machine Learning]]></category>
+		<category><![CDATA[Research formalisation]]></category>
+		<category><![CDATA[AI]]></category>
+		<category><![CDATA[Artificial Intelligence]]></category>
+		<category><![CDATA[lean]]></category>
+		<category><![CDATA[math]]></category>
+		<category><![CDATA[mathematics]]></category>
+		<category><![CDATA[philosophy]]></category>
+		<category><![CDATA[science]]></category>
+		<category><![CDATA[technology]]></category>
+		<guid isPermaLink="false">http://xenaproject.wordpress.com/?p=3913</guid>
+
+					<description><![CDATA[(This is a guest post, written by Jeremy Avigad, Kevin Buzzard, Johan Commelin, Rémy Degenne, Kim Morrison, Oliver Nash and Adam Topaz.) Mathematicians’ reactions to last week’s big OpenAI release range from excitement to frustration, but one thing is clear: &#8230; <a href="https://xenaproject.wordpress.com/2026/10/16/how-to-formalize-all-of-mathematics/">Continue reading <span class="meta-nav">&#8594;</span></a>]]></description>
+										<wfw:commentRss>https://xenaproject.wordpress.com/2026/10/16/how-to-formalize-all-of-mathematics/feed/</wfw:commentRss>
+			<slash:comments>13</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">3913</post-id>
+		<media:content url="https://2.gravatar.com/avatar/e7ccfd42722fdb89c0fdea2f473152c14ab978bc1974acc4d67944906653f36e?s=96&#38;d=identicon&#38;r=G" medium="image">
+			<media:title type="html">xenaproject</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>To grieve, or not to grieve?</title>
+		<link>https://xenaproject.wordpress.com/2026/10/01/to-grieve-or-not-to-grieve/</link>
+					<comments>https://xenaproject.wordpress.com/2026/10/01/to-grieve-or-not-to-grieve/#comments</comments>
+		
+		<dc:creator><![CDATA[xenaproject]]></dc:creator>
+		<pubDate>Thu, 01 Oct 2026 08:11:45 +0000</pubDate>
+				<category><![CDATA[General]]></category>
+		<category><![CDATA[rigour]]></category>
+		<category><![CDATA[AI]]></category>
+		<category><![CDATA[Artificial Intelligence]]></category>
+		<category><![CDATA[math]]></category>
+		<category><![CDATA[mathematics]]></category>
+		<category><![CDATA[Peter Scholze]]></category>
+		<category><![CDATA[philosophy]]></category>
+		<category><![CDATA[science]]></category>
+		<category><![CDATA[technology]]></category>
+		<guid isPermaLink="false">http://xenaproject.wordpress.com/?p=3908</guid>
+
+					<description><![CDATA[Recent events in the field of AI for mathematics have shown us beyond all reasonable doubt that the field is currently undergoing a rapid transformation, unlike anything that we have ever seen before. Language models are solving hard problems which &#8230; <a href="https://xenaproject.wordpress.com/2026/10/01/to-grieve-or-not-to-grieve/">Continue reading <span class="meta-nav">&#8594;</span></a>]]></description>
+										<wfw:commentRss>https://xenaproject.wordpress.com/2026/10/01/to-grieve-or-not-to-grieve/feed/</wfw:commentRss>
+			<slash:comments>68</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">3908</post-id>
+		<media:content url="https://2.gravatar.com/avatar/e7ccfd42722fdb89c0fdea2f473152c14ab978bc1974acc4d67944906653f36e?s=96&#38;d=identicon&#38;r=G" medium="image">
+			<media:title type="html">xenaproject</media:title>
+		</media:content>
+	</item>
+		</channel>
+</rss>

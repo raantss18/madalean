@@ -779,6 +779,42 @@ lists the online Goedel first when it leads the proof. `GET /api/models/spend` a
   events `setup.models {fetch: {running, phase: download|done|error, keys, index, done_gb, total_gb, message, ok}}`;
   the local models are rescanned at the end. `POST /api/setup/models/cancel` → `{cancelled}` (parts kept: resumes).
 
+## 6e. « Actualités », the mathematical watch (session S-AV, plugin `news.py`, docs/NEWS.md)
+
+Available to paired devices (the store holds public information; settings are not host-only).
+- `GET /api/news` → `{items [NewsItem], total, unread}`. Query: `q` (full text, accents ignored, prefix on the last
+  word), `branch` (repeatable: any of them), `source`, `group` (papers | problems | lean | ai | community | custom),
+  `open=1`, `projects=1` or `projects=<project id>`, `unread=1`, `saved=1`, `mine=1` (the followed fields),
+  `order=date|relevance`, `limit` (≤ 100, default 40), `offset`. Items of sources that are turned off are hidden
+  unless saved. `unread` = unread items of the followed fields (the badge).
+  `NewsItem` = `{id, key, source, group, kind (paper|problem|question|release|change|post), url, title, summary,
+  authors [], published, fetched, open, branches [], cats [], extra {arxiv?, primary?, comment?, erdos?,
+  state?, prize?, oeis?, repo?, tag?, score?, answers?, licence?, suspect?}, read, saved, fr, fr_model, fr_t, projects [{project,
+  score, terms []}], relevance}` — `title` / `summary` are plain text (may hold TeX), `fr` the French summary.
+- `GET /api/news/overview` → `{unread, unread_all, items, saved, for_projects, open, newest [≤ 3 NewsItem],
+  last_refresh, next_refresh, mode, demo, enabled, badge, summaries, branches [], errors [source ids]}`.
+- `GET /api/news/sources` → `{sources [{id, group, enabled, custom, items, unread, checked, ok, error, retry_at,
+  fr, en, about_fr, about_en, home, host, licence, terms, summaries, url?}], verified, groups [{id, fr, en}],
+  branches [{id, fr, en}]}`.
+- `GET /api/news/settings` → `{settings}`; `PATCH /api/news/settings {enabled?, interval_hours? (1–48),
+  branches? [branch ids], sources? {id: bool}, feeds? [{id?, url, title?, enabled?}] (≤ 20), summaries?, badge?,
+  keep_days? (3–365), max_items? (200–20000)}` → `{settings}`; 400 `bad_value` | `bad_url` (`field`). Removing a feed
+  forgets its unsaved items.
+- `POST /api/news/refresh {source?}` → `{sources [{id, status: ok|unchanged|error, new?, updated?, seen?, error?,
+  http?}], new, unread}` or `{skipped: disabled|busy}`; 409 `local_mode`. A manual refresh skips the intervals but
+  not a source's backoff, and not a source checked less than 5 minutes ago. Demo: re-seeds from the recordings
+  (`{demo: true}`), no network.
+- `POST /api/news/feeds {url, title?}` → `201 {settings, feed, tested, entries}` after one test read (not in Local
+  mode: `tested: false`, read later); 400 `bad_url`, 409 `duplicate`, 422 `not_a_feed`, 502 `unreachable`.
+  `DELETE /api/news/feeds/{id}` → `{settings}`.
+- `PATCH /api/news/items/{id} {read?, saved?}` → `{item, unread}`; `POST /api/news/read-all {…the list's filters}`
+  → `{marked, unread}`.
+- `POST /api/news/items/{id}/summary` → `{item}` with `fr` (cached); 409 `local_mode`, 422 `rights` (a © source:
+  title, excerpt and link only) | `short` (abstract under 200 characters) | `suspect` (the text addresses a model:
+  never sent to one), 503 `no_model` | `failed`.
+- Event `news.updated {unread, new, summaries?}` after a refresh that brought something, new summaries or a
+  settings change.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at
@@ -786,4 +822,6 @@ realistic speed, the right prompts per role, model keys `local:…gguf`), fake L
 `sorry` and invented names), simulated model swaps (1.5 s), seeded project « Exemples (démo) » with one proven
 dossier (statement, gloss, proof, explanation, informal proof) and one draft. The API is identical. A new dossier
 with « Montrer que la somme de deux entiers pairs est paire. » runs the whole chain in ≈15 s.
+« Actualités » is seeded from the recorded answers of `madalean/news/demo_data/` (dates shifted to now, one user
+feed « Flux de démonstration » with a hostile sample), without any request.
 Try: `madalean serve --demo --port 11600 --remote-port 11601`.

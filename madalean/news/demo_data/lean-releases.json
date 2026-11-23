@@ -1,0 +1,52 @@
+[
+ {
+  "tag_name": "v4.37.0-rc1",
+  "name": "v4.37.0-rc1",
+  "html_url": "https://github.com/leanprover/lean4/releases/tag/v4.37.0-rc1",
+  "published_at": "2026-11-18T13:48:41Z",
+  "created_at": "2026-11-18T11:12:18Z",
+  "prerelease": true,
+  "draft": false,
+  "body": "This is release candidate 1 for the v4.37.0 release of Lean. View the [release notes](https://lean-lang.org/doc/reference/latest/releases/v4.37.0/) for more information."
+ },
+ {
+  "tag_name": "v4.36.0",
+  "name": "v4.36.0",
+  "html_url": "https://github.com/leanprover/lean4/releases/tag/v4.36.0",
+  "published_at": "2026-11-16T15:45:27Z",
+  "created_at": "2026-11-16T02:28:42Z",
+  "prerelease": false,
+  "draft": false,
+  "body": "This is the v4.36.0 release of Lean. View the [release notes](https://lean-lang.org/doc/reference/latest/releases/v4.36.0/) for more information."
+ },
+ {
+  "tag_name": "v4.36.0-rc2",
+  "name": "v4.36.0-rc2",
+  "html_url": "https://github.com/leanprover/lean4/releases/tag/v4.36.0-rc2",
+  "published_at": "2026-10-27T18:38:15Z",
+  "created_at": "2026-10-27T14:48:59Z",
+  "prerelease": true,
+  "draft": false,
+  "body": "This is release candidate 2 for the v4.36.0 release of Lean. View the [release notes](https://lean-lang.org/doc/reference/latest/releases/v4.36.0/) for more information."
+ },
+ {
+  "tag_name": "v4.36.0-rc1",
+  "name": "v4.36.0-rc1",
+  "html_url": "https://github.com/leanprover/lean4/releases/tag/v4.36.0-rc1",
+  "published_at": "2026-10-14T18:30:03Z",
+  "created_at": "2026-10-14T12:41:23Z",
+  "prerelease": true,
+  "draft": false,
+  "body": "This is release candidate 1 for the v4.36.0 release of Lean. View the [release notes](https://lean-lang.org/doc/reference/latest/releases/v4.36.0/) for more information."
+ },
+ {
+  "tag_name": "v4.35.0",
+  "name": "v4.35.0",
+  "html_url": "https://github.com/leanprover/lean4/releases/tag/v4.35.0",
+  "published_at": "2026-10-12T18:13:12Z",
+  "created_at": "2026-10-12T15:51:15Z",
+  "prerelease": false,
+  "draft": false,
+  "body": "This is the v4.35.0 release of Lean. View the [release notes](https://lean-lang.org/doc/reference/latest/releases/v4.35.0/) for more information."
+ }
+]

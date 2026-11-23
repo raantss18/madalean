@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+  xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	>
+
+<channel>
+	<title>Mathematics &#8211; Quanta Magazine</title>
+	<atom:link href="https://www.quantamagazine.org/mathematics/feed/" rel="self" type="application/rss+xml"></atom:link>
+	<link>https://www.quantamagazine.org</link>
+	<description>Illuminating science</description>
+	<lastBuildDate>Fri, 20 Nov 2026 21:14:32 -0500</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>hourly</sy:updatePeriod>
+	<sy:updateFrequency>1</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.1.2</generator>
+	<item>
+		<title>How M.C. Escher’s Art Creates Bizarre Mathematical Worlds</title>
+		<link>https://www.quantamagazine.org/how-m-c-eschers-art-creates-bizarre-mathematical-worlds-20261118/</link>
+		<comments>https://www.quantamagazine.org/how-m-c-eschers-art-creates-bizarre-mathematical-worlds-20261118/#respond</comments>
+		<pubDate>Wed, 18 Nov 2026 15:51:40 +0000</pubDate>
+    <dc:creator><![CDATA[Shalma Wegsman]]></dc:creator>
+				<category><![CDATA[Mathematics]]></category>
+
+		<guid isPermaLink="false">https://www.quantamagazine.org/?p=168911</guid>
+		<description><![CDATA[The artist had no formal math education, yet as a new exhibition shows, the insights revealed in his artwork became an enduring inspiration to mathematicians.            <p>The post <a href="https://www.quantamagazine.org/how-m-c-eschers-art-creates-bizarre-mathematical-worlds-20261118/" target="_blank">How M.C. Escher’s Art Creates Bizarre Mathematical Worlds</a> first appeared on <a href="https://www.quantamagazine.org" target="_blank">Quanta Magazine</a></p>]]></description>
+				<wfw:commentRss>https://www.quantamagazine.org/how-m-c-eschers-art-creates-bizarre-mathematical-worlds-20261118/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+<media:content url="https://www.quantamagazine.org/wp-content/uploads/2042/11/ImageGallery_EscherMath-crSEENOTES-Default.webp" type="image/jpg"></media:content>
+	</item>
+		<item>
+		<title>How Voting Is Like a Klein Bottle</title>
+		<link>https://www.quantamagazine.org/how-voting-is-like-a-klein-bottle-20261026/</link>
+		<comments>https://www.quantamagazine.org/how-voting-is-like-a-klein-bottle-20261026/#respond</comments>
+		<pubDate>Mon, 26 Oct 2026 14:54:29 +0000</pubDate>
+    <dc:creator><![CDATA[Alex Stone]]></dc:creator>
+				<category><![CDATA[Mathematics]]></category>
+
+		<guid isPermaLink="false">https://www.quantamagazine.org/?p=168250</guid>
+		<description><![CDATA[A new topological model connects a centuries-old voting paradox to a surface with no distinct inside or outside.            <p>The post <a href="https://www.quantamagazine.org/how-voting-is-like-a-klein-bottle-20261026/" target="_blank">How Voting Is Like a Klein Bottle</a> first appeared on <a href="https://www.quantamagazine.org" target="_blank">Quanta Magazine</a></p>]]></description>
+				<wfw:commentRss>https://www.quantamagazine.org/how-voting-is-like-a-klein-bottle-20261026/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+<media:content url="https://www.quantamagazine.org/wp-content/uploads/2026/10/CondorcetTopology-crKristinaArmitage-Default.webp" type="image/jpg"></media:content>
+	</item>
+		<item>
+		<title>AI Proved the Quasi-Riemann Hypothesis. What Happens Now?</title>
+		<link>https://www.quantamagazine.org/ai-proved-the-quasi-riemann-hypothesis-what-happens-now-20261019/</link>
+		<comments>https://www.quantamagazine.org/ai-proved-the-quasi-riemann-hypothesis-what-happens-now-20261019/#respond</comments>
+		<pubDate>Mon, 19 Oct 2026 15:40:26 +0000</pubDate>
+    <dc:creator><![CDATA[Konstantin Kakaes]]></dc:creator>
+				<category><![CDATA[Mathematics]]></category>
+
+		<guid isPermaLink="false">https://www.quantamagazine.org/?p=167980</guid>
+		<description><![CDATA[Unlike other recent AI proofs, this one has been unpacked by human experts. The implications, one mathematician said, are “staggering.”            <p>The post <a href="https://www.quantamagazine.org/ai-proved-the-quasi-riemann-hypothesis-what-happens-now-20261019/" target="_blank">AI Proved the Quasi-Riemann Hypothesis. What Happens Now?</a> first appeared on <a href="https://www.quantamagazine.org" target="_blank">Quanta Magazine</a></p>]]></description>
+				<wfw:commentRss>https://www.quantamagazine.org/ai-proved-the-quasi-riemann-hypothesis-what-happens-now-20261019/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+<media:content url="https://www.quantamagazine.org/wp-content/uploads/2026/10/ReimannAI-crEmilyBuder_GuanHueiWu-Default.webp" type="image/jpg"></media:content>
+	</item>
+		<item>
+		<title>Is AI the End of Math As We Know It?</title>
+		<link>https://www.quantamagazine.org/is-ai-the-end-of-math-as-we-know-it-20261005/</link>
+		<comments>https://www.quantamagazine.org/is-ai-the-end-of-math-as-we-know-it-20261005/#respond</comments>
+		<pubDate>Mon, 05 Oct 2026 13:40:07 +0000</pubDate>
+    <dc:creator><![CDATA[Jordana Cepelewicz]]></dc:creator>
+				<category><![CDATA[Mathematics]]></category>
+
+		<guid isPermaLink="false">https://www.quantamagazine.org/?p=167602</guid>
+		<description><![CDATA[Mathematicians are facing the sudden shift with grief, anger, and a desperate search for fresh ideas: “If we don’t adapt, there’s just no more math in 50 years.”            <p>The post <a href="https://www.quantamagazine.org/is-ai-the-end-of-math-as-we-know-it-20261005/" target="_blank">Is AI the End of Math As We Know It?</a> first appeared on <a href="https://www.quantamagazine.org" target="_blank">Quanta Magazine</a></p>]]></description>
+				<wfw:commentRss>https://www.quantamagazine.org/is-ai-the-end-of-math-as-we-know-it-20261005/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+<media:content url="https://www.quantamagazine.org/wp-content/uploads/2026/10/Qualia-MathWoes-cr.Eduardo-Ramon-Default-1.webp" type="image/jpg"></media:content>
+	</item>
+		<item>
+		<title>What Does the Fourth Dimension Actually Look Like?</title>
+		<link>https://www.quantamagazine.org/what-does-the-fourth-dimension-actually-look-like-20261001/</link>
+		<comments>https://www.quantamagazine.org/what-does-the-fourth-dimension-actually-look-like-20261001/#respond</comments>
+		<pubDate>Thu, 01 Oct 2026 13:20:29 +0000</pubDate>
+    <dc:creator><![CDATA[Janna Levin and Steven Strogatz]]></dc:creator>
+				<category><![CDATA[Mathematics]]></category>
+		<category><![CDATA[Multimedia]]></category>
+
+		<guid isPermaLink="false">https://www.quantamagazine.org/?p=167492</guid>
+		<description><![CDATA[Maggie Miller explains why our intuition about three dimensions breaks down in four, and how she visualizes 4D spaces as a reel of three-dimensional snapshots.            <p>The post <a href="https://www.quantamagazine.org/what-does-the-fourth-dimension-actually-look-like-20261001/" target="_blank">What Does the Fourth Dimension Actually Look Like?</a> first appeared on <a href="https://www.quantamagazine.org" target="_blank">Quanta Magazine</a></p>]]></description>
+				<wfw:commentRss>https://www.quantamagazine.org/what-does-the-fourth-dimension-actually-look-like-20261001/feed/</wfw:commentRss>
+		<slash:comments>0</slash:comments>
+<media:content url="https://www.quantamagazine.org/wp-content/uploads/2026/10/JOW-S5-E9-cr-Chanelle-Nibbelink-Default-NO-LOGO.webp" type="image/jpg"></media:content>
+	</item>
+	</channel>
+</rss>
+

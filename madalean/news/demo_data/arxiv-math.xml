@@ -1,0 +1,303 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/oy/GvImNyBVfaJxNKkAj4XZqSTk</id>
+  <title>arXiv Query: search_query=cat:math.* OR cat:cs.LO&amp;id_list=&amp;start=0&amp;max_results=150</title>
+  <updated>2026-11-22T19:40:53Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:math.*+OR+cat:cs.LO&amp;start=0&amp;max_results=150&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>150</opensearch:itemsPerPage>
+  <opensearch:totalResults>724725</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26622v1</id>
+    <title>Quasipolynomial pyjamas</title>
+    <updated>2026-11-19T18:59:08Z</updated>
+    <link href="https://arxiv.org/abs/2611.26622v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26622v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The ``pyjama stripe" $E(\varepsilon)$ is the set of all complex numbers whose real part lies within $\varepsilon$ of the nearest integer. The Pyjama Problem asks whether, for each $\varepsilon &gt; 0$, there exists some union of finitely many rotations of $E(\varepsilon)$ about the origin that covers the plane. This was answered in the affirmative by Manners. Kravitz and Leng subsequently showed that $\exp(\exp(\exp(\varepsilon^{-O(1)})))$ rotations suffice. In this paper, we prove an upper bound of \[\exp((\log \varepsilon^{-1})^{50000})\] rotations. We also show that at least $(π/2 + 0.003 + o(1))\varepsilon^{-1}$ rotations are necessary, improving upon the natural lower bound of $(π/2 + o(1))\varepsilon^{-1}$.</summary>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.DS" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:59:08Z</published>
+    <arxiv:comment>43 pages</arxiv:comment>
+    <arxiv:primary_category term="math.CO"/>
+    <author>
+      <name>Sida Li</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26621v1</id>
+    <title>Permanence and $144$-periodicity of $x_{153,3}$ in the stable stems at the prime three</title>
+    <updated>2026-11-19T18:58:55Z</updated>
+    <link href="https://arxiv.org/abs/2611.26621v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26621v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The class $x_{153,3}$ lies in stable degree $153$ and filtration $3$ on the algebraic starting page of the $3$-primary Adams--Novikov spectral sequence of the sphere. We show that it survives and begins a family with period $144$, answering both parts of a question of Carrick and Davies. A comparison with periodic topological modular forms and a bound on the possible differential targets prove permanence. A divisibility calculation for the mod-$3$ Moore spectrum supplies a lift to a finite spectrum with a degree-$144$ self-map. The resulting iterates have nonzero image in the height-two detector of Carrick and Davies.</summary>
+    <category term="math.AT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:58:55Z</published>
+    <arxiv:comment>12 pages, 2 figures, 1 table</arxiv:comment>
+    <arxiv:primary_category term="math.AT"/>
+    <author>
+      <name>Zheyan Wan</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26614v1</id>
+    <title>Additive Fréchet Regression for Random Objects</title>
+    <updated>2026-11-19T18:57:49Z</updated>
+    <link href="https://arxiv.org/abs/2611.26614v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26614v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Regression analysis for complex data taking values in a general metric space has gained increasing attention in recent years, particularly in the context of Fréchet regression with Euclidean predictors $\mathbb{X} \in \mathbb{R}^{p}$. However, local Fréchet regression, while more flexible than global Fréchet regression, suffers from the curse of dimensionality for the case of multivariate predictors. To address this issue while maintaining model flexibility, we introduce a framework of additive structured nonparametric regression when responses are situated in a general metric space. Overcoming the challenge of the lack of vector space structure in general metric spaces where the responses reside requires a novel approach that incorporates the additive structure via projection operators. This leads to a unified framework of additive regression for a wide range of response types, including one-dimensional distributions in Wasserstein space, network data represented by graph Laplacians and spherical data equipped with geodesic distances, among others. We establish pointwise and uniform consistency, including convergence rates, for the proposed additive Fréchet regression estimators, using smooth backfitting. The practical utility of this additive model is demonstrated through applications to brain connectivity network analysis using resting-state fMRI data and distributional physical activity data.</summary>
+    <category term="stat.ME" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.ST" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:57:49Z</published>
+    <arxiv:comment>26 pages, 5 figures</arxiv:comment>
+    <arxiv:primary_category term="stat.ME"/>
+    <author>
+      <name>Changwon Choi</name>
+    </author>
+    <author>
+      <name>Wookyeong Song</name>
+    </author>
+    <author>
+      <name>Hans-Georg Müller</name>
+    </author>
+    <author>
+      <name>Byeong U. Park</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26600v1</id>
+    <title>A Tutorial on Complementarity-Based Contact Models for Robotics</title>
+    <updated>2026-11-19T18:54:07Z</updated>
+    <link href="https://arxiv.org/abs/2611.26600v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26600v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Simulating rigid-body dynamics with contact is fundamental to robotics, from motion synthesis and control to mechanism design. Many widely used simulators rely on cone complementarity formulations, whose physical assumptions and numerical solution require substantial background. While excellent surveys, monographs, and course notes exist, they mostly address computational mechanics or computer graphics or document a single simulator. To the best of our knowledge, a self-contained pedagogical treatment for robotics, bringing these formulations and their solvers together with complete derivations and a unified notation, does not yet exist. This tutorial addresses this gap by connecting rigid-body dynamics, conic optimization, and frictional contact. In particular, we explain how complementarity conditions encode non-penetration and frictional dissipation, determining separation, sticking, and sliding without prescribed contact modes. We distinguish equivalent transcriptions from convex relaxations, showing how the latter can introduce artifacts such as lift-off and creep. We examine the existence and uniqueness of motion and contact forces, including the solver's role in selecting among multiple solutions. We then compare first-order and Newton-based methods, explain regularization and proximal strategies, and discuss trade-offs between computational cost, robustness, and physical fidelity. Connections to widely used simulators, optimal control, and differentiable simulation help readers interpret simulation results, choose suitable formulations and solvers, and develop their own contact dynamics routines.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.GR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:54:07Z</published>
+    <arxiv:comment>32 pages, 9 figures, 3 tables, 14 algorithms</arxiv:comment>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Onur Beker</name>
+    </author>
+    <author>
+      <name>A. René Geist</name>
+    </author>
+    <author>
+      <name>Michael Posa</name>
+    </author>
+    <author>
+      <name>Marc Toussaint</name>
+    </author>
+    <author>
+      <name>Justin Carpentier</name>
+    </author>
+    <author>
+      <name>Georg Martius</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26597v1</id>
+    <title>Equivariant iterated Eisenstein integrals for congruence subgroups of level 2</title>
+    <updated>2026-11-19T18:52:33Z</updated>
+    <link href="https://arxiv.org/abs/2611.26597v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26597v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The modular properties of holomorphic Eisenstein series for $\mathrm{SL}_2(\mathbb{Z})$ and its congruence subgroups do not carry over to their primitives. Instead, the transformation of iterated Eisenstein integrals under congruence subgroups of level $N$ introduces inhomogeneous terms comprising (among others) cyclotomic multiple zeta values of level $N$. We combine iterated Eisenstein integrals for the congruence subgroups of level $N=2$ of arbitrary iteration depth with their complex conjugates and (single-valued) level-2 cyclotomic multiple zeta values such that they define non-holomorphic modular forms. Our construction of these so-called equivariant iterated Eisenstein integrals for $Γ(2)$ and $Γ_0(2)$ proceeds at the level of generating series that take values in an infinite-dimensional (pro-unipotent) Lie group and closely follow Brown's analogous construction in the $\mathrm{SL}_2(\mathbb{Z})$ case. The required insertions of cyclotomic multiple zeta values are controlled by zeta generators for level 2 that normalise the corresponding (pro-nilpotent) Lie algebra of the generating series and whose Lie-bracket relations we determine systematically. Upon restriction to Eisenstein series of modular weight~2, we recover single-valued multiple polylogarithms on the genus 0 modular curve $Γ(2)\backslash \mathbb{H}$.</summary>
+    <category term="hep-th" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.AG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.NT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:52:33Z</published>
+    <arxiv:comment>92+36 pages</arxiv:comment>
+    <arxiv:primary_category term="hep-th"/>
+    <author>
+      <name>Emiel Claasen</name>
+    </author>
+    <author>
+      <name>Mehregan Doroudiani</name>
+    </author>
+    <author>
+      <name>Claude Duhr</name>
+    </author>
+    <author>
+      <name>Axel Kleinschmidt</name>
+    </author>
+    <author>
+      <name>Franca Lippert</name>
+    </author>
+    <author>
+      <name>Oliver Schlotterer</name>
+    </author>
+    <author>
+      <name>Yoann Sohnle</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26581v1</id>
+    <title>Amplitude dependent wave envelope type estimates for moment curves and applications</title>
+    <updated>2026-11-19T18:43:18Z</updated>
+    <link href="https://arxiv.org/abs/2611.26581v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26581v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We prove amplitude dependent wave envelope type estimates for moment curves in arbitrary dimensions. The proof uses the sharp square function estimates of Maldague and Guth-Maldague. As an application, we establish sharp small cap decoupling inequalities for the moment curve in every dimension $n\geq4$. This proves the conjecture of Demeter-Guth-Wang on exponential sums in all dimensions.</summary>
+    <category term="math.CA" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:43:18Z</published>
+    <arxiv:comment>81 pages</arxiv:comment>
+    <arxiv:primary_category term="math.CA"/>
+    <author>
+      <name>Sangwon Jeong</name>
+    </author>
+    <author>
+      <name>Changkeun Oh</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26580v1</id>
+    <title>Existence and Uniqueness of Mild Solutions to Rough Stochastic Partial Differential Equations driven by Fractional Brownian Motion with Hurst Index $H &gt; 1/4$</title>
+    <updated>2026-11-19T18:43:16Z</updated>
+    <link href="https://arxiv.org/abs/2611.26580v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26580v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this paper we prove a theorem on the unique solvability of the Cauchy problem for a stochastic partial differential equation driven by the fractional Brownian motion with Hurst index $H&gt;\frac{1}{4}$.</summary>
+    <category term="math.PR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.AP" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.DS" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:43:16Z</published>
+    <arxiv:primary_category term="math.PR"/>
+    <author>
+      <name>Maksim Vaskouski</name>
+    </author>
+    <author>
+      <name>Maksim Firsau</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26579v1</id>
+    <title>Trimmed Branching Brownian Motion with Discontinuous Drift</title>
+    <updated>2026-11-19T18:43:09Z</updated>
+    <link href="https://arxiv.org/abs/2611.26579v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26579v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We consider a system of branching Brownian particles on the real line with bounded, possibly discontinuous drift $b$, and with a selection rule that removes one particle from the most crowded cells of a uniform partition of the line at each branching event so that the number of particles is preserved. As the number of particles tends to infinity, with the cell size tending to zero (sufficiently slowly), we prove convergence in probability of the empirical measure process to a deterministic limit characterized by the parabolic free obstacle problem $$\partial_tu=\tfrac12\partial_{xx}u-\partial_x(bu)+u-β.$$ Here the density $u$ has unit mass. Disintegrating the removal measure $β$ as $β_t(\mathrm{d} x)\mathrm{d} t$, the probability measure $β_t$ is supported on the spatial maximizers of $u(t,\cdot)$ for a.e. $t$. We establish existence and uniqueness of weak solutions in a suitable class of continuous densities, extending earlier results about this PDE to discontinuous drifts. We then consider an inverse problem: Given a target removal measure, find a drift for which the PDE admits a stationary solution with that removal measure. We show that this problem is solvable for every compactly supported Borel probability measure.</summary>
+    <category term="math.PR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:43:09Z</published>
+    <arxiv:primary_category term="math.PR"/>
+    <author>
+      <name>Rami Atar</name>
+    </author>
+    <author>
+      <name>Leonid Mytnik</name>
+    </author>
+    <author>
+      <name>Dominic T. Schickentanz</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26575v1</id>
+    <title>Stochastic counterpart of Nesterov's method for sampling and provable non-acceleration of samplers with heavy-ball structure</title>
+    <updated>2026-11-19T18:42:01Z</updated>
+    <link href="https://arxiv.org/abs/2611.26575v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26575v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Polyak's heavy-ball method and Nesterov's method are two momentum-based methods that have inspired many optimization techniques used in applied fields, including machine learning. Momentum also provides a connection with sampling, and interestingly, many kinetic Langevin samplers reduce to the heavy-ball recurrence when velocity is eliminated and noise is removed. This observation motivates a natural question: what is the corresponding sampler for Nesterov's method? We propose a sampler whose deterministic part is exactly Nesterov's recurrence, driven by temporally correlated Gaussian noise and requires one new gradient evaluation per step. Noise correlation provides $\mathcal{O}(h^2)$ bias for smooth observables. We establish geometric ergodicity for possibly non-convex potentials. For strongly convex potentials with Lipschitz continuous gradients, we obtain contraction rates and show that, up to an additive constant, the energy decays at a rate of order $κ^{-1/2}$, where $κ$ is the condition number. For Gaussian targets, we show that relaxation has square-root dependence on $κ$. We further prove that any sampler based on heavy-ball dynamics with additive noise cannot achieve accelerated convergence uniformly over the class of strongly convex functions. Finally, we compare the proposed sampler with OBABO, BAOAB, HMC, MALA, BPS, and NUTS in numerical experiments and demonstrate the better performance of proposed sampler.</summary>
+    <category term="math.NA" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:42:01Z</published>
+    <arxiv:primary_category term="math.NA"/>
+    <author>
+      <name>A. Sharma</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26572v1</id>
+    <title>Optimal Scheduling of Multi-Site AI Data Centers in Day-Ahead Markets</title>
+    <updated>2026-11-19T18:37:40Z</updated>
+    <link href="https://arxiv.org/abs/2611.26572v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26572v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>AI data centers are among the fastest-growing loads on the power grid, and their flexibility is increasingly sought by grid operators. Using it requires a model that links what an operator controls, namely GPU power caps, job timing and job placement, to the power drawn at each site and the electricity prices it faces. This paper develops such a framework for a multi-site AI data-center fleet. It represents GPU power-cap levels; deferrable jobs with deadlines and inference with response-time headroom; and site facility power, and casts the fleet schedule as a linear program solved on day-ahead prices. A year-long simulation on 2025 California Independent System Operator (CAISO) day-ahead prices in three data-center markets demonstrates the framework. Coordinated scheduling lowers the fleet's energy cost by 6.3% at equal work. Four operating modes, each adding one capability, split this saving into efficient GPU operation that needs no price signal, price response in time, and routing work between sites.</summary>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:37:40Z</published>
+    <arxiv:primary_category term="math.OC"/>
+    <author>
+      <name>Xinyang Zhou</name>
+    </author>
+    <author>
+      <name>Guido Cavraro</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26571v1</id>
+    <title>Global regularity in optimal transportation under the A3w condition</title>
+    <updated>2026-11-19T18:37:21Z</updated>
+    <link href="https://arxiv.org/abs/2611.26571v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26571v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We prove global $C^{2,α}$ and $W^{2,p}$ estimates for potentials in optimal transportation under A3w condition. The cost satisfies condition A3w, and the domains are mutually uniformly $c$-convex with $C^2$ boundaries. We prove global $W^{2,p}$ estimates for positive continuous densities and we obtain global $C^{2,α}$ estimates for positive $C^α$ densities.</summary>
+    <category term="math.AP" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:37:21Z</published>
+    <arxiv:primary_category term="math.AP"/>
+    <author>
+      <name>Yuanyuan Li</name>
+    </author>
+    <author>
+      <name>Xianduo Wang</name>
+    </author>
+    <author>
+      <name>Xu-jia Wang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26570v1</id>
+    <title>On Romik's rationality conjectures for critical percolation</title>
+    <updated>2026-11-19T18:36:31Z</updated>
+    <link href="https://arxiv.org/abs/2611.26570v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26570v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The completely packed $O(1)$ loop model can be viewed as an interface representation of critical bond percolation on the square lattice. We consider submatching events, which prescribe how these interfaces pair finitely many consecutive boundary points. Romik's rationality conjectures predict that the probabilities of these events on the semi-infinite cylinder are given by specific rational functions, which even become dyadic rationals in the half-plane limit.
+  We derive explicit Pfaffian formulae for the probability of $k$ nested arches on the semi-infinite cylinder of circumference $2N$, valid for $k&lt;N$. We deduce that these probabilities are rational functions of $N$ and, by taking the limit $N\to\infty$, that the corresponding half-plane probabilities remain rational. This establishes key aspects of Romik's conjectures.
+  Our proof uses identities of Fonseca and Zinn-Justin, derived through the qKZ formalism, which express these probabilities as ratios of enumeration numbers for totally symmetric self-complementary plane partitions (TSSCPPs). These plane partitions admit a dimer representation, allowing us to apply Kasteleyn theory. We evaluate the resulting hypergeometric sum using Zeilberger's and Gosper's algorithms and then take the half-plane limit $N\to\infty$. Along the way, we derive a somewhat simplified expression for the inverse Kasteleyn matrix entries (encoding correlations in TSSCPPs) of Ayyer and Chhita, which might be of independent interest.</summary>
+    <category term="math.PR" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math-ph" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.CO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:36:31Z</published>
+    <arxiv:comment>45 pages, 9 figures, results obtained without the use of AI</arxiv:comment>
+    <arxiv:primary_category term="math.PR"/>
+    <author>
+      <name>Melda Akyazi-Zavadski</name>
+    </author>
+    <author>
+      <name>Nathanaël Berestycki</name>
+    </author>
+    <author>
+      <name>Sunil Chhita</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26568v1</id>
+    <title>Optimal Control in Pairs Trading with Negative-Power Utility</title>
+    <updated>2026-11-19T18:35:56Z</updated>
+    <link href="https://arxiv.org/abs/2611.26568v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26568v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We solve a finite-horizon consumption and investment problem in a pairs trading model with an Ornstein-Uhlenbeck spread and utility $U(x)=-x^{-γ}$, $γ&gt;0$. Linearizing the Hamilton-Jacobi-Bellman equation gives explicit formulas for the value function and the optimal feedback control. A budget inequality and concavity verify optimality over all admissible strategies with nonnegative wealth on every finite horizon, without Novikov's condition. Under the optimal feedback, wealth and consumption admit deterministic upper bounds when the interest rate $r$ is at most the mean-reversion rate $κ$. If $r&gt;κ$, each exceeds any prescribed level with positive probability at every time after the start. If $r&gt;\sqrt{2+γ} κ$, there is an explicit critical horizon at and beyond which expected terminal wealth is infinite, while optimal expected utility is finite. When the critical time falls before maturity, expected wealth at that time is finite exactly when the initial spread is zero. We also show that the suprema of the negative powers of optimal wealth and consumption are integrable on every finite horizon exactly for orders $0&lt;m\le 1+γ$.</summary>
+    <category term="q-fin.MF" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="math.OC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:35:56Z</published>
+    <arxiv:comment>14 pages, 0 figures</arxiv:comment>
+    <arxiv:primary_category term="q-fin.MF"/>
+    <author>
+      <name>Aleksei Kozhevnikov</name>
+      <arxiv:affiliation>Lomonosov Moscow State University and Vega Institute Foundation</arxiv:affiliation>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.26566v1</id>
+    <title>Topological notions of Shadowing under Semi-Conjugacy</title>
+    <updated>2026-11-19T18:34:10Z</updated>
+    <link href="https://arxiv.org/abs/2611.26566v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.26566v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We study various notions of shadowing and investigate whether they are preserved under semi-conjugacy and inverse limits. In particular, we study Inverse shadowing, $H$-shadowing, Periodic shadowing, Ramsey shadowing, Density shadowing and Ergodic shadowing.</summary>
+    <category term="math.DS" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-19T18:34:10Z</published>
+    <arxiv:comment>12 pages</arxiv:comment>
+    <arxiv:primary_category term="math.DS"/>
+    <author>
+      <name>Adarsh Bura</name>
+    </author>
+    <author>
+      <name>Chris Good</name>
+    </author>
+  </entry>
+  </feed>

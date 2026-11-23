@@ -14,9 +14,14 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    optimisation, géométrie
 2. 🔄 **Mesurer** (S-AU) — miniF2F et PutnamBench dans Madalean, score, temps et coût par preuve vérifiée, par
    modèle et par stratégie ; publié sur le site, refait à chaque version
-3. 🔄 **Veille mathématique permanente** (S-AV) — écran « Actualités » : nouveautés arXiv par domaine, problèmes
-   ouverts et nouveaux problèmes (listes publiques), nouveautés Lean / Mathlib et IA pour les maths ; résumé, tri par
-   tes domaines, « envoyer vers un projet / une conjecture / Sources », mise à jour automatique, lisible hors ligne
+3. ✅ **Veille mathématique permanente** (S-AV, D54, docs/NEWS.md ; branche `s-av-actualites`, à fusionner) — écran
+   « Actualités » (menu du logo) : nouveautés arXiv par domaine, problèmes ouverts (Erdős, MathOverflow), Lean /
+   Mathlib, IA pour les maths, annonces et prix ; 13 sources publiques vérifiées + tes propres
+   flux RSS ; résumé en français en option, tri par tes domaines et « pour mes projets », envoi vers Sources /
+   conjecture / dossier / note, mise à jour toutes les 6 h (jamais en mode Local), lisible hors ligne.
+   Reste à essayer par toi : une vraie mise à jour sur ton serveur, un résumé avec un vrai modèle gratuit, le réglage
+   de tes domaines. Sources écartées : OEIS (son robots.txt ferme la recherche aux robots), Open Problem Garden, listes AIM,
+   EMS / IMU / SMF (pas de flux utilisable)
 4. 🔄 **Moteur de conjectures** (S-AW) — expérience Sage → recherche OEIS / LMFDB → conjecture en Lean → chasse au
    contre-exemple → tentative de preuve ; journal de ce qui a été essayé
 5. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,

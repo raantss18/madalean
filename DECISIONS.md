@@ -1015,3 +1015,46 @@
   web UI, panel + real journal; screenshots), `tests/test_host_app_install.py` (fake PATH, temporary HOME). Not
   verified: the menu, task-bar icon and tray in the user's real KDE session; Start/Stop on the real service (not
   touched on purpose); GNOME; another distribution's webkit2gtk.
+
+## D54 — « Actualités »: a permanent, local, polite mathematical watch (user request, 2026-11-22, S-AV)
+- Request: « une source d'information en permanence sur les actualités et les nouveaux problèmes de mathématiques »
+  (TODO « Stratégie 2.1 », item 3). Detail: docs/NEWS.md.
+- Decision — **a registry of public, keyless, machine-readable sources**, each with its endpoint, allowed hosts,
+  parser, licence, terms note, minimum interval and retention; 13 kept after a real request to each on 2026-11-22
+  (arXiv API for `math.*` + `cs.LO` and for AI-for-maths, the Erdős problems table, MathOverflow `open-problems`
+  through the Stack Exchange API, Polymath, Lean releases and Mathlib additions through the GitHub REST API, the Lean
+  community blog, Xena, Tao, Quanta, AMS news, Images des mathématiques) plus the user's own RSS / Atom feeds.
+  **robots.txt of every host was read; a path closed to all robots is not used**: so no OEIS (`/search` is
+  disallowed) and no github.com `*.atom` feed (the REST API instead). The arXiv API stays: its host's robots.txt
+  closes it to crawlers, but it is the documented programmatic access, used under its own terms, as the Sources
+  screen already does — stated in docs/NEWS.md §2 so the user can decide otherwise.
+  Left out because nothing acceptable exists: Open Problem Garden (its feed lists taxonomy pages), AIM problem lists
+  (no feed, broken certificate), lean-lang.org blog, EMS / IMU / SMF / Abel (no feed), Clay (empty feed), INSMI
+  (stale since 2022). Rejected: scraping HTML pages (fragile, against the spirit of the sites' terms); the arXiv RSS
+  feed as the main path (empty at weekends — the API is the same data every day); an API key for Stack Exchange
+  (one request per refresh is far below the keyless quota).
+- Decision — **its own package and plugin** (`madalean/news/`, `server/plugins/news.py`), settings in
+  `<config>/news/settings.json` rather than in `config.Settings` (no change to the shared settings object while other
+  sessions work on it; the feature stays removable), its own periodic task on the update-checker pattern (tick every
+  10 min, each source due on its own interval, backoff, conditional requests). Network through the research layer's
+  transport (`research/fetch.py`: public addresses only, no cookies) rather than `brain.net.Http`: the SSRF rules a
+  user-supplied feed URL needs already live there. Never in Local mode.
+- Decision — **a bounded SQLite store with FTS5** (as the notes), deduplicated on a source-independent key, 30 days /
+  5 000 items by default, saved items kept. Rejected: JSON files (no search, rewrites of the whole file); keeping
+  only the followed fields (changing the fields would show nothing until the next refresh).
+- Decision — **tagging by rules** (arXiv categories, MSC, MathOverflow tags, bilingual keywords) and **relevance to
+  the projects by shared rare words, locally**. Rejected for now: embeddings or a model per item (cost, and project
+  texts would leave the machine in the online modes).
+- Decision — **web text is data**: stored as inert plain text, rendered by the safe Markdown renderer, flagged and
+  never sent to a model when it addresses one, wrapped with `wrap_untrusted` otherwise; summaries are optional, off
+  by default, free online models only on the latency-first path (D35 / D38), cached, always shown above the original,
+  and only for sources whose licence allows it (arXiv metadata, MathOverflow, Mathlib commit messages, the user's own
+  feeds) — a © source keeps title, excerpt and link.
+  An item enters a project only through an explicit button; a dossier made from it is not started.
+- Decision — **quiet**: a number on the Home card and in the logo menu (unread items of the followed fields), no
+  toast, no system notification; the number can be turned off.
+- Verified: `tests/test_news.py` (parsers on the recordings, hygiene, tagging, dedupe / retention, refresh with
+  conditional requests / backoff / host allow-list, zero requests in Local mode, injection neutralised, API, demo),
+  `web/e2e/news.spec.ts` (screen, filters, actions, card, settings, English, 360 / 820 / 1440, light / dark, axe),
+  one real fetch of every source (`scripts/dev/news_check.py`). Not verified: a real provider writing summaries; a
+  live `304`; the user's own server (not touched).
