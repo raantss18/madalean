@@ -98,7 +98,7 @@ async def test_stdio_conformance(tmp_path):
             assert {"search_mathlib", "check_lean", "certify", "explain_lean", "library_search",
                     "dossier_status"} <= names
             assert "sage_compute" not in names                         # off unless the host switches it on
-            assert "literature_search" not in names                    # S-AX's hook absent here
+            assert "literature_search" in names                        # wired to madalean.literature.mcp_search
             for t in tools:
                 s = t["inputSchema"]
                 assert s["type"] == "object" and s["additionalProperties"] is False
@@ -366,3 +366,14 @@ async def test_check_lean_real_lean(tmp_path, ws):
 def test_protocol_parse_errors(raw):
     msg, err = P.parse(raw)
     assert msg is None and err["error"]["code"] in (P.PARSE_ERROR, P.INVALID_REQUEST)
+
+
+def test_literature_search_tool_is_wired_to_the_literature_package():
+    """S-AZ guessed the hook name; the integrator added `madalean.literature.mcp_search` (bibliographic only)."""
+    import inspect
+
+    from madalean import literature
+    from madalean.mcp import tools
+    assert tools._literature_hook() is literature.mcp_search
+    assert inspect.iscoroutinefunction(literature.mcp_search)
+    assert list(inspect.signature(literature.mcp_search).parameters)[:2] == ["ctx", "query"]
