@@ -5,8 +5,7 @@ name: Pages
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [main]          # the github-pages environment only accepts main (a tag run always failed)
   workflow_dispatch:
 
 permissions:
