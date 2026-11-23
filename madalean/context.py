@@ -33,7 +33,8 @@ ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agen
          "gpu_share_busy_fallback": ("cpu", "online")}
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
                       "experiments_remote", "updates_auto", "browser_session_idle_minutes", "calcul_warm",
-                      "gpu_share_ollama", "gpu_share_busy_wait_s", "gpu_share_busy_fallback"}
+                      "gpu_share_ollama", "gpu_share_busy_wait_s", "gpu_share_busy_fallback",
+                      "mcp_server", "mcp_server_http", "mcp_server_sage"}
 LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
           "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535),
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),

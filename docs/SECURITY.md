@@ -260,6 +260,37 @@ A boundary is crossed in four places, and each place must hold:
 - **Privacy.** The requests are the same for every user (no query depends on the projects or the followed fields);
   matching against the projects is local.
 
+### MCP (session S-AZ, DECISIONS D58, docs/MCP.md)
+Madalean is an MCP server for clients of the host and an MCP client of servers the user adds. Everything is off
+by default and configured from the host only (settings `mcp_server`, `mcp_server_http`, `mcp_server_sage` are
+host-only; every `/api/mcp/*` route answers 403 on the remote and LAN listeners).
+- **Threat model.** (a) A malicious or compromised external MCP server: hostile tool output (prompt injection
+  aimed at the prover or the conductor), poisoned tool descriptions or schemas, oversized / never-ending answers,
+  an attempt to read secrets from its environment. (b) A client that abuses Madalean's tools: arbitrary code through
+  `sage_compute` or `check_lean`, writes, resource exhaustion. (c) A web page that tries to reach the HTTP
+  transport (CSRF / DNS rebinding). (d) A paired device trying to reach any of it.
+- **Server side.** Two transports: stdio (`madalean mcp serve`, a process the user's client starts, relaying to the
+  local listener) and HTTP on the local listener only (127.0.0.1, behind the loopback-`Host`, exact-`Origin` and
+  Fetch Metadata checks; JSON bodies only). The tools are read-mostly and write nothing (tested). `check_lean`
+  uses the fresh strict verdict, pins the statement, and refuses D28 constructs before compiling; Lean runs in its
+  sandbox as always. `sage_compute` never takes code: a request in words runs only when Madalean's verified
+  catalogue (D39) writes the whole code, in Calcul's sandboxed kernel, and only with its own switch. Inputs are
+  validated against strict schemas (unknown keys refused, lengths and ranges bounded, no coercion); rate limits
+  (120/min overall, 10–60/min per tool), two Lean checks at a time, 2 MB messages. Same residual trust as R-1: any
+  local process can use the stdio bridge or the HTTP transport once the host switched them on.
+- **Client side.** Tool output is untrusted data: cleaned, capped (16 000 characters to a model, 1 MB read),
+  chat-template markers removed, wrapped with `wrap_untrusted` under `UNTRUSTED_RULE`, flagged when it addresses a
+  model. Tool descriptions are data too: a tool whose description reads like instructions cannot be allowed;
+  schemas are reduced to a strict subset. A new server is disabled with an empty allow-list; a call to a tool not
+  allowed, or to a disabled server, is refused before anything is sent. External tools never judge: they cannot
+  replace `lean_check` / `submit`, and the server re-checks every proof. No keys: a stdio server's environment is
+  an allow-list (PATH, HOME, locale, a private TMPDIR), its working directory private (0700); HTTP servers get no
+  cookie, no `Authorization`, no environment proxy; plain http only to loopback; nothing remote in Local mode.
+  Timeouts (30 s default, 120 s max), two calls at a time per server, 100 calls/min, idle servers stopped.
+- **Accepted (R-12).** A stdio MCP server is a program the user chose to run with the user's rights; it is not
+  sandboxed (a Lean language-server MCP must read the user's projects). Only the host can add one, and the screen
+  says so. Every call in both directions is in `logs/mcp-activity.jsonl` (0600).
+
 ### Secrets
 - **Keys.**
   - Stored in the keyring, or in `keys.json` 0600. They are never returned (`set: true/false`) and never logged; the
@@ -363,6 +394,7 @@ style-src 'unsafe-inline'; img-src data:; sandbox`, displayed via `<img>`. Spend
 | R-8 | Signed manifest has no expiry (freeze attack delays updates) | integrity unaffected | add `expires` to the channel |
 | R-9 | `lean_search_online` and literature search send model-chosen query text to public services, so a prompt-injected model could leak snippets in queries | `local` mode disables all of it; the permanent indicator shows online use | — |
 | R-10 | The D28 deny list can still refuse a legitimate file (10 of 87 Mathlib Archive files) and cannot be complete | the sandbox is the boundary; the refusal message names the construct | — |
+| R-12 | A stdio MCP server added by the user runs unsandboxed with the user's rights (S-AZ, D58) | the user chose the program, from the host only; it gets no keys, a private directory, an allow-listed environment; its output is untrusted data | an optional bwrap profile per server |
 
 ## 9. Release readiness
 

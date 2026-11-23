@@ -73,6 +73,13 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    - 🔄 **Sous-lemme partagé** (session S-AY) : prouvé et calculé une seule fois, rangé sous le premier parent,
      « utilise aussi … » chez les autres ; deux lemmes proches aux hypothèses différentes restent distincts.
    Budget : quota hebdomadaire limité — trois sessions au plus, pas de nouvelle session avant leur fin.
+   - ⚠️ **Partie MCP** (S-AZ, D58, docs/MCP.md) — Réglages › Outils (MCP) : « Madalean comme serveur MCP »
+     (Claude Code / Claude Desktop sur cet ordinateur : chercher dans Mathlib, vérifier avec Lean au verdict strict,
+     certifier, expliquer, bibliothèque, état des dossiers, calcul Sage du catalogue seulement ; stdio et HTTP local,
+     éteint par défaut, journal de chaque appel) et « Serveurs MCP externes » (ajout, test, activation, outils cochés
+     un à un, réponses traitées comme des données non fiables) appelés par l'agent de preuve. À essayer par toi :
+     brancher Claude Code (commande affichée), ajouter `uvx lean-lsp-mcp`. `literature_search` apparaîtra quand le
+     paquet de S-AX fournira `mcp_search`
 6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la

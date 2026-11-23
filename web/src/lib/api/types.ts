@@ -160,6 +160,7 @@ export interface Settings {
   lan_listener: boolean; lan_port: number; remote_jupyter: boolean; agent_exec: boolean;
   local_idle_unload_minutes: number; gpu_share_ollama: boolean; gpu_share_busy_wait_s: number;
   gpu_share_busy_fallback: 'cpu' | 'online';
+  mcp_server?: boolean; mcp_server_http?: boolean; mcp_server_sage?: boolean;
   server: { port: number; ctx_size: number; gpu_layers: number; batch_size: number; ubatch_size: number;
     kv_type: 'f16' | 'q8_0' | 'q4_0'; flash_attn: boolean; threads: number };
   sampling: { temperature: number; top_p: number; max_tokens: number };

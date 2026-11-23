@@ -20,6 +20,7 @@
     { id: 'langue', help: 'first-run', label: 'settings.sec.language', icon: 'globe', load: () => import('./Language.svelte') },
     { id: 'apparence', help: 'shortcuts', label: 'settings.sec.appearance', icon: 'sun', load: () => import('./Appearance.svelte') },
     { id: 'carnet', help: 'security', label: 'settings.sec.notebook', icon: 'notebook', load: () => import('./NotebookSettings.svelte') },
+    { id: 'outils-mcp', help: 'mcp', label: 'settings.sec.mcp', icon: 'plug', load: () => import('./McpSettings.svelte') },
     { id: 'systeme', help: 'troubleshooting', label: 'settings.sec.system', icon: 'terminal', load: () => import('./System.svelte') },
     { id: 'a-propos', label: 'settings.sec.about', icon: 'info', load: () => import('./About.svelte') },
   ];
