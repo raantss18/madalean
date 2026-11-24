@@ -50,6 +50,13 @@ test('chromatic case: meaning gate → correction → statement gate → approva
   const base = { events: [ev('user', 0, 'Le nombre chromatique du plan est 6', { model: '' }), ev('understood', 50, 'Compris ainsi\nχ = 6', { phase: 'understand' })], now: null };
   await mock(page, id, () => ({ ...base, gate, ...(gate['kind'] === 'statement' ? { statements: [version(CHI), version(CHI)], cur_statement: 0, current: current(CHI) } : {}) }));
   for (const k of kids) await mock(page, k, () => ({ gate: kidGate[k], now: null }));
+  // the summaries say it too (the real server's children have no gate: only their full dossiers are mocked above)
+  await page.route((u) => u.pathname === '/api/state', async (r) => {
+    const res = await r.fetch();
+    const j = await res.json() as { dossiers: { id: string; gate?: unknown }[] };
+    for (const c of j.dossiers) if (kidGate[c.id]) c.gate = kidGate[c.id];
+    await r.fulfill({ json: j });
+  });
   const bodies: { url: string; body: Record<string, unknown> }[] = [];
   await page.route(/\/api\/dossiers\/[^/]+\/(gate|report)$|\/api\/dossiers\/gates\/approve$/, (r) => {
     bodies.push({ url: new URL(r.request().url()).pathname, body: r.request().postDataJSON() as Record<string, unknown> });

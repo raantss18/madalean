@@ -182,6 +182,8 @@ export function threadItems(d: Dossier, o: { jobs?: Job[]; children?: DossierSum
     if (user) { run = own || `u${index}`; phase = ''; } else if (own && own !== run) { phase = ''; run = own; }
     const p = user ? '' : phaseOfEvent(ev) || phase;
     phase = p;
+    // the gate's own card says it: the line that announced it would say it twice
+    if (ev.kind === 'info' && d.gate && ev.params?.['gate'] === d.gate.id) return;
     out.push({ kind: 'event', key: `e${index}`, t: ev.t, run, phase: p, attempt: ev.attempt ?? 0, ev, index });
   });
   const extra: Item[] = [];

@@ -49,4 +49,9 @@ export default async function setup(): Promise<void> {
   // finished; e2e/setup-wizard.spec.ts reopens it on purpose.
   await fetch(`http://127.0.0.1:${port}/api/setup/wizard`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ completed: true }) });
+  // S-BG (D65): a person validates the meaning, then the statement, before any proof. The older specs are about what
+  // comes after, so the server starts with it off; e2e/gates-real.spec.ts turns it on against the real server.
+  const g = await fetch(`http://127.0.0.1:${port}/api/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ validate_before_proof: false }) });
+  if (!g.ok) throw new Error(`settings: ${g.status}`);
 }
