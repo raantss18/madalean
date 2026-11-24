@@ -71,7 +71,7 @@ const EN: Record<string, string> = {
 };
 
 export function ft(key: string, params: Record<string, string | number> = {}): string {
-  const s = (i18n.lang === 'en' ? EN : FR)[key] ?? FR[key] ?? key;
+  const s = (i18n.base === 'en' ? EN : FR)[key] ?? FR[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_m, k: string) => String(params[k] ?? ''));
 }
 export const FIG_STRINGS = { FR, EN };

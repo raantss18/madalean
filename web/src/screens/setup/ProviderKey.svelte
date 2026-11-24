@@ -9,7 +9,7 @@
   import KeyForm from '../settings/KeyForm.svelte';
 
   let { c, onchange }: { c: ProviderCard; onchange: () => void } = $props();
-  const lang = $derived(i18n.lang === 'en' ? 'en' : 'fr');
+  const lang = $derived(i18n.base === 'en' ? 'en' : 'fr');
   let test = $state<{ level: 'busy' | 'ok' | 'warn' | 'error'; text: string } | null>(null);
 
   async function retest() {

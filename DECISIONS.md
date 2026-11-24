@@ -1383,3 +1383,26 @@
 - Verified: `tests/test_paperplan.py` (structure, exact graph, verbatim, closure, exports, arXiv path; fake model +
   real Lean: budget 2 → resume, `exact?` → in Mathlib, top-level dossier + sub-dossier, conditional, a real Lean
   proof of the lemma rolls up, idempotent re-run), `web/e2e/paper-plan.spec.ts` (demo plan, axe).
+
+## D63 — Malagasy interface and verified exercises (TODO « Stratégie 2.1 » item 8, 2026-11-24, S-BE)
+- **Malagasy is a partial catalogue** (`mg.ts`, its own chunk): mg → French → key, never English. What exists in two
+  languages only (manual, glossary, examples, prompts, exports, dates) uses the *content* language: `i18n.base` on the
+  client (the type `BaseLang` makes `obj[i18n.lang]` a compile error on fr/en objects), `i18n.language()` on the server (fr
+  for mg; `ui_language()` is the setting). Rejected: a complete machine translation (quality over coverage);
+  invented mathematical terms — a doubtful one stays French or is described (« azo zaraina amin'ny 2 »), and is listed
+  in docs/I18N_MG.md for the user.
+- **Exercises**: a JSON bank (`madalean-exercises/1`); 23 seed exercises, every statement and solution compiled by the
+  tests. The learner's answer is a tactic block and the server writes the statement: `assemble_proof` is not used
+  because it keeps the model's helper declarations above the theorem (a local notation could change its meaning); any
+  command in an answer is refused. Words: formalised to follow the argument (two tries, `NO_PROOF` allowed), Lean
+  decides, then a review of the gaps; « verified » is said of the formal proof only. Cut: a dossier and the whole
+  pipeline per answer (slow, and the provers would find *another* proof).
+- Authored hints (attempt first, in order) rather than the generated ladder: an exercise has no dossier; the solution
+  last, after a fresh Lean check remembered per (statement, proof, workspace, toolchain). Line by line: D45 unchanged.
+- **Teacher**: « En faire un exercice » keeps a theorem Lean reads alone; imports are untrusted (whole-file refusal);
+  worksheets go through the notes' export (`export_markdown`, sanitised and confined TeX), as GET downloads.
+- UI: `/exercices`, in the logo menu in « Apprendre » mode, lazy strings FR / MG / EN, D43 rules, axe clean.
+- Cut: reflection between hints, explanations of Lean lines in Malagasy (French), a manual in Malagasy (the generator
+  is fr / en), accounts or classes, a seed verified on `lean-current`.
+- Verified: `tests/test_exercises.py` (real Lean), vitest (fallback, placeholders, core keys), `web/e2e/exercises.spec.ts`
+  (FR, MG on a phone, axe).

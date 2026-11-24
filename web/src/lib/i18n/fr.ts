@@ -3195,6 +3195,11 @@ const fr = {
   'lessons.kind.fix': 'correction',
   'lessons.kind.approach': 'piste sans issue',
   'lessons.kind.strategy': 'stratégie',
+
+  // S-BE (D63): exercises, Malagasy
+  'nav.exercises': 'Exercices',
+  'dossier.toExercise': 'En faire un exercice',
+  'language.mgNote': 'La traduction malgache est assistée et à relire ; ce qui n’est pas encore traduit s’affiche en français.',
 } as const;
 
 export default fr;

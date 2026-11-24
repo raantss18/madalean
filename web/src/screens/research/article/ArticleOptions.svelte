@@ -112,7 +112,7 @@
             <ul class="tpls">
               {#each templates as tp (tp.id)}
                 <li class:cur={settings.document.template === tp.id}>
-                  <div class="tpl-name">{i18n.lang === 'fr' ? tp.fr : tp.en}</div>
+                  <div class="tpl-name">{i18n.base === 'fr' ? tp.fr : tp.en}</div>
                   <code class="xs">\documentclass{'{'}{tp.class}{'}'}</code>
                   {#if settings.document.template === tp.id}<span class="chip proved">{t('ae.opt.current')}</span>
                   {:else if confirmTpl === tp.id}

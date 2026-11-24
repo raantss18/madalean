@@ -606,7 +606,7 @@ Main:         full width — no rail, no drawer, no bottom bar
 
 - **Logo menu** (`components/AppMenu.svelte`, ARIA menu button: `aria-haspopup`, `aria-expanded`, arrows / Home /
   End, Escape and outside click close it, focus back on the logo): Accueil · the project's sections (only when the
-  project bar is not on screen) · Activité (count) · Bibliothèque · Glossaire · Carnet · Aide · Réglages · Apprendre /
+  project bar is not on screen) · Activité (count) · Bibliothèque · Glossaire · Exercices (« Apprendre » only, D63) · Carnet · Aide · Réglages · Apprendre /
   Recherche (`menuitemradio`) · Barre du projet (`menuitemcheckbox`, Ctrl+Maj+1). A popover under the logo; a sheet
   from the left edge on phones. A second click on the logo while the menu is open goes home.
 - **Context switcher** (`components/ContextSwitcher.svelte`): the project name and, in a dossier, the dossier title,

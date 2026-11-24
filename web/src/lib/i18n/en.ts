@@ -3195,6 +3195,11 @@ const en: Record<keyof typeof fr, string> = {
   'lessons.kind.fix': 'fix',
   'lessons.kind.approach': 'dead end',
   'lessons.kind.strategy': 'strategy',
+
+  // S-BE (D63): exercises, Malagasy
+  'nav.exercises': 'Exercises',
+  'dossier.toExercise': 'Make it an exercise',
+  'language.mgNote': 'The Malagasy translation is assisted and to be reviewed; what is not translated yet is shown in French.',
 };
 
 export default en;

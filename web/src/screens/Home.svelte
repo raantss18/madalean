@@ -88,8 +88,8 @@
   function useExample(i: number) {
     const ex = examples[i]!;
     if (asLean) lean = ex.statement;
-    else text = ex.problem[i18n.lang];
-    title = ex.title[i18n.lang].replace(/\$[^$]*\$/g, '').trim();
+    else text = ex.problem[i18n.base];
+    title = ex.title[i18n.base].replace(/\$[^$]*\$/g, '').trim();
     document.getElementById('statement-input')?.focus();
   }
 </script>
@@ -191,9 +191,9 @@
       {#each examples as ex, i (ex.key)}
         <li>
           <button class="ex" onclick={() => useExample(i)}>
-            <span class="lvl xs">{ex.level[i18n.lang]}</span>
-            <span class="ex-title"><Md inline src={ex.title[i18n.lang]} /></span>
-            <span class="ex-body small"><Md inline src={ex.problem[i18n.lang]} /></span>
+            <span class="lvl xs">{ex.level[i18n.base]}</span>
+            <span class="ex-title"><Md inline src={ex.title[i18n.base]} /></span>
+            <span class="ex-body small"><Md inline src={ex.problem[i18n.base]} /></span>
           </button>
         </li>
       {/each}

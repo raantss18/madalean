@@ -11,7 +11,7 @@
   let hub = $state<ProvidersHub | null>(null);
   let err = $state('');
   let busy = $state<string | null>(null);
-  const lang = $derived(i18n.lang === 'en' ? 'en' : 'fr');
+  const lang = $derived(i18n.base === 'en' ? 'en' : 'fr');
 
   async function load() {
     try { hub = await api.providers(); err = ''; } catch (e) { err = errorText(e); }

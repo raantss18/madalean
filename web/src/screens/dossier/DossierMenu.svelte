@@ -6,6 +6,7 @@
   import ExportMenu from './ExportMenu.svelte';
   import SplitDialog from './SplitDialog.svelte';
   import { patch, removeDossier } from './actions';
+  import { navigate } from '../../lib/router.svelte';
   import { toast } from '../../lib/ui/toasts.svelte';
 
   let { dossier, busy }: { dossier: Dossier; busy: boolean } = $props();
@@ -13,6 +14,7 @@
 
   const items = $derived<MenuItem[]>([
     { label: t('dossier.split'), icon: 'split', run: () => (splitting = true), disabled: !dossier.statements.length || busy },
+    { label: t('dossier.toExercise'), icon: 'graduate', run: () => navigate(`/exercices?dossier=${dossier.id}`), disabled: !dossier.statements.length },
     { label: dossier.archived ? t('dossier.unarchive') : t('dossier.archive'), icon: 'folder', run: async () => {
       const was = dossier.archived;
       if (await patch(dossier.id, { archived: !was })) toast('ok', was ? t('dossier.unarchived') : t('dossier.archived'), { action: { label: t('common.undo'), run: () => void patch(dossier.id, { archived: was }) } });

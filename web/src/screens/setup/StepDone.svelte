@@ -10,7 +10,7 @@
 
   let { status, reload }: { status: SetupStatus | null; reload: (refresh?: boolean) => Promise<void> } = $props();
   onMount(() => { void reload(); });               // what changed in the previous steps
-  const rows = $derived(status ? checklist(status.next_steps, i18n.lang === 'en' ? 'en' : 'fr') : []);
+  const rows = $derived(status ? checklist(status.next_steps, i18n.base === 'en' ? 'en' : 'fr') : []);
   const sum = $derived(checklistSummary(rows));
   const s = $derived(app.m.settings);
   const present = $derived((status?.models.files ?? []).filter((f) => f.present).length);

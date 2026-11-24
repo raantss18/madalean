@@ -34,7 +34,7 @@
   let refreshing = $state(false);
   let live = $state('');
 
-  const lang = $derived(i18n.lang);
+  const lang = $derived(i18n.base);
   const byId = $derived(new Map((meta?.sources ?? []).map((s) => [s.id, s] as const)));
   const branchName = (id: string) => { const b = meta?.branches.find((x) => x.id === id); return b ? (lang === 'en' ? b.en : b.fr) : id; };
   const groups = $derived((meta?.groups ?? []).map((g) => ({ ...g, sources: (meta?.sources ?? []).filter((s) => s.group === g.id && s.enabled) })).filter((g) => g.sources.length));

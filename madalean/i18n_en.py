@@ -1519,3 +1519,8 @@ EN.update({
     "non formalisé": "not formalized",
     "dans Mathlib": "in Mathlib",
 })
+
+# S-BE (D63): exercises
+EN.update({
+    "Exercice refusé : {where}.": "Exercise refused: {where}.",
+})

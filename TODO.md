@@ -106,8 +106,9 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      théorèmes principaux, lancer les prouveurs sur tout le plan d'un clic, essai sur un vrai article de ton domaine
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
    demande
-8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
-   olympiades), parcours « Apprendre »
+8. ✅ **Enseignement francophone et malgache** (S-BE, D63) — interface en malgache (partielle, sinon en français),
+   23 exercices vérifiés par Lean (lycée, licence, master, olympiade), parcours « Apprendre », outils de l’enseignant.
+   Reste : relire le malgache (docs/I18N_MG.md), manuel en malgache, traduire les autres écrans, plus d’exercices
 9. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
    preuves vérifiées
 10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
@@ -123,7 +124,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
 4. ⬜ Contribuer à Mathlib (point 7)
 5. ⬜ Mémoire qui grossit (point 9 : export des leçons, bibliothèque et recettes ; modèle local affiné plus tard)
-6. ⬜ Enseignement francophone et malgache (point 8)
+6. ✅ Enseignement francophone et malgache (S-BE, point 8, D63 ; malgache à relire)
 7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)
 Deux sessions au plus en même temps (quota).
 

@@ -32,12 +32,12 @@
     const needle = fold(q.trim());
     return all
       .filter(([k, e]) => (!cat || e.cat === cat) && (!level || e.level === level) &&
-        (!needle || fold(`${k} ${e[i18n.lang]} ${e.lean ?? ''} ${(e.decls ?? []).join(' ')}`).includes(needle)))
-      .sort(([a], [b]) => sortKey(a).localeCompare(sortKey(b), i18n.lang));
+        (!needle || fold(`${k} ${e[i18n.base]} ${e.lean ?? ''} ${(e.decls ?? []).join(' ')}`).includes(needle)))
+      .sort(([a], [b]) => sortKey(a).localeCompare(sortKey(b), i18n.base));
   });
   const groups = $derived.by(() => {
     const g = new Map<string, [string, GlossEntry][]>();
-    if (order === 'cat') return groupByCategory(shown, i18n.lang) as [string, [string, GlossEntry][]][];
+    if (order === 'cat') return groupByCategory(shown, i18n.base) as [string, [string, GlossEntry][]][];
     for (const x of shown) { const l = initial(x[0]); if (!g.has(l)) g.set(l, []); g.get(l)!.push(x); }
     return [...g.entries()].sort(([a], [b]) => (a === '#' ? -1 : b === '#' ? 1 : a.localeCompare(b)));
   });
@@ -130,13 +130,13 @@
               <li id={slug(k)} class="entry" class:open={isOpen}>
                 <button class="term" aria-expanded={isOpen} aria-controls="{slug(k)}-body" onclick={() => (open = isOpen ? null : k)}>
                   <code class="key">{k}</code>
-                  <span class="meaning"><Md inline src={e[i18n.lang]} /></span>
+                  <span class="meaning"><Md inline src={e[i18n.base]} /></span>
                   <span class="tags"><span class="chip">{tk(`gloss.cat.${e.cat}`, e.cat)}</span><span class="lvl lvl-{e.level}" title={tk(`gloss.level.${e.level}`, '')}><span class="sr-only">{tk(`gloss.level.${e.level}`, '')}</span>{#each [1, 2, 3] as d}<span class="dot" class:on={d <= e.level} aria-hidden="true"></span>{/each}</span></span>
                 </button>
                 {#if isOpen}
                   <div class="body" id="{slug(k)}-body">
                     <dl>
-                      <div><dt>{t('glossary.meaning')}</dt><dd><Md inline src={e[i18n.lang]} /></dd></div>
+                      <div><dt>{t('glossary.meaning')}</dt><dd><Md inline src={e[i18n.base]} /></dd></div>
                       {#if e.lean}<div><dt>{t('glossary.leanForm')}</dt><dd><code class="form">{e.lean}</code></dd></div>{/if}
                     </dl>
                     {#if e.example}

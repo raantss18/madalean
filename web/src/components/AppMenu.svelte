@@ -21,7 +21,7 @@
 
   const href = (pattern: string) => pattern.replace(/\/:[^/]+\??/g, '') || '/';
   const sections = $derived(routes.filter((r) => r.nav?.group === 'project').sort((a, b) => a.nav!.order - b.nav!.order));
-  const tools = $derived(routes.filter((r) => r.nav && !r.nav.group && !['home', 'project', 'help', 'settings'].includes(r.name)).sort((a, b) => a.nav!.order - b.nav!.order));
+  const tools = $derived(routes.filter((r) => r.nav && !r.nav.group && !['home', 'project', 'help', 'settings'].includes(r.name) && (r.name !== 'exercises' || prefs.mode === 'learn')).sort((a, b) => a.nav!.order - b.nav!.order));
   const project = $derived(app.m.projects[currentProjectId()]);
   const active = $derived(app.activeJobs.length);
 

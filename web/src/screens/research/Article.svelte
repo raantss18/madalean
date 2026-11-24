@@ -128,7 +128,7 @@
     const states: Record<string, { status: string; title: string }> = { ...(p?.states ?? {}) };
     for (const d of p?.dossiers ?? []) states[d.id] = { status: d.status, title: d.title };
     return {
-      lang: i18n.lang, path: current, thm: thmTitles, numbers, labels, keys, states,
+      lang: i18n.base, path: current, thm: thmTitles, numbers, labels, keys, states,
       macros: katexMacros(p?.settings.macros ?? {}, texts['main.tex'] ?? ''),
       figureUrl: (path: string) => articleApi.figureUrl(pid, path),
       title: p?.settings.front.title ?? '', authors: (p?.settings.front.authors ?? []).map((a) => a.name).join(', '),
@@ -730,7 +730,7 @@
             <ul class="mine">
               {#each texSugs.filter((s) => s.state === 'pending') as s (s.id)}
                 <li><span class="chip">{tk(`ae.sug.kind.${s.kind}`, s.kind)}</span> <del>{s.find.slice(0, 160)}</del> <ins>{s.replace.slice(0, 240)}</ins>
-                  {#if s.kind === 'compile_fix'}<span class="xs muted fixed-by">{s.rationale ? s.rationale + ' — ' : ''}{t('ae.sug.fixedBy', { name: s.meta?.conductor ?? s.model, cost: costText(s.meta?.usd, i18n.lang, t('ae.sug.free')) })}</span>{/if}
+                  {#if s.kind === 'compile_fix'}<span class="xs muted fixed-by">{s.rationale ? s.rationale + ' — ' : ''}{t('ae.sug.fixedBy', { name: s.meta?.conductor ?? s.model, cost: costText(s.meta?.usd, i18n.base, t('ae.sug.free')) })}</span>{/if}
                   <span class="row"><button class="btn small" onclick={() => { if (s.anchor) openFile(s.anchor.path); void decide(s.id, true); }}>{t('ae.sug.accept')}</button>
                   <button class="btn small quiet" onclick={() => decide(s.id, false)}>{t('ae.sug.reject')}</button>
                   {#if s.anchor}<button class="linkish xs" onclick={() => openFile(s.anchor!.path)}>{s.anchor.path}</button>{/if}</span></li>

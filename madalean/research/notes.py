@@ -808,6 +808,12 @@ def _tex_prose(text: str, f) -> str:
 
 async def export_notes(notes: list[Note], title: str, fmt: str, lang: str, tmp_root: Path):
     """Markdown, HTML (self-contained) or PDF (XeLaTeX through the export code; HTML fallback)."""
+    md = note_markdown(notes[0]) if len(notes) == 1 else notebook_markdown(notes, title)
+    return await export_markdown(md, title, fmt, lang, tmp_root)
+
+
+async def export_markdown(md: str, title: str, fmt: str, lang: str, tmp_root: Path):
+    """The same for any Markdown (also the worksheets of `teaching`, D63); `tex`: the source of the PDF."""
     import asyncio
     import datetime as _dt
     import html as _html
@@ -815,7 +821,6 @@ async def export_notes(notes: list[Note], title: str, fmt: str, lang: str, tmp_r
     from .. import export as ex
     from .. import texio
     from ..dossiers import slugify
-    md = note_markdown(notes[0]) if len(notes) == 1 else notebook_markdown(notes, title)
     name = slugify(title) or "notes"
     if fmt == "md":
         return ex.Export(f"{name}.md", ex.CONTENT_TYPES["md"], md.encode("utf-8"))
@@ -829,7 +834,7 @@ async def export_notes(notes: list[Note], title: str, fmt: str, lang: str, tmp_r
                 f"<style>{ex._HTML_CSS}</style>{katex}</head><body>{body}</body></html>")
     if fmt == "html":
         return ex.Export(f"{name}.html", ex.CONTENT_TYPES["html"], (await asyncio.to_thread(html_page)).encode())
-    if fmt != "pdf":
+    if fmt not in ("pdf", "tex"):
         raise ValueError(fmt)
     f = await asyncio.to_thread(texio.fonts)
     c = ex.Content(title=title, kind="theorem", theorem="", nl_statement="", lean_statement="", notes="", informal="",
@@ -840,6 +845,8 @@ async def export_notes(notes: list[Note], title: str, fmt: str, lang: str, tmp_r
         body = markdown_to_tex_body(md.split("\n", 1)[1] if md.startswith("# ") else md, f)
         return "\n".join([ex._preamble(c, f), r"\begin{document}", r"\begin{center}{\LARGE\bfseries " +
                           ex._esc(title, f) + r"\par}\end{center}", body, r"\end{document}", ""])
+    if fmt == "tex":
+        return ex.Export(f"{name}.tex", "application/x-tex", (await asyncio.to_thread(tex)).encode("utf-8"))
     log = ""
     engines = ex._engines()
     if engines:

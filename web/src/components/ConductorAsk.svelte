@@ -14,7 +14,7 @@
   let open = $state(false);
   let sending = $state(false);
   const cur = $derived(asks[0] ?? null);
-  const usd = (n: number) => usdText(n, i18n.lang);
+  const usd = (n: number) => usdText(n, i18n.base);
   let shown = '';                                  // the question on screen (closing the dialog answers it)
   $effect(() => { open = !!cur; shown = cur?.id ?? ''; });
   $effect(() => app.on('conductor.ask', (ev) => {
