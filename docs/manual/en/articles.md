@@ -63,6 +63,30 @@ Honest measurement (three short arXiv papers, checked by hand): statements found
 PDF; proofs 10 of 11 from the TeX, 8 of 11 from the PDF; dependencies written in prose: 2 of 7 without a model pass.
 These figures come from a small sample.
 
+## From the blueprint to a formal plan
+
+The “Formal plan” tab of the “Blueprint” screen turns the paper into a plan of Lean work, progressively:
+
+1. Tick the theorems you want (the main result, for instance). The button shows how many statements their
+   **dependency closure** holds: everything they use according to the paper's explicit references (`\ref`,
+   “Proof of Theorem 3”, “by Lemma 2.3” in a PDF), and the links proposed by a model only once you confirmed them.
+   An unknown dependency stays unknown: nothing is invented.
+2. “Formalise the selection and its dependencies”: dependencies first, each statement **quoted verbatim** from the
+   paper (with the definitions it uses) goes to the formalizer; Lean checks the statement; then Madalean looks
+   whether Mathlib (or your library) already proves it. A run stops after the chosen number of statements
+   (“Statements per run”) or when you press “Stop”; start it again to **resume** where it stopped.
+3. When the whole closure is processed, Madalean opens a dossier for the main theorem and, in its problem graph, one
+   node per result it uses: those in Mathlib are verified, the others are **conditional** (the paper claims them,
+   Lean has not proved them) and each one to prove becomes a **sub-dossier**. Nothing is started: you launch the
+   provers from the dossiers.
+
+Each result shows one state: *proved (Lean)*, *in Mathlib*, *to prove*, *statement formalised*, *not formalised*;
+“Conditional: rests on …” lists what is not proved yet. The counter gives the proved or in-Mathlib results of the
+plan. Clicking a result shows its text from the paper (verbatim, with its place: number, section, line or page)
+beside the Lean statement — a model's translation accepted by Lean, to be re-read. “Export (LaTeX)” writes a
+blueprint in the style of `leanblueprint` (`\lean`, `\leanok`, `\mathlibok`, `\uses`), “Export (HTML)” a summary
+page. Definitions are not formalised yet.
+
 ## Publishing
 
 A project can be published as a static site that anyone can verify: see [Publishing a project](publish.md).

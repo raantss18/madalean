@@ -3,6 +3,7 @@ web UI can be built against realistic data. Network calls of the demo replay rec
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 
 from ..logs import get
@@ -18,6 +19,36 @@ BOOK = {"type": "book", "title": "An introduction to the theory of numbers",
         "author": [{"family": "Hardy", "given": "G. H."}, {"family": "Wright", "given": "E. M."}],
         "issued": {"date-parts": [[1979]]}, "publisher": "Clarendon Press", "publisher-place": "Oxford",
         "edition": "5", "ISBN": "9780198531715", "msc": ["11-01"], "_key": "hardy1979introduction"}
+
+
+def demo_plan(bp: dict) -> None:
+    """A formal plan (D60) as a finished run would leave it, for the Blueprint's « Plan formel » tab: Corollary 1.4
+    selected; its closure has a definition (not formalised), a lemma proved by its dossier, a theorem found in
+    Mathlib and the corollary formalised, still to prove."""
+    from . import paperplan as PP
+    nodes = {n["id"]: n for n in bp["nodes"]}
+    if "n-cor-fourth" not in nodes:
+        return
+    now = time.time()
+    formal = {
+        "n-def-even": {"status": "unformalised", "note": "definition"},
+        "n-lem-sum": {"status": "to_prove", "compiled": True, "dossier_id": nodes.get("n-lem-sum", {}).get(
+            "dossier_id", ""), "lean": "theorem paper_lem_sum (a b : ℤ) (ha : Even a) (hb : Even b) : Even (a + b) := "
+            "by sorry"},
+        "n-thm-square": {"status": "in_mathlib", "compiled": True, "mathlib_name": "Even.pow",
+                         "lean": "theorem paper_thm_square (n : ℤ) (h : Even n) : Even (n ^ 2) := by sorry"},
+        "n-cor-fourth": {"status": "to_prove", "compiled": True,
+                         "lean": "theorem paper_cor_fourth (n : ℤ) (h : Even n) : Even (n ^ 4) := by sorry"},
+    }
+    for nid, rec in formal.items():
+        if nid in nodes:
+            nodes[nid]["formal"] = {"name": PP.lean_name(nodes[nid]), "model": "local:Goedel-Formalizer-V2-8B",
+                                    "note": "", "mathlib_name": "", "library_name": "", "compiled": False, "lean": "",
+                                    "t": now} | rec
+    order = PP.closure(bp, ["n-cor-fourth"])
+    bp["plan"] = {"selected": ["n-cor-fourth"], "order": order, "mains": ["n-cor-fourth"], "tops": {},
+                  "runs": [{"id": "pr-demo", "done": 3, "skipped": 0, "total": len(order), "reason": "complete",
+                            "started": now - 60, "ended": now}]}
 
 
 def install(ctx) -> None:
@@ -75,8 +106,9 @@ async def seed(ctx) -> dict:
                           f"theorem {dfn.theorem} (n : ℤ) : Even n ↔ ∃ k, n = 2 * k := by sorry\n",
                           model="local:Goedel-Formalizer-V2-8B.Q4_K_M.gguf")
         await ctx.repo.save(dfn)
+    demo_plan(bp)
     await asyncio.to_thread(papers.save, ctx, p.id, bp)
-    art = art_mod.default_article(ctx, p.id)
+    art =art_mod.default_article(ctx, p.id)
     art["title"] = "Parité des carrés, vérifiée en Lean"
     art["authors"] = [{"name": "Ada Example", "affiliation": "Démo Madalean", "email": ""}]
     art_mod.set_text(art["abstract"], "Nous reprenons la note [@example2026parity] : la somme de deux entiers pairs "

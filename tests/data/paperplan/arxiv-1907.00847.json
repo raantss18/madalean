@@ -1,0 +1,24 @@
+{
+ "note": "One polite real fetch (2026-11-24, session S-BB) of the e-print of arXiv:1907.00847 (H. Huang, Induced subgraphs of hypercubes and a proof of the Sensitivity Conjecture) through litsearch.arxiv_source. The source itself is not redistributed (arXiv licence): this records what the path returned and what papers.extract found. Set MADALEAN_ARXIV_EPRINT to a local copy of the answer to re-check it.",
+ "url": "https://arxiv.org/src/1907.00847",
+ "status": 200,
+ "content_type": "application/gzip",
+ "bytes": 7568,
+ "sha256": "03942c604c0ca5ae1a8b47e44c4a9e93d943fdc2de98a111365c4bfb1efa9c7c",
+ "extracted": ["main.tex"],
+ "title": "Induced subgraphs of hypercubes and a proof of the Sensitivity Conjecture",
+ "nodes": [
+  ["n-thm-main", "theorem", "1.1", "thm_main", 145],
+  ["n-conjecture-1-2", "conjecture", "1.2", "", 151],
+  ["n-theorem-1-3", "theorem", "1.3", "", 169],
+  ["n-theorem-1-4", "theorem", "1.4", "", 177],
+  ["n-thm-sensitivity", "theorem", "1.5", "thm_sensitivity", 182],
+  ["n-lem-cauchy", "lemma", "2.1", "lem_cauchy", 190],
+  ["n-lem-eig", "lemma", "2.2", "lem_eig", 196],
+  ["n-lem-key", "lemma", "2.3", "lem_key", 210]
+ ],
+ "edges": [
+  ["n-thm-main", "n-lem-eig", "proof_ref"],
+  ["n-thm-main", "n-lem-key", "proof_ref"]
+ ]
+}

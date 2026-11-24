@@ -164,6 +164,7 @@ flow (`kind` summary / compare; « what it proves, main definitions, dependencie
 | `POST …/blueprints/{sid}/dossiers` `{nodes?:[node ids]}` | draft dossiers (all nodes when omitted) → `201 {dossiers, blueprint}`. **Never starts a job** |
 | `POST /research/projects/{pid}/formalise` `{dossier_ids, mode?, use_paper_proof?: true}` | explicit action → `202 {jobs, busy, skipped}` (`409 busy` when all are busy). Plan = normal pipeline (`understand → statement → proof → explanation`; definitions: `understand → statement`). The paper's proof goes as a hint wrapped as data to the **Goedel** prover only (`strategy: "goedel"` for those jobs): a tool-using agent never receives paper text. `use_paper_proof:false` = normal strategy, no hint |
 | `GET /research/projects/{pid}/blueprint-status` | `{nodes:[NodeState], counts:{state: n}}` |
+| `POST/GET …/blueprints/{sid}/plan`, `POST …/plan/stop`, `GET …/export?format=tex\|html` | **formal plan** (D60): budgeted, resumable formalisation of a selection's dependency closure, Mathlib-first, top-level dossier + sub-dossiers, statuses, exports — see [BLUEPRINT.md](BLUEPRINT.md). Nodes also carry `verbatim` (statement as written) and `line`, and `formal` once a run reached them |
 
 ```ts
 interface Node { id: string /* "n-<label>" */; kind: "theorem"|"lemma"|"proposition"|"corollary"|"definition"|

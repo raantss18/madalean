@@ -44,7 +44,15 @@ export interface QaResult {
 // ---------------------------------------------------------------- blueprint / article
 export interface BpNode { id: string; kind: string; name: string; number: string; label: string; title: string; text: string; tex: string;
   proof: string; section: string; locator: string; page?: number; cites: string[];
-  uses: { to: string; via: string; proposed: boolean; accepted?: boolean; rejected?: boolean }[]; quality: string; dossier_id: string }
+  uses: { to: string; via: string; proposed: boolean; accepted?: boolean; rejected?: boolean }[]; quality: string; dossier_id: string;
+  verbatim?: string; line?: number }
+// « De l'article au plan formel » (D60)
+export type PaperPlanStatusName = 'proved' | 'in_mathlib' | 'to_prove' | 'formalised' | 'unformalised';
+export interface PaperPlanNode { status: PaperPlanStatusName; rests_on: string[]; deps: string[]; lean: string; compiled: boolean; name: string;
+  dossier_id: string; note: string; mathlib_name: string; library_name: string; model: string; location: string; verbatim: string; tried: boolean }
+export interface PaperPlanRun { id: string; running: boolean; done: number; skipped: number; total: number; current: string; reason: string; started: number }
+export interface PaperPlanStatus { nodes: Record<string, PaperPlanNode>; progress: Record<PaperPlanStatusName | 'total' | 'done', number>;
+  plan: { selected?: string[]; order?: string[]; mains?: string[] }; run: PaperPlanRun | null }
 export interface Blueprint { source_id: string; paper_key: string; method: string; title: string; nodes: BpNode[]; warnings: string[]; shelf: string; created: number; updated: number }
 export type NodeStateName = 'not_created' | 'stated' | 'statement' | 'proved' | 'defined' | 'verified' | 'blocked' | 'failed';
 export interface NodeState { node_id: string; source_id: string; dossier_id: string; state: NodeStateName; verified: boolean;
@@ -182,6 +190,11 @@ export const research = {
   nodeDossiers: (pid: string, sid: string, nodes?: string[]) => request<{ dossiers: Dossier[]; blueprint: Blueprint }>('POST', `${proj(pid)}/blueprints/${enc(sid)}/dossiers`, nodes ? { nodes } : {}),
   formalise: (pid: string, dossier_ids: string[], use_paper_proof = true) =>
     request<{ jobs: Job[]; busy: string[]; skipped: string[] }>('POST', `${proj(pid)}/formalise`, { dossier_ids, use_paper_proof }),
+  paperPlan: (pid: string, sid: string) => request<PaperPlanStatus>('GET', `${proj(pid)}/blueprints/${enc(sid)}/plan`),
+  paperPlanStart: (pid: string, sid: string, nodes: string[], statements = 6) =>
+    request<{ run: PaperPlanRun; order: string[] }>('POST', `${proj(pid)}/blueprints/${enc(sid)}/plan`, { nodes, statements }),
+  paperPlanStop: (pid: string, sid: string) => request<{ stopped: boolean }>('POST', `${proj(pid)}/blueprints/${enc(sid)}/plan/stop`, {}),
+  planExportUrl: (pid: string, sid: string, format: 'tex' | 'html', lang = 'fr') => `/api${proj(pid)}/blueprints/${enc(sid)}/export?format=${format}&lang=${lang}`,
   blueprintStatus: (pid: string) => request<{ nodes: NodeState[]; counts: Record<string, number> }>('GET', `${proj(pid)}/blueprint-status`),
   // article
   article: (pid: string) => request<{ article: Article; generating: string[] }>('GET', `${proj(pid)}/article`),

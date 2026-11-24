@@ -1345,3 +1345,41 @@
   polynomial evaluations the certificates' evaluator already does exactly; Sage stays for Calcul and certificates);
   any model-written probe code; a dossier per Calcul notebook to hold its attachments (a second concept); reusing
   the plan's tidy-tree renderer for the graph (it would draw a shared lemma twice).
+
+## D60 — « De l'article au plan formel »: a paper's blueprint becomes a budgeted, resumable formal plan (TODO « Stratégie 2.1 » item 6, 2026-11-24, S-BB)
+- Request: from a paper (arXiv, PDF, LaTeX), extract the structure, the dependency graph, formalise progressively
+  (Mathlib first, the rest « à prouver » in a problem graph with sub-dossiers, conditional until Lean proves it),
+  budgeted, resumable, the user choosing the part; the Blueprint view with statuses, verbatim text, Lean statement,
+  progress and a blueprint export. Quota-limited: a small, solid version first.
+- Decision (docs/BLUEPRINT.md): **reuse, not rebuild** — the S-E blueprint (`papers.py`: TeX environments, labels,
+  `\ref` edges, « Proof of Theorem » sections, PDF heuristics, model edges only proposed) gains `verbatim` (the
+  statement as written: comments removed, macros not expanded) and `line`; a new module `research/paperplan.py`
+  adds the closure (explicit edges + edges the user accepted; cycles cut; unknown stays unknown), the run, the
+  statuses and the exports; four routes under `…/blueprints/{sid}/`; a « Plan formel » tab in the Blueprint screen.
+- **Statements** go through the existing formalizer (`Formalizer`, Lean check, catalogue) with the verbatim text and
+  the verbatim definitions it uses; **Mathlib first** is D56's `mathlib_status` (library, then strict templates /
+  `exact?`, no model). The paper node is wrapped as a literature item (`origin: paper`) so that D56's code applies
+  unchanged. Free models only; in Local mode the local models translate (the user started the run explicitly).
+- **Problem graph**: built only once the whole closure is processed — one top-level dossier per selected main
+  result, its graph gets the closure as `mathlib` / `library` / `cited` (`source.kind: paper`, `claimed`) nodes with
+  the paper's edges, and every formalised « à prouver » lemma is opened as a sub-dossier (D57b), only through the
+  graph service's public functions (`ensure`, `save`, `open_node`, `publish`; `proofgraph.new_node/add_node/
+  add_edge/set_status`) — S-BA edits those files in parallel. Nothing is started.
+- **Statuses**: proved (a strict Lean proof of the node's dossier, or the library) · in Mathlib · to prove · statement
+  formalised · not formalised, plus `rests_on` (« conditionnel ») — never « proved » because the paper says so.
+- **Budget / resume**: statements per run, wall clock, counted model calls and Lean checks, « Arrêter »; each record
+  saved at once and merged into the current file; final notes are not retried, budget / no model / error are; a
+  second complete run is idempotent.
+- Exports: `leanblueprint`-style LaTeX (`\lean`, `\leanok`, `\mathlibok`, `\uses`, no-op definitions) and an escaped,
+  script-free HTML page.
+- Rejected: a second paper parser (the S-E one is tested and handles TeX numbering); a model classifying blocks or
+  guessing dependencies by default (invention; D56's rule: quote verbatim, propose only); creating dossiers for a
+  partial closure (a top-level dossier without the statement of its main result); starting the provers
+  automatically (D31: the user launches work); merging a lemma shared by two main results across families (D57:
+  one family per top-level dossier).
+- Cut for now: definitions formalised (`def` / `structure` statements), model help for ambiguous PDF blocks, PDF line
+  numbers, a lemma shared across two mains, launching the provers on the whole plan in one click. The one real arXiv
+  fetch (arXiv:1907.00847's e-print, 7.5 KB, gzip) is recorded as its structure only (licence), re-checked on demand.
+- Verified: `tests/test_paperplan.py` (structure, exact graph, verbatim, closure, exports, arXiv path; fake model +
+  real Lean: budget 2 → resume, `exact?` → in Mathlib, top-level dossier + sub-dossier, conditional, a real Lean
+  proof of the lemma rolls up, idempotent re-run), `web/e2e/paper-plan.spec.ts` (demo plan, axe).

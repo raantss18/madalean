@@ -97,8 +97,13 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      « Ce que Madalean a appris » (D57b) ; affichage « Graphe » de l'onglet Plan, Réglages, manuel
    - ⬜ reste : brancher le vrai paquet littérature de S-AX (interface prête), ✅ identité des énoncés à renommage
      des variables près (S-BA, D59), renommages déterministes aussi dans la chaîne principale, essai sur tes vrais dossiers
-6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
-   le reste marqué honnêtement
+6. ⚠️ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
+   le reste marqué honnêtement (S-BB, D60, docs/BLUEPRINT.md) : onglet « Plan formel » du Blueprint ; énoncés
+   verbatim avec leur place, fermeture par dépendances explicites (rien d'inventé), formalisation par passes
+   budgétées qui reprennent là où elles s'arrêtent, Mathlib d'abord, dossier principal + sous-dossiers, conditionnel
+   jusqu'à la preuve Lean, compteur, export LaTeX (style leanblueprint) / HTML
+   - ⬜ reste : définitions formalisées, aide d'un modèle pour les blocs PDF ambigus, un lemme partagé par deux
+     théorèmes principaux, lancer les prouveurs sur tout le plan d'un clic, essai sur un vrai article de ton domaine
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
    demande
 8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
@@ -114,7 +119,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    cellules « Demande » de Calcul (pièce jointe du projet, lue une fois, citée dans la demande), graphe dessiné en
    plus de la liste (écran large). Reste : essai chez toi ; recherche par Sage (fonctions, ensembles) non faite — le
    calcul sur petites valeurs couvre l'arithmétique de ℕ, ℤ, ℚ, ℝ
-2. 🔄 De l'article au plan formel (S-BB, point 6)
+2. ✅ De l'article au plan formel (S-BB, point 6, D60)
 3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
 4. ⬜ Contribuer à Mathlib (point 7)
 5. ⬜ Mémoire qui grossit (point 9 : export des leçons, bibliothèque et recettes ; modèle local affiné plus tard)

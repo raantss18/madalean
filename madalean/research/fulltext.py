@@ -343,6 +343,8 @@ class TexNode:
     stmt_refs: list[str] = field(default_factory=list)
     cites: list[str] = field(default_factory=list)
     starred: bool = False
+    raw: str = ""             # the statement as written in the source (comments removed, macros NOT expanded)
+    line: int = 0             # 1-based line of the statement in the given TeX (0 when it could not be located)
 
 
 @dataclass
@@ -506,6 +508,8 @@ def parse_tex(tex: str, root: Path | None = None) -> TexDoc:
                        stmt_refs=[r for x in REF_RE.findall(stmt) for r in _split_refs(x)],
                        cites=list(dict.fromkeys(c for x in CITE_RE.findall(stmt + " " + (opt[0] if opt else ""))
                                                 for c in _split_refs(x))))
+        node.raw = stmt.strip()
+        node.line = _line_of(tex, node.raw)
         for lb in labels:
             doc.label_map[lb] = f"{disp} {number}".strip() if lb == node.label else f"({number})"
         doc.nodes.append(node)
@@ -520,6 +524,16 @@ def parse_tex(tex: str, root: Path | None = None) -> TexDoc:
     if not decls and not doc.nodes:
         doc.warnings.append("no theorem-like environment found")
     return doc
+
+
+def _line_of(tex: str, raw: str) -> int:
+    """Line of `raw` in the original TeX (its first source line, matched literally); 0 when not found (an \\input
+    file, or a comment inside the statement)."""
+    head = raw.split("\n", 1)[0].strip()[:80]
+    if len(head) < 4:
+        return 0
+    i = tex.find(head)
+    return tex.count("\n", 0, i) + 1 if i >= 0 else 0
 
 
 def _section_proof(doc: TexDoc, label: str, first_para: int) -> None:

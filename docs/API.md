@@ -677,7 +677,8 @@ Update checks: `madalean.updates.register_checker(name, fn)` (`fn() -> list[Cand
 installer must be `installable=False`). Export: `export_dossier(..., bib_entries=[(key, csl)])` (or
 `bib_keys=[...], bib_path=Path`) prints the cited references; citations `[@key, loc]` in texts. Research layer
 (sources, literature search, grounded answers, blueprint, article, bibliography): see
-[RESEARCH_SOURCES.md](RESEARCH_SOURCES.md) (`/api/research/…`).
+[RESEARCH_SOURCES.md](RESEARCH_SOURCES.md) (`/api/research/…`). Paper → formal plan (D60: `…/blueprints/{sid}/plan`,
+`…/plan/stop`, `…/export?format=tex|html`): [BLUEPRINT.md](BLUEPRINT.md) §5.
 
 ## 6b. Calcul, library catalogue, glossary, spending (session S-M, plugin `workbench.py`)
 
