@@ -75,6 +75,7 @@ def blueprint_from_tex(doc: ft.TexDoc, source: dict) -> dict:
                       "text": ft.resolve_refs(n.text, doc.label_map), "tex": n.text, "proof": ft.resolve_refs(n.proof,
                                                                                                    doc.label_map),
                       "proof_tex": n.proof, "section": n.section, "locator": loc, "cites": n.cites, "uses": [],
+                      "verbatim": n.raw, "line": n.line,
                       "quality": "high", "dossier_id": "", "_refs": (n.proof_refs, n.stmt_refs, n.labels)})
     unresolved = 0
     for node in nodes:
@@ -139,6 +140,7 @@ def blueprint_from_blocks(blocks: list[tuple[int, str]], source: dict, ocr: bool
         if cur is not None:
             cur["text"] = cur["text"].strip()
             cur["proof"] = cur["proof"].strip()
+            cur["verbatim"] = cur["text"]            # the text layer as read: the statement's only verbatim form
             if len(cur["text"]) < 15:
                 cur["quality"] = "low"
             nodes.append(cur)

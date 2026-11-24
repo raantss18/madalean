@@ -64,6 +64,31 @@ Mesure honnête (trois articles arXiv courts, vérifiés à la main) : énoncés
 depuis le PDF ; preuves 10 sur 11 depuis le TeX, 8 sur 11 depuis le PDF ; dépendances écrites en prose : 2 sur 7
 sans passe de modèle. Ces chiffres viennent d'un petit échantillon.
 
+## Du blueprint au plan formel
+
+L'onglet « Plan formel » de l'écran « Blueprint » transforme l'article en plan de travail Lean, pas à pas :
+
+1. Cochez les théorèmes voulus (le résultat principal, par exemple). Le bouton indique combien d'énoncés compte leur
+   **fermeture par dépendances** : tout ce qu'ils utilisent d'après les références explicites de l'article
+   (`\ref`, « Proof of Theorem 3 », « par le lemme 2.3 » dans un PDF), et les liens proposés par un modèle seulement
+   une fois que vous les avez confirmés. Une dépendance inconnue reste inconnue : rien n'est inventé.
+2. « Formaliser la sélection et ses dépendances » : dépendances d'abord, chaque énoncé **cité mot pour mot** depuis
+   l'article (avec les définitions qu'il utilise) part au traducteur ; Lean vérifie l'énoncé ; puis Madalean regarde
+   si Mathlib (ou votre bibliothèque) le prouve déjà. Une passe s'arrête après le nombre d'énoncés choisi
+   (« Énoncés par passe ») ou quand vous cliquez « Arrêter » ; relancez-la pour **reprendre** là où elle s'est
+   arrêtée.
+3. Quand toute la fermeture est traitée, Madalean ouvre un dossier pour le théorème principal et, dans son graphe du
+   problème, un nœud par résultat utilisé : ceux de Mathlib sont vérifiés, les autres sont **conditionnels**
+   (l'article les affirme, Lean ne les a pas prouvés) et chacun de ceux à prouver devient un **sous-dossier**. Rien
+   n'est lancé : vous lancez les prouveurs depuis les dossiers.
+
+Chaque résultat a un état : *prouvé (Lean)*, *dans Mathlib*, *à prouver*, *énoncé formalisé*, *non formalisé* ;
+« Conditionnel : repose sur … » liste ce qui n'est pas encore prouvé. Le compteur donne les résultats du plan prouvés
+ou dans Mathlib. Un clic sur un résultat montre son texte dans l'article (mot pour mot, avec sa place : numéro,
+section, ligne ou page) à côté de l'énoncé Lean — une traduction par un modèle, acceptée par Lean, à relire.
+« Exporter (LaTeX) » écrit un blueprint au format de `leanblueprint` (`\lean`, `\leanok`, `\mathlibok`, `\uses`),
+« Exporter (HTML) » une page de synthèse. Les définitions ne sont pas encore formalisées.
+
 ## Publier
 
 Un projet peut être publié sous forme de site statique vérifiable par tous : voir [Publier un projet](publish.md).

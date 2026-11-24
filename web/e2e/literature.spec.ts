@@ -61,7 +61,7 @@ test('a file joined to a new problem is attached before the work starts', async 
   await page.keyboard.type('Tout nombre premier p > 2 est impair.');
   await page.getByRole('button', { name: 'Traduire et prouver' }).click();
   await expect(page).toHaveURL(/\/d\/[^/]+\/lean/);
-  const id = decodeURIComponent(new URL(page.url()).pathname.split('/')[2]);
+  const id = decodeURIComponent(new URL(page.url()).pathname.split('/')[2] ?? '');
   const r = await api<{ attachments: { name?: string; n: number }[] }>('GET', `/dossiers/${encodeURIComponent(id)}/attachments`);
   expect(r.attachments.length).toBe(1);
   await axe(page, 'dossier after a new problem with a file');

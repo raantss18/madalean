@@ -610,9 +610,14 @@ async def bp_create(request):
     bp = await asyncio.to_thread(papers.extract, sh, src)
     old = await asyncio.to_thread(papers.load, ctx, p.id, sid)
     if old:                                          # keep the links to existing dossiers
-        prev = {(n["kind"], n["number"], n.get("label", "")): n.get("dossier_id", "") for n in old.get("nodes", [])}
+        prev = {(n["kind"], n["number"], n.get("label", "")): n for n in old.get("nodes", [])}
         for n in bp["nodes"]:
-            n["dossier_id"] = prev.get((n["kind"], n["number"], n.get("label", "")), "")
+            was = prev.get((n["kind"], n["number"], n.get("label", ""))) or {}
+            n["dossier_id"] = was.get("dossier_id", "")
+            if was.get("formal") and was.get("verbatim", "") == n.get("verbatim", ""):
+                n["formal"] = was["formal"]          # the formal plan (D60) survives a re-read of the same text
+        if old.get("plan"):
+            bp["plan"] = old["plan"]
     bp["shelf"] = shelf
     await asyncio.to_thread(papers.save, ctx, p.id, bp)
     _bp_publish(ctx, p.id, bp, sid)
@@ -788,6 +793,91 @@ async def bp_status(request):
     for v in states.values():
         counts[v["state"]] = counts.get(v["state"], 0) + 1
     return ok({"nodes": list(states.values()), "counts": counts})
+
+
+# ================================================================ « De l'article au plan formel » (D60)
+PLAN_RUNS = web.AppKey("paper_plan_runs", dict)
+
+
+def _plan_key(pid: str, sid: str) -> str:
+    return f"{pid}/{sid}"
+
+
+@_guard
+async def plan_start(request):
+    """{nodes: [node ids], statements?, seconds?, tries?, mode?, dossiers?: true} → a budgeted, resumable run over
+    the dependency closure of the selected nodes (202). One run per blueprint at a time."""
+    from ...research import paperplan as PP
+    ctx = _ctx(request)
+    p = _project(request)
+    sid = _sid(request)
+    data = await body(request)
+    bp = await asyncio.to_thread(papers.load, ctx, p.id, sid)
+    if bp is None:
+        return error(404, "not_found")
+    ids = data.get("nodes")
+    have = {n["id"] for n in bp["nodes"]}
+    if not (isinstance(ids, list) and ids and all(isinstance(x, str) and x in have for x in ids)):
+        return error(400, "bad_fields", "Champs refusés : {fields}.", fields="nodes")
+    runs = request.app[PLAN_RUNS]
+    key = _plan_key(p.id, sid)
+    cur = runs.get(key)
+    if cur is not None and cur["task"] is not None and not cur["task"].done():
+        return web.json_response({"error": "busy", "run": cur["run"].state, "message": msg(MESSAGES["busy"])},
+                                 status=409)
+    run = PP.PlanRun(ctx, p.id, sid, ids, mode=_mode(ctx, data, p), budget=PP.PlanBudget.from_request(data),
+                     dossiers=data.get("dossiers", True) is not False,
+                     publish=lambda b: _bp_publish(ctx, p.id, b, sid))
+    entry = {"run": run, "task": None}
+    runs[key] = entry
+    entry["task"] = ctx.spawn(run.run())
+    return ok({"run": run.state, "order": PP.closure(bp, ids)}, status=202)
+
+
+@_guard
+async def plan_get(request):
+    from ...research import paperplan as PP
+    ctx = _ctx(request)
+    p = _project(request)
+    sid = _sid(request)
+    bp = await asyncio.to_thread(papers.load, ctx, p.id, sid)
+    if bp is None:
+        return error(404, "not_found")
+    st = PP.plan_status(ctx, bp)
+    cur = request.app[PLAN_RUNS].get(_plan_key(p.id, sid))
+    st["run"] = cur["run"].state if cur is not None else None
+    return ok(st)
+
+
+@_guard
+async def plan_stop(request):
+    p = _project(request)
+    sid = _sid(request)
+    cur = request.app[PLAN_RUNS].get(_plan_key(p.id, sid))
+    if cur is None or cur["task"] is None or cur["task"].done():
+        return ok({"stopped": False})
+    cur["run"].stop.set()                      # stops after the current statement; its record is kept
+    return ok({"stopped": True, "run": cur["run"].state})
+
+
+@_guard
+async def plan_export(request):
+    from ...research import paperplan as PP
+    ctx = _ctx(request)
+    p = _project(request)
+    sid = _sid(request)
+    fmt = request.query.get("format", "tex")
+    if fmt not in ("tex", "html"):
+        return error(400, "bad_format")
+    bp = await asyncio.to_thread(papers.load, ctx, p.id, sid)
+    if bp is None:
+        return error(404, "not_found")
+    st = PP.plan_status(ctx, bp)
+    lang = "en" if request.query.get("lang") == "en" else "fr"
+    data = PP.export_tex(bp, st) if fmt == "tex" else PP.export_html(bp, st, lang)
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"blueprint-{bp.get('paper_key') or sid}")[:100] + "." + fmt
+    return web.Response(text=data, content_type="text/html" if fmt == "html" else "application/x-tex",
+                        headers={"Content-Disposition": f'attachment; filename="{safe}"'})
 
 
 # ================================================================ article
@@ -1298,6 +1388,11 @@ def register(app: web.Application, ctx) -> None:
     r.add_post(proj + "/blueprints/{sid}/dossiers", bp_dossiers)
     r.add_post(proj + "/formalise", bp_formalise)
     r.add_get(proj + "/blueprint-status", bp_status)
+    app[PLAN_RUNS] = {}
+    r.add_post(proj + "/blueprints/{sid}/plan", plan_start)
+    r.add_get(proj + "/blueprints/{sid}/plan", plan_get)
+    r.add_post(proj + "/blueprints/{sid}/plan/stop", plan_stop)
+    r.add_get(proj + "/blueprints/{sid}/export", plan_export)
     r.add_get(proj + "/article", article_get)
     r.add_patch(proj + "/article", article_patch)
     r.add_post(proj + "/article/sync", article_sync)

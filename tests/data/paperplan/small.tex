@@ -1,0 +1,63 @@
+\documentclass{amsart}
+% A tiny paper written for Madalean's tests (CC0): labels, references, a proof citing two lemmas,
+% a « Proof of Theorem » section, a remark that is not a result, and a proposition that cites nothing.
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem*{remark}{Remark}
+\title{Small facts about natural numbers}
+
+\begin{document}
+\maketitle
+
+\section{Preliminaries}
+
+\begin{definition}\label{def:double}
+The double of a natural number $n$ is $n + n$.
+\end{definition}
+
+\begin{lemma}\label{lem:assoc}
+For all natural numbers $a, b, c$ we have $a + b + c = a + (b + c)$.
+\end{lemma}
+
+\begin{lemma}[Commutativity]\label{lem:comm}
+For all natural numbers $a$ and $b$ we have $a + b = b + a$.
+\end{lemma}
+
+\begin{lemma}\label{lem:square}
+For all natural numbers $a$ and $b$ we have $(a + b)(a + b) = a a + b (2 a + b)$.
+\end{lemma}
+\begin{proof}
+Expand the product and use Lemma~\ref{lem:comm}.
+\end{proof}
+
+\section{Main results}
+
+\begin{theorem}\label{thm:main}
+For all natural numbers $a, b, c$ we have $(a + b)(a + b) + c = a a + (b (2 a + b) + c)$.
+\end{theorem}
+\begin{proof}
+By Lemma~\ref{lem:square} and Lemma~\ref{lem:assoc}, as in \cite{euclid}.
+\end{proof}
+
+\begin{remark}
+Theorem~\ref{thm:main} also holds in every commutative monoid.
+\end{remark}
+
+\begin{theorem}\label{thm:late}
+For every natural number $n$, the double of $n$ is $2 n$.
+\end{theorem}
+
+\begin{proposition}\label{prop:alone}
+Every natural number is less than its successor.
+\end{proposition}
+
+\section{Proof of Theorem~\ref{thm:late}}
+By Definition~\ref{def:double} the double of $n$ is $n + n$, and we only use that $2 n = n + n$.
+
+\begin{thebibliography}{9}
+\bibitem{euclid} Euclid, \emph{Elements}.
+\end{thebibliography}
+\end{document}
