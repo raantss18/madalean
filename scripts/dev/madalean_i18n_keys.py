@@ -31,7 +31,7 @@ def _consts(node) -> set[str]:
 def keys() -> set[str]:
     out: set[str] = set()
     for f in ROOT.rglob("*.py"):
-        if SKIP_DIRS & set(f.relative_to(ROOT).parts) or f.name == "i18n_en.py":
+        if SKIP_DIRS & set(f.relative_to(ROOT).parts) or f.name in ("i18n_en.py", "i18n_mg.py"):
             continue
         tree = ast.parse(f.read_text(encoding="utf-8"))
         for n in ast.walk(tree):

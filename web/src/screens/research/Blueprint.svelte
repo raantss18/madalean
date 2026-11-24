@@ -164,7 +164,7 @@
             <span class="spacer"></span>
             <label class="switch small"><input type="checkbox" bind:checked={asList} />{t('graph.asList')}</label>
             <a class="btn small" href={research.planExportUrl(pid, sid, 'tex')} download>{t('bp.exportTex')}</a>
-            <a class="btn small" href={research.planExportUrl(pid, sid, 'html', i18n.lang === 'en' ? 'en' : 'fr')} download>{t('bp.exportHtml')}</a>
+            <a class="btn small" href={research.planExportUrl(pid, sid, 'html', i18n.base === 'en' ? 'en' : 'fr')} download>{t('bp.exportHtml')}</a>
           </div>
         {:else}
         <ul class="legend" aria-label={t('bp.legend')}>

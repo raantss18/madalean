@@ -4,19 +4,26 @@
 // app mounts when it is the device's language (main.ts awaits `i18n.ready()`), or when the user switches to it.
 import fr from './fr';
 
-export type Lang = 'fr' | 'en';
+// S-BE (D63): Malagasy is a partial catalogue; a missing key is shown in French, never in English.
+export type Lang = 'fr' | 'en' | 'mg';
+/** Languages of what is written in full (manual, glossary, examples, server contents). */
+export type BaseLang = 'fr' | 'en';
+export const LANGS: readonly [Lang, string][] = [['fr', 'Français'], ['en', 'English'], ['mg', 'Malagasy']];
+export const isLang = (l: unknown): l is Lang => l === 'fr' || l === 'en' || l === 'mg';
 export type Key = keyof typeof fr;
 export type Params = Record<string, string | number>;
 
-const catalogues: Partial<Record<Lang, Record<Key, string>>> & { fr: Record<Key, string> } = { fr };
-const loaders: Record<Lang, () => Promise<Record<Key, string>>> = {
+type Catalogue = Partial<Record<Key, string>>;
+const catalogues: Partial<Record<Lang, Catalogue>> & { fr: Catalogue } = { fr };
+const loaders: Record<Lang, () => Promise<Catalogue>> = {
   fr: async () => fr,
   en: () => import('./en').then((m) => m.default),
+  mg: () => import('./mg').then((m) => m.default),
 };
-const loading = new Map<Lang, Promise<Record<Key, string>>>();
+const loading = new Map<Lang, Promise<Catalogue>>();
 
 /** Loads a catalogue once (retried after a failure). */
-export function loadCatalogue(l: Lang): Promise<Record<Key, string>> {
+export function loadCatalogue(l: Lang): Promise<Catalogue> {
   const have = catalogues[l];
   if (have) return Promise.resolve(have);
   let p = loading.get(l);
@@ -31,9 +38,10 @@ export function loadCatalogue(l: Lang): Promise<Record<Key, string>> {
 function initial(): Lang {
   try {
     const l = localStorage.getItem('madalean.lang');
-    if (l === 'fr' || l === 'en') return l;
+    if (isLang(l)) return l;
   } catch { /* blocked storage */ }
   if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')) return 'en';
+  if (typeof navigator !== 'undefined' && /^mg\b/i.test(navigator.language ?? '')) return 'mg';
   return 'fr';
 }
 
@@ -52,9 +60,13 @@ export const i18n = {
   get lang(): Lang {
     return current;
   },
+  /** The language of contents that exist in French and English only (mg reads French); also the one given to Intl. */
+  get base(): BaseLang {
+    return current === 'en' ? 'en' : 'fr';
+  },
   /** Switches the language (at once when its catalogue is loaded, else as soon as it is). */
   set(l: Lang): Promise<void> {
-    if (l !== 'fr' && l !== 'en') return Promise.resolve();
+    if (!isLang(l)) return Promise.resolve();
     wanted = l;
     try { localStorage.setItem('madalean.lang', l); } catch { /* ignore */ }
     if (catalogues[l]) { apply(l); return Promise.resolve(); }
@@ -77,13 +89,13 @@ export function t(key: Key, params?: Params): string {
 }
 
 export function tn(base: string, n: number, params: Params = {}): string {
-  const rule = new Intl.PluralRules(current).select(n) === 'one' ? 'one' : 'other';
+  const rule = new Intl.PluralRules(i18n.base).select(n) === 'one' ? 'one' : 'other';
   return t(`${base}.${rule}` as Key, { n, ...params });
 }
 
 /** For keys built at runtime (e.g. `status.${s}`); falls back to `fallback` when absent. */
 export function tk(key: string, fallback = '', params?: Params): string {
-  const s = ((catalogues[current] ?? catalogues.fr) as Record<string, string>)[key];
+  const s = (catalogues[current] as Record<string, string> | undefined)?.[key] ?? (catalogues.fr as Record<string, string>)[key];
   return s === undefined ? fallback : format(s, params);
 }
 
@@ -96,7 +108,7 @@ export function fmtTime(t: number | null | undefined): string {
   const d = new Date(t * 1000);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
-  return new Intl.DateTimeFormat(current, sameDay ? { hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(d);
+  return new Intl.DateTimeFormat(i18n.base, sameDay ? { hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(d);
 }
 
 export function fmtDuration(seconds: number): string {
@@ -113,5 +125,5 @@ export function fmtBytes(n: number): string {
   const ue = ['B', 'kB', 'MB', 'GB', 'TB'];
   let i = 0;
   while (n >= 1024 && i < 4) { n /= 1024; i++; }
-  return `${n.toFixed(i ? 1 : 0)} ${(current === 'fr' ? u : ue)[i]}`;
+  return `${n.toFixed(i ? 1 : 0)} ${(current === 'en' ? ue : u)[i]}`;
 }

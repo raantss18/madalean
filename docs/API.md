@@ -1019,6 +1019,20 @@ bad_part | missing_file | unexpected_member | newer_schema | too_large | ratio |
 Event `memory.import` `{token, stage: library|done|error, done, total, name}`. Library entries (`GET /api/library`)
 gain `origin` (`{}` for local results; for an imported one `{bundle, from, checked, lean, mathlib, axioms, nl, model}`).
 
+## 6m. Exercises (S-BE D63, plugin `teaching.py`, docs/TEACHING.md)
+| Route | |
+|---|---|
+| `GET /api/exercises` | `{exercises: [{id, level, domain, title, statement, lean, source, licence, origin, hints (number), has_solution, progress}], levels, domains}`; never a hint nor a solution |
+| `POST /api/exercises/{id}/submit` `{kind: lean \| words, text}` | `{ok, check, lean, review, progress}`; 400 `empty`, `bad_answer`; 409 `busy`, `no_workspace` |
+| `POST /api/exercises/{id}/hint` `{tried?, again?}` | `{hints, progress}`; 409 `attempt_first`, `no_more_hints` |
+| `POST /api/exercises/{id}/solution` | `{solution, code, verified, workspace, progress}`; 409 `hints_first`, `solution_refused`; 404 `no_solution`; 503 `lean_unavailable` |
+| `POST /api/exercises` `{dossier \| library, level, domain, statement, title?, hints?}` | 201 `{exercise}`; 422 `bad_statement` |
+| `POST /api/exercises/import` `{text}` | 201 `{ids}`; 400 `bad_bank`, `bad_exercise` `{where}`; 413 `too_large` |
+| `GET /api/exercises/export` · `DELETE /api/exercises/{id}` | own and imported exercises only |
+| `GET /api/exercises/worksheet?ids&title&lang&solutions&lean&format=pdf\|tex\|md` | the file; `X-Madalean-Left-Out` = solutions Lean did not accept here, `X-Madalean-Fallback: html` without a TeX engine |
+
+Setting `language` also takes `mg` (contents without a Malagasy version are in French).
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

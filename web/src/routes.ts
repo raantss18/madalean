@@ -21,6 +21,8 @@ addRoute({ name: 'activity', pattern: '/activite', load: () => import('./screens
 addRoute({ name: 'news', pattern: '/actualites', load: () => import('./screens/news/News.svelte'), nav: { label: 'nav.news', icon: 'globe', order: 20.5 } });
 addRoute({ name: 'library', pattern: '/bibliotheque', load: () => import('./screens/Library.svelte'), nav: { label: 'nav.library', icon: 'library', order: 21 } });
 addRoute({ name: 'glossary', pattern: '/glossaire', load: () => import('./screens/Glossary.svelte'), nav: { label: 'nav.glossary', icon: 'book', order: 22 } });
+// S-BE (D63): verified exercises (the logo menu shows it in « Apprendre » mode)
+addRoute({ name: 'exercises', pattern: '/exercices/:id?', load: () => import('./screens/learn/Exercises.svelte'), nav: { label: 'nav.exercises', icon: 'graduate', order: 22.5 } });
 addRoute({ name: 'notebook', pattern: '/carnet', load: () => import('./screens/Notebook.svelte'), nav: { label: 'nav.notebook', icon: 'notebook', order: 23 } });
 addRoute({ name: 'help', pattern: '/aide/:page?', load: () => import('./screens/Help.svelte'), nav: { label: 'nav.help', icon: 'info', order: 24 } });
 addRoute({ name: 'settings', pattern: '/reglages/:section?', load: () => import('./screens/settings/Settings.svelte'), nav: { label: 'nav.settings', icon: 'settings', order: 29 } });

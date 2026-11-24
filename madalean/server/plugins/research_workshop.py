@@ -10,7 +10,7 @@ import time
 from aiohttp import web
 
 from ... import leancheck
-from ...i18n import _, msg
+from ...i18n import _, content_language, msg
 from ...logs import get
 from ...research.conjectures import ConjectureError, Workshop, public as conj_public
 from ...research.learn import LearnError, LearnStore, Tutor
@@ -388,7 +388,7 @@ async def _export(request, notes, title):
     fmt = request.query.get("format", "md")
     if fmt not in ("md", "html", "pdf"):
         return error(400, "bad_format")
-    ex = await export_notes(notes, title, fmt, ctx.settings.language, ctx.paths.exports)
+    ex = await export_notes(notes, title, fmt, content_language(ctx.settings.language), ctx.paths.exports)
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", ex.filename)[:120] or "notes"
     return web.Response(body=ex.data, content_type=ex.content_type.split(";")[0],
                         headers={"Content-Disposition": f'attachment; filename="{safe}"',

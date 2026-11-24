@@ -113,8 +113,9 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    et seulement avec ta clé GitHub et deux confirmations : branche sur ton fork, puis demande en brouillon
    - ⬜ reste : essai chez toi sur un vrai résultat de ta bibliothèque ; modifier le nom / la phrase d'explication
      dans le panneau ; placer le résultat dans le fichier Mathlib existant le plus proche
-8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
-   olympiades), parcours « Apprendre »
+8. ✅ **Enseignement francophone et malgache** (S-BE, D63) — interface en malgache (partielle, sinon en français),
+   23 exercices vérifiés par Lean (lycée, licence, master, olympiade), parcours « Apprendre », outils de l’enseignant.
+   Reste : relire le malgache (docs/I18N_MG.md), manuel en malgache, traduire les autres écrans, plus d’exercices
 9. ⚠️ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
    preuves vérifiées (S-BD, D62, docs/MEMORY.md) : Réglages › « Mémoire » ; un seul fichier `.madalean-memory`
    (bibliothèque avec tampon de vérification, leçons, recettes, graphes, résumés des pièces jointes ; empreintes
@@ -139,7 +140,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 4. ✅ Contribuer à Mathlib (S-BC, point 7, D61)
 5. ✅ Mémoire qui grossit (S-BD, point 9, D62) : fichier de mémoire revérifié à l'import, sauvegardes, jeu de données ;
    modèle local affiné plus tard
-6. ⬜ Enseignement francophone et malgache (point 8)
+6. ✅ Enseignement francophone et malgache (S-BE, point 8, D63 ; malgache à relire)
 7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)
 Deux sessions au plus en même temps (quota).
 

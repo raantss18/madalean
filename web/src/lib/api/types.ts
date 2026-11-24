@@ -151,7 +151,7 @@ export interface ModelsInfo {
 }
 
 export interface Settings {
-  language: 'fr' | 'en'; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;
+  language: 'fr' | 'en' | 'mg'; mode: Mode; prove_strategy: Strategy; prefer: Record<string, string>;
   workspace: string; model_path: string; prove_attempts: number; translate_attempts: number;
   pause_after_translation: boolean; profile: string; statement_notes: boolean; informal_proof: boolean;
   statement_check: boolean; mathlib_first: boolean; certificates?: boolean; literature?: boolean; literature_depth?: 'quick' | 'deep'; lean_warm: boolean; lean_warm_idle_minutes: number; calcul_warm: boolean;

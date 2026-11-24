@@ -72,7 +72,7 @@
     await saveWizard({ completed: true, step: 'done', visited: [...STEPS] });
     navigate('/');
   }
-  const lang = $derived(i18n.lang === 'en' ? 'en' : 'fr');
+  const lang = $derived(i18n.base === 'en' ? 'en' : 'fr');
   const help = $derived(HELP[step]);
   const visited = $derived(new Set(setup.info?.visited ?? []));
 </script>

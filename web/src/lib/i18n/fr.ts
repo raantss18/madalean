@@ -3397,6 +3397,11 @@ const fr = {
   'memory.dataset.title': 'Jeu de données d’entraînement',
   'memory.dataset.lead': 'Un fichier JSONL des paires vérifiées par Lean (énoncé → preuve, erreur → correction), avec licence et provenance. Il prépare un éventuel affinage d’un modèle local plus tard ; Madalean n’entraîne aucun modèle.',
   'memory.dataset.go': 'Exporter le jeu de données',
+
+  // S-BE (D63): exercises, Malagasy
+  'nav.exercises': 'Exercices',
+  'dossier.toExercise': 'En faire un exercice',
+  'language.mgNote': 'La traduction malgache est assistée et à relire ; ce qui n’est pas encore traduit s’affiche en français.',
 } as const;
 
 export default fr;
