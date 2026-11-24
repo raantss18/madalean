@@ -184,3 +184,62 @@ def test_target_and_provided_results_are_kept_apart():
     it.lean.statement, it.lean.compiled, it.lean.status, it.lean.name = (
         "theorem cited_odd (p : ℕ) (hp : p.Prime) (h : 2 < p) : Odd p := by sorry", True, "to_prove", "cited_odd")
     assert "NOT available in Lean" in literature_hook.hint([it])
+
+
+async def test_calcul_demande_paperclip_project_attachment(tmp_path, monkeypatch):
+    """D59: a Calcul « Demande » cell attaches a file to the PROJECT (read once, same digest as a dossier's), the cell
+    is linked to it, and the request naming « pièce jointe 1 » sends the digest's verbatim quote to the model (never
+    the raw file); the written code still needs approval."""
+    import aiohttp
+    from madalean.server.plugins import workbench as wbm
+    from test_calcul_notebook import FakeKernels
+    seen = []
+
+    def responder(role, messages, brain):
+        first = next((m["content"] for m in messages if m.get("role") == "user"), "")
+        if "Translate the request into ONE short" in first:
+            seen.append(first)
+            return "```python\nprint(7 % 2)\n```"
+        return "[]"
+    monkeypatch.setattr(wbm.Workbench, "kernels", lambda self: FakeKernels())
+    ctx, t = att_ctx(tmp_path, FakeBrain(responder, online=False))
+    async with running(ctx) as (_srv, L, _R), session() as s:
+        ctx.settings.mode = "local"
+        pid = (await (await s.post(L + "/api/projects", json={"title": "P"})).json())["project"]["id"]
+        D = L + f"/api/calcul/{pid}/docs/calcul"
+        q = (await (await s.post(D + "/cells", json={"type": "ask", "prompt": "x"})).json())["cell"]
+        form = aiohttp.FormData()
+        form.add_field("file", TEX, filename="note.tex", content_type="application/x-tex")
+        form.add_field("cell", q["id"])
+        r = await s.post(L + f"/api/calcul/{pid}/attachments", data=form)
+        assert r.status == 201, await r.text()
+        out = await r.json()
+        assert out["read"] is True and out["attachment"]["n"] == 1 and out["attachment"]["cells"] == [q["id"]]
+        for _ in range(1200):
+            a = (await (await s.get(L + f"/api/calcul/{pid}/attachments?cell={q['id']}")).json())["attachments"][0]
+            if a["state"] != "reading":
+                break
+            await asyncio.sleep(0.05)
+        assert a["state"] == "read" and len(a["items"]) == 2
+        # the same file from another cell: linked, not read again
+        n_req = len(ctx.brain.requests)
+        form = aiohttp.FormData()
+        form.add_field("file", TEX, filename="copie.tex", content_type="application/x-tex")
+        form.add_field("cell", "c-other")
+        out = await (await s.post(L + f"/api/calcul/{pid}/attachments", data=form)).json()
+        assert out["read"] is False and out["attachment"]["cells"] == [q["id"], "c-other"]
+        assert len(ctx.brain.requests) == n_req
+        assert (await (await s.get(L + f"/api/calcul/{pid}/attachments?cell=nope")).json())["attachments"] == []
+        # the request names the attachment: its quote (bounded) reaches the model, the cell keeps the user's words
+        r = await s.post(D + f"/cells/{q['id']}/ask",
+                         json={"prompt": "d'après la pièce jointe 1, lemme 1, vérifier pour p = 7"})
+        assert r.status == 201, await r.text()
+        cell = (await r.json())["cell"]
+        assert seen and "Every prime number $p > 2$ is odd." in seen[-1] and "\\begin{lemma}" not in seen[-1]
+        assert cell["prompt"] == "d'après la pièce jointe 1, lemme 1, vérifier pour p = 7"
+        assert (await s.post(D + f"/cells/{q['id']}/run")).status == 403            # approval rule unchanged
+        # unlink from a cell; a bad cell id is refused
+        r = await s.delete(L + f"/api/calcul/{pid}/attachments/1?cell=c-other")
+        assert (await r.json())["attachment"]["cells"] == [q["id"]]
+        r = await s.post(L + f"/api/calcul/{pid}/attachments", json={"url": "https://x.org/a", "cell": "a/b"})
+        assert r.status == 400

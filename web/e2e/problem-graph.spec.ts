@@ -32,6 +32,21 @@ for (const v of [{ name: 'desktop', width: 1440, height: 900, scheme: 'light', l
     await axe(page, `graph-explain-${v.name}`);
     await page.keyboard.press('Escape');
     await expect(page.locator('dialog[open]')).toHaveCount(0);
+    // D59: the drawn view (desktop only; phones keep the list), lazy-loaded, nodes as buttons in the list order
+    if (v.name === 'phone') {
+      await expect(page.locator('.pg .views')).toHaveCount(0);
+    } else {
+      await page.locator('.pg .views button').nth(1).click();
+      await expect(page.locator('.pg .gm .nb').first()).toBeVisible();
+      await expect(page.locator('.pg .nodes')).toHaveCount(0);
+      await noHScroll(page, 'graph drawn');
+      await axe(page, 'graph-drawn');
+      await page.locator('.pg .gm .nb').first().focus();
+      await page.keyboard.press('Enter');
+      await expect(page.locator('.pg .panel h4')).toBeVisible();
+      await page.locator('.pg .views button').first().click();
+      await expect(page.locator('.pg .nodes')).toBeVisible();
+    }
   });
 }
 

@@ -46,6 +46,10 @@ reads it again when you ask.
 In the thread you can write, for example, “from attachment 2, lemma 3.1, conclude”: Madalean quotes that lemma as
 written in the attachment.
 
+In **Calcul**, a “Request” cell has a paperclip too: the file joins the project's Sources (read once, as above) and
+the cell shows its attachments. A request such as “according to attachment 1, lemma 1, check p = 7” sends the exact
+quote to the model (never the whole document); the code written still needs your approval before it runs.
+
 ## Settings and privacy
 
 **Settings › Models › Advanced options**: “Search the literature” (on by default) and its depth (quick ≈ 45 s,

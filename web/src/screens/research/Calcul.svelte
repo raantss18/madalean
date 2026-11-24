@@ -33,6 +33,7 @@
   import Icon from '../../components/Icon.svelte';
   import Menu, { type MenuItem } from '../../components/Menu.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
+  import CalculAttach from './CalculAttach.svelte';
   import type { FigureSpec } from '../../lib/figure/spec';
 
   let { params: _p }: { params: Record<string, string> } = $props();
@@ -662,6 +663,7 @@
                     <div class="actions">
                       <button class="btn small" onclick={() => write(c)} disabled={!(prompts[c.id] ?? '').trim()} aria-busy={writing === c.id}>
                         <Icon name="sparkle" size={14} />{c.source.trim() || writing === c.id ? ct('rewrite') : ct('write')}</button>
+                      {#if loadedFor}<CalculAttach pid={loadedFor} cell={c.id} n={i + 1} />{/if}
                       <span class="xs muted" role="status" aria-live="polite">{writing === c.id ? ct('writing') : ''}</span>
                     </div>
                     {#if reqErr[c.id]}<p class="xs req-err" role="alert">{reqErr[c.id]}</p>

@@ -34,7 +34,7 @@ export interface LitState {
 export interface Attachment {
   n: number; sha: string; shelf: string; source_id: string; name: string; kind: 'image' | 'pdf' | 'tex' | 'bib' | 'url';
   state: 'reading' | 'read' | 'unread' | 'error'; verified: boolean; reference: LitReference | null;
-  transcription: { text: string; model: string } | null; items: LitItem[]; cell?: string;
+  transcription: { text: string; model: string } | null; items: LitItem[]; cell?: string; cells?: string[];
 }
 
 const base = (id: string) => `/dossiers/${encodeURIComponent(id)}`;
@@ -54,6 +54,20 @@ export const literature = {
   },
   attachUrl: (id: string, url: string) => request<{ attachment: Attachment; read: boolean }>('POST', `${base(id)}/attachments`, { url }),
   reread: (id: string, n: number) => request<{ started: boolean }>('POST', `${base(id)}/attachments/${n}/reread`),
+};
+
+/** D59: Calcul « Demande » cells attach to the PROJECT (Calcul cells are project notebooks, not dossiers). */
+const cbase = (pid: string) => `/calcul/${encodeURIComponent(pid)}/attachments`;
+export const calculAttachments = {
+  list: (pid: string, cell: string) => request<{ attachments: Attachment[] }>('GET', `${cbase(pid)}?cell=${encodeURIComponent(cell)}`),
+  attachFile: (pid: string, cell: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    fd.append('cell', cell);
+    return request<{ attachment: Attachment; read: boolean }>('POST', cbase(pid), fd);
+  },
+  unlink: (pid: string, cell: string, n: number) =>
+    request<{ attachment: Attachment }>('DELETE', `${cbase(pid)}/${n}?cell=${encodeURIComponent(cell)}`),
 };
 
 export const ATTACH_ACCEPT = 'image/png,image/jpeg,image/webp,application/pdf,.tex,.bib,.ltx,application/x-tex';

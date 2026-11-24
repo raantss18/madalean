@@ -922,6 +922,10 @@ docs/MCP.md. Every route answers 403 `host_only` on the remote / LAN listeners. 
 | `GET /dossiers/{id}/attachments` | `{attachments: [{n, sha, shelf, source_id, name, kind, state: reading\|read\|unread, verified, reference, transcription, items}]}` |
 | `POST /dossiers/{id}/attachments` multipart `file` (+ `cell`) or `{url, cell?}` | `201 {attachment, read}` — `read: false` when the project already read this file (SHA-256): nothing is read twice; `415 bad_type`, `413 too_large`, `409 local_mode` (URL), `409 too_many` |
 | `POST /dossiers/{id}/attachments/{n}/reread` | « Relire » → `202` |
+| `GET /calcul/{pid}/attachments?cell=` | D59: the project notebook's attachments (those of one cell with `cell`), same view + `cells` |
+| `POST /calcul/{pid}/attachments` multipart `file` + `cell`, or `{url, cell}` | `201 {attachment, read}` — Calcul « Demande » paperclip: a Source of the project, read once (same digest as a dossier's); `400 bad_fields` (cell id) |
+| `DELETE /calcul/{pid}/attachments/{n}?cell=` | unlink the cell (the Source and its digest stay) → `{attachment}` |
+| `POST /calcul/{pid}/attachments/{n}/reread` | « Relire » → `202` |
 
 `LiteratureResult = {statement, depth, query: {keywords, extra_keywords, lean_names, msc, queries}, items:
 [LiteratureItem], mathlib: [{name, signature}], providers: {name: {ok, count, error, requests}}, rejected:
@@ -940,7 +944,7 @@ not_abandoned | too_deep | no_method | cycle | too_many_nodes | bad_format}` wit
 
 | Method | Path | Body / query | Answer |
 | --- | --- | --- | --- |
-| GET | `/api/dossiers/{id}/graph` | `?lang=fr\|en` | `{graph}`: `{v, rev, root, nodes: {id: node + state, composed, rests_on, reason_text, uses, used_by}, edges: [[src, kind, dst]], runs, counts, budgets, run, memory, log}` |
+| GET | `/api/dossiers/{id}/graph` | `?lang=fr\|en` | `{graph}`: `{v (2 since D59: keys up to renaming; older graphs migrate on load), rev, root, nodes: {id: node + state, composed, rests_on, reason_text, uses, used_by; D59: aliases, tested, probe}, edges: [[src, kind, dst]], runs, counts, budgets, run, memory, log}` |
 | POST | `…/graph/search` | `{budgets?: {max_depth, max_nodes, max_attempts, branch_attempts, max_expansions, wall_s, tokens, usd, no_progress}, mode?}` | `{graph}`; the run continues in the background (`graph.updated` events) |
 | POST | `…/graph/stop` | — | `{stopping: true}` (the run stops after the current step) |
 | GET | `…/graph/nodes/{nid}/why` | `?lang=` | `{viability, reason_text, why, alternatives, attempts, source, citation, state}` — « Pourquoi cette piste ? » |

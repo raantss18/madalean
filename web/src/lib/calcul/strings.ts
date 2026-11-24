@@ -3,6 +3,10 @@
 import { i18n } from '../i18n/index.svelte';
 
 const FR: Record<string, string> = {
+  // S-BA (D59): attachments of a « Demande » cell (project Sources, read once)
+  attachFile: 'Joindre un fichier (image, PDF, LaTeX, BibTeX)', attachN: 'Pièce jointe {n}', attachState_reading: 'lecture…',
+  attachState_read: 'lue', attachState_unread: 'non lue', attachState_error: 'erreur de lecture', attachUnlink: 'Retirer la pièce jointe {n} de cette cellule',
+  attached: 'Pièce jointe {n} : {name}. Citez-la dans la demande (« d’après la pièce jointe {n} … »).', attachList: 'Pièces jointes de la cellule',
   // S-AB: simpler cells, code or request, explanations, automatic corrections, learned recipes
   kindOf: 'Type de la cellule {n}', formulaOf: 'Résultat de la cellule {n}', addHint: 'Nouvelle cellule (code ou demande en mots)', moreDoc: 'Plus d’actions sur le carnet',
   autoPh: 'Du code Sage, ou une demande en mots (ex. : les racines de x^5+x^3+x+1 dans F_16)',
@@ -83,6 +87,9 @@ const FR: Record<string, string> = {
   sageFigure: 'Figure produite par Sage (cellule {n})', status: 'État',
 };
 const EN: Record<string, string> = {
+  attachFile: 'Attach a file (image, PDF, LaTeX, BibTeX)', attachN: 'Attachment {n}', attachState_reading: 'reading…',
+  attachState_read: 'read', attachState_unread: 'not read', attachState_error: 'read error', attachUnlink: 'Remove attachment {n} from this cell',
+  attached: 'Attachment {n}: {name}. Name it in the request (“according to attachment {n} …”).', attachList: 'Attachments of the cell',
   kindOf: 'Type of cell {n}', formulaOf: 'Result of cell {n}', addHint: 'New cell (code or a request in words)', moreDoc: 'More notebook actions',
   autoPh: 'Sage code, or a request in words (e.g. the roots of x^5+x^3+x+1 in F_16)',
   detectLabel: 'What you typed', detectHint: 'Recognised automatically: click to change.',

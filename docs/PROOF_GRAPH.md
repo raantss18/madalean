@@ -23,7 +23,17 @@ with their reason, holes → admitted).
 - **Edges** `[src, kind, dst]`: uses · generalises · special_case · refutes. A « uses » edge that would close a
   cycle is refused and logged. The graph is a **DAG**: a sub-lemma used by two lemmas is one node.
 - **Identity**: `statement_key` = hash of the last theorem's binders and type (name, comments, spacing, header and
-  the dossier's shared context ignored). Identity holds inside one top-level dossier and workspace; a statement with
+  the dossier's shared context ignored) **up to the names of bound variables and hypotheses** (D59, `alpha_normal`:
+  each bound name — binder groups, `∀ ∃ fun ∑ ∏ …` inside the type — is replaced by its rank of first binding;
+  `n.succ` follows `n`, `Nat.succ` stays). `(n : ℕ) (hn : 0 < n)` and `(k : ℕ) (h : 0 < k)` are one node; another
+  hypothesis, or the same binders in another order or grouping, stay apart (alpha-equivalence only). The wording
+  as written is `exact` (`exact_key`); a second wording merged into a node is kept in `aliases` and, in a
+  combination, declared as `theorem alias SIG := original` (the types are equal, so Lean accepts it). When a new
+  lemma's key collides with a node of another wording, the search asks Lean once (`same_statement_code`:
+  `theorem madalean_alpha_eq : (∀ …, A) = (∀ …, B) := rfl` with the axiom probe); a refusal keeps them apart
+  (`alpha_refused` in the log). Migration v1 → v2 (`migrate`, on load): keys recomputed, exact alpha-duplicates
+  merged into the one with the best status (the goal first), edges redirected, attempts / sources / errors folded
+  in, the merge logged (`merged_alpha`); two nodes one of which uses the other are never merged. Identity holds inside one top-level dossier and workspace; a statement with
   another hypothesis is another node. A lemma of another dossier of the project is offered for reuse (viability
   signal, digest, through the library with its own Lean proof), never merged silently.
 - **Versioned and compact**: every change bumps `rev` and appends to a bounded log (200); ≤ 120 nodes (closed
@@ -45,8 +55,16 @@ depth/2)`). Before an expansion and for each new lemma: **viability** = determin
 library, proved in another dossier, failed before and nothing changed, similar to a failed node, repeated Lean
 error, cycle, depth, cited) + one short model opinion (`graph_viability_model`, labelled, 0.4 weight); below 0.15 the
 lemma is abandoned with the written reason. New lemmas are gated by ONE Lean compile (statements with `sorry`, the
-combination, equivalence probes against the parent) and probed for counterexamples (Lean tries the negation; a
-closed probe is re-checked strictly) — a refuted lemma gets a `refutes` edge from its counterexample. A dead lemma
+combination, equivalence probes against the parent) and probed for counterexamples — first **on small instances**
+(D59, `research/smallprobe.py`): when the statement is decidable there (number variables over ℕ / ℤ, polynomial
+relations over ℚ / ℝ in ≤ 4 variables, read by the certificates' reader and evaluated by their exact evaluator, the
+same Lean conventions as the `finite` / `counterexample` kinds — no model-written code), a box of small values
+(ℕ 0..12, ℤ −12..12, 13 small rationals + 400 seeded random ones; hypotheses checked first) is evaluated within
+`SMALL_PROBE_SECONDS` (2 s per lemma, cancelled by « Arrêter »). A violating point is only a candidate: it becomes a
+Lean proof of the negation (`intro h; have := h 4 (by …); norm_num at this`) checked strictly with the other
+negation probes (automatic tactics, degenerate values). A refuted lemma gets a `refutes` edge from its
+counterexample, the witness recorded (`witness`, `probe.confirmed`); nothing found adds the evidence « testé sur
+n ∈ 0..12 (13) » to the node (`tested`) and to its viability (+0.05 when the box was covered). A dead lemma
 that the recorded combination does not use is dropped; otherwise the track is kept as abandoned with the reason and
 the node may be split again.
 
@@ -59,6 +77,12 @@ the same Lean error repeats), wall time, tokens, USD (`graph_search_usd`, never 
 by the spend ledger with the run's own scope), no-progress (6 steps without a new node, a new verified node or a
 refutation). Stop reasons: solved, conditional, exhausted, no_progress, stopped, budget_*. Abandoned nodes are not
 reopened in a later run unless the Lean / Mathlib version changed or a new lemma was verified.
+
+**Drawn view (D59)**: beside the list (which stays the reference, and the only view on phones), « Dessin » draws
+the DAG (`web/src/lib/graph/dag.ts`: longest-path layers from the goal, barycentre ordering; `GraphMap.svelte`,
+lazy-loaded, no new dependency). Status = colour + shape + words (verified square box, conditional dashed, open
+pill, refuted double border, abandoned dotted and struck through); pan (drag, arrow buttons), zoom (wheel, + / −);
+nodes are buttons in the list order (Tab), Enter opens the same detail panel.
 
 ## 4. Problem memory and the provers
 
@@ -112,7 +136,11 @@ and whenever the dossier's attachments change (« comprendre d'abord »: target 
 
 ## 9. Limits
 
-Statement identity is syntactic (binder names matter: `(n : ℕ)` and `(k : ℕ)` give different keys). Counterexample
-probes use automatic tactics and degenerate values only. The deterministic rename is applied in the graph's own
+Statement identity is alpha-equivalence of the written signature (D59): `(n k : ℕ)` and `(n : ℕ) (k : ℕ)`, a
+reordering of independent binders, or definitionally equal statements stay distinct nodes; a name used both bound
+and free in one statement could make the syntactic key too coarse, which is why a collision is confirmed by Lean in
+the search (the migration of stored graphs merges on the syntactic key alone). Small-instance probes cover ℕ / ℤ /
+ℚ / ℝ arithmetic only (no functions, sets, sqrt / exp in variables); they run in Python (the certificates' exact
+evaluator), not in Sage — Sage is not needed to evaluate a polynomial on a few thousand points. The deterministic rename is applied in the graph's own
 attempts; in the main pipeline a lesson reaches the model as a hint and as Lean feedback (the pipeline's proof is
 never rewritten behind its back). Explanations are templated text (FR / EN), not prose.

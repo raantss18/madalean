@@ -35,6 +35,7 @@ log = get("literature")
 TASKS = web.AppKey("literature_tasks", dict)
 ITEM_RE = re.compile(r"^L[0-9a-f]{10}$")
 MAX_STATEMENT = 20000
+CELL_RE = re.compile(r"[A-Za-z0-9_-]{1,80}")
 
 
 def _dossier(request):
@@ -428,9 +429,113 @@ async def reread_attachment(request: web.Request) -> web.Response:
     return ok({"started": True}, status=202)
 
 
+# ---------------------------------------------------------------- Calcul « Demande » attachments (project, D59)
+def _project_holder(request):
+    from ...literature import attach
+    ctx = ctx_of(request)
+    pid = valid_id(request.match_info["pid"])
+    if ctx.projects.get(pid) is None:
+        raise web.HTTPNotFound(text='{"error":"not_found"}', content_type="application/json")
+    return attach.ProjectNotebook(ctx, pid)
+
+
+async def list_project_attachments(request: web.Request) -> web.Response:
+    ctx, h = ctx_of(request), _project_holder(request)
+    cell = request.query.get("cell", "")
+    atts = [a for a in h.extra["attachments"] if not cell or cell in (a.get("cells") or [])]
+    return ok({"attachments": [_attachment_view(ctx, h, a) for a in atts]})
+
+
+async def _read_project_bg(ctx, h, a: dict, mode: str, force: bool = False) -> None:
+    from ...literature import attach
+    try:
+        await attach.read(ctx, a["shelf"], a["sha"], mode=mode, force=force, lang=language())
+    except Exception:  # noqa: BLE001
+        log.exception("reading attachment %s", a.get("name"))
+    finally:
+        ctx.publish("calcul.attachments", {"project_id": h.project_id, "attachment": a.get("n")})
+
+
+async def add_project_attachment(request: web.Request) -> web.Response:
+    """Calcul « Demande » paperclip: multipart `file` (+ `cell`) or JSON {url, cell} → 201 {attachment, read}. The
+    file becomes a Source of the project and is read once (same digest as a dossier's attachment, SHA-256 +
+    extractor version); the cell is linked to it. A cell's request naming « pièce jointe N » gets its quotes."""
+    from ...literature import attach
+    from ...research.sources import SourceError
+    ctx, h = ctx_of(request), _project_holder(request)
+    mode = effective_mode_of(ctx, h.project_id)
+    try:
+        if request.content_type.startswith("multipart/"):
+            from .research_sources import _read_upload
+            name, data, fields = await _read_upload(request)
+            cell = fields.get("cell", "")[:80]
+            if cell and not CELL_RE.fullmatch(cell):
+                return error(400, "bad_fields", "Champs refusés : {fields}.", fields="cell")
+            entry, fresh = await attach.attach_file(ctx, h, name, data, mode=mode)
+        else:
+            data = await body(request)
+            url = str(data.get("url") or "").strip()
+            cell = str(data.get("cell") or "")[:80]
+            if not re.match(r"^https://\S+$", url):
+                return error(400, "bad_url")
+            if cell and not CELL_RE.fullmatch(cell):
+                return error(400, "bad_fields", "Champs refusés : {fields}.", fields="cell")
+            entry, fresh = await attach.attach_url(ctx, h, url, mode=mode)
+    except attach.AttachError as e:
+        return error(e.status, e.kind)
+    except SourceError as e:
+        return error(getattr(e, "status", 400), e.kind)
+    h.link_cell(entry, cell)
+    h.save()
+    if fresh:
+        ctx.spawn(_read_project_bg(ctx, h, entry, mode))
+    ctx.publish("calcul.attachments", {"project_id": h.project_id, "attachment": entry["n"]})
+    return ok({"attachment": _attachment_view(ctx, h, entry), "read": fresh}, status=201)
+
+
+async def unlink_project_attachment(request: web.Request) -> web.Response:
+    """Remove the link between a cell and an attachment (the Source and its digest stay in the project)."""
+    ctx, h = ctx_of(request), _project_holder(request)
+    try:
+        n = int(request.match_info["n"])
+    except ValueError:
+        return error(400, "bad_id")
+    a = next((x for x in h.extra["attachments"] if x.get("n") == n), None)
+    if a is None:
+        return error(404, "not_found")
+    cell = request.query.get("cell", "")
+    if cell in (a.get("cells") or []):
+        a["cells"].remove(cell)
+        h.save()
+    ctx.publish("calcul.attachments", {"project_id": h.project_id, "attachment": n})
+    return ok({"attachment": _attachment_view(ctx, h, a)})
+
+
+async def reread_project_attachment(request: web.Request) -> web.Response:
+    ctx, h = ctx_of(request), _project_holder(request)
+    try:
+        n = int(request.match_info["n"])
+    except ValueError:
+        return error(400, "bad_id")
+    a = next((x for x in h.extra["attachments"] if x.get("n") == n), None)
+    if a is None:
+        return error(404, "not_found")
+    ctx.spawn(_read_project_bg(ctx, h, a, effective_mode_of(ctx, h.project_id), force=True))
+    return ok({"started": True}, status=202)
+
+
+def effective_mode_of(ctx, pid: str) -> str:
+    from ...research.fetch import effective_mode
+    return effective_mode(ctx, ctx.projects.get(pid))
+
+
 def register(app: web.Application, ctx) -> None:
     app[TASKS] = {}
     r = app.router
+    r.add_get("/api/calcul/{pid}/attachments", list_project_attachments)
+    r.add_post("/api/calcul/{pid}/attachments", add_project_attachment)
+    r.add_delete("/api/calcul/{pid}/attachments/{n}", unlink_project_attachment)
+    r.add_post("/api/calcul/{pid}/attachments/{n}/reread", reread_project_attachment)
     r.add_get("/api/dossiers/{id}/attachments", list_attachments)
     r.add_post("/api/dossiers/{id}/attachments", add_attachment)
     r.add_post("/api/dossiers/{id}/attachments/{n}/reread", reread_attachment)

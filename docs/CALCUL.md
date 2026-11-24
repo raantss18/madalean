@@ -78,6 +78,14 @@ characters), and returns one code cell. The code is shown; it runs under the unc
 once its exact hash was approved on the host (or the host enabled `experiments_auto`); paired devices need
 `experiments_remote`.
 
+**Attachments (S-BA, D59).** A « Demande » cell has a paperclip: the image / PDF / LaTeX / BibTeX file becomes a
+Source of the project and is read once into a digest (the dossier attachments' code, `literature/attach.py`,
+SHA-256 + extractor version; a file the project already read is only linked). Calcul cells are project notebooks, so
+the attachment belongs to the project (`attach.ProjectNotebook`, links in `<shelf>/calcul_attachments.json` with the
+cells that use each one); the cell shows chips « Pièce jointe N — nom · lue ». A request naming « pièce jointe N
+(, lemme 3.1) » gets the digest's verbatim quotes (≤ 4 × 800 characters) appended to the text the model sees; the
+cell's stored request is the user's own words. The written code keeps the approval rule above.
+
 ### 3.1 Speed (session S-AB, DECISIONS D35) — `research/codegen.py`
 
 | Cause found (2026-11-22, measured) | Fix |
@@ -343,7 +351,9 @@ under « Détails » (`web/src/lib/calcul/kernel.ts`).
 
 See the docstring of `madalean/server/plugins/workbench.py` (routes `/api/calcul/{pid}/docs…`). Events:
 `calcul.updated {project_id, doc, cell|run|order|removed…}`, `calcul.running`, `calcul.output` (streamed text),
-`calcul.docs`.
+`calcul.docs`, `calcul.attachments {project_id, attachment}`. Attachments: `GET /api/calcul/{pid}/attachments?cell=`,
+`POST` (multipart `file` + `cell`, or `{url, cell}`) → `201 {attachment, read}`, `DELETE …/{n}?cell=` (unlink the
+cell; the Source stays), `POST …/{n}/reread`.
 
 ## 8. Keyboard (JupyterLab-like)
 

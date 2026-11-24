@@ -796,8 +796,16 @@ async def _ask_job(request, wb: Workbench, ctx, pid: str, doc: str, c: dict, pro
     def on_code(part: str) -> None:
         ctx.publish("calcul.draft", {"project_id": pid, "doc": doc, "cell_id": cid, "code": part[:20000],
                                      "state": "writing"})
+    asked = prompt
+    try:                                          # D59: « d'après la pièce jointe 1 … » → the digest's quotes
+        from ...literature import attach
+        h = await asyncio.to_thread(attach.ProjectNotebook, ctx, pid)
+        if h.extra["attachments"]:
+            asked = attach.with_mentions(ctx, h, prompt)
+    except Exception:  # noqa: BLE001
+        asked = prompt
     try:
-        r = await codegen.transcribe(ctx, language=c["language"], prompt=prompt, names=names, context=context,
+        r = await codegen.transcribe(ctx, language=c["language"], prompt=asked, names=names, context=context,
                                      owner=f"calcul-{pid}", lang=language(), on_code=on_code, recipes=wb.recipes,
                                      variant=variant, stats=wb.models, prev=prev)
     except asyncio.CancelledError:

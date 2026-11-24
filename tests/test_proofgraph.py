@@ -495,3 +495,84 @@ def test_literature_items_from_sax_are_never_promoted():
     assert G.effective(g, n["id"])["state"] == "conditional"
     e = G.explain(g, lang="en")
     assert e["bibliography"]["works"][0]["quote"].startswith("Every square")
+
+
+# ---------------------------------------------------------------- D59: identity up to renaming
+def test_statement_identity_up_to_renaming():
+    K = G.statement_key
+    base = K("theorem a (n : ℕ) (hn : 0 < n) : ∀ m, ∃ k, k + m = n * m + 1 := by sorry")
+    # bound variables renamed (n → k, inner m/k → x/y): the same node
+    assert K("theorem b (k : ℕ) (hn : 0 < k) : ∀ x, ∃ y, y + x = k * x + 1 := by sorry") == base
+    # hypothesis renamed (hn → h): the same node
+    assert K("theorem c (n : ℕ) (h : 0 < n) : ∀ m, ∃ k, k + m = n * m + 1 := by sorry") == base
+    # another hypothesis: another node
+    assert K("theorem d (n : ℕ) (hn : 1 < n) : ∀ m, ∃ k, k + m = n * m + 1 := by sorry") != base
+    # binder order of independent variables changed: kept apart (alpha-equivalence only)
+    assert K("theorem e (a : ℕ) (b : ℤ) : (a : ℤ) + b = b + a := by sorry") != \
+        K("theorem e (b : ℤ) (a : ℕ) : (a : ℤ) + b = b + a := by sorry")
+    # a constant is not a bound name: `Nat.succ` stays, `n.succ` follows n
+    assert K("theorem f (n : ℕ) : n.succ = Nat.succ n := by sorry") == \
+        K("theorem f (k : ℕ) : k.succ = Nat.succ k := by sorry")
+    assert K("theorem f (n : ℕ) : n.succ = Nat.succ n := by sorry") != \
+        K("theorem f (k : ℕ) : k.succ = Nat.pred k := by sorry")
+    g = G.new_graph("d1", "p1", "Goal", PARITY)
+    x, _ = G.add_node(g, lemma("x", "theorem x (n : ℕ) (hn : 0 < n) : 0 < n * n := by sorry"), parent=g["root"])
+    y, created = G.add_node(g, lemma("y", "theorem y (k : ℕ) (h : 0 < k) : 0 < k * k := by sorry"), parent=g["root"])
+    assert not created and y["id"] == x["id"] and x["aliases"][0]["lean"].startswith("theorem y")
+    z, created = G.add_node(g, lemma("z", "theorem z (k : ℕ) (h : 1 < k) : 0 < k * k := by sorry"), parent=g["root"])
+    assert created and z["id"] != x["id"]
+    # the Lean confirmation snippet states the two propositions are equal
+    code = G.same_statement_code(x["lean"], y["aliases"][0]["lean"])
+    assert code.startswith("theorem madalean_alpha_eq : ((∀ (n : ℕ) (hn : 0 < n), 0 < n * n) : Prop) = ((∀ (k : ℕ) (h : 0 < k)")
+
+
+def test_migration_merges_alpha_duplicates_and_keeps_history():
+    g = G.new_graph("d1", "p1", "Goal", PARITY)
+    a, _ = G.add_node(g, lemma("A", "theorem la (n : ℕ) (hn : 0 < n) : 0 < n * n := by sorry"), parent=g["root"])
+    a["key"] = "old-a"                                           # v1 keys kept the names: A and B were two nodes
+    b, _ = G.add_node(g, lemma("B", "theorem lb (k : ℕ) (h : 0 < k) : 0 < k * k := by sorry",
+                               source={"kind": "search"}), parent=g["root"])
+    s, _ = G.add_node(g, lemma("S", "theorem s (m : ℕ) : 0 ≤ m := by sorry"), parent=b["id"])
+    c, _ = G.add_node(g, lemma("C", "theorem lc (k : ℕ) (h : 1 < k) : 0 < k * k := by sorry"), parent=g["root"])
+    G.set_status(g, b["id"], "proved")
+    assert a["id"] != b["id"]
+    g["v"] = 1
+    for n in g["nodes"].values():
+        n["key"] = "old-" + n["id"]
+        n.pop("exact", None)
+    rev = g["rev"]
+    assert G.migrate(g) == 1 and g["v"] == G.GRAPH_VERSION
+    assert G.migrate(g) == 0                                     # idempotent
+    keep = g["nodes"].get(b["id"])
+    assert keep is not None and a["id"] not in g["nodes"] and keep["status"] == "proved"  # best status kept
+    assert keep["aliases"][0]["id"] == a["id"] and c["id"] in g["nodes"]
+    assert [g["root"], "uses", b["id"]] in g["edges"] and [b["id"], "uses", s["id"]] in g["edges"]
+    assert not any(a["id"] in (e[0], e[2]) for e in g["edges"])
+    assert g["rev"] > rev and any(e["kind"] == "merged_alpha" and e["other"] == a["id"] for e in g["log"])
+
+
+def test_small_instance_probe_is_deterministic_and_bounded():
+    from madalean import leancheck
+    from madalean.research import smallprobe as SP
+    H = leancheck.GOEDEL_HEADER
+    f = SP.search(H + "theorem b (n : ℕ) (h : 2 < n) : n * n < 4 * n := by sorry")
+    assert f["found"] and f["witness"] == {"n": 4}                      # hypotheses respected (n > 2)
+    tac = SP.lean_tactics(H + "theorem b (n : ℕ) (h : 2 < n) : n * n < 4 * n := by sorry", f)[0]
+    assert "have := h (4 : ℕ) (by first" in tac
+    ok = SP.search(H + "theorem t (a b : ℕ) (h : a ≤ b) : a * a ≤ b * b := by sorry")
+    assert not ok["found"] and ok["complete"] and ok["points"] == 169
+    r = SP.search(H + "theorem r (x : ℝ) (h : 0 < x) : x ^ 2 > x := by sorry")
+    assert r["found"] and r["dom"] == "R" and 0 < r["witness"]["x"] <= 1
+    q = SP.search(H + "theorem q : ∀ n : ℕ, n < 5 → n * n < 10 := by sorry")
+    assert q["found"] and q["witness"] == {"n": 4} and q["intros"] == ["n", "hc1"]
+    assert SP.search(H + "theorem s (x : ℝ) : Real.sqrt (x ^ 2) = |x| := by sorry") is None    # not decidable here
+    assert SP.search(H + "theorem u (f : ℕ → ℕ) (n : ℕ) : f n = f n := by sorry") is None      # a function binder
+    # cancellable: a stop request ends the search at once (nothing claimed complete)
+    st = SP.search(H + "theorem t (a b : ℕ) (h : a ≤ b) : a * a ≤ b * b := by sorry", should_stop=lambda: True)
+    assert not st["found"] and not st["complete"] and st["points"] == 0
+    # evidence in the viability reason
+    g = G.new_graph("d1", "p1", "Goal", PARITY)
+    x, _ = G.add_node(g, lemma("x", "theorem x (a b : ℕ) (h : a ≤ b) : a * a ≤ b * b := by sorry"), parent=g["root"])
+    x["tested"] = {"text": ok["tested"], "complete": True}
+    v = G.viability_signals(g, x["id"])
+    assert "testé sur a ∈ 0..12, b ∈ 0..12 (169) : aucun contre-exemple" in G.reason_text(v, "fr")

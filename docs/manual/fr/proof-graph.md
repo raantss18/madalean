@@ -29,7 +29,14 @@ Une preuve qui repose sur un résultat cité mais non prouvé en Lean est **touj
 jamais « vérifiée ». Elle devient vérifiée quand Lean prouve ce résultat.
 
 Un même sous-lemme utilisé par deux lemmes n'existe qu'une fois : il est rangé sous le premier, l'autre affiche
-« utilisé aussi par … ». Deux énoncés qui ne diffèrent que par une hypothèse restent distincts.
+« utilisé aussi par … ». Deux énoncés qui ne diffèrent que par une hypothèse restent distincts ; deux énoncés qui ne
+diffèrent que par les noms des variables ou des hypothèses (`n` ou `k`, `hn` ou `h`) sont le même nœud (Lean le
+confirme en cas de doute). Changer l'ordre des variables donne un autre nœud.
+
+**Liste ou dessin.** Sur un écran large, « Dessin » montre le graphe dessiné : la cible en haut, chaque lemme sous
+ceux qui l'utilisent, un sous-lemme partagé dessiné une seule fois. Glisser pour déplacer, molette ou + / − pour
+zoomer ; Tab parcourt les nœuds dans l'ordre de la liste et Entrée ouvre le détail. Sur un téléphone, la liste reste
+la seule vue.
 
 ## La recherche raisonnée
 
@@ -37,7 +44,11 @@ Un même sous-lemme utilisé par deux lemmes n'existe qu'une fois : il est rang�
 travailler sur une piste, Madalean l'évalue (« Pourquoi cette piste ? ») : déjà prouvée ailleurs, déjà abandonnée,
 proche d'une piste qui a échoué, même erreur de Lean deux fois, profondeur… et, si un modèle est disponible, un court
 avis du modèle, toujours marqué comme tel. Les lemmes proposés sont d'abord vérifiés par Lean (énoncés, combinaison),
-et Lean cherche un contre-exemple : un lemme faux est réfuté avant d'être travaillé.
+et Madalean cherche un contre-exemple : d'abord en calculant l'énoncé sur de petites valeurs quand c'est possible
+(entiers de 0 à 12, rationnels simples — son propre calcul exact, jamais du code écrit par un modèle), puis Lean
+essaie de prouver la négation. Un contre-exemple trouvé n'est retenu que si Lean le confirme : le lemme est alors
+réfuté, avec le témoin. Sinon le détail du nœud indique « Testé sur n ∈ 0..12 : aucun contre-exemple », ce qui compte
+un peu dans sa viabilité.
 
 Garde-fous : limites de temps, d'essais, de profondeur, de jetons et de dépense (jamais au-delà du plafond du chef
 d'orchestre), arrêt quand rien ne progresse, refus des boucles (un lemme qui utiliserait ce qui l'utilise). À la fin,

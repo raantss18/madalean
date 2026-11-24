@@ -86,8 +86,8 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      gratuits), « dans Mathlib » / « prouvé » / « à prouver » ; preuve conditionnelle (jamais « vérifiée », partout
      signalée) qui devient vérifiée quand Lean prouve le résultat cité ; panneau « Littérature » (Sources,
      bibliographie de l'article, « Prouver ce lemme ») ; pièces jointes (image, PDF, LaTeX, BibTeX, adresse) lues une
-     seule fois pour le projet, « à prouver » et « résultats fournis » séparés. Reste : trombone sur la saisie d'un
-     nouveau problème et dans Calcul, tableau des notations et code Sage des pièces jointes, essai avec un vrai modèle
+     seule fois pour le projet, « à prouver » et « résultats fournis » séparés. Reste : ✅ trombone sur la saisie d'un
+     nouveau problème, ✅ dans Calcul (S-BA, D59), tableau des notations et code Sage des pièces jointes, essai avec un vrai modèle
      qui lit les images, essai chez toi.
    - ✅ part S-AY (D57, docs/PROOF_GRAPH.md) : graphe du problème par dossier (dans le fichier du plan, migré depuis
      les plans), statuts dont « conditionnel » propagé, recherche raisonnée bornée (viabilité écrite, contre-exemples
@@ -95,8 +95,8 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      prouveurs (« Cible / Connu / À prouver »), « Expliquer la démonstration » sans modèle avec bibliographie et
      exports, « Adapter la méthode », sous-dossiers (un lemme ouvert comme dossier, partagé, statut remonté), leçons
      « Ce que Madalean a appris » (D57b) ; affichage « Graphe » de l'onglet Plan, Réglages, manuel
-   - ⬜ reste : brancher le vrai paquet littérature de S-AX (interface prête), identité des énoncés à renommage des
-     variables près, renommages déterministes aussi dans la chaîne principale, essai sur tes vrais dossiers
+   - ⬜ reste : brancher le vrai paquet littérature de S-AX (interface prête), ✅ identité des énoncés à renommage
+     des variables près (S-BA, D59), renommages déterministes aussi dans la chaîne principale, essai sur tes vrais dossiers
 6. ⬜ **De l'article au plan formel** — PDF / arXiv → graphe des lemmes (Blueprint), formalisation de ce qui passe,
    le reste marqué honnêtement
 7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
@@ -108,8 +108,12 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
 
 ### Ordre choisi pour la suite (24/11, à ta demande)
-1. 🔄 Renforcer ce qui existe (S-BA) : même lemme à un renommage près, contre-exemples cherchés par Sage avant de
-   creuser une piste, trombone dans les cellules Calcul, graphe dessiné en plus de la liste
+1. ✅ Renforcer ce qui existe (S-BA, D59) : même lemme à un renommage près (noms des variables et des hypothèses ;
+   confirmé par Lean en cas de doute ; anciens graphes migrés), contre-exemples cherchés sur de petites valeurs avant
+   de creuser une piste (calcul exact de Madalean, confirmé par Lean ; sinon « testé sur … »), trombone dans les
+   cellules « Demande » de Calcul (pièce jointe du projet, lue une fois, citée dans la demande), graphe dessiné en
+   plus de la liste (écran large). Reste : essai chez toi ; recherche par Sage (fonctions, ensembles) non faite — le
+   calcul sur petites valeurs couvre l'arithmétique de ℕ, ℤ, ℚ, ℝ
 2. 🔄 De l'article au plan formel (S-BB, point 6)
 3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
 4. ⬜ Contribuer à Mathlib (point 7)

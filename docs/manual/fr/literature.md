@@ -46,6 +46,11 @@ pièce jointe si vous le demandez.
 Dans le fil, vous pouvez écrire par exemple « d'après la pièce jointe 2, lemme 3.1, conclure » : Madalean cite ce
 lemme tel qu'il est écrit dans la pièce jointe.
 
+Dans **Calcul**, une cellule « Demande » a aussi son trombone : le fichier rejoint les Sources du projet (lu une seule
+fois, comme ci-dessus) et la cellule affiche ses pièces jointes. Une demande comme « d'après la pièce jointe 1,
+lemme 1, vérifier pour p = 7 » transmet au modèle la citation exacte (jamais le document entier) ; le code écrit
+reste à approuver avant de s'exécuter.
+
 ## Réglages et confidentialité
 
 **Réglages › Modèles › Options avancées** : « Chercher dans la littérature » (activé par défaut) et sa profondeur

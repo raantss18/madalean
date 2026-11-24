@@ -104,6 +104,33 @@ def items_of(digest: dict | None) -> list[LiteratureItem]:
         return []
 
 
+class ProjectNotebook:
+    """A project seen as an attachment holder (D59): Calcul cells are project notebooks, not dossiers. Same duck
+    type as a dossier for this module (`project_id`, `extra["attachments"]`), its links stored beside the project's
+    Sources (`<shelf>/calcul_attachments.json`); the digests are the project's, read once like a dossier's."""
+
+    def __init__(self, ctx, pid: str):
+        self.ctx, self.project_id, self.id = ctx, pid, ""
+        self.path = _lib(ctx).shelf(pid).root / "calcul_attachments.json"
+        try:
+            atts = json.loads(self.path.read_text(encoding="utf-8")).get("attachments")
+        except (OSError, ValueError, AttributeError):
+            atts = None
+        self.extra = {"attachments": [a for a in atts if isinstance(a, dict)] if isinstance(atts, list) else []}
+
+    def link_cell(self, entry: dict, cell: str) -> dict:
+        if cell:
+            cells = entry.setdefault("cells", [])
+            if cell not in cells and len(cells) < 50:
+                cells.append(cell)
+        return entry
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        config.atomic_write_text(self.path, json.dumps({"attachments": self.extra["attachments"]},
+                                                       ensure_ascii=False))
+
+
 def link(d, entry: dict) -> dict:
     atts = d.extra.setdefault("attachments", [])
     for a in atts:

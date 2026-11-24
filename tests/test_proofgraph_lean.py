@@ -59,7 +59,12 @@ async def test_real_lean_small_graph_end_to_end(tmp_path, ws):
         g = (await (await s.get(base)).json())["graph"]
         by = {n["title"]: n for n in g["nodes"].values()}
         assert summary["reason"] == "solved", (summary, [(n["title"], n["status"], n["reason"]) for n in by.values()], g["log"])
-        assert by["faux"]["status"] == "refuted" and "negation" in by["faux"]["reason"]
+        # D59: the small-instance search found n = 0 and Lean confirmed it (the witness is recorded)
+        assert by["faux"]["status"] == "refuted" and "counterexample n = 0" in by["faux"]["reason"], by["faux"]
+        assert by["faux"]["probe"] == {"candidate": "n = 0", "confirmed": True}
+        assert any(n.get("witness") == "n = 0" for n in g["nodes"].values() if n["kind"] == "certificate")
+        # the true lemmas were evaluated on small instances: evidence in their viability
+        assert by["a·a ≤ a·b"]["tested"]["complete"] and "a ∈ 0..12" in by["a·a ≤ a·b"]["tested"]["text"]
         assert by["a·a ≤ a·b"]["status"] == "proved" and by["a·b ≤ b·b"]["status"] == "proved"
         root = g["nodes"][g["root"]]
         assert root["state"] == "verified" and root["how"] == "combination"
@@ -148,3 +153,21 @@ def test_lessons_store_hygiene(tmp_path):
     assert n == 1
     st.learn_strategy("theorem s (n : ℕ) : n ≤ n * n + 1 := by sorry", "graph", ["nlinarith"], env, "d2")
     assert "nlinarith" in st.hint("theorem s2 (k : ℕ) : k ≤ k * k + 1 := by sorry", env)
+
+
+async def test_alpha_collision_confirmed_by_lean(tmp_path, ws):
+    """D59: two statements with the same alpha-normal key are confirmed equal by Lean (`rfl` on the propositions);
+    a different hypothesis is not."""
+    from madalean import leancheck
+    from madalean.research import proofgraph as G
+    ctx = make_ctx(tmp_path, ws=ws, brain=FakeBrain(demo_responder))
+    async with running(ctx):
+        a = "theorem a (n : ℕ) (hn : 0 < n) : ∀ m, n ≤ n * (m + 1) := by sorry"
+        b = "theorem b (k : ℕ) (h : 0 < k) : ∀ x, k ≤ k * (x + 1) := by sorry"
+        c = "theorem c (k : ℕ) (h : 1 < k) : ∀ x, k ≤ k * (x + 1) := by sorry"
+        assert G.statement_key(a) == G.statement_key(b) != G.statement_key(c)
+        def code(x, y):
+            return leancheck.with_axiom_probe(leancheck.GOEDEL_HEADER + G.same_statement_code(x, y), G.ALPHA_THM)
+        same = await ctx.lean.check(code(a, b), ws, 120, G.ALPHA_THM)
+        other = await ctx.lean.check(code(a, c), ws, 120, G.ALPHA_THM)
+        assert same.verdict.ok and not other.verdict.ok

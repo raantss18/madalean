@@ -14,6 +14,10 @@ export interface GraphNode {
   attempts: GraphAttempt[]; attempts_n: number; proof: string; tactics: string[]; self_contained: boolean; admitted: boolean;
   proposal: boolean; tracks?: GraphTrack[]; state: GraphState; composed: boolean; rests_on: string[]; rests_external?: string[];
   reason_text: string; uses: string[]; used_by: string[]; claimed?: string; by_user?: boolean; how?: string;
+  /** D59: the same statement under other names; the small-instance probe's evidence / candidate counterexample */
+  aliases?: { title: string; lean: string; exact: string }[];
+  tested?: { text: string; points: number; dom: string; complete: boolean };
+  probe?: { candidate: string; confirmed: boolean };
 }
 export interface GraphRunSummary { id: string; end: number; reason: string; steps: number; root_state: GraphState;
   spent: Record<string, number>; budgets: Record<string, number>; tried: { node: string; title: string; status: string; reason: string }[] }

@@ -34,6 +34,7 @@ MARK_ADAPT = "[madalean:graph-adapt]"
 MIN_SCORE = 0.15                 # below: the branch is abandoned before any work (reason recorded)
 NODE_ATTEMPTS = 3                # direct attempts on one node before only expansion remains
 MAX_LEMMAS = 4                   # lemmas per expansion
+SMALL_PROBE_SECONDS = 2.0        # small-instance evaluation of one new lemma (D59), before any Lean probe
 PUBLISH_EVERY = 0.5              # seconds between two graph.updated events during a run
 
 
@@ -132,6 +133,7 @@ class Refutation:
     proof: str = ""                       # Lean proof of the negation (strictly checked)
     reason: str = ""
     checks: int = 0
+    witness: str = ""                     # the small-instance counterexample Lean confirmed (D59)
 
 
 class Ops:
@@ -156,6 +158,11 @@ class Ops:
         return {}
 
     async def opinion(self, g: dict, nid: str, det: dict) -> dict | None:
+        return None
+
+    async def same_statement(self, lean_a: str, lean_b: str) -> bool | None:
+        """Lean's confirmation that two statements with the same alpha-normal key are the same (D59); None: no
+        Lean to ask (the syntactic identity stands)."""
         return None
 
 
@@ -431,6 +438,13 @@ class ReasonedSearch:
             node = G.new_node("lemma", lm.get("title") or "lemme", lean=lm.get("lean", ""),
                               statement_nl=lm.get("statement_nl", ""), why=lm.get("why", ""),
                               source={"kind": "search", "model": res.model, "run": self.run_id})
+            same = G.find_key(self.g, node["key"])
+            if same is not None and node.get("exact") and same.get("exact") and node["exact"] != same["exact"]:
+                ok = await self.ops.same_statement(same.get("lean") or "", node.get("lean") or "")
+                self.spent.lean_checks += ok is not None
+                if ok is False:                      # the syntactic renaming was wrong here: kept apart
+                    node["key"] = node["exact"]
+                    G.touch(self.g, "alpha_refused", same["id"], title=node["title"][:80])
             before = len(self.g["edges"])
             node, was_new = G.add_node(self.g, node, parent=nid)
             if not was_new and len(self.g["edges"]) == before and [nid, "uses", node["id"]] not in self.g["edges"]:
@@ -476,6 +490,8 @@ class ReasonedSearch:
         cex = G.new_node("certificate", f"¬ {n['title'][:180]}", lean="", status="proved",
                          source={"kind": "counterexample"})
         cex["proof"] = r.proof[:G.MAX_PROOF_CHARS]
+        if r.witness:
+            cex["witness"] = r.witness[:300]
         cex, _ = G.add_node(self.g, cex)
         G.add_edge(self.g, cex["id"], "refutes", nid)
         G.set_status(self.g, nid, "refuted", r.reason or "Lean proved the negation (counterexample)", env=self.env)
@@ -694,6 +710,22 @@ class LeanOps(Ops):
         return {"score": max(0.0, min(1.0, float(data["score"]))), "reason": str(data.get("reason") or "")[:200],
                 "model": model, "tokens": tok, "usd": usd}
 
+    async def same_statement(self, lean_a: str, lean_b: str) -> bool | None:
+        if self.ws is None or not self._real():
+            return None
+        code = G.same_statement_code(lean_a, lean_b)
+        if not code:
+            return False
+        pa = split_decl(lean_a or "")
+        if self.context and pa is not None and not pa[0]:
+            code = self.context + "\n\n" + code
+        try:
+            r = await self.ctx.lean.check(leancheck.with_axiom_probe(leancheck.GOEDEL_HEADER + code, G.ALPHA_THM),
+                                          self.ws, 60, G.ALPHA_THM, owner=self.owner)
+        except Exception:  # noqa: BLE001
+            return False
+        return bool(r.verdict.ok)
+
     async def expand(self, g: dict, nid: str, digest: str) -> Expansion:
         decl = self._decl(g, nid)
         if decl is None or self.ws is None:
@@ -780,6 +812,10 @@ class LeanOps(Ops):
             else:
                 blocks.append(f"-- admitted (cited / hole): {kn['title'][:80]}\ntheorem {kd[1]} {kd[2]} := by sorry")
                 holes.append(kd[1])
+            for al in kn.get("aliases") or []:            # the same statement under other names (D59)
+                ad = split_decl(al.get("lean") or "")
+                if ad and ad[1] != kd[1] and ad[1] != name:
+                    blocks.append(f"theorem {ad[1]} {ad[2]} := {kd[1]}")
         pre = "\n\n".join(b for b in [self.context] + blocks if b.strip())
         text = (leancheck.GOEDEL_HEADER + (pre + "\n\n" if pre else "") + f"theorem {name} {sig} := by sorry")
         try:
@@ -887,21 +923,46 @@ class LeanOps(Ops):
     async def probe(self, g: dict, nids: list[str]) -> dict[str, Refutation]:
         """Counterexample probes: Lean tries to prove the NEGATION of each new lemma (automatic tactics, degenerate
         values); a closed probe is re-checked alone, strictly. Only Lean refutes."""
-        if self.ws is None or not self._real():          # a stand-in Lean proves anything: no refutation from it
+        if self.ws is None:
             return {}
         from ..pipeline import probes as P
         from ..pipeline.verify import CLOSE_HYP, NEG_TACTICS
+        from . import smallprobe as SP
+        real = self._real()                              # a stand-in Lean proves anything: no refutation from it
         batch: list = []
         owner: dict[str, str] = {}
         pre = None
+        stop = lambda: bool((self.svc.runs.get(self.did) or {}).get("stop"))  # noqa: E731
         for i, x in enumerate(nids[:MAX_LEMMAS]):
-            lean = g["nodes"][x].get("lean") or ""
+            node = g["nodes"][x]
+            lean = node.get("lean") or ""
             text = leancheck.GOEDEL_HEADER + (self.context + "\n\n" if self.context else "") + lean
             sig = P.split_statement(text)
             if sig is None:
                 continue
+            # D59: Madalean's own deterministic evaluation on small instances first (no model-written code)
+            try:
+                found = await asyncio.wait_for(asyncio.to_thread(
+                    SP.search, text, seconds=SMALL_PROBE_SECONDS, should_stop=stop), SMALL_PROBE_SECONDS + 5)
+            except Exception as e:  # noqa: BLE001
+                log.info("small probe failed: %s", e)
+                found = None
+            wtacs: list[str] = []
+            if found is not None and not found["found"]:
+                node["tested"] = {"text": found["tested"], "points": found["points"], "dom": found["dom"],
+                                  "complete": found["complete"]}
+            elif found is not None:
+                node["probe"] = {"candidate": SP.witness_text(found), "confirmed": False}
+                wtacs = SP.lean_tactics(text, found)
+            if not real:
+                continue
             pre = pre or sig.preamble
             neg = ": " + sig.negation()
+            for k, tac in enumerate(wtacs):
+                pn = f"madalean_gcex_{i}_{k}"
+                batch.append(P.Probe(pn, P.decl(pn, neg, tac), "cex",
+                                     {"tactic": "witness", "witness": SP.witness_text(found)}))
+                owner[pn] = x
             tacs = list(NEG_TACTICS[:5])
             subs = [(nm, v[0]) for nm, t in P.explicit_binders(sig.binders) for v in [P.degenerate_value(t)] if v]
             if subs:
@@ -922,7 +983,12 @@ class LeanOps(Ops):
             r = await P.strict(self.io, self.ws, pre, p, 60)
             if r.verdict.ok:
                 done.add(x)
-                out[x] = Refutation(True, p.code, f"Lean proved the negation ({p.meta.get('tactic', '')[:60]})", 2)
+                wit = p.meta.get("witness", "")
+                why = (f"counterexample {wit} (small-instance search), confirmed by Lean" if wit else
+                       f"Lean proved the negation ({p.meta.get('tactic', '')[:60]})")
+                if wit:
+                    g["nodes"][x]["probe"] = {"candidate": wit, "confirmed": True}
+                out[x] = Refutation(True, p.code, why, 2, witness=wit)
         return out
 
 
@@ -938,13 +1004,18 @@ class GraphService:
     # -- storage
     def get(self, did: str) -> dict | None:
         data = self.store.load(did)
-        return (data or {}).get("graph")
+        g = (data or {}).get("graph")
+        if g is not None and int(g.get("v", 1)) < G.GRAPH_VERSION:
+            G.migrate(g)                               # D59: keys up to renaming; alpha-duplicates merged
+            self.store.save(data)
+        return g
 
     def ensure(self, did: str) -> dict:
         """The dossier's graph; created from the dossier (and its proof plan, if any) on first use."""
         d = self.ctx.repo.get(did)
         if d is None:
             raise G.GraphError("not_found", 404)
+        self.get(did)                                  # migrates a stored graph first
         data = self.store.load(did) or {"dossier_id": did, "versions": []}
         g = data.get("graph")
         if g is None:
@@ -967,6 +1038,7 @@ class GraphService:
         if d.statement and root.get("lean") != d.statement:          # the statement was corrected
             root["lean"] = d.statement[:8000]
             root["key"] = G.statement_key(d.statement)
+            root["exact"] = G.exact_key(d.statement)
             G.touch(g, "statement", g["root"])
         self._sync_dossier(g, d)
         pub = self.planner.public(did) if self.store.current(did) is not None else None

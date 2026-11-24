@@ -136,4 +136,8 @@ literature.try_conditional / check_conditional / upgrade / verdict_of   # condit
   paper. The quote is exact, its scope is the reviewer's / the authors' summary.
 - The real vision path depends on the provider adapters accepting image parts (OpenAI-style `image_url`); it was not
   measured with a real model here (tests use a fake vision model). No notation table, no Sage code in digests yet.
-- The Calcul « Demande » cell has no paperclip yet (the API accepts `cell`).
+- Calcul « Demande » cells (D59): the paperclip attaches to the PROJECT (`POST /api/calcul/{pid}/attachments`,
+  `attach.ProjectNotebook`: same Sources import, same read-once digest by SHA-256 + `EXTRACTOR_VERSION`, links in
+  `<shelf>/calcul_attachments.json`, each with the `cells` that use it); a request naming « pièce jointe N » gets
+  the digest's quotes (`with_mentions`, ≤ 4 quotes of ≤ 800 characters) in the text sent to the model, while the
+  cell keeps the user's words. The numbering is the project notebook's, separate from each dossier's.

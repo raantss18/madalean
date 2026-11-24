@@ -24,6 +24,15 @@
   let busy = $state('');
   let explainOpen = $state(false);
   let explanation = $state<Explanation | null>(null);
+  // D59: the drawn view is optional (the list stays), lazy-loaded, and not offered on phones (the list reads better)
+  const narrow = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767px)').matches;
+  let drawn = $state(false);
+  let mapChunk: Promise<typeof import('./GraphMap.svelte').default> | null = null;
+  function loadMap() {
+    mapChunk ??= import('./GraphMap.svelte').then((m) => m.default);
+    mapChunk.catch(() => { mapChunk = null; });
+    return mapChunk;
+  }
 
   async function load() {
     try { graph = (await graphApi.get(d.id, i18n.lang)).graph; } catch (e) { toast('error', errorText(e)); }
@@ -110,7 +119,23 @@
       {/each}
     </ul>
 
+    {#if !narrow}
+      <div class="views" role="group" aria-label={t('pg.view')}>
+        <button class="btn small" aria-pressed={!drawn} onclick={() => (drawn = false)}><Icon name="list" size={14} />{t('pg.view.list')}</button>
+        <button class="btn small" aria-pressed={drawn} onclick={() => { drawn = true; void loadMap(); }}><Icon name="split" size={14} />{t('pg.view.drawn')}</button>
+      </div>
+    {/if}
+
     <div class="body" class:with-panel={Boolean(node)}>
+      {#if drawn && !narrow}
+        {#await loadMap()}
+          <p class="muted" aria-busy="true">{t('common.loading')}</p>
+        {:then GraphMap}
+          <GraphMap {graph} order={tree.order.map((x) => x.id)} selected={sel} onselect={pick} />
+        {:catch}
+          <p class="muted small">{t('pg.view.failed')}</p>
+        {/await}
+      {:else}
       <ul class="nodes" aria-label={t('pg.nodes')}>
         {#each tree.order as it (it.id)}
           {@const n = graph.nodes[it.id]}
@@ -128,6 +153,7 @@
           <li class="muted small">{t('pg.empty')}</li>
         {/each}
       </ul>
+      {/if}
 
       {#if node}
         <aside class="panel" aria-labelledby="pgn-h">
@@ -137,6 +163,10 @@
           {#if node.state === 'conditional'}<p class="small cond">{t('pg.conditionalNode')}</p>{/if}
           {#if node.claimed}<p class="xs muted">{t('pg.claimed', { claim: node.claimed })}</p>{/if}
           {#if node.lean}<pre class="lean">{node.lean}</pre>{/if}
+          {#if node.aliases?.length}<p class="xs muted">{t('pg.aliases', { names: node.aliases.map((a) => a.title).join(', ') })}</p>{/if}
+          {#if node.probe?.confirmed}<p class="small"><Icon name="x" size={12} /> {t('pg.cexConfirmed', { witness: node.probe.candidate })}</p>
+          {:else if node.probe}<p class="small">{t('pg.cexCandidate', { witness: node.probe.candidate })}</p>{/if}
+          {#if node.tested?.text}<p class="xs muted">{t('pg.tested', { what: node.tested.text })}</p>{/if}
           <h5>{t('pg.whyTitle')}</h5>
           {#if node.why}<p class="small">{node.why}</p>{/if}
           <p class="small">{why?.reason_text || node.reason_text || t('pg.noReason')}</p>
@@ -239,5 +269,7 @@
   .alts, .atts { margin: 0; padding-left: 1.2em; display: grid; gap: 2px; }
   .err { color: var(--failed); }
   blockquote { margin: 0; padding-left: var(--s-2); border-left: 3px solid var(--line-strong); color: var(--text-2); }
+  .views { display: flex; gap: 6px; }
+  .views [aria-pressed='true'] { border-color: var(--accent); font-weight: 700; }
   .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s-2); }
 </style>

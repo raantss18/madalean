@@ -1313,3 +1313,35 @@
   lemmas across dossiers by similarity (two statements that differ by a hypothesis are different); rewriting the main
   pipeline's proofs with lessons behind its back (its checked code and stored code must stay the same text); training
   or fine-tuning a model (resources; the lessons are model-independent by design); a « proved » status from a source.
+
+## D59 — Closing S-AX / S-AY gaps: statement identity up to renaming, small-instance counterexamples, Calcul paperclip, the graph drawn (TODO « Ordre choisi » item 1, 2026-11-24, S-BA)
+- **Identity up to renaming (alpha-equivalence only).** `proofgraph.statement_key` hashes `alpha_normal(signature)`:
+  every bound name (binder groups, and `∀ ∃ ∃! fun λ ∑ ∏ ⋃ ⋂ …` inside the types) becomes its rank of first
+  binding, by a global token substitution (`n.succ` follows `n`, `Nat.succ` stays). Hypothesis names count as bound
+  names. Binder order and grouping are kept as written, so a reordering is another node. Syntactic first, **Lean only
+  on a collision** in the search (`same_statement_code`: `theorem madalean_alpha_eq : (∀ …, A) = (∀ …, B) := rfl`,
+  strict verdict with the axiom probe; refusal → kept apart, logged). The written form is kept as `exact`, other
+  wordings as `aliases`, declared in a combination as `theorem alias SIG := original`. `GRAPH_VERSION` 2: stored
+  graphs migrate on load (keys recomputed, exact alpha-duplicates merged into the best status, edges redirected,
+  counters / sources folded, `merged_alpha` logged; never two nodes one of which uses the other).
+  The stage cache keeps its own normaliser: its cached proofs mention the binder names, a renamed statement would
+  get a proof that does not compile. Lessons already key on name-free shapes.
+- **Small-instance counterexamples** (`research/smallprobe.py`), before any Lean probe of a new lemma: the
+  certificates' reader (`certs/problem.read`) and exact evaluator (`certs/evalcore`, the Lean conventions of the
+  `finite` / `counterexample` kinds) on a box of small values (ℕ, ℤ, ℚ / ℝ small + seeded random rationals; ≤ 4
+  variables, ≤ 20 000 points), hypotheses first, 2 s per lemma, cancelled with the run. A violating point becomes a
+  Lean proof of the negation from the witness (specialise, discharge hypotheses by `decide` / `norm_num`, close),
+  batched and then checked strictly with the other negation probes; only Lean refutes. Nothing found → `tested`
+  evidence on the node and in its viability (« testé sur n ∈ 0..12 (13) : aucun contre-exemple », +0.05 / +0.03).
+- **Calcul « Demande » paperclip**: attachments of a Calcul cell belong to the PROJECT (`attach.ProjectNotebook`, a
+  dossier-shaped holder whose links live beside the project's Sources); same import, same read-once digest; the cell
+  is linked (`cells`); `with_mentions` adds the named items' quotes (bounded) to the text sent to the model only.
+- **Graph drawn**: optional view beside the list, lazy-loaded, desktop only; layered DAG computed in the client
+  (`lib/graph/dag.ts`), no dependency; colour + shape + words, legend shared with the list, pan / zoom, Tab in list
+  order, Enter → the same panel.
+- Rejected: identifying statements up to binder order or definitional equality (two lemmas the user wrote
+  differently may be meant differently, and the merge is silent); asking Lean for every new key (one compile per
+  lemma for a rare case); running the small-instance search in Sage (a kernel start per lemma for a few thousand
+  polynomial evaluations the certificates' evaluator already does exactly; Sage stays for Calcul and certificates);
+  any model-written probe code; a dossier per Calcul notebook to hold its attachments (a second concept); reusing
+  the plan's tidy-tree renderer for the graph (it would draw a shared lemma twice).

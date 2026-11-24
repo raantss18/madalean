@@ -29,15 +29,23 @@ A proof that rests on a result cited but not proved in Lean is **always** “con
 “verified”. It becomes verified when Lean proves that result.
 
 A sub-lemma used by two lemmas exists once: it is listed under the first, the other shows “also used by …”. Two
-statements that differ only by a hypothesis stay distinct.
+statements that differ only by a hypothesis stay distinct; two statements that differ only by the names of their
+variables or hypotheses (`n` or `k`, `hn` or `h`) are the same node (Lean confirms it when in doubt). Reordering the
+variables gives another node.
+
+**List or drawing.** On a wide screen, “Drawing” shows the graph drawn: the target on top, each lemma below the ones
+that use it, a shared sub-lemma drawn once. Drag to move, wheel or + / − to zoom; Tab goes through the nodes in the
+list order and Enter opens the detail. On a phone, the list stays the only view.
 
 ## Reasoned search
 
 “Reasoned search” tries to prove the target directly, then splits it into lemmas when useful. Before working on a
 track, Madalean assesses it (“Why this track?”): already proved elsewhere, already abandoned, close to a failed track,
 the same Lean error twice, depth… and, when a model is available, a short opinion of the model, always labelled as
-such. Proposed lemmas are first checked by Lean (statements, combination), and Lean looks for a counterexample: a
-false lemma is refuted before any work.
+such. Proposed lemmas are first checked by Lean (statements, combination), and Madalean looks for a counterexample: first by computing the statement on small values when it can (integers
+0 to 12, simple rationals — its own exact computation, never model-written code), then Lean tries to prove the
+negation. A counterexample found is kept only when Lean confirms it: the lemma is then refuted, with the witness.
+Otherwise the node's detail says “Tested on n ∈ 0..12: no counterexample”, which counts a little in its viability.
 
 Guards: limits on time, attempts, depth, tokens and spending (never above the conductor's cap), a stop when nothing
 progresses, loops refused (a lemma that would use what uses it). At the end, a summary says why the search stopped

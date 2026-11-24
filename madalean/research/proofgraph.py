@@ -27,7 +27,7 @@ import uuid
 from .. import leancheck
 from ..pipeline.stagecache import normalize_text
 
-GRAPH_VERSION = 1
+GRAPH_VERSION = 2              # 2: statement keys up to renaming of bound names (D59)
 STATUSES = ("proved", "mathlib", "certified", "cited", "open", "refuted", "abandoned")
 VERIFIED = ("proved", "mathlib", "certified")
 KINDS = ("goal", "lemma", "mathlib", "certificate", "cited", "library", "proposal")
@@ -39,6 +39,7 @@ MAX_RUNS = 10                  # search-run records kept per graph
 MAX_PROOF_CHARS = 20000
 DIGEST_TOKENS = 600            # default budget of the prover digest (≈ 3.5 characters per token)
 CHARS_PER_TOKEN = 3.5
+ALPHA_THM = "madalean_alpha_eq"   # the theorem of the Lean confirmation of an alpha-collision (D59)
 MATHLIB_DOC = "https://leanprover-community.github.io/mathlib4_docs/find/?pattern={name}#doc"
 
 
@@ -50,19 +51,173 @@ class GraphError(Exception):
 
 
 # ---------------------------------------------------------------- keys
+_IDENT = r"[^\W\d][\w'!?₀-₉]*(?:\.[^\W\d][\w'!?₀-₉]*|\.\d+)*"
+_OPEN, _CLOSE = "([{⦃⟨", ")]}⦄⟩"
+_BINDER_WORDS = ("∀", "∃!", "∃", "Π", "Σ", "λ", "fun", "∑", "∏", "⋃", "⋂", "⨆", "⨅")
+_KEYWORDS = {"in", "fun", "λ", "by", "at", "with", "if", "then", "else", "let", "have", "show", "from", "Type",
+             "Sort", "Prop", "match", "do", "true", "false", "True", "False"}
+
+
+def binder_groups(sig: str) -> tuple[list[tuple[str, list[str], str]], str] | None:
+    """The leading binder groups of a signature `(a b : T) {c : U} [C] : GOAL` as [(bracket, names, type)] and the
+    goal; None when the signature is not of that shape. Anonymous instance binders have no names."""
+    i, out, s = 0, [], sig.strip()
+    while True:
+        while i < len(s) and s[i].isspace():
+            i += 1
+        if i >= len(s):
+            return None
+        if s[i] == ":":
+            return out, s[i + 1:].strip()
+        if s[i] not in "({[⦃":
+            return None
+        depth, j = 0, i
+        while j < len(s):
+            if s[j] in _OPEN:
+                depth += 1
+            elif s[j] in _CLOSE:
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        if depth:
+            return None
+        inner = s[i + 1:j]
+        k, d = -1, 0                                   # first top-level ':' (not ':=') inside the group
+        for p, ch in enumerate(inner):
+            if ch in _OPEN:
+                d += 1
+            elif ch in _CLOSE:
+                d -= 1
+            elif ch == ":" and d == 0 and not inner.startswith(":=", p):
+                k = p
+                break
+        if k >= 0 and all(re.fullmatch(_IDENT, w) for w in inner[:k].split()) and inner[:k].split():
+            out.append((s[i], inner[:k].split(), inner[k + 1:].strip()))
+        else:
+            out.append((s[i], [], inner.strip()))
+        i = j + 1
+
+
+def _bound_inside(text: str) -> list[str]:
+    """Names bound inside a term, in order: after ∀ ∃ fun λ ∑ ∏ … (plain names or bracketed groups)."""
+    out: list[str] = []
+    toks = re.findall(_IDENT + r"|∃!|[∀∃Πλ∑∏⋃⋂⨆⨅Σ]|[({\[⦃⟨]|[)}\]⦄⟩]|:=|=>|↦|\S", text)
+    i = 0
+    while i < len(toks):
+        if toks[i] in _BINDER_WORDS:
+            i += 1
+            while i < len(toks):
+                t = toks[i]
+                if t in "([{⦃":
+                    depth, j = 0, i
+                    while j < len(toks):
+                        depth += toks[j] in _OPEN
+                        depth -= toks[j] in _CLOSE
+                        if depth == 0:
+                            break
+                        j += 1
+                    inner = toks[i + 1:j]
+                    if ":" in inner:
+                        out += [w for w in inner[:inner.index(":")] if re.fullmatch(_IDENT, w)
+                                and "." not in w and w not in _KEYWORDS]
+                    i = j + 1
+                elif re.fullmatch(_IDENT, t) and "." not in t and t not in _KEYWORDS:
+                    out.append(t)
+                    i += 1
+                else:
+                    break
+        else:
+            i += 1
+    return out
+
+
+def alpha_normal(sig: str) -> str:
+    """A signature up to the names of its bound variables and hypotheses (alpha-equivalence, purely syntactic):
+    every bound name is replaced by its rank of first binding (`⟪0⟫`, `⟪1⟫`, …); the order of the binders, their
+    grouping, types, hypotheses and goal are kept as written (a reordering or a regrouping stays another key).
+    The renaming is a global token substitution, so it may only fail to identify (never wrongly identify two
+    statements, up to the rare reuse of one name as both bound and free; Lean confirms a collision, D59)."""
+    text = re.sub(r"\s+", " ", sig or "").strip()
+    parsed = binder_groups(text)
+    names: list[str] = []
+    if parsed is not None:
+        groups, goal = parsed
+        for _b, ns, typ in groups:
+            names += ns
+            names += _bound_inside(typ)
+        names += _bound_inside(goal)
+    else:
+        names += _bound_inside(text)
+    rank: dict[str, str] = {}
+    for n in names:
+        rank.setdefault(n, f"⟪{len(rank)}⟫")
+    if not rank:
+        return text
+
+    def sub(m: re.Match) -> str:
+        tok = m.group(0)
+        head, dot, rest = tok.partition(".")
+        if tok in rank:
+            return rank[tok]
+        if dot and head in rank:                       # `n.succ`, `h.1`: a projection of a bound name
+            return rank[head] + "." + rest
+        return tok
+    return re.sub(r"(?<![\w'.!?₀-₉])" + _IDENT, sub, text)
+
+
+def exact_key(lean: str = "") -> str:
+    """The key of the statement as written (names included): the identity used before D59, kept to tell
+    alpha-equivalent statements apart from identical ones (a collision of `statement_key` is confirmed by Lean)."""
+    if lean and lean.strip():
+        from .proofplan import split_decl
+        parts = split_decl(lean)
+        norm = re.sub(r"\s+", " ", parts[2]).strip() if parts else ""
+        if norm:
+            return "lean=" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:24]
+    return ""
+
+
 def statement_key(lean: str = "", nl: str = "") -> str:
-    """Normalised statement key: the same Lean statement (whatever its name, comments, spacing) gives the same key in
-    every run and every dossier of the project. Without a Lean statement, the normalised words (prefix `nl:`)."""
+    """Normalised statement key: the same Lean statement (whatever its name, comments, spacing, and — D59 — the
+    names of its bound variables and hypotheses) gives the same key in every run and every dossier of the project.
+    Without a Lean statement, the normalised words (prefix `nl:`)."""
     if lean and lean.strip():
         from .proofplan import split_decl
         parts = split_decl(lean)
         # the last theorem's binders and type only: its name, comments, spacing, the header and the dossier's
         # context (shared inside one top-level dossier) are not part of what it says
-        norm = re.sub(r"\s+", " ", parts[2]).strip() if parts else ""
+        norm = alpha_normal(parts[2]) if parts else ""
         if norm:
             return "lean:" + hashlib.sha256(norm.encode("utf-8")).hexdigest()[:24]
     words = normalize_text(nl)
     return ("nl:" + hashlib.sha256(words.encode("utf-8")).hexdigest()[:24]) if words else ""
+
+
+def as_proposition(sig: str) -> str:
+    """`(a : T) (h : P a) : Q a` → `∀ (a : T) (h : P a), Q a` (for Lean's comparison of two statements)."""
+    parsed = binder_groups(sig)
+    if parsed is None:
+        return ""
+    groups, goal = parsed
+    if not groups:
+        return f"({goal})"
+    bs = " ".join(f"{b}{' '.join(ns) + ' : ' if ns else ''}{t}{_CLOSE[_OPEN.index(b)]}" for b, ns, t in groups)
+    return f"(∀ {bs}, {goal})"
+
+
+def same_statement_code(lean_a: str, lean_b: str) -> str:
+    """A Lean snippet that compiles iff the two statements are the same proposition up to definitional unfolding
+    (alpha-equivalent statements are syntactically equal for Lean). '' when one is not of the expected shape."""
+    from .proofplan import split_decl
+    pa, pb = split_decl(lean_a or ""), split_decl(lean_b or "")
+    if not pa or not pb:
+        return ""
+    a, b = as_proposition(pa[2]), as_proposition(pb[2])
+    if not a or not b:
+        return ""
+    ctx = pa[0] or pb[0]
+    return (ctx + "\n\n" if ctx else "") + f"theorem {ALPHA_THM} : ({a} : Prop) = ({b} : Prop) := rfl\n"
 
 
 def _words(text: str) -> set[str]:
@@ -96,7 +251,7 @@ def new_node(kind: str, title: str, *, lean: str = "", statement_nl: str = "", s
     if status not in STATUSES:
         raise GraphError("bad_status")
     now = time.time()
-    return {"id": _nid(), "key": statement_key(lean, statement_nl or title), "kind": kind, "title": (title or "")[:200],
+    return {"id": _nid(), "key": statement_key(lean, statement_nl or title), "exact": exact_key(lean), "kind": kind, "title": (title or "")[:200],
             "statement_nl": (statement_nl or "")[:3000], "lean": (lean or "")[:8000], "status": status, "reason": "",
             "why": (why or "")[:1000], "source": dict(source or {"kind": "user"}), "citation": None,
             "plan_node": plan_node, "dossier_id": dossier_id, "depth": 0, "viability": None, "attempts": [],
@@ -139,6 +294,12 @@ def add_node(g: dict, node: dict, *, parent: str | None = None, edge: str = "use
             known.append(src)
         if node.get("citation") and not same.get("citation"):
             same["citation"] = node["citation"]
+        if node.get("exact") and same.get("exact") and node["exact"] != same["exact"]:
+            # the same statement up to the names of its bound variables / hypotheses (D59): one node, the
+            # other wording kept as an alias
+            al = same.setdefault("aliases", [])
+            if node["exact"] not in [a.get("exact") for a in al] and len(al) < 6:
+                al.append({"exact": node["exact"], "lean": (node.get("lean") or "")[:2000], "title": node["title"]})
         node = same
     else:
         if len(g["nodes"]) >= MAX_GRAPH_NODES:
@@ -156,6 +317,58 @@ def add_node(g: dict, node: dict, *, parent: str | None = None, edge: str = "use
     if created:
         touch(g, "node", node["id"], title=node["title"][:80], source=(node.get("source") or {}).get("kind", ""))
     return node, created
+
+
+_RANK = {"proved": 6, "certified": 6, "mathlib": 6, "cited": 3, "open": 2, "abandoned": 1, "refuted": 0}
+
+
+def migrate(g: dict) -> int:
+    """Bring a stored graph to GRAPH_VERSION (idempotent). v1 → v2 (D59): keys recomputed up to renaming of bound
+    names; nodes that become alpha-duplicates are merged into one (the one with the best status, the goal first),
+    their edges redirected, the other wording kept as an alias and the merge logged (history kept). Two nodes one of
+    which uses the other are never merged (that would be a loop). Returns the number of merged nodes."""
+    if int(g.get("v", 1)) >= GRAPH_VERSION:
+        return 0
+    for n in g["nodes"].values():
+        n["exact"] = exact_key(n.get("lean") or "")
+        n["key"] = statement_key(n.get("lean") or "", n.get("statement_nl") or n.get("title") or "") \
+            if n["kind"] != "certificate" or n.get("lean") else n.get("key", "")
+    groups: dict[str, list[dict]] = {}
+    for n in g["nodes"].values():
+        if n.get("key", "").startswith("lean:"):
+            groups.setdefault(n["key"], []).append(n)
+    merged = 0
+    for key, ns in groups.items():
+        if len(ns) < 2:
+            continue
+        ns.sort(key=lambda n: (n["id"] != g["root"], -_RANK.get(n["status"], 0), n.get("created", 0)))
+        keep = ns[0]
+        for other in ns[1:]:
+            if reaches(g, keep["id"], other["id"]) or reaches(g, other["id"], keep["id"]):
+                other["key"] = other["exact"] or other["key"]          # kept apart: merging would make a loop
+                continue
+            oid, kid = other["id"], keep["id"]
+            edges = []
+            for e in g["edges"]:
+                e = [kid if x == oid else x for x in e[:1]] + [e[1]] + [kid if x == oid else x for x in e[2:3]]
+                if e[0] != e[2] and e not in edges:
+                    edges.append(e)
+            g["edges"] = edges
+            al = keep.setdefault("aliases", [])
+            al.append({"exact": other.get("exact", ""), "lean": (other.get("lean") or "")[:2000],
+                       "title": other["title"], "id": oid, "status": other["status"]})
+            for s in [other.get("source")] + list(other.get("sources") or []):
+                if s and s != keep.get("source") and s not in keep.setdefault("sources", []) and \
+                        len(keep["sources"]) < 8:
+                    keep["sources"].append(s)
+            keep["attempts_n"] = int(keep.get("attempts_n", 0)) + int(other.get("attempts_n", 0))
+            for fp, c in (other.get("errors_seen") or {}).items():
+                keep.setdefault("errors_seen", {})[fp] = keep["errors_seen"].get(fp, 0) + c
+            g["nodes"].pop(oid, None)
+            merged += 1
+            touch(g, "merged_alpha", kid, other=oid, title=other["title"][:80])
+    g["v"] = GRAPH_VERSION
+    return merged
 
 
 def _prune(g: dict) -> None:
@@ -444,6 +657,10 @@ def viability_signals(g: dict, nid: str, *, env: dict | None = None, project: li
         if g["nodes"][a]["key"] == n["key"]:
             sig.append({"code": "cycle", "params": {"title": g["nodes"][a]["title"][:80]}})
             return {"score": 0.0, "signals": sig, "skip": True}
+    t = n.get("tested") or {}
+    if t.get("text"):                                  # D59: evaluated on small instances, nothing found
+        sig.append({"code": "tested", "params": {"what": str(t["text"])[:200]}})
+        score += 0.05 if t.get("complete") else 0.03
     d = int(n.get("depth", 0))
     if d:
         sig.append({"code": "depth", "params": {"n": d}})
@@ -482,6 +699,7 @@ T = {
         "cycle": "boucle : ce lemme est l'énoncé d'un nœud qui l'utilise (« {title} »)",
         "depth": "profondeur {n}",
         "cited": "résultat cité, non prouvé en Lean : toute preuve qui l'utilise est conditionnelle",
+        "tested": "testé sur {what} : aucun contre-exemple",
         "model": "avis du modèle {model} : {reason}",
         "none": "aucun signal particulier",
         "score": "viabilité {score}",
@@ -502,6 +720,7 @@ T = {
         "cycle": "loop: this lemma is the statement of a node that uses it (“{title}”)",
         "depth": "depth {n}",
         "cited": "cited result, not proved in Lean: any proof using it is conditional",
+        "tested": "tested on {what}: no counterexample",
         "model": "opinion of the model {model}: {reason}",
         "none": "no particular signal",
         "score": "viability {score}",
