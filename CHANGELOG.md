@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.2.0 — 2026-11-24
+
+**Littérature d'abord**
+- Pour chaque énoncé, Madalean cherche en parallèle des résultats liés dans zbMATH Open, OpenAlex et arXiv (DOI
+  confirmés par Crossref), dans tes Sources et dans Mathlib, sans jamais bloquer la preuve.
+- Une référence n'est montrée que si elle existe vraiment ; chaque théorème cité est recopié mot pour mot depuis le
+  texte récupéré, avec sa place ; « relu par des pairs » ou « prépublication » est indiqué.
+- Un résultat cité est formalisé en Lean et peut servir de lemme ; tant qu'il n'est pas prouvé en Lean, la preuve qui
+  l'utilise est « conditionnelle » — jamais « vérifiée ». Panneau « Littérature » dans le dossier.
+
+**Pièces jointes lues une seule fois** — image, PDF, LaTeX, BibTeX ou adresse web, sur un nouvel énoncé, dans le fil
+d'un dossier ou dans une cellule Calcul ; lues une fois pour tout le projet, transformées en mémoire (référence,
+énoncés cités, énoncés Lean), puis seule cette mémoire sert. La cible à prouver est énoncée à part des résultats
+fournis.
+
+**Graphe de lemmes raisonné**
+- Chaque dossier a son graphe : cible, lemmes, résultats de Mathlib, certificats, résultats cités, chacun avec son
+  statut ; un sous-lemme partagé n'est prouvé qu'une fois ; un même lemme est reconnu à un renommage des variables
+  près (confirmé par Lean).
+- « Recherche raisonnée » : une estimation écrite avant chaque piste, un contre-exemple cherché sur de petites valeurs
+  (confirmé par Lean), des budgets stricts contre les boucles, un résumé à l'arrêt ; une piste abandonnée garde sa
+  raison.
+- « Expliquer la démonstration » : chemin choisi et pourquoi, lemmes, tactiques, échecs, bibliographie — construit
+  seulement à partir de ce qui a été enregistré. Vue en liste ou en dessin.
+
+**Sous-dossiers** — un lemme s'ouvre comme un dossier complet (preuve, sous-graphe, calculs), rangé sous son parent,
+avec le fil d'Ariane « Projet › Dossier › Lemme » ; son statut remonte au parent.
+
+**Ce que Madalean a appris** — des leçons tirées de preuves vérifiées par Lean (noms Mathlib renommés, corrections
+d'erreurs, pistes sans issue, stratégies qui marchent), données à n'importe quel modèle ; visibles et supprimables
+dans Réglages.
+
+**De l'article au plan formel** — onglet « Plan formel » du Blueprint : les résultats d'un article (LaTeX d'arXiv ou
+PDF) avec leur texte exact et leurs dépendances réelles, formalisés par étapes, Mathlib d'abord ; un dossier principal
+et des sous-dossiers ; export LaTeX (style leanblueprint) et HTML.
+
+**MCP** — Madalean peut servir d'outils à Claude Code ou Claude Desktop sur ton ordinateur (chercher dans Mathlib,
+vérifier avec Lean, certifier, expliquer, chercher dans la littérature), et ses modèles peuvent utiliser des outils
+externes que tu autorises un à un. Éteint par défaut.
+
 ## 2.1.0 — 2026-11-23
 
 **Certificats : Sage calcule, Lean vérifie**

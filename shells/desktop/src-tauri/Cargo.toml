@@ -1,6 +1,6 @@
 [package]
 name = "madalean-desktop"
-version = "2.1.0"
+version = "2.2.0"
 description = "Madalean desktop shell: connects to the Madalean host and shows its web UI"
 edition = "2021"
 license = "MIT"
