@@ -52,7 +52,7 @@
   let rev = $state(0);
 
   const STEPS: StepName[] = ['explore', 'recognise', 'state', 'attack'];
-  const lang = $derived(i18n.base);
+  const lang = $derived(i18n.lang);
 
   function fail(e: unknown) {
     const own = e instanceof ApiError ? errText(e.kind) : '';

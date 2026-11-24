@@ -111,7 +111,6 @@
     <div class="lang row">
       <button class="btn quiet small" lang="fr" aria-pressed={i18n.lang === 'fr'} onclick={() => i18n.set('fr')}>Français</button>
       <button class="btn quiet small" lang="en" aria-pressed={i18n.lang === 'en'} onclick={() => i18n.set('en')}>English</button>
-      <button class="btn quiet small" lang="mg" aria-pressed={i18n.lang === 'mg'} onclick={() => i18n.set('mg')}>Malagasy</button>
     </div>
   </div>
 </main>

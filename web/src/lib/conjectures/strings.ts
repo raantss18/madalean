@@ -132,7 +132,7 @@ export const EN: Record<string, string> = {
 };
 
 export function xt(key: string, params: Record<string, string | number> = {}): string {
-  const s = (i18n.base === 'en' ? EN : FR)[key] ?? FR[key] ?? key;
+  const s = (i18n.lang === 'en' ? EN : FR)[key] ?? FR[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_m, k: string) => String(params[k] ?? `{${k}}`));
 }
 
@@ -143,7 +143,7 @@ export function hasX(key: string): boolean {
 /** Text the server gives in both languages. */
 export function pick(v: { fr: string; en: string } | null | undefined): string {
   if (!v) return '';
-  return (i18n.base === 'en' ? v.en : v.fr) || v.fr || '';
+  return (i18n.lang === 'en' ? v.en : v.fr) || v.fr || '';
 }
 
 /** Plain words for an API error kind of the engine (falls back to '' so callers can use the generic text). */

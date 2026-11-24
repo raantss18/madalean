@@ -167,21 +167,7 @@ const EN: Record<string, string> = {
   sageFigure: 'Figure produced by Sage (cell {n})', status: 'Status',
 };
 
-// S-BE (D63): the basics of Calcul in Malagasy (to be reviewed, docs/I18N_MG.md); the rest falls back to French.
-const MG: Record<string, string> = {
-  attachFile: 'Ampio rakitra (sary, PDF, LaTeX, BibTeX)', addHint: 'Sela vaovao (kaody na fangatahana amin’ny teny)',
-  autoPh: 'Kaody Sage, na fangatahana amin’ny teny (oh.: ny racine an’ny x^5+x^3+x+1 ao amin’ny F_16)',
-  kindOf: 'Karazana sela {n}', formulaOf: 'Valin’ny sela {n}', moreDoc: 'Asa hafa amin’ny kahie',
-  explainError: 'Hazavao ny diso', explainLines: 'Hazavao isaky ny andalana', linesTitle: 'Fanazavana isaky ny andalana',
-  explainSteps: 'Hazavao ny dingan’ny kajy', stepsTitle: 'Dingan’ny kajy', explaining: 'Eo am-panazavana…', closeExplain: 'Hidio',
-  applyFix: 'Ampiharo ny fanitsiana', certify: 'Hamarino amin’ny Lean', certWorking: 'Mikajy ny Sage, dia hamarinin’i Lean…',
-  exact: 'Marina tsara', approx: 'Tombana', explain: 'Hazavao', more: 'Asa hafa', deleted: 'Voafafa ny sela.', del: 'Fafao ny sela {n}',
-  moveUp: 'Akaro', moveDown: 'Ampidino', send: 'Alefaso', open: 'Sokafy', done: 'Vita', empty: 'Kahie foana: ampio sela.', status: 'Toe-javatra',
-  noSage: 'Tsy napetraka ny Sage.', installSage: 'Apetraho ny Sage', installing: 'Eo am-pametrahana ny Sage…', 'why.error': 'misy diso',
-};
-export const CALCUL = { FR, MG, EN };
-
 export function ct(key: string, params: Record<string, string | number> = {}): string {
-  const s = (i18n.lang === 'en' ? EN : i18n.lang === 'mg' ? MG : FR)[key] ?? FR[key] ?? key;
+  const s = (i18n.lang === 'en' ? EN : FR)[key] ?? FR[key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_m, k: string) => String(params[k] ?? `{${k}}`));
 }

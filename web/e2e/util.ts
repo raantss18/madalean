@@ -5,7 +5,7 @@ export const URL = () => process.env['MADALEAN_URL']!;
 export const REMOTE = () => process.env['MADALEAN_REMOTE_URL']!;
 
 /** Opens the app on the local (trusted) listener with the tour already dismissed. */
-export async function open(page: Page, path = '/', opts: { tour?: boolean; mode?: 'learn' | 'research'; lang?: 'fr' | 'en' | 'mg' } = {}): Promise<void> {
+export async function open(page: Page, path = '/', opts: { tour?: boolean; mode?: 'learn' | 'research'; lang?: 'fr' | 'en' } = {}): Promise<void> {
   await page.addInitScript(([tour, mode]) => {
     try {
       if (!tour) localStorage.setItem('madalean.tour', '1');

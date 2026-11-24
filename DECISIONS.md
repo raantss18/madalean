@@ -1459,25 +1459,18 @@
   hostile recipe / lesson, no matching workspace, © digests excluded by default, backups rotation and 0600, dataset
   verified-only, API host-only), `web/e2e/memory.spec.ts`.
 
-## D63 — Malagasy interface and verified exercises (TODO « Stratégie 2.1 » item 8, 2026-11-24, S-BE)
-- **Malagasy is a partial catalogue** (`mg.ts`, its own chunk): mg → French → key, never English. What exists in two
-  languages only (manual, glossary, examples, prompts, exports, dates) uses the *content* language: `i18n.base` on the
-  client (the type `BaseLang` makes `obj[i18n.lang]` a compile error on fr/en objects), `i18n.language()` on the server (fr
-  for mg; `ui_language()` is the setting). Rejected: a complete machine translation (quality over coverage);
-  invented mathematical terms — a doubtful one stays French or is described (« azo zaraina amin'ny 2 »), and is listed
-  in docs/I18N_MG.md for the user.
-- **Exercises**: a JSON bank (`madalean-exercises/1`); 23 seed exercises, every statement and solution compiled by the
-  tests. The learner's answer is a tactic block and the server writes the statement: `assemble_proof` is not used
-  because it keeps the model's helper declarations above the theorem (a local notation could change its meaning); any
-  command in an answer is refused. Words: formalised to follow the argument (two tries, `NO_PROOF` allowed), Lean
-  decides, then a review of the gaps; « verified » is said of the formal proof only. Cut: a dossier and the whole
-  pipeline per answer (slow, and the provers would find *another* proof).
-- Authored hints (attempt first, in order) rather than the generated ladder: an exercise has no dossier; the solution
-  last, after a fresh Lean check remembered per (statement, proof, workspace, toolchain). Line by line: D45 unchanged.
-- **Teacher**: « En faire un exercice » keeps a theorem Lean reads alone; imports are untrusted (whole-file refusal);
-  worksheets go through the notes' export (`export_markdown`, sanitised and confined TeX), as GET downloads.
-- UI: `/exercices`, in the logo menu in « Apprendre » mode, lazy strings FR / MG / EN, D43 rules, axe clean.
-- Cut: reflection between hints, explanations of Lean lines in Malagasy (French), a manual in Malagasy (the generator
-  is fr / en), accounts or classes, a seed verified on `lean-current`.
-- Verified: `tests/test_exercises.py` (real Lean), vitest (fallback, placeholders, core keys), `web/e2e/exercises.spec.ts`
-  (FR, MG on a phone, axe).
+
+## D63 — withdrawn: verified exercises and a Malagasy interface (S-BE, merged then reverted 2026-11-24)
+- The user did not want a Malagasy interface and asked to remove the exercises too; « Travail à plusieurs » stopped.
+
+## D64 — Redesign « understand, translate, prove » (user decisions, 2026-11-24)
+- Evidence: dossier 20261124-072123-e433, « Le nombre chromatique du plan est 6 »: first accepted translation was
+  `False`; the problem is open (5 ≤ χ ≤ 7) and the reader knew after 2 min but only said so inside a long text;
+  suggested fixes contradicted each other (χ between 5 and 7 → « not what was asked » → χ = 6 → « open ») and one
+  overstated de Grey (no 4-colouring, NOT no 5-colouring); then 40 min of tournament with unsuitable models
+  (content-safety, calibration); literature keywords « square root », « number » missed Hadwiger–Nelson.
+- Decisions: (1) one chronological thread at the centre + a side pane, any part separable in its own window;
+  (2) open or false problem: say so first with a real reference, and open sub-dossiers of the known results, launched
+  automatically; (3) the user ALWAYS validates the meaning, then the Lean statement, before any proof (including
+  sub-dossiers: one card can approve several statements); (4) « Mal compris » reporting everywhere, and its
+  corrections feed the lessons.

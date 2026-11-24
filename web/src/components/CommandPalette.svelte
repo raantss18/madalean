@@ -2,7 +2,7 @@
   // Command palette (Ctrl/⌘+K): jump to any dossier or screen, run global actions. ARIA combobox + listbox.
   import { app } from '../lib/store/app.svelte';
   import { navigate, routes } from '../lib/router.svelte';
-  import { t, i18n, LANGS } from '../lib/i18n/index.svelte';
+  import { t, i18n } from '../lib/i18n/index.svelte';
   import { prefs, setMode, setTheme } from '../lib/prefs.svelte';
   import { api } from '../lib/api/client';
   import { phaseOf } from '../lib/status';
@@ -33,7 +33,7 @@
       ]);
       if (notes.status === 'fulfilled') for (const n of notes.value.results.slice(0, 6)) out.push({ id: `n-${n.id}`, label: n.title, hint: t('cmd.note'), group: 'note', run: () => navigate(`/notes/${encodeURIComponent(n.id)}`) });
       if (sources.status === 'fulfilled') for (const x of sources.value.sources.slice(0, 6)) out.push({ id: `s-${x.id}`, label: x.title, hint: `@${x.key}`, group: 'source', run: () => navigate(`/sources/${encodeURIComponent(pid)}/${encodeURIComponent(x.id)}`) });
-      if (manual.status === 'fulfilled') for (const r of searchManual(manual.value, i18n.base, s).slice(0, 5)) out.push({ id: `h-${r.page.id}`, label: r.page.title + (r.heading ? ` › ${r.heading.text}` : ''), hint: t('cmd.help'), group: 'help', run: () => navigate(`/aide/${r.page.id}${r.heading ? `#${r.heading.id}` : ''}`) });
+      if (manual.status === 'fulfilled') for (const r of searchManual(manual.value, i18n.lang, s).slice(0, 5)) out.push({ id: `h-${r.page.id}`, label: r.page.title + (r.heading ? ` › ${r.heading.text}` : ''), hint: t('cmd.help'), group: 'help', run: () => navigate(`/aide/${r.page.id}${r.heading ? `#${r.heading.id}` : ''}`) });
       if (q.trim() === s) remote = out;
     }, 150);
     return () => clearTimeout(h);
@@ -46,7 +46,7 @@
       })),
       { id: 'mode', label: prefs.mode === 'learn' ? t('cmd.toResearch') : t('cmd.toLearn'), run: () => setMode(prefs.mode === 'learn' ? 'research' : 'learn') },
       { id: 'theme', label: t('cmd.theme'), run: () => setTheme(document.documentElement.dataset['theme'] === 'dark' || (prefs.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark') },
-      ...LANGS.filter(([l]) => l !== i18n.lang).map(([l, name]) => ({ id: l === 'mg' ? 'lang-mg' : 'lang', label: l === 'fr' ? 'Passer en français' : l === 'en' ? 'Switch to English' : name, run: () => void api.patchSettings({ language: l }).then((r) => i18n.set(r.settings.language)).catch(() => i18n.set(l)) })),
+      { id: 'lang', label: i18n.lang === 'fr' ? 'Switch to English' : 'Passer en français', run: () => void api.patchSettings({ language: i18n.lang === 'fr' ? 'en' : 'fr' }).then((r) => i18n.set(r.settings.language)).catch(() => i18n.set(i18n.lang === 'fr' ? 'en' : 'fr')) },
     ];
     for (const d of Object.values(app.m.dossiers).sort((a, b) => b.updated - a.updated)) {
       list.push({ id: `d-${d.id}`, label: d.title || d.theorem, hint: d.theorem, phase: phaseOf(d.status, app.activeJob(d.id)), run: () => navigate(`/d/${encodeURIComponent(d.id)}`) });

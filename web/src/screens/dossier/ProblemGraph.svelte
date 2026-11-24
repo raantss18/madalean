@@ -35,9 +35,9 @@
   }
 
   async function load() {
-    try { graph = (await graphApi.get(d.id, i18n.base)).graph; } catch (e) { toast('error', errorText(e)); }
+    try { graph = (await graphApi.get(d.id, i18n.lang)).graph; } catch (e) { toast('error', errorText(e)); }
   }
-  $effect(() => { void d.id; void i18n.base; void load(); });
+  $effect(() => { void d.id; void i18n.lang; void load(); });
   $effect(() => app.on('pg.updated', (ev) => { if ((ev as { dossier_id?: string }).dossier_id === d.id) void load(); }));
 
   const tree = $derived(graph ? treeOf(graph) : { order: [], alsoUsedBy: {} });
@@ -57,16 +57,16 @@
   async function pick(id: string) {
     sel = id;
     why = null;
-    try { why = await graphApi.why(d.id, id, i18n.base); } catch { /* the panel shows what the graph has */ }
+    try { why = await graphApi.why(d.id, id, i18n.lang); } catch { /* the panel shows what the graph has */ }
   }
   async function explain(nodeId?: string) {
     explainOpen = true;
     explanation = null;
-    try { explanation = (await graphApi.explain(d.id, i18n.base, nodeId)).explanation; } catch (e) { explainOpen = false; toast('error', errorText(e)); }
+    try { explanation = (await graphApi.explain(d.id, i18n.lang, nodeId)).explanation; } catch (e) { explainOpen = false; toast('error', errorText(e)); }
   }
   async function exportAs(format: 'note' | 'latex' | 'bibtex') {
     await act('export', async () => {
-      const r = await graphApi.exportAs(d.id, format, i18n.base, explanation?.node);
+      const r = await graphApi.exportAs(d.id, format, i18n.lang, explanation?.node);
       if (format === 'note') toast('ok', t('pg.exportedNote'));
       else {
         const text = format === 'latex' ? (r.latex ?? '') + (r.bibtex ? `\n% BibTeX\n${r.bibtex}` : '') : r.bibtex ?? '';

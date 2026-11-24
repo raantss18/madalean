@@ -8,7 +8,7 @@ import time
 from aiohttp import web
 
 from .. import leancheck, texio
-from ..i18n import content_language, msg
+from ..i18n import msg
 from ..orchestrator import DossierBusy
 from ..pipeline.runner import STAGES, full_plan, parse_split, plan_for_message
 from ..prompts import split_messages
@@ -486,7 +486,7 @@ async def dossiers_export(request: web.Request) -> web.StreamResponse:
         bib = await asyncio.to_thread(dossier_bibliography, ctx, d)
     except Exception:  # noqa: BLE001
         bib = []
-    ex = await export_dossier(d, fmt, lang=content_language(ctx.settings.language), ws_info=workspace_info(ctx.workspace(d.workspace)),
+    ex = await export_dossier(d, fmt, lang=ctx.settings.language, ws_info=workspace_info(ctx.workspace(d.workspace)),
                               tmp_root=ctx.paths.exports, bib_entries=bib)
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", ex.filename)[:120] or "export"
     headers = {"Content-Disposition": f'attachment; filename="{safe}"', "X-Madalean-Fallback": ex.fallback or ""}

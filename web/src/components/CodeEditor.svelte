@@ -41,7 +41,7 @@
       const caret = ta?.selectionStart ?? value.length;
       ed = createEditor({
         parent: host, doc: value, language, readOnly: readonly, ariaLabel: label, placeholder,
-        lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.base, gloss, onTokenTap, onSubmit, enterSubmits,
+        lineNumbers: language === 'lean' && lineNumbers, lang: () => i18n.lang, gloss, onTokenTap, onSubmit, enterSubmits,
         declLookup: gloss ? (name) => import('../lib/lean/lookup').then((m) => m.lookupToken(name, workspace || undefined)) : undefined,
         onChange: (d) => { value = d; }, linkComplete,
       });

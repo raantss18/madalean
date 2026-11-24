@@ -113,9 +113,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    et seulement avec ta clé GitHub et deux confirmations : branche sur ton fork, puis demande en brouillon
    - ⬜ reste : essai chez toi sur un vrai résultat de ta bibliothèque ; modifier le nom / la phrase d'explication
      dans le panneau ; placer le résultat dans le fichier Mathlib existant le plus proche
-8. ✅ **Enseignement francophone et malgache** (S-BE, D63) — interface en malgache (partielle, sinon en français),
-   23 exercices vérifiés par Lean (lycée, licence, master, olympiade), parcours « Apprendre », outils de l’enseignant.
-   Reste : relire le malgache (docs/I18N_MG.md), manuel en malgache, traduire les autres écrans, plus d’exercices
+8. ❌ **Enseignement / malgache** — essayé puis retiré à ta demande (24/11) : interface malgache et exercices enlevés
 9. ⚠️ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
    preuves vérifiées (S-BD, D62, docs/MEMORY.md) : Réglages › « Mémoire » ; un seul fichier `.madalean-memory`
    (bibliothèque avec tampon de vérification, leçons, recettes, graphes, résumés des pièces jointes ; empreintes
@@ -126,7 +124,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    jeu de données JSONL des paires vérifiées (pour un affinage local futur, non fait, désactivé par défaut)
    - ⬜ reste : fusion des graphes importés dans les tiens (aujourd'hui : références), affichage d'un graphe importé,
      essai chez toi (export → import sur un autre ordinateur), l'affinage lui-même (plus tard, mesuré par « Mesurer »)
-10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
+10. ⏸ **Travail à plusieurs** — arrêté à ta demande (24/11)
 
 ### Ordre choisi pour la suite (24/11, à ta demande)
 1. ✅ Renforcer ce qui existe (S-BA, D59) : même lemme à un renommage près (noms des variables et des hypothèses ;
@@ -140,8 +138,15 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 4. ✅ Contribuer à Mathlib (S-BC, point 7, D61)
 5. ✅ Mémoire qui grossit (S-BD, point 9, D62) : fichier de mémoire revérifié à l'import, sauvegardes, jeu de données ;
    modèle local affiné plus tard
-6. ✅ Enseignement francophone et malgache (S-BE, point 8, D63 ; malgache à relire)
-7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)
+6. ❌ Enseignement / malgache : retiré
+7. ⏸ Travail à plusieurs : arrêté
+
+### Refonte « comprendre, traduire, prouver » (24/11, D64)
+Cas d'échec réel : « le nombre chromatique du plan est 6 » (dossier 20261124-072123-e433).
+1. ⬜ Comprendre et traduire fidèlement (S-BG) : problème ouvert reconnu, résultats connus en sous-dossiers,
+   validation toujours demandée (sens puis énoncé Lean), « Mal compris », deux traductions, refus des énoncés vides
+2. ⬜ Fil unique chronologique + volet, parties séparables, « En ce moment » toujours exact (S-BH)
+3. ⬜ Mieux prouver et apprendre de ses échecs (S-BI, après 1 et 2)
 Deux sessions au plus en même temps (quota).
 
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée

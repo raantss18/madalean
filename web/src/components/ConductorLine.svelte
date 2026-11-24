@@ -15,7 +15,7 @@
   const usd = (n: number) => {
     const tiny = n > 0 && n < 0.005;
     const v = (tiny ? 0.01 : n).toFixed(2);
-    const s = i18n.base === 'fr' ? v.replace('.', ',') + ' $' : '$' + v;
+    const s = i18n.lang === 'fr' ? v.replace('.', ',') + ' $' : '$' + v;
     return tiny ? '< ' + s : s;
   };
   const name = $derived(c ? (c.name || modelLabel(c.by).name) : '');

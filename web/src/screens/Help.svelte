@@ -12,15 +12,15 @@
   let q = $state('');
   let article: HTMLElement | undefined = $state();
   $effect(() => { loadManual().then((m) => (idx = m)).catch((e) => (err = String(e))); });
-  const pages = $derived(idx ? idx.pages.filter((p) => p.lang === i18n.base) : []);
+  const pages = $derived(idx ? idx.pages.filter((p) => p.lang === i18n.lang) : []);
   const pageId = $derived(params['page'] || 'index');
   const page = $derived(pages.find((p) => p.id === pageId) ?? pages[0]);
   const html = $derived(page && idx ? renderTrusted(page.body, {
     headingIds: page.headings.map((h) => h.id),
-    link: (h) => rewriteLink(idx!, i18n.base, h),
+    link: (h) => rewriteLink(idx!, i18n.lang, h),
     image: imageUrl,
   }) : '');
-  const results = $derived(idx && q.trim() ? searchManual(idx, i18n.base, q).slice(0, 12) : []);
+  const results = $derived(idx && q.trim() ? searchManual(idx, i18n.lang, q).slice(0, 12) : []);
   $effect(() => {
     // Scroll to the anchor of the URL once the page is rendered.
     void html;
@@ -46,7 +46,7 @@
         {:else}<li class="muted small">{t('help.none')}</li>{/each}
       </ul>
     {:else if idx}
-      {#each idx.sections[i18n.base] ?? [] as s (s.id)}
+      {#each idx.sections[i18n.lang] ?? [] as s (s.id)}
         {@const ps = pages.filter((p) => p.section === s.id)}
         {#if ps.length}
           <h2 class="sec">{s.title}</h2>

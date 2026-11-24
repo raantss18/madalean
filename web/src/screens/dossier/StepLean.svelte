@@ -180,7 +180,7 @@
             <div class="token-box" aria-live="polite">
               {#if tapped}
                 <p><code>{tapped.token}</code>{#if tapped.entry} <span class="chip">{tk(`gloss.kind.${tapped.entry.kind}`, tapped.entry.kind)}</span>{/if}</p>
-                {#if tapped.entry}<p class="small">{tapped.entry[i18n.base]}</p>
+                {#if tapped.entry}<p class="small">{tapped.entry[i18n.lang]}</p>
                 {:else if tapped.loading}<p class="small muted">{t('common.loading')}</p>
                 {:else if tapped.server}<pre class="sig">{tapped.server.body}</pre>
                 {:else}<p class="small">{t('learn.tokenUnknown')}</p>{/if}

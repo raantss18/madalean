@@ -3396,11 +3396,6 @@ const en: Record<keyof typeof fr, string> = {
   'memory.dataset.title': 'Training dataset',
   'memory.dataset.lead': 'A JSONL file of the pairs Lean verified (statement → proof, error → fix), with licence and provenance. It prepares a possible later fine-tune of a local model; Madalean trains no model.',
   'memory.dataset.go': 'Export the dataset',
-
-  // S-BE (D63): exercises, Malagasy
-  'nav.exercises': 'Exercises',
-  'dossier.toExercise': 'Make it an exercise',
-  'language.mgNote': 'The Malagasy translation is assisted and to be reviewed; what is not translated yet is shown in French.',
 };
 
 export default en;

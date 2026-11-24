@@ -17,7 +17,7 @@
   let title = $state('');
   let adding = $state(false);
   let addErr = $state('');
-  const lang = $derived(i18n.base);
+  const lang = $derived(i18n.lang);
   const local = $derived(app.m.settings?.mode === 'local');
 
   async function load() {

@@ -162,7 +162,7 @@
       </div>
 
       <h3>{t('ml.pr')}</h3>
-      <p class="small">{i18n.base === 'en' ? pkg.pr.explain.en : pkg.pr.explain.fr}</p>
+      <p class="small">{i18n.lang === 'en' ? pkg.pr.explain.en : pkg.pr.explain.fr}</p>
       <p><strong lang="en">{pkg.pr.title}</strong></p>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <pre class="code" lang="en" tabindex="0" aria-label={t('ml.prBody')}>{pkg.pr.body}</pre>

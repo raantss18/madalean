@@ -59,10 +59,10 @@
     return () => { stop = true; clearInterval(h); };
   });
 
-  const nf = $derived(new Intl.NumberFormat(i18n.base, { notation: 'compact', maximumFractionDigits: 1 }));
-  const usd = $derived(new Intl.NumberFormat(i18n.base, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const nf = $derived(new Intl.NumberFormat(i18n.lang, { notation: 'compact', maximumFractionDigits: 1 }));
+  const usd = $derived(new Intl.NumberFormat(i18n.lang, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const pct = (n: number | null | undefined) => (n == null ? '—' : `${Math.round(n)} %`);
-  const gb = (mb: number) => (mb / 1024).toLocaleString(i18n.base, { maximumFractionDigits: 1 });
+  const gb = (mb: number) => (mb / 1024).toLocaleString(i18n.lang, { maximumFractionDigits: 1 });
   const tok = (x: UsageTotals | undefined) => (x ? nf.format(x.tokens_in + x.tokens_out) : '—');
   function close(refocus = false) { open = false; if (refocus) btn?.focus(); }
 </script>
