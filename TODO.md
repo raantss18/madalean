@@ -107,6 +107,17 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    preuves vérifiées
 10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
 
+### Ordre choisi pour la suite (24/11, à ta demande)
+1. 🔄 Renforcer ce qui existe (S-BA) : même lemme à un renommage près, contre-exemples cherchés par Sage avant de
+   creuser une piste, trombone dans les cellules Calcul, graphe dessiné en plus de la liste
+2. 🔄 De l'article au plan formel (S-BB, point 6)
+3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
+4. ⬜ Contribuer à Mathlib (point 7)
+5. ⬜ Mémoire qui grossit (point 9 : export des leçons, bibliothèque et recettes ; modèle local affiné plus tard)
+6. ⬜ Enseignement francophone et malgache (point 8)
+7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)
+Deux sessions au plus en même temps (quota).
+
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 
 Publié : 2.0.0, 2.0.1, 2.0.2 (GitHub, signées ; site https://raantss18.github.io/madalean/ et canal de mises à jour
