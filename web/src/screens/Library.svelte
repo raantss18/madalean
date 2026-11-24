@@ -27,6 +27,7 @@
   let fTag = $state<string | null>(null);       // null = all tags, '' = results without a tag
   let selected = $state<string | null>(null);
   let tagDraft = $state('');
+  let mlFor = $state<string | null>(null);
 
   function readPref(k: string, d: string): string { try { return localStorage.getItem(`madalean.library.${k}`) ?? d; } catch { return d; } }
   function writePref(k: string, v: string) { try { localStorage.setItem(`madalean.library.${k}`, v); } catch { /* ignore */ } }
@@ -253,9 +254,14 @@
             {#if sel.dossier && app.m.dossiers[sel.dossier]}<a class="btn small" href="/d/{encodeURIComponent(sel.dossier)}">{t('library.openDossier')}</a>{/if}
             {#if sel.status === 'verified'}<a class="btn small" href={wb.catalogExportUrl('lean', sel.name)} download><Icon name="download" size={14} />{t('library.exportLean')}</a>{/if}
             {#if sel.code}<button class="btn small" onclick={() => navigator.clipboard?.writeText(sel.code).then(() => toast('ok', t('library.copied')))}><Icon name="copy" size={14} />{t('library.copyCode')}</button>{/if}
+            {#if sel.status === 'verified' && sel.code}<button class="btn small" aria-expanded={mlFor === sel.name} onclick={() => (mlFor = mlFor === sel.name ? null : sel.name)}><Icon name="send" size={14} />{t('ml.open')}</button>{/if}
             <span class="spacer"></span>
             {#if sel.status === 'verified' && sel.code}<button class="btn small danger" onclick={() => remove(sel)} aria-label={t('library.removeOne', { name: sel.name })}><Icon name="trash" size={14} /></button>{/if}
           </div>
+          <!-- S-BC (D61): « Préparer pour Mathlib », its own chunk -->
+          {#if mlFor === sel.name}
+            {#await import('../components/MathlibContrib.svelte') then M}<M.default source={{ kind: 'library', id: sel.name }} onclose={() => (mlFor = null)} />{/await}
+          {/if}
         </aside>
       {/if}
     </div>

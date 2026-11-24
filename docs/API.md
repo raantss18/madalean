@@ -969,6 +969,31 @@ Event `graph.updated` `{dossier_id, rev, run}`. Deleting a dossier also moves it
 Settings: `problem_graph`, `graph_viability_model`, `graph_search_minutes`, `graph_search_attempts`,
 `graph_search_usd` (≤ `conductor_cap_usd`), `lessons`.
 
+## 6k. « Préparer pour Mathlib » (session S-BC, DECISIONS D61, plugin `mathlib_contrib.py`)
+
+docs/MATHLIB_CONTRIB.md. A source is `{kind: library | dossier, id}` (a library name or a dossier id; only a verified
+result). Errors: `{error, params}` with `bad_source` 400, `not_found` 404, `not_verified` / `running` / `not_ready` /
+`no_github_key` / `no_branch` / `plan_expired` / `not_port_failed` / `no_statement` / `github_branch_exists` /
+`github_fork_name` 409, `github_fork_pending` 504, and « Publier »'s GitHub errors (`github_token_invalid`,
+`github_scope_missing`, `github_forbidden`, `github_unreachable`, …).
+
+| Method | Path | Body / query | Answer |
+| --- | --- | --- | --- |
+| GET | `/api/mathlib/contrib` | `?kind=&id=` | `{package \| null, running, github: {configured (key saved), host}, default_author}` |
+| POST | `/api/mathlib/contrib` | `{kind, id, author?}` | same; starts (or restarts) the preparation in the background |
+| GET | `/api/mathlib/contrib/file` | `?kind=&id=` | the Lean file (`text/plain`, attachment) |
+| POST | `/api/mathlib/contrib/reprove` | `{kind, id}` | `{dossier, job}` — only when the package is `port_failed` |
+| POST | `/api/mathlib/contrib/github/plan` | `{kind, id, step: branch \| pr}` | `{plan: {id, kind, login, fork, branch, path?, content?, requests: [{method, url, body?}]}}` (**host only**; one `GET /user`) |
+| POST | `/api/mathlib/contrib/github/send` | `{kind, id, plan}` | `{result, package}` (**host only**; the plan is consumed) |
+
+Package: `{key, state: running | ready | in_mathlib | port_failed | failed | stopped, source, author, steps: [{id:
+port | mathlib | name | imports | final | lint, state: pending | running | ok | warn | fail, params}], port: {from,
+to, renames: [{old, new}], syntax, ok, errors, lean: {lean, mathlib}}, in_mathlib: {lemma, tactic, used} | null,
+name: {name, namespace, full, original, free, taken?, fallback, rules, words: [{token, word, part}]}, checks: [{id,
+ok: true | false | null, severity: ok | unknown | warning | error, params}], imports, file: {path, text}, target:
+{closest, closest_path, module, path}, pr: {title, body, explain: {fr, en}}, links, github?: {branch?, pr?}}`.
+Event `mathlib.contrib` `{key, state}` after each step.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

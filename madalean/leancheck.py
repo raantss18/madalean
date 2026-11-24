@@ -45,7 +45,9 @@ EXEC_RISKS = [
      "méta-programmation (élaborateur, macro, syntaxe)"),
     (r"\b(unsafe|implemented_by|IO|EIO|BaseIO|System\.FilePath|IO\.Process|ST\.Ref)\b", "accès au système (IO, unsafe)"),
     (r"\bnative_decide\b|\bLean\.ofReduceBool\b", "code natif (native_decide)"),
-    (r"(?m)^\s*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible)(\.|\s|$))", "import d'un module non autorisé"),
+    # `public import` / `meta import` (module system of recent Lean, S-BC) are imports too
+    (r"(?m)^\s*(?:(?:public|private|meta)\s+)*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible)(\.|\s|$))",
+     "import d'un module non autorisé"),
 ]
 
 

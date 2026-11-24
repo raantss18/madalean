@@ -1383,3 +1383,37 @@
 - Verified: `tests/test_paperplan.py` (structure, exact graph, verbatim, closure, exports, arXiv path; fake model +
   real Lean: budget 2 → resume, `exact?` → in Mathlib, top-level dossier + sub-dossier, conditional, a real Lean
   proof of the lemma rolls up, idempotent re-run), `web/e2e/paper-plan.spec.ts` (demo plan, axe).
+
+## D61 — « Préparer pour Mathlib »: a verified result becomes a contribution package the user reviews; GitHub only after two confirmed plans (TODO « Stratégie 2.1 » item 7, 2026-11-24, S-BC)
+- Request: from a verified result (library entry or a dossier's verified proof), port it to current Mathlib, check
+  it is not already there, apply Mathlib's naming and style rules, shrink the imports, and produce a package (file,
+  path, PR title / text, checklist, guides); copy / download by default, fork + branch + commit and a PR only with
+  the user's GitHub key and explicit clicks. Quota-limited: a small, solid version.
+- Decision (docs/MATHLIB_CONTRIB.md): one module `research/mathlib_contrib.py` (pure rules + a `Preparation` running
+  six steps on `ctx.lean`) and one plugin; no change to the pipeline. **Only a fresh strict verdict in lean-current
+  counts** — the port, the final file and every variant are checked by a fresh `lean` with the axiom probe.
+- **Port without a model first**: the old Lean's own deprecation messages, the lessons store's exact renames (D57b),
+  a verified table of v4.9 → v4.36 renames, `∑ x in s` → `∑ x ∈ s`, then lean-current's deprecations; if that is not
+  enough, the normal proof pipeline in lean-current with the old proof as the user's hint (a new dossier: statuses and
+  verdict as usual), never an automatic model loop inside the preparation.
+- **Already in Mathlib** = D56's `MathlibFirst` without a model; it stops only when ONE named lemma closes the
+  statement (applied to hypotheses / variables); a combination of lemmas or automation is a warning.
+- **Name and checks are deterministic and documented** (naming guide reading, special forms nonneg / pos / ne_zero,
+  `_of_` hypotheses, namespace from the types; 18 checks with a severity each). Mathlib's own tools are used where
+  they run offline: `#min_imports in`, `#lint`, `linter.mathlibStandardSet`; a check that could not run is
+  « non vérifié », never « bon ». The file follows current Mathlib (`module`, `public import`, `public section`).
+- **GitHub**: the key from Réglages → Clés only (not `gh auth token`), host only, a read-only `GET /user` to show
+  the exact plan (requests + file), a one-shot plan id for the send, a separate plan and confirmation for the PR
+  (draft, `maintainer_can_modify`), the new file plus the `Mathlib.lean` import on a `madalean/<name>` branch of the
+  user's fork. Security fix on the way: `public import` / `meta import` are now checked like `import` (D28).
+- Rejected: opening the PR in the same click as the branch (the user asked for two); the `gh` CLI token as fallback
+  (a key the user did not choose for this); a model to name the result or write the docstring (deterministic and
+  explainable first; the generated docstring is marked « to reread »); inserting into the closest existing Mathlib
+  file (needs the file's content and placement judgement — a new file is proposed, the closest one is named).
+- Demo: its single simulated Lean stands in for lean-current (checks that need real Lean output are « non vérifié »).
+- Cut for now: editing name / docstring in the panel, golfing, the lessons store learning from a successful port.
+- Verified: `tests/test_mathlib_contrib.py` (naming on 9 shapes + fallback, each text rule positive / negative,
+  parsing, file and PR, `public import` gate; REAL Lean: `Even.add` detected as already in Mathlib, a lean-prover49
+  proof using `Finset.card_le_of_subset` ported to lean-current, imports shrunk by `#min_imports`, `#lint` passing and
+  the downloaded file accepted by a fresh strict Lean; fake GitHub API: no key, host only, plan then send once, PR
+  only after its own plan), `web/e2e/mathlib-contrib.spec.ts` (dossier and library, axe).
