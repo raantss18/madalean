@@ -104,8 +104,15 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    jusqu'à la preuve Lean, compteur, export LaTeX (style leanblueprint) / HTML
    - ⬜ reste : définitions formalisées, aide d'un modèle pour les blocs PDF ambigus, un lemme partagé par deux
      théorèmes principaux, lancer les prouveurs sur tout le plan d'un clic, essai sur un vrai article de ton domaine
-7. ⬜ **Contribuer à Mathlib** — bouton « préparer une contribution » : style, nommage, vérifications, texte de la
-   demande
+7. ⚠️ **Contribuer à Mathlib** — « Préparer pour Mathlib » dans la Bibliothèque et sous une preuve vérifiée (S-BC,
+   D61, docs/MATHLIB_CONTRIB.md) : revérifié par un Lean neuf et strict avec la Mathlib actuelle (portage sans
+   modèle depuis Lean 4.9 : noms périmés, leçons, table vérifiée ; sinon nouvelle recherche de preuve dans Lean
+   actuel, ancienne preuve en indice), arrêt si un lemme de Mathlib le donne déjà, nom proposé et expliqué (guide de
+   nommage), 18 contrôles de style dont `#lint` et les vérifications automatiques de Mathlib, imports réduits par
+   `#min_imports`, fichier + chemin + texte de la demande (anglais) + explication (français) ; copier / télécharger,
+   et seulement avec ta clé GitHub et deux confirmations : branche sur ton fork, puis demande en brouillon
+   - ⬜ reste : essai chez toi sur un vrai résultat de ta bibliothèque ; modifier le nom / la phrase d'explication
+     dans le panneau ; placer le résultat dans le fichier Mathlib existant le plus proche
 8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
    olympiades), parcours « Apprendre »
 9. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
@@ -121,7 +128,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    calcul sur petites valeurs couvre l'arithmétique de ℕ, ℤ, ℚ, ℝ
 2. ✅ De l'article au plan formel (S-BB, point 6, D60)
 3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
-4. ⬜ Contribuer à Mathlib (point 7)
+4. ✅ Contribuer à Mathlib (S-BC, point 7, D61)
 5. ⬜ Mémoire qui grossit (point 9 : export des leçons, bibliothèque et recettes ; modèle local affiné plus tard)
 6. ⬜ Enseignement francophone et malgache (point 8)
 7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)

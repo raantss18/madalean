@@ -430,3 +430,19 @@ and secret scanning switched on, and an investigation of the flaky test F13.
 - **Attachments** go through the Sources import (size limit, type from magic bytes — PNG / JPEG / WebP / PDF / TeX /
   BibTeX / archives, hostile archives refused); URLs through the SSRF-safe fetcher; images are sent once to a vision
   model (free online, or local in Local mode), never to a paid one.
+
+## 11. « Préparer pour Mathlib » and the GitHub key (S-BC, D61, docs/MATHLIB_CONTRIB.md §7)
+
+- **Default: nothing leaves.** The package (file, PR text, checklist) is built locally; « Copier » / « Télécharger le
+  fichier » never touch the network. The Mathlib search, the port and the checks run in the sandboxed Lean (D28) on
+  generated code; `exec_risks` now also treats `public import` / `meta import` (module system of Lean ≥ 4.2x) as
+  imports, so the allow-list of import roots cannot be bypassed that way (tested).
+- **GitHub key use.** Only the key saved in Réglages → Clés (provider `github`; not the `gh` CLI token), only from
+  the host listener (`host_only`), only to `api.github.com` (the « Publier » client, `Authorization` header, no
+  redirects, no cookies; the key is never returned, logged or put in a URL). Requests: `GET /user` when the user asks
+  what would be sent (read-only); after the user confirmed **that exact plan** (method, URL, body, file content shown
+  before): fork `leanprover-community/mathlib4`, create one branch `madalean/<name>` on the user's fork, two
+  contents commits (the new file, `Mathlib.lean`); the PR is a **separate** plan and confirmation, opened as a draft.
+  Plans are one-shot, bound to the result, and expire after 15 minutes; a fork whose name differs from the one shown
+  stops the sequence. Nothing is ever pushed to the upstream repository itself, never `--force`.
+- **Tests** run only against a fake GitHub API (`publish.GITHUB_API` set to a local server).

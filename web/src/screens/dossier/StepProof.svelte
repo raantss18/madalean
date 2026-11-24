@@ -24,6 +24,7 @@
   import { navigate } from '../../lib/router.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
+  let mlOpen = $state(false);
   // S-AX (D56): the « Littérature » panel is its own chunk, fetched with the proof step
   let litChunk: Promise<typeof import('./LiteraturePanel.svelte').default> | null = null;
   function loadLit() {
@@ -156,8 +157,13 @@
         <div class="row tools">
           <button class="btn small" aria-expanded={editProof} onclick={() => (editProof = !editProof)}><Icon name="edit" size={14} />{t('proof.editByHand')}</button>
           <LeanExplain where={{ dossier: d.id, part: 'proof' }} canError={!proved} onApply={applyFix} disabled={Boolean(job)} />
+          {#if proved}<button class="btn small" aria-expanded={mlOpen} onclick={() => (mlOpen = !mlOpen)}><Icon name="send" size={14} />{t('ml.open')}</button>{/if}
         </div>
         <ManualEdit dossier={d} kind="proof" server={d.current.proof} bind:open={editProof} />
+        <!-- S-BC (D61): « Préparer pour Mathlib », its own chunk -->
+        {#if mlOpen && proved}
+          {#await import('../../components/MathlibContrib.svelte') then M}<M.default source={{ kind: 'dossier', id: d.id }} onclose={() => (mlOpen = false)} />{/await}
+        {/if}
       {/if}
     </section>
 
