@@ -773,7 +773,8 @@ async def bp_formalise(request):
                 skipped.append(did)
                 continue
             try:
-                job = ctx.orchestrator.submit(did, plan, **opts, **({"strategy": strategy} if strategy else {}))
+                # a blueprint's lemmas, launched together by the user: Lean-checked, no gate one by one (D65)
+                job = ctx.orchestrator.submit(did, plan, gates=False, **opts, **({"strategy": strategy} if strategy else {}))
                 jobs.append(job.to_dict())
             except DossierBusy as e:
                 busy.append({"dossier_id": did, "job": e.job.to_dict()})

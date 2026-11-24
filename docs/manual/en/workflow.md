@@ -28,7 +28,7 @@ the conclusion.
 
 A first model restates your request as a precise mathematical statement (“incomplete basis theorem” becomes “every
 linearly independent family of a finite-dimensional vector space extends to a basis”). A second translates it into
-Lean; **Lean checks that the statement is well formed** before going further. The badge “Lean accepts the statement”
+Lean; **Lean checks that the statement is well formed** before going further. The badge “Lean understands the code”
 only means that the statement makes sense to Lean, not that it is true, nor that it says what you meant.
 
 ![Lean statement next to the original text](../img/lean-statement.png)

@@ -14,7 +14,7 @@ from typing import Any, Awaitable, Callable
 from .. import leancheck, prompts
 from ..brain import classify
 from ..brain.api import BrainError, Chunk, Completion, ModelRef
-from ..dossiers import Dossier, closure, route, route_scores, with_lemmas
+from ..dossiers import PHASE_OF_KIND, PHASE_OF_STAGE, Dossier, closure, route, route_scores, with_lemmas
 from ..errors import friendly
 from ..i18n import language, msg
 from ..jobs import Attempt, Job
@@ -28,7 +28,7 @@ from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
 from . import certificate as certstage
 from . import literature_hook
-from . import conductor_hook, leancat
+from . import conductor_hook, faithful, gates, leancat
 from .memory_hook import error_hint, memory_hint
 from .stagecache import StageCache, make_key, normalize_text
 
@@ -243,8 +243,27 @@ class DossierPipeline:
         text = m["text"] + ("\n" + detail if detail else "")
         if detail:
             params = {**params, "detail": detail}
-        d.add_event(kind, text, ref, stage, model, key, params, job.id if job else "")
+        phase = PHASE_OF_KIND.get(kind) or PHASE_OF_STAGE.get(CURRENT_STAGE.get() or (job.stage if job else ""), "")
+        if phase == "prove" and kind == "info" and job and d.proof_is_current and any(
+                e.kind == "proof" and e.job == job.id for e in d.events[-4:]):
+            phase = "verify"                   # what follows the verified proof (library…)
+        if params.get("gate_kind"):
+            phase = "understand" if params.get("gate_kind") == "meaning" else "translate"
+        d.add_event(kind, text, ref, stage, model, key, params, job.id if job else "", phase=phase,
+                    run=job.run if job else "",
+                    attempt=self._attempt(d, job, phase) if job and phase and kind != "user" else 0)
         await self.ctx.repo.save(d)
+
+    @staticmethod
+    def _attempt(d: Dossier, job: Job, phase: str) -> int:
+        """1… inside run + phase: a job that redoes a phase of the same request (a gate answered) counts on."""
+        per = getattr(job, "phase_attempt", None)
+        if per is None:
+            per = job.phase_attempt = {}
+        if phase not in per:
+            per[phase] = 1 + max((e.attempt for e in d.events if e.run == job.run and e.phase == phase
+                                  and e.job != job.id), default=0)
+        return per[phase]
 
     def has_model(self, role: str, mode: str) -> bool:
         try:
@@ -268,6 +287,9 @@ class DossierPipeline:
         row = {"stage": stage, "start": round(time.time(), 3), "end": None, "seconds": None}
         job.timings.append(row)
         job.stages.append(stage)
+        d = self.ctx.repo.get(job.dossier_id)
+        if d is not None and stage in PHASE_OF_STAGE:
+            self._attempt(d, job, PHASE_OF_STAGE[stage])
         self._main_stage(job)
         return row
 
@@ -374,6 +396,17 @@ class DossierPipeline:
                     if stage not in STAGES:
                         continue
                     job.step_flags = {k: bool(step.get(k)) for k in ("force", "learn")}   # « Prouver quand même », Apprendre
+                    if stage == "proof" and step.get("force"):
+                        gates.force(d)                       # explicit approval of the statement (D65)
+                    if gates.active(self, job, d):
+                        redo = stage == "statement" and not step.get("meaning_ok") and d.problem \
+                            and (req or not d.extra.get("meaning"))
+                        if redo:                             # the meaning first, then its gate, then this step
+                            job.plan.insert(0, {**step, "meaning_ok": True})
+                            stage = "understand"
+                        elif stage == "proof" and d.statement and not gates.approved_statement(d):
+                            job.plan.insert(0, step)
+                            stage = "statement_gate"
                     if stage in SIDE_STAGES and job.plan and self.parallel_ok(job):
                         side.append(self._side(job, d, io, stage, req))
                         job.side_spawned.add(stage)
@@ -385,8 +418,8 @@ class DossierPipeline:
                         side.append(self._side(job, d, io, "informal", ""))
                         job.side_spawned.add("informal")
                     await hook.before_stage(stage)
-                    row = self._begin(job, stage)
-                    token = CURRENT_STAGE.set(stage)
+                    row = self._begin(job, "verify" if stage == "statement_gate" else stage)
+                    token = CURRENT_STAGE.set(row["stage"])
                     try:
                         await self._call(job, d, io, stage, req)
                     except Failed as f:
@@ -397,7 +430,7 @@ class DossierPipeline:
                         self._end(job, row)
                         if stage == "explanation":
                             job.explained.set()
-                    job.done_stages.append(stage)
+                    job.done_stages.append(row["stage"])
                     await hook.after_stage(stage)
                     if "pending_proof" in d.extra and self._pending(d) is None:
                         await self.ctx.repo.save(d)   # S-AN: the statement was corrected: the kept proof is dropped
@@ -432,15 +465,26 @@ class DossierPipeline:
                                      extra={"top_p": 0.9, **NO_THINK})
 
     async def _understand(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
+        gated = gates.active(self, job, d)
         if not (self.has_model("understand", job.mode) and self.has_model("formalize", job.mode)):
-            return                     # optional step: the formalizer then gets the user's own words
+            # optional step: the formalizer then gets the user's own words (shown as they are at the gate)
+            return await self._meaning_gate(job, d, {}) if gated else None
+        problem = d.problem
+        if req:
+            problem += (f"\n\nThe request was understood before as: {d.understood}" if d.understood else "") + \
+                f"\nThe user now says (takes precedence): {req}"
+            asked = d.extra.setdefault("asked", [])
+            asked.append(req)
+            del asked[:-6]
+        problem += self._lessons_note(d)
         try:
-            c = await self._short(io, "understand", leancheck.understand_messages(d.problem, self.settings.profile,
-                                                                                   language()), 0.3)
+            c = await self._short(io, "understand", leancheck.understand_messages(problem, self.settings.profile,
+                                                                                   language(), structured=gated), 0.3,
+                                  *((2500,) if gated else ()))
         except BrainError:
-            return
-        text = leancheck.clean_model_text(c.text)
-        ok = bool(text) and c.finish not in ("loop", "length")
+            return await self._meaning_gate(job, d, {}) if gated else None
+        text, data = faithful.split_meaning(leancheck.clean_model_text(c.text))
+        ok = bool(text) and (c.finish not in ("loop", "length") or bool(data))
         if ok and leancheck.is_unknown(text):
             raise Failed("Je ne reconnais pas d'énoncé mathématique dans votre demande. Écrivez le résultat à prouver "
                          "avec ses hypothèses, par exemple : « toute famille libre d'un espace vectoriel de dimension "
@@ -450,6 +494,33 @@ class DossierPipeline:
             d.understood, d.understood_display = eng, disp
             await self.event(d, job, "understood", "Problème compris ainsi (c'est ce texte que l'IA traduit en Lean) :",
                              model=c.model.key, detail=disp, seconds=stage_seconds(job, "understand"))
+        if gated:
+            await self._meaning_gate(job, d, data if ok else {})
+
+    async def _meaning_gate(self, job: Job, d: Dossier, data: dict) -> None:
+        """The structured meaning, its known status, then the user's validation (D65)."""
+        rest = list(job.plan) or [{"stage": "statement"}, {"stage": "proof"}, {"stage": "explanation"}]
+        meaning = faithful.parse_meaning(data, d.understood_display or d.understood or d.problem)
+        await gates.meaning_gate(self, job, d, meaning, rest)
+
+    def _lessons_note(self, d: Dossier) -> str:
+        """Earlier « mal compris » reports on similar problems (data, bounded)."""
+        from ..research import lessons
+        try:
+            st = lessons.store_of(self.ctx)
+            h = st.interpretation_hint(d.problem) if st is not None else ""
+        except Exception:  # noqa: BLE001
+            h = ""
+        return "\n\n" + h if h else ""
+
+    async def _statement_gate(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
+        """A statement nobody approved yet (written by hand, corrected, restored): read back, then the gate."""
+        ws = await self.workspace(d)
+        v = d.statements[d.cur_statement]
+        c = await gates.evaluate(self, job, d, io, ws, v.code, v.model, d.cur_statement)
+        if v.source == "user":
+            c["hard"] = False                # the user's own text: the reasons are shown, the choice is his
+        await gates.statement_gate(self, job, d, io, ws, [c], "single", list(job.plan))
 
     async def _route(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         try:
@@ -477,7 +548,8 @@ class DossierPipeline:
             await self.event(d, job, "understood",
                              "Nouvel énoncé compris ainsi (c'est ce texte que l'IA traduit en Lean) :", model=model,
                              detail=disp)
-            job.plan = [{"stage": "statement"}, {"stage": "proof"}, {"stage": "explanation"}]
+            job.plan = [{"stage": "statement", **({"request": req} if gates.active(self, job, d) else {})},
+                        {"stage": "proof"}, {"stage": "explanation"}]
         else:
             job.plan = stage_plan(d, stage, req)
             await self.ctx.repo.save(d)
@@ -489,13 +561,26 @@ class DossierPipeline:
         await self.ctx.repo.save(d)
         previous = d.statement if req else ""
         first = len(job.attempts)
+        gated = gates.active(self, job, d)
         text = (d.understood or d.problem) + await self._mathlib_reference(job, d, ws, req) \
+            + await self._mathlib_objects(d, ws) + self._lessons_note(d) \
             + conductor_hook.hook_of(job).hint("formalize")                    # S-AI: the conductor's advice
-        f = await Formalizer(io, job.mode, prefer=self._goedel_online_key("formalize", job.mode)).run(
+        judge = self._judge(job, d, io, ws, gated)
+        f = await Formalizer(io, job.mode, prefer=self._goedel_online_key("formalize", job.mode), judge=judge).run(
                                                 text, ws, s.translate_attempts,
                                                 s.compile_timeout_s, name=d.theorem, profile=s.profile,
                                                 previous=previous, request=req)
+        second = await self._second_candidate(job, d, io, ws, text, previous, req, f, judge) if gated else None
         self._record_stage(job, d, first, "statement", "formalize")
+        if gated and (f.ok or f.refused or second is not None and (second.ok or second.refused)):
+            return await self._candidates_gate(job, d, io, ws, req, f, second)
+        if not f.ok and f.refused and f.statement == f.refused[-1][0]:
+            idx = d.add_statement(f.statement, ok=False, note=req, model=f.model)
+            job.plan, d.status, job.error = [], "draft", "statement_refused"
+            job.summary = msg("Traduction refusée : elle ne dit pas ce que dit le problème.")
+            await self.event(d, job, "error", "Traduction refusée : elle ne dit pas ce que dit le problème.", ref=idx,
+                             model=f.model, detail="\n".join(f"- {r}" for r in f.refused[-1][1]))
+            return
         if not f.statement:
             raise Failed("Pas d'énoncé produit. Reformulez le problème (plus précis, avec les hypothèses) ou écrivez "
                          "l'énoncé Lean vous-même dans l'onglet « Énoncé Lean ».", "no_statement")
@@ -503,7 +588,7 @@ class DossierPipeline:
         d.extra.pop("pending_proof", None)     # S-AN (D46): a proof kept aside was about the old statement
         if f.ok:
             d.status = "draft"
-            await self.event(d, job, "statement", "L'IA a traduit le problème en Lean et Lean accepte l'énoncé. "
+            await self.event(d, job, "statement", "L'IA a traduit le problème en Lean. Lean comprend le code (cela ne dit pas qu'il est fidèle). "
                              "Relisez-le : la preuve portera exactement sur ce texte.", ref=idx, model=f.model,
                              seconds=stage_seconds(job, "statement"))
             if s.pause_after_translation:
@@ -519,6 +604,90 @@ class DossierPipeline:
                               "demandez une correction ci-dessous.")
             await self.event(d, job, "error", "Lean refuse la traduction. Corrigez l'énoncé dans l'onglet « Énoncé "
                              "Lean », ou demandez une correction ci-dessous.", ref=idx, model=f.model)
+
+    def _judge(self, job: Job, d: Dossier, io: JobIO, ws, gated: bool):
+        """Deterministic refusals of a translation Lean accepts, before any model judge (D65). Without a validated
+        meaning: only what says nothing whatever the problem (`False`, `∃ x, x = t`, `Fin 0`…)."""
+        from ..research.proofgraph import statement_key
+        meaning = (d.extra.get("meaning") or {}) if gated else None
+
+        async def judge(code: str) -> list[str]:
+            r = faithful.refusals(code, meaning, gates.request_words(d))
+            out = r["hard"] + r["soft"]
+            if gated and statement_key(code) in (d.extra.get("refused") or []):
+                out.append(msg("Cet énoncé a déjà été refusé pour ce problème.")["text"])
+            if gated and not out and self._lean_real():
+                out += (await faithful.lean_refusals(io, ws, code, (meaning or {}).get("known_status", "")))[0]
+            return out
+        return judge
+
+    async def _mathlib_objects(self, d: Dossier, ws) -> str:
+        """Mathlib's own objects for this problem, with the signatures of this workspace's Mathlib (index)."""
+        names = faithful.mathlib_names(d.extra.get("meaning") or {}, gates.request_words(d))
+        if not names or self.ctx.retriever is None:
+            return ""
+        lines = []
+        for n in names:
+            try:
+                dd = await asyncio.wait_for(self.ctx.retriever.declaration(ws.key, n), 20)
+            except Exception:  # noqa: BLE001 (no index yet)
+                dd = None
+            if dd and dd.get("signature") and dd["name"].rsplit(".", 1)[-1] == n.rsplit(".", 1)[-1]:
+                lines.append(f"- `{dd['name']}`: `{str(dd['signature'])[:300]}`")
+        if not lines:
+            return ""
+        return ("\n\nUse Mathlib's own objects (do not redefine them, do not replace them by numbers); they exist in "
+                "this workspace:\n" + "\n".join(lines) + "\nKeep the claim exactly as stated, with its numbers: "
+                "never state `False`, a weaker claim or a true neighbour of it.\n")
+
+    async def _second_candidate(self, job: Job, d: Dossier, io: JobIO, ws, text: str, previous: str, req: str, f,
+                                judge):
+        """An independent translation by a model of another family, when one is available (None otherwise)."""
+        if not f.model:
+            return None
+        try:
+            refs = self.ctx.brain.candidates("formalize", job.mode)
+        except Exception:  # noqa: BLE001
+            return None
+        other = next((r for r in refs if not r.paid and faithful.family(r.key) != faithful.family(f.model)
+                      and (not r.local or job.mode == "local")), None)
+        if other is None:
+            return None
+        try:
+            return await Formalizer(io, job.mode, only=other.key, judge=judge).run(
+                text, ws, min(2, self.settings.translate_attempts), self.settings.compile_timeout_s, name=d.theorem,
+                profile=self.settings.profile, previous=previous, request=req)
+        except InfraError as e:
+            log.info("second translation: %s", e)
+            return None
+
+    async def _candidates_gate(self, job: Job, d: Dossier, io: JobIO, ws, req: str, f, second) -> None:
+        """The translations Lean accepts, side by side; when every one is refused, the last refused one and why."""
+        rows = [(x.statement, x.model) for x in (f, second) if x is not None and x.ok]
+        if not rows:
+            rows = [(x.refused[-1][0], x.model) for x in (f, second) if x is not None and x.refused][:1]
+        d.extra.pop("pending_proof", None)
+        cands = []
+        for code, model in rows:
+            idx = d.add_statement(code, ok=True, note=req, model=model)
+            cands.append(await gates.evaluate(self, job, d, io, ws, code, model, idx))
+            refused = cands[-1]["verdict"] == "refused"
+            key = ("L'IA a traduit le problème en Lean, mais la traduction est refusée." if refused else
+                   "L'IA a traduit le problème en Lean. Lean comprend le code (cela ne dit pas qu'il est fidèle). "
+                   "Relisez-le : la preuve portera exactement sur ce texte.")
+            await self.event(d, job, "statement", key, ref=idx, model=model,
+                             detail="\n".join(f"- {r}" for r in cands[-1]["reasons"]) if refused else "",
+                             seconds=stage_seconds(job, "statement"))
+        agree = "single"
+        if len(cands) > 1:
+            agree = await faithful.agreement(io, ws, cands[0]["code"], cands[1]["code"], self._lean_real())
+            if agree == "different":
+                await self.event(d, job, "info", "Deux traductions indépendantes : Lean n'a pas montré qu'elles disent "
+                                 "la même chose. Comparez-les avant de choisir.")
+        rest = list(job.plan) or [{"stage": "proof"}, {"stage": "explanation"}]
+        if self.settings.statement_notes and not any(p.get("stage") == "notes" for p in rest):
+            rest.insert(0, {"stage": "notes"})
+        await gates.statement_gate(self, job, d, io, ws, cands, agree, rest)
 
     async def _notes(self, job: Job, d: Dossier, io: JobIO, req: str) -> None:
         if not d.statement or not self.has_model("explain", job.mode):
@@ -614,6 +783,7 @@ class DossierPipeline:
             r.statement_index = cur
             if d.statement != statement or d.cur_statement != cur:
                 return r               # the user changed the statement meanwhile: this verdict is about the old one
+            await self._review_fixes(job, d, r)
             if 0 <= cur < len(d.statements):
                 d.statements[cur].meta["check"] = r.to_dict()
             await self._check_event(job, d, r)
@@ -626,6 +796,21 @@ class DossierPipeline:
         if stop_plan and r.verdict in ("false", "doubtful"):
             self._stop_for_check(job, d, r.verdict)
         return r
+
+    async def _review_fixes(self, job: Job, d: Dossier, r: CheckResult) -> None:
+        """One target per dossier (D65): a fix that changes the claim and a factual claim without source are marked;
+        suggestions that go round in circles are withdrawn, with a plain explanation."""
+        meaning = d.extra.get("meaning") or {}
+        words = gates.request_words(d) or d.understood
+        for i in r.issues:
+            i.update(faithful.review_fix(i["fix"], i["explanation"], meaning, words, meaning.get("status_sources")))
+        if r.fix and faithful.seen_before(d, d.statement, r.fix):
+            r.fix = ""
+            for i in r.issues:
+                i["fix"] = ""
+            await self.event(d, job, "oscillation", "Les corrections proposées tournent en rond (déjà vues pour ce "
+                             "dossier) : Madalean n'en propose plus. L'énoncé demandé reste la cible ; choisissez "
+                             "vous-même l'énoncé, ou traitez un résultat connu dans un sous-dossier.")
 
     def _stop_for_check(self, job: Job, d: Dossier, verdict: str) -> None:
         job.plan = []
@@ -644,7 +829,8 @@ class DossierPipeline:
         for i in r.issues:
             tag = msg(labels.get(i["kind"], "Remarque"))["text"]
             sev = "" if i["severity"] == "high" else " " + msg("(mineur)")["text"]
-            lines.append(f"- **{tag}**{sev} : {i['explanation']}")
+            mark = " " + msg("(sans source)")["text"] if i.get("unsourced") else ""
+            lines.append(f"- **{tag}**{sev} : {i['explanation']}{mark}")
         if r.evidence:
             lines.append(msg("Preuve Lean de la négation (vérifiée) :")["text"] +
                          (" " + r.evidence["idea"] if r.evidence.get("idea") else ""))
@@ -653,6 +839,8 @@ class DossierPipeline:
             lines.append(msg("Lean prouve l'énoncé directement ({tactic}) : il est vrai.", tactic=r.proof)["text"])
         if r.fix and r.verdict != "faithful":
             lines.append(msg("Correction proposée : {fix}", fix=r.fix)["text"])
+            if any(i.get("changes_claim") and i["fix"] == r.fix for i in r.issues):
+                lines.append(msg("Cette correction change l'énoncé demandé.")["text"])
         key = {"faithful": "Vérification de l'énoncé : fidèle à votre demande.",
                "doubtful": "Vérification de l'énoncé : douteux. La preuve n'est pas lancée : corrigez l'énoncé ou "
                            "cliquez sur « Prouver quand même ».",
@@ -660,7 +848,9 @@ class DossierPipeline:
                         "corrigez l'énoncé ou cliquez sur « Prouver quand même ».",
                "unknown": "Vérification de l'énoncé : rien n'a pu être vérifié (modèle ou Lean indisponible)."}[r.verdict]
         await self.event(d, job, "check", key, ref=d.cur_statement, model=r.model, detail="\n".join(lines),
-                         verdict=r.verdict, fix=r.fix, issues=r.issues, evidence=r.evidence, proved=bool(r.proof),
+                         verdict=r.verdict, fix=r.fix, issues=r.issues, evidence=r.evidence,
+                         changes_statement=any(i.get("changes_claim") and i["fix"] == r.fix for i in r.issues
+                                               if r.fix), proved=bool(r.proof),
                          seconds=0.0 if cached else round(r.seconds, 1), **({"cached": True} if cached else {}))
 
     async def _mathlib(self, job: Job, d: Dossier, io: JobIO, ws, statement: str) -> MathlibResult:
@@ -760,12 +950,14 @@ class DossierPipeline:
             raise Failed("Pas d'énoncé à prouver : écrivez ou traduisez d'abord l'énoncé.", "no_statement")
         s = self.settings
         force = bool((getattr(job, "step_flags", None) or {}).get("force"))
+        # the check's verdict was shown at the gate and the user approved this exact text (D65)
+        agreed = gates.active(self, job, d) and gates.approved_statement(d)
         if force and not req and await self._use_pending(job, d, io, ws):
             await self.ctx.repo.save(d)         # S-AN (D46): the proof kept aside, re-checked fresh: no new search
             return
         parallel = self.parallel_ok(job, "understand")
         gate: asyncio.Task | None = None      # statement check running beside the proof search (D38)
-        if s.statement_check and not force and not (req and d.proof_is_current):
+        if s.statement_check and not force and not agreed and not (req and d.proof_is_current):
             chk = self._check_of(d)
             if chk is None:
                 chk = await self._cached_check(job, d, ws)       # B14: same statement, same Mathlib: not redone

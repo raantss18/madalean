@@ -29,7 +29,7 @@ et la conclusion.
 
 Un premier modèle reformule votre demande en énoncé mathématique précis (« théorème de la base incomplète » devient
 « toute famille libre d'un espace vectoriel de dimension finie se complète en une base »). Un second la traduit en
-Lean ; **Lean vérifie que l'énoncé est bien formé** avant d'aller plus loin. Le badge « Lean accepte l'énoncé »
+Lean ; **Lean vérifie que l'énoncé est bien formé** avant d'aller plus loin. Le badge « Lean comprend le code »
 signifie seulement que l'énoncé a un sens pour Lean, pas qu'il est vrai, ni qu'il dit ce que vous vouliez.
 
 ![Énoncé Lean à côté du texte d'origine](../img/lean-statement.png)

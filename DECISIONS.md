@@ -1474,3 +1474,24 @@
   automatically; (3) the user ALWAYS validates the meaning, then the Lean statement, before any proof (including
   sub-dossiers: one card can approve several statements); (4) « Mal compris » reporting everywhere, and its
   corrections feed the lessons.
+
+## D65 — Faithful understanding and translation: gates, refusals, « Mal compris » (TODO S-BG, 2026-11-24)
+- Contract: docs/DOSSIER_FLOW.md (precisions added there). Answers D64's real failure, replayed in
+  `tests/test_faithful.py` with scripted models and real Lean for the statements.
+- **A gate is data, not a waiting coroutine**: the job ends, the answer starts another job of the same run. Survives a
+  restart, holds no slot, first answer wins (state changed before any await). Rejected: an `asyncio.Event` as for the
+  conductor's cap question (lost on restart, holds the dossier).
+- **Who is gated**: a person's jobs on dossiers created since (`flow`); explicit opt-outs elsewhere. Old dossiers load
+  and prove as before. The approval is the hash of the statement's text. « Prouver quand même » approves explicitly;
+  the statement check then runs before the gate, not beside the proof.
+- **Refusals are deterministic and few**: rules judge only concepts of a short table (and numbers ≥ 3): an object the
+  table does not know is left to the blind reading and the user. `hard` (says nothing) can never be approved; `soft`
+  (object or number missing / added) refuses a translation but the user may choose it. « Closed at once by simp »
+  refuses only a claim said to be open or false. Rejected: a model judge first (it accepted `False`).
+- **« different »** means not shown equivalent by Lean in bounded time; both candidates are shown.
+- **One target**: fixes are marked `changes_claim` / `unsourced` by rules; a fix already suggested for another statement
+  or a statement that comes back withdraws the suggestions with a plain explanation.
+- **Status**: « we prove » in one sentence never makes a claim « known » against an « open » sentence; nothing found →
+  the model's word, said so; no answer → `unknown`. Known results are the model's, with a `source` only when a
+  retrieved passage holds their numbers and words; each stops at its own statement gate.
+- Lean constants remain a literature fallback only for a statement given without any words.

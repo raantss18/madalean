@@ -1519,3 +1519,98 @@ EN.update({
     "non formalisé": "not formalized",
     "dans Mathlib": "in Mathlib",
 })
+
+# ---------------------------------------------------------------- understanding and translation (S-BG, D65)
+EN.update({
+    "(sans source)":
+        "(no source)",
+    "Cet énoncé a déjà été refusé pour ce problème.":
+        "This statement was already refused for this problem.",
+    "Cette correction change l'énoncé demandé.":
+        "This fix changes the statement you asked for.",
+    "Deux traductions indépendantes : Lean n'a pas montré qu'elles disent la même chose. Comparez-les avant de choisir.":
+        "Two independent translations: Lean did not show that they say the same thing. Compare them before choosing.",
+    "En attente de votre validation.":
+        "Waiting for your approval.",
+    "L'existence énoncée est vraie par construction : elle ne dit rien du problème.":
+        "The existence stated is true by construction: it says nothing about the problem.",
+    "L'énoncé porte sur un type vide (« Fin 0 »…) : il est vrai ou faux pour une raison sans rapport avec le problème.":
+        "The statement is about an empty type (“Fin 0”…): it is true or false for a reason unrelated to the problem.",
+    "La conclusion est vraie par construction (« True », « x = x »).":
+        "The conclusion is true by construction (“True”, “x = x”).",
+    "La conclusion est « False » : l'énoncé ne dit rien du problème (une négation s'écrit « ¬ … » ou « ≠ »).":
+        "The conclusion is “False”: the statement says nothing about the problem (a negation is written “¬ …” or “≠”).",
+    "La conclusion ne dépend d'aucun objet ni d'aucun nombre du problème.":
+        "The conclusion depends on no object and no number of the problem.",
+    "La relecture de l'énoncé (sans voir le problème) ne mentionne pas : {names}.":
+        "Read back without seeing the problem, the statement does not mention: {names}.",
+    "Lean prouve l'énoncé d'un coup ({tactic}) alors que le problème est ouvert ou faux : ce n'est pas le même énoncé.":
+        "Lean proves the statement at once ({tactic}) although the problem is open or false: it is not the same statement.",
+    "Lean prouve l'énoncé d'un coup ({tactic}).":
+        "Lean proves the statement at once ({tactic}).",
+    "Lean prouve le contraire de cet énoncé.":
+        "Lean proves the opposite of this statement.",
+    "Les corrections proposées tournent en rond (déjà vues pour ce dossier) : Madalean n'en propose plus. L'énoncé demandé reste la cible ; choisissez vous-même l'énoncé, ou traitez un résultat connu dans un sous-dossier.":
+        "The suggested fixes go round in circles (already seen for this dossier): Madalean suggests no more of them. The statement you asked for stays the target; choose the statement yourself, or work on a known result in a sub-dossier.",
+    "Les hypothèses se contredisent (Lean en déduit « False ») : l'énoncé est vrai à vide.":
+        "The hypotheses contradict each other (Lean derives “False”): the statement is vacuously true.",
+    "Mal compris : {why}":
+        "Misunderstood: {why}",
+    "Nombres ajoutés dans la conclusion, absents du problème : {names}.":
+        "Numbers added in the conclusion, absent from the problem: {names}.",
+    "Nombres du problème absents de l'énoncé Lean : {names}.":
+        "Numbers of the problem absent from the Lean statement: {names}.",
+    "Objets du problème absents de l'énoncé Lean : {names}.":
+        "Objects of the problem absent from the Lean statement: {names}.",
+    "Résultat connu, ouvert depuis « {title} ».":
+        "Known result, opened from “{title}”.",
+    "Traduction refusée : elle ne dit pas ce que dit le problème.":
+        "Translation refused: it does not say what the problem says.",
+    "L'IA a traduit le problème en Lean, mais la traduction est refusée.":
+        "The AI translated the problem into Lean, but the translation is refused.",
+    "Vérifiez que le problème est bien compris avant la traduction en Lean.":
+        "Check that the problem is well understood before the translation into Lean.",
+    "Vérifiez l'énoncé Lean avant la recherche de preuve.":
+        "Check the Lean statement before the proof search.",
+    "D'après ce qui a été trouvé, ce problème est ouvert : personne n'en connaît de preuve.":
+        "According to what was found, this problem is open: nobody knows a proof of it.",
+    "D'après ce qui a été trouvé, l'énoncé est faux tel quel.":
+        "According to what was found, the statement is false as it is.",
+    "Le statut de ce problème n'est pas clair.":
+        "The status of this problem is not clear.",
+    "Problème ouvert, d'après un modèle, à vérifier.":
+        "Open problem according to a model, to be checked.",
+    "Énoncé faux, d'après un modèle, à vérifier.":
+        "False statement according to a model, to be checked.",
+    "Statut incertain, d'après un modèle, à vérifier.":
+        "Uncertain status according to a model, to be checked.",
+    "ce n'est pas le bon objet":
+        "it is not the right object",
+    "c'est trop général":
+        "it is too general",
+    "il manque une hypothèse":
+        "a hypothesis is missing",
+    "ce n'est pas ce qui est affirmé":
+        "it is not what is claimed",
+    "une demande a été ignorée":
+        "a request was ignored",
+    "autre raison":
+        "another reason",
+    "Cette validation n'est plus d'actualité : relisez la version affichée.":
+        "This approval is out of date: read the version shown now.",
+    "Cet énoncé ne dit rien du problème : il ne peut pas être validé tel quel.":
+        "This statement says nothing about the problem: it cannot be approved as it is.",
+    "L'IA a traduit le problème en Lean. Lean comprend le code (cela ne dit pas qu'il est fidèle). Relisez-le : la preuve portera exactement sur ce texte.":
+        "The AI translated the problem into Lean. Lean understands the code (this does not mean it is faithful). Read it: the proof will be about exactly this text.",
+    "Sens validé.": "Meaning approved.", "Énoncé Lean validé.": "Lean statement approved.",
+    "Sens corrigé : il est relu.": "Meaning corrected: it is read again.",
+    "Énoncé Lean corrigé : il est refait.": "Lean statement corrected: it is redone.",
+    "Sens refusé : il est relu.": "Meaning rejected: it is read again.",
+    "Énoncé Lean refusé : il est refait.": "Lean statement rejected: it is redone.",
+    "Cette traduction n'existe pas.":
+        "This translation does not exist.",
+    "Validez d'abord l'énoncé Lean de ce dossier (bouton « Prouver »).":
+        "Approve the Lean statement of this dossier first (“Prove” button).",
+    "Cet élément n'existe pas.":
+        "This item does not exist.",
+})

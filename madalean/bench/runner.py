@@ -452,7 +452,7 @@ async def run_problem(ctx, cfg: BenchConfig, ws, p: S.Problem, timeout_s: float,
     d.add_statement(p.statement, source="user")
     await ctx.repo.save(d, publish=False)
     mode = "local" if cfg.strategy == "goedel-local" else "online"
-    job = ctx.orchestrator.submit(d.id, [{"stage": "proof", "force": True}], mode=mode,
+    job = ctx.orchestrator.submit(d.id, [{"stage": "proof", "force": True}], mode=mode, gates=False,
                                   strategy="goedel" if cfg.strategy in ("mathlib", "goedel-local") else "agent")
     task = ctx.orchestrator.tasks[job.id]
     done, _ = await asyncio.wait({task}, timeout=max(1.0, timeout_s))

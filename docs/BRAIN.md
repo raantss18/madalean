@@ -816,3 +816,20 @@ docs/PROOF_GRAPH.md. What the models see and do:
 - **Explanations**: no model — templates over recorded facts (FR / EN).
 - **Lessons** (`research/lessons.py`): no training, no model — signatures, counters, evidence; deterministic renames
   re-checked by Lean.
+
+## 23. Faithful understanding and translation (session S-BG, DECISIONS D65, docs/DOSSIER_FLOW.md)
+
+- **Meaning** (`pipeline/faithful.py`, `pipeline/gates.py`): the « understand » answer also carries `MEANING: {json}`
+  (objects, hypotheses, claim, classical names, status, known results). Bounded and typed; names only become search
+  terms. The status is cited only from retrieved sentences (string-matched, about this problem by its name or all its
+  concepts), else the model's word (`model_only`); a source against the model → `unclear`. Bounded to 60 s.
+- **Literature query** from the problem's words and the classical names, never from Lean tokens when there are words;
+  deterministic relevance floor (`query.relevant`), counted in `rejected.off_topic`.
+- **Translation**: Mathlib's own objects with the signatures of the workspace's index in the prompt; a second candidate
+  from another family (`faithful.family`, one `only` call, never paid); refusals before any model judge, each fed to
+  the next attempt (bounded by `translate_attempts`); blind back-translation; equivalence by Lean (60 s).
+- **Suitability by role** (`catalogue.unsuitable_reason`): safety / moderation, embedding, rerank, OCR, speech, image,
+  calibration, reward, classifier, translation / summary and other special models never understand, translate, judge
+  or prove (they may route or explain as before), unless the user chose them.
+- **« Mal compris »** lessons (`interpretation`, ≤ 80) are quoted as data in the understand / translate prompts of
+  similar problems.

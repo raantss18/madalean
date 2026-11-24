@@ -205,6 +205,7 @@ class QueryPlan:
     lean_names: list[str] = field(default_factory=list)
     msc: list[str] = field(default_factory=list)
     queries: list[str] = field(default_factory=list)
+    names: list[str] = field(default_factory=list)             # classical names of the problem (D65)
 
 
 @dataclass

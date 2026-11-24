@@ -38,15 +38,16 @@ def make_ctx(tmp: Path, ws=None, brain=None, fake_lean: bool = False, caps=None,
     ctx.settings.mathlib_first = False
     ctx.settings.certificates = False    # S-AT: tests/test_certificates.py turns it on
     ctx.settings.literature = False      # S-AX: never a network search from a test; tests/test_literature.py turns it on
+    ctx.settings.validate_before_proof = False   # S-BG: tests/test_faithful.py turns the gates on
     return ctx
 
 
 async def started(ctx: ServerContext) -> ServerContext:
-    key, mode = ctx.settings.workspace, ctx.settings.mode
+    key, mode, vb = ctx.settings.workspace, ctx.settings.mode, ctx.settings.validate_before_proof
     sk = (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates,
           ctx.settings.literature)
     await ctx.start()
-    ctx.settings.workspace, ctx.settings.mode = key, mode
+    ctx.settings.workspace, ctx.settings.mode, ctx.settings.validate_before_proof = key, mode, vb
     (ctx.settings.statement_check, ctx.settings.mathlib_first, ctx.settings.certificates,
      ctx.settings.literature) = sk
     return ctx
@@ -75,10 +76,10 @@ async def wait_idle(ctx: ServerContext, timeout: float = 300) -> None:
 async def running(ctx: ServerContext, static_dir: Path | None = None):
     """Server on random ports. Yields (server, local_url, remote_url)."""
     from madalean.server.app import Server
-    key = ctx.settings.workspace
+    key, vb = ctx.settings.workspace, ctx.settings.validate_before_proof
     srv = Server(ctx, 0, 0, static_dir)
     await srv.start()
-    ctx.settings.workspace = key
+    ctx.settings.workspace, ctx.settings.validate_before_proof = key, vb
     try:
         yield srv, f"http://127.0.0.1:{srv.ports['local']}", f"http://127.0.0.1:{srv.ports['remote']}"
     finally:

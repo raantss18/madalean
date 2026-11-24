@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import time
 
+from . import repo
+from .dossiers import PHASE_OF_STAGE, Dossier
 from .i18n import msg
 from .jobs import Job, JobHistory
 from .logs import get
@@ -37,6 +39,8 @@ class Orchestrator:
         self._waits: dict[str, dict[str, list[str]]] = {}     # job id → owner → resources it waits for (D38)
         self.pipeline = DossierPipeline(ctx)
         ctx.slots.on_wait = self._on_wait
+        self._now: dict[str, str] = {}                        # last `dossier.now` sent, per dossier (S-BG)
+        repo.NOW[:] = [self.now_of]
 
     # ------------------------------------------------------------ queries
     def active(self) -> list[Job]:
@@ -49,6 +53,44 @@ class Orchestrator:
         jid = self.by_dossier.get(dossier_id)
         return self.jobs.get(jid) if jid else None
 
+    # ------------------------------------------------------------ « now » (docs/DOSSIER_FLOW.md, S-BG)
+    def now_of(self, d: Dossier) -> dict | None:
+        """Derived from the running job and the gate, never stored."""
+        job = self.active_for(d.id)
+        if job is None:
+            g = d.extra.get("gate")
+            if isinstance(g, dict) and g.get("state") == "pending":
+                return {"phase": "understand" if g.get("kind") == "meaning" else "translate",
+                        "run": (d.extra.get("gate_plan") or {}).get("run", ""), "attempt": 0,
+                        "activity": f"gate.{g.get('kind')}", "params": {}, "model": "", "started": g.get("t"),
+                        "waiting": "user", "side": []}
+            return None
+        row = next((r for r in reversed(job.timings) if r["stage"] == job.stage and r["end"] is None), None)
+        phase = PHASE_OF_STAGE.get(job.stage, "understand")
+        att = next((a for a in reversed(job.attempts) if a.stage == job.stage), None)
+        asking = bool((job.conductor or {}).get("ask"))
+        return {"phase": phase, "run": job.run, "attempt": (getattr(job, "phase_attempt", None) or {}).get(phase, 0),
+                "activity": f"stage.{job.stage}" if job.stage else "", "params": {},
+                "model": att.model if att is not None else "",
+                "started": row["start"] if row else job.started or job.created,
+                "waiting": "user" if asking else "quota" if job.waiting == "quota" else
+                "slot" if job.waiting or job.state == "queued" else "",
+                "side": [{"phase": PHASE_OF_STAGE.get(s, "prove"), "activity": f"stage.{s}", "params": {}}
+                         for s in dict.fromkeys(job.stages) if s != job.stage]}
+
+    def publish_now(self, dossier_id: str) -> None:
+        d = self.ctx.repo.get(dossier_id)
+        if d is None:
+            return
+        now = self.now_of(d)
+        sig = repr(now)
+        if self._now.get(dossier_id, "None") != sig:
+            self._now.pop(dossier_id, None)
+            self._now[dossier_id] = sig
+            if len(self._now) > 2000:
+                self._now.pop(next(iter(self._now)))
+            self.ctx.publish("dossier.now", {"dossier_id": dossier_id, "now": now})
+
     async def history_for(self, dossier_id: str) -> list[Job]:
         done = await asyncio.to_thread(self.history.load, dossier_id)
         act = self.active_for(dossier_id)
@@ -56,12 +98,16 @@ class Orchestrator:
 
     # ------------------------------------------------------------ control
     def submit(self, dossier_id: str, plan: list[dict], *, mode: str | None = None, strategy: str | None = None,
-               user: bool = True) -> Job:
+               user: bool = True, gates: bool | None = None, run: str = "") -> Job:
+        """`gates`: stop at the dossier's gates (D65) — by default for a person's jobs; bench, lemma plans and
+        scripted runs pass False. `run`: the user request it continues (default: a new one)."""
         cur = self.active_for(dossier_id)
         if cur is not None:
             raise DossierBusy(cur)
         s = self.ctx.settings
         job = Job.new(dossier_id, plan, mode or s.mode, strategy or s.prove_strategy, user)
+        job.gates = user if gates is None else gates
+        job.run = run or job.id
         self.jobs[job.id] = job
         self.by_dossier[dossier_id] = job.id
         self.tasks[job.id] = asyncio.create_task(self._run(job), name=f"job-{job.id}")

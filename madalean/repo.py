@@ -11,8 +11,13 @@ from .dossiers import Dossier, DossierStore
 from .projects import Project, ProjectStore
 
 
+NOW: list[Callable[[Dossier], dict | None]] = []      # set by the orchestrator (docs/DOSSIER_FLOW.md « now »)
+
+
 def dossier_api(d: Dossier) -> dict:
     out = d.to_dict()
+    out.setdefault("gate", None)                # docs/DOSSIER_FLOW.md (S-BG)
+    out["now"] = NOW[0](d) if NOW else None
     out["current"] = {"statement": d.statement, "proof": d.proof, "explanation": d.explanation,
                       "statement_notes": d.notes, "informal_proof": d.informal_proof,
                       "proof_is_current": d.proof_is_current}
@@ -22,7 +27,10 @@ def dossier_api(d: Dossier) -> dict:
 def dossier_summary(d: Dossier) -> dict:
     return {"id": d.id, "title": d.title, "project_id": d.project_id, "status": d.status, "parent_id": d.parent_id,
             "kind": d.kind, "theorem": d.theorem, "workspace": d.workspace, "created": d.created, "updated": d.updated,
-            "archived": d.archived, "has_statement": bool(d.statement), "proved": d.proof_is_current}
+            "archived": d.archived, "has_statement": bool(d.statement), "proved": d.proof_is_current,
+            "gate": {k: d.extra["gate"].get(k) for k in ("id", "kind", "state")}
+            if isinstance(d.extra.get("gate"), dict) else None,
+            "now": NOW[0](d) if NOW else None}
 
 
 class DossierRepo:

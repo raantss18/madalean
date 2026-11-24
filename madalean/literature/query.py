@@ -47,6 +47,7 @@ GLOSSARY = {
     "convergente": "convergent", "converge": "convergent", "limite": "limit", "dérivée": "derivative",
     "derivee": "derivative", "intégrale": "integral", "integrale": "integral", "continue": "continuous",
     "polynôme": "polynomial", "polynome": "polynomial", "racine": "root", "racines": "roots",
+    "nombre chromatique": "chromatic number", "coloration": "coloring", "plan euclidien": "Euclidean plane",
     "matrice": "matrix", "déterminant": "determinant", "valeur propre": "eigenvalue", "groupe": "group",
     "sous-groupe": "subgroup", "anneau": "ring", "corps": "field", "idéal": "ideal", "graphe": "graph",
     "sommet": "vertex", "sommets": "vertices", "arête": "edge", "arêtes": "edges", "inégalité": "inequality",
@@ -92,9 +93,11 @@ STOP = {"the", "that", "for", "all", "every", "and", "with", "then", "there", "e
         "such", "any", "one", "two", "has", "are", "its", "this", "from", "into", "than", "which", "where", "when",
         "montrer", "prouver", "démontrer", "que", "tout", "tous", "toute", "pour", "avec", "alors", "existe", "soit",
         "dans", "est", "sont", "une", "des", "les", "par", "sur", "qui", "nombre", "nombres"}
-GENERIC = {"integer", "real", "natural number", "function", "number", "numbers", "sum", "product", "finite set",
+GENERIC = {"square root", "integer", "real", "natural number", "function", "number", "numbers", "sum", "product", "finite set",
            "absolute value", "rational", "sequence"}
 MAX_KEYWORDS = 10
+REFERENCE_LIKE = re.compile(r"10\.\d{4,}/|arxiv|https?:|www\.|\b(19|20)\d\d\b|\d{4}\.\d{4,5}|"
+                            r"[\"“”«»@/\\<>{}\[\]]", re.I)
 MAX_EXTRA = 6
 
 
@@ -165,17 +168,36 @@ def msc_guess(keywords: list[str]) -> list[str]:
     return [c for c, _n in sorted(counts.items(), key=lambda x: -x[1])][:2]
 
 
-def build(statement: str, text: str = "") -> QueryPlan:
-    """Deterministic query plan: keywords from the words/LaTeX of the problem first (the user's own vocabulary), then
-    from the Lean constants; 1–3 queries, most specific first."""
-    names = lean_names(statement)
+def clean_terms(x: list, k: int, words: int = 4) -> list[str]:
+    """Search terms proposed by a model → plain words only (anything that looks like a reference is dropped)."""
+    out: list[str] = []
+    for s in x:
+        if not isinstance(s, str):
+            continue
+        s = re.sub(r"\s+", " ", re.sub(r"[‐–—]", "-", _fold(s))).strip()
+        if not s or len(s) > 60 or len(s.split()) > words or REFERENCE_LIKE.search(s) \
+                or not re.fullmatch(r"[^\W_][\w' -]*", s) or s.lower() in (o.lower() for o in out):
+            continue
+        out.append(s)
+        if len(out) >= k:
+            break
+    return out
+
+
+def build(statement: str, text: str = "", names: list[str] | None = None) -> QueryPlan:
+    """Deterministic query plan from the problem's own words / LaTeX and the classical `names` of the problem (D65);
+    1–3 queries, most specific first. Lean constants are used only when there are no words at all (a statement given
+    without any text), never beside the problem's words."""
+    classical = clean_terms(list(names or []), 4, 6)
+    lean = lean_names(statement)
     kw: list[str] = []
-    for t in _terms_of_words(text) + _terms_of_latex(text) + _terms_of_lean(names):
+    has_words = bool((text or "").strip()) or bool(classical)
+    for t in _terms_of_words(text) + _terms_of_latex(text) + ([] if has_words else _terms_of_lean(lean)):
         if t and t not in kw and not any(t != o and t in o.split() for o in kw):
             kw.append(t)
     kw = ([k for k in kw if k not in GENERIC] + [k for k in kw if k in GENERIC])[:MAX_KEYWORDS]
     specific = [k for k in kw if k not in GENERIC]
-    queries: list[str] = []
+    queries: list[str] = list(classical[:2])
     named = [k for k in kw if k[:1].isupper()]            # named results (« Bertrand postulate », « Sylow ») first
     main = specific if len(specific) >= 2 else kw
     if main:
@@ -185,7 +207,28 @@ def build(statement: str, text: str = "") -> QueryPlan:
     elif len(kw) > 2:
         queries.append(" ".join(kw[:3]))
     queries = list(dict.fromkeys(q.strip() for q in queries if q.strip()))[:3]
-    return QueryPlan(keywords=kw, lean_names=names, msc=msc_guess(kw), queries=queries)
+    return QueryPlan(keywords=classical + [k for k in kw if k not in classical], lean_names=lean, msc=msc_guess(kw),
+                     queries=queries, names=classical)
+
+
+def _plain(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", s.lower()) if not unicodedata.combining(c))
+
+
+def relevant(plan: QueryPlan, title: str, body: str, matched: list[str]) -> bool:
+    """Deterministic relevance floor (D65): a work is kept when it holds a classical name of the problem, or one
+    specific keyword made of several words, or two specific keywords. « square root », « number » are not specific."""
+    flat = _plain(f"{title} {body}")
+    for n in plan.names:
+        ws = [w for w in re.findall(r"[a-z]{3,}", _plain(n))
+              if w not in ("problem", "theorem", "conjecture", "the", "lemma")]
+        if ws and all(w in flat for w in ws):
+            return True
+    good = [m for m in matched if m not in GENERIC and m not in plan.names]
+    asked = [k for k in plan.keywords + plan.extra_keywords if k not in GENERIC and k not in plan.names]
+    if not plan.names and len(asked) <= 1:
+        return bool(good) or not asked
+    return any(" " in m or m[:1].isupper() for m in good) or len(good) >= 2
 
 
 KEYWORDS_PROMPT = (
@@ -210,7 +253,7 @@ def parse_extra(answer: str, known: list[str]) -> list[str]:
         s = re.sub(r"\s+", " ", _fold(x)).strip()
         if not s or len(s) > 48 or len(s.split()) > 4:
             continue
-        if re.search(r"10\.\d{4,}/|arxiv|https?:|www\.|\b(19|20)\d\d\b|\d{4}\.\d{4,5}|[\"“”«»@/\\<>{}\[\]]", s, re.I):
+        if REFERENCE_LIKE.search(s):
             continue
         if not re.fullmatch(r"[^\W_][\w' -]*", s):
             continue

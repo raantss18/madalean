@@ -1214,6 +1214,7 @@ class Planner:
         """« Prouver le plan »: validates if needed, then proves every lemma automatically (sub-dossiers within the
         concurrency limit), combines bottom-up, and only stops to ask when a lemma fails."""
         plan = self._cur(did, base_rev)
+        self._need_approval(did)
         if not plan.get("validated") or any(plan["nodes"][x]["status"] == "draft"
                                             for x in depth_first(plan) if x != plan["root"]):
             self.validate(did, plan["rev"], device)
@@ -1223,6 +1224,14 @@ class Planner:
         self.store.save_runtime(did)
         await self.advance(did)
         return {"plan": self.public(did)}
+
+    def _need_approval(self, did: str) -> None:
+        """D65: the user approves the theorem's statement before anything is proved for it (its lemmas are checked by
+        the plan, as before)."""
+        from ..pipeline import gates
+        d = self.ctx.repo.get(did)
+        if d is not None and d.statement and not gates.may_prove(self.ctx.settings, d):
+            raise PlanError("gate_pending", 409, "Validez d'abord l'énoncé Lean de ce dossier (bouton « Prouver »).")
 
     def stop_run(self, did: str, reason: str = "user") -> None:
         rt = self.store.runtime(did)
@@ -1251,7 +1260,7 @@ class Planner:
             lean = (context + "\n\n" + n["lean"]).strip() if n["lean"] and n.get("lean_ok") is not False else ""
             spec = {"title": n["title"], "problem": n["statement_nl"] or n["title"], "statement": lean,
                     "project_id": root_d.project_id, "workspace": root_d.workspace, "parent_id": parent_d.id,
-                    "kind": "lemma", "start": False}
+                    "kind": "lemma", "start": False, "gates": False}
             try:
                 child, _job = await create_dossier(self.ctx, spec, user_event=False)
             except leancheck.StatementError:
@@ -1476,6 +1485,7 @@ class Planner:
         root_d = self.ctx.repo.get(did)
         if root_d is None:
             raise PlanError("not_found", 404)
+        self._need_approval(did)
         order = [x for x in depth_first(plan) if x != plan["root"]]
         chosen = set(nids or [x for x in order if plan["nodes"][x]["status"] == "accepted"])
         chosen = {x for x in chosen if x in plan["nodes"] and not plan["nodes"][x].get("dossier_id")}
@@ -1492,7 +1502,7 @@ class Planner:
                 continue                               # its parent was not submitted: skip (not reachable)
             spec = {"title": n["title"], "problem": n["statement_nl"] or n["title"], "statement": n["lean"],
                     "project_id": root_d.project_id, "workspace": root_d.workspace, "parent_id": parent_d.id,
-                    "kind": "lemma", "start": False}
+                    "kind": "lemma", "start": False, "gates": False}
             try:
                 child, _job = await create_dossier(self.ctx, spec)
             except leancheck.StatementError:

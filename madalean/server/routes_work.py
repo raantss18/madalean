@@ -4,12 +4,14 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+import uuid
 
 from aiohttp import web
 
 from .. import leancheck, texio
 from ..i18n import msg
 from ..orchestrator import DossierBusy
+from ..pipeline import gates
 from ..pipeline.runner import STAGES, full_plan, parse_split, plan_for_message
 from ..prompts import split_messages
 from ..repo import dossier_api, dossier_summary
@@ -129,6 +131,8 @@ def _opts(data: dict) -> dict:
         o["mode"] = data["mode"]
     if data.get("strategy") in ("goedel", "agent", "auto"):
         o["strategy"] = data["strategy"]
+    if data.get("gates") is False:           # scripted API runs (D65): explicit opt-out of the gates
+        o["gates"] = False
     return o
 
 
@@ -153,6 +157,9 @@ async def create_dossier(ctx, data: dict, user_event: bool = True) -> tuple[obje
         d.parent_id = str(data["parent_id"])
     if data.get("kind") in KINDS:
         d.kind = data["kind"]
+    if data.get("gates") is False:
+        d.extra.pop("flow", None)             # a lemma checked by its plan, a scripted run: no gate (D65)
+    run = new_run()
     plan = None
     if statement:
         st = leancheck.prepare_statement(statement)
@@ -161,19 +168,19 @@ async def create_dossier(ctx, data: dict, user_event: bool = True) -> tuple[obje
         if data.get("rename", True) and old != d.theorem:
             st = re.sub(rf"\btheorem\s+{re.escape(old)}\b", f"theorem {d.theorem}", st)
         if problem and user_event:
-            d.add_event("user", problem, stage="auto")
+            d.add_event("user", problem, stage="auto", run=run)
         idx = d.add_statement(st, source="user")
         m = msg("Énoncé Lean fourni.")
-        d.add_event("statement", m["text"], ref=idx, key=m["key"])
+        d.add_event("statement", m["text"], ref=idx, key=m["key"], run=run)
         plan = [{"stage": "notes"}, {"stage": "proof"}, {"stage": "explanation"}]
     elif problem:
         if user_event:
-            d.add_event("user", problem, stage="auto")
+            d.add_event("user", problem, stage="auto", run=run)
         plan = full_plan()
     await ctx.repo.save(d)
     job = None
     if plan and data.get("start", True):
-        job = ctx.orchestrator.submit(d.id, plan, **_opts(data))
+        job = ctx.orchestrator.submit(d.id, plan, run=run, **_opts(data))
     return d, job
 
 
@@ -299,9 +306,15 @@ async def dossiers_message(request: web.Request) -> web.Response:
         full = with_mentions(ctx, d, text)
         if full != text:
             plan = [{**p, "request": full} if p.get("request") == text else p for p in plan]
-    d.add_event("user", text, stage=shown)
+    run = new_run()
+    d.add_event("user", text, stage=shown, run=run)
+    g = gates.pending(d)
+    if g is not None:                        # the message answers the gate: what it showed is redone
+        gates.decided(d, g, "reject", run)
+        if g["kind"] == "meaning" and d.statement:
+            plan = [{"stage": "understand", "request": text}] + (d.extra.get("gate_plan") or {}).get("plan", [])
+    job = ctx.orchestrator.submit(d.id, plan, run=run, **opts)
     await ctx.repo.save(d)
-    job = ctx.orchestrator.submit(d.id, plan, **opts)
     return ok({"job": job.to_dict(), "stage": shown}, status=202)
 
 
@@ -326,6 +339,7 @@ async def dossiers_statement(request: web.Request) -> web.Response:
             result = r.to_dict()
     idx = d.add_statement(st, source="user", ok=bool(result is None or result["statement_ok"]))
     d.extra.pop("pending_proof", None)         # S-AN (D46): a proof kept aside was about the old statement
+    gates.drop(d)                              # D65: the gate was about the old statement
     m = msg("Énoncé modifié à la main.")
     d.add_event("statement", m["text"], ref=idx, key=m["key"])
     await ctx.repo.save(d)
@@ -370,6 +384,132 @@ async def dossiers_run(request: web.Request) -> web.Response:
     return ok({"job": job.to_dict()}, status=202)
 
 
+# ---------------------------------------------------------------- gates (docs/DOSSIER_FLOW.md, S-BG)
+def new_run() -> str:
+    return "r-" + uuid.uuid4().hex[:10]
+
+
+def _gate_error(e: gates.GateError) -> web.Response:
+    return error(e.status, e.code, {
+        "stale_gate": "Cette validation n'est plus d'actualité : relisez la version affichée.",
+        "refused_statement": "Cet énoncé ne dit rien du problème : il ne peut pas être validé tel quel.",
+        "bad_candidate": "Cette traduction n'existe pas.", "bad_ref": "Cet élément n'existe pas."}[e.code])
+
+
+@routes.post("/api/dossiers/{id}/gate")
+async def dossiers_gate(request: web.Request) -> web.Response:
+    """{gate_id, action: approve | edit | reject, text?, candidate?}"""
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    data = await body(request)
+    action = data.get("action")
+    if action not in ("approve", "edit", "reject"):
+        return error(400, "bad_action")
+    text = str(data.get("text") or "").strip()[:20000]
+    if action == "edit" and not text:
+        return error(400, "empty")
+    cand = data.get("candidate")
+    if cand is not None and (not isinstance(cand, int) or isinstance(cand, bool)):
+        return error(400, "bad_candidate")
+    try:
+        g = gates.pending(d)
+        if g is None or g["id"] != str(data.get("gate_id") or ""):
+            raise gates.GateError("stale_gate")
+        act = ctx.orchestrator.active_for(d.id)
+        if act:
+            return _busy(DossierBusy(act))
+        # no await between the decision and the job: a second client gets 409 (stale_gate)
+        plan = gates.decide(ctx, d, g["id"], action, text, cand)
+    except gates.GateError as e:
+        return _gate_error(e)
+    if action != "approve" and text:
+        d.add_event("user", text, stage="statement", run=(d.extra.get("gate_plan") or {}).get("run", ""),
+                    phase="understand" if g["kind"] == "meaning" else "translate")
+    job = gates.submit(ctx, d, plan, **_opts(data))
+    await ctx.repo.save(d)
+    return ok({"dossier": dossier_api(d), "job": job.to_dict()}, status=202)
+
+
+@routes.post("/api/dossiers/gates/approve")
+async def dossiers_gates_approve(request: web.Request) -> web.Response:
+    """{items: [{dossier_id, gate_id}]} → several pending STATEMENT gates at once (known results)."""
+    ctx = ctx_of(request)
+    data = await body(request)
+    items = data.get("items")
+    if not isinstance(items, list) or not 0 < len(items) <= 50:
+        return error(400, "bad_items")
+    out = []
+    for it in items:
+        did = str(it.get("dossier_id") or "") if isinstance(it, dict) else ""
+        d = ctx.repo.get(did)
+        row = {"dossier_id": did, "ok": False, "error": "", "dossier": None, "job": None}
+        out.append(row)
+        if d is None:
+            row["error"] = "not_found"
+        elif gates.pending(d, "statement") is None:
+            row["error"] = "stale_gate"
+        elif ctx.orchestrator.active_for(did):
+            row["error"] = "busy"
+        else:
+            try:
+                plan = gates.decide(ctx, d, str(it.get("gate_id") or ""), "approve")
+            except gates.GateError as e:
+                row["error"] = e.code
+                continue
+            row["job"] = gates.submit(ctx, d, plan).to_dict()
+            row["ok"] = True
+            await ctx.repo.save(d)
+            row["dossier"] = dossier_api(d)
+    return ok({"results": out})
+
+
+@routes.post("/api/dossiers/{id}/report")
+async def dossiers_report(request: web.Request) -> web.Response:
+    """« Mal compris »: {target: meaning | statement | proof | event, ref?, reason, text?}"""
+    ctx = ctx_of(request)
+    d = _dossier(request)
+    data = await body(request)
+    target, reason = data.get("target"), data.get("reason")
+    if target not in gates.TARGETS or reason not in gates.REASONS:
+        return error(400, "bad_report")
+    text = str(data.get("text") or "").strip()[:2000]
+    try:
+        real = gates.target_of_event(d, data.get("ref")) if target == "event" else target
+        gates.check_ref(d, target, data.get("ref"))
+    except gates.GateError as e:
+        return _gate_error(e)
+    if not d.problem and real == "meaning":
+        real = "statement"                       # nothing but a Lean statement: nothing to understand again
+    await ctx.orchestrator.cancel_dossier(d.id)  # what depends on it stops
+    if real == "meaning":                        # known results opened from a misread problem stop too
+        for c in ctx.repo.children(d.id):
+            if c.extra.get("known_result") and not gates.approved_statement(c):
+                await ctx.orchestrator.cancel_dossier(c.id)
+                g = gates.pending(c)
+                if g is not None:
+                    g["state"] = "rejected"
+                    await ctx.repo.save(c)
+    act = ctx.orchestrator.active_for(d.id)      # still stopping, or another client started a job meanwhile
+    if act:
+        return _busy(DossierBusy(act))
+    run = new_run()
+    gates.record_report(d, {"t": time.time(), "target": target, "stage": real, "reason": reason, "text": text,
+                            "ref": data.get("ref") if isinstance(data.get("ref"), int) else None, "run": run})
+    if d.problem:
+        from ..research import lessons
+        st = lessons.store_of(ctx)
+        if st is not None:
+            st.learn_interpretation(d.problem, real, reason, text, d.id)
+    m = msg("Mal compris : {why}", why=gates.reason_text(reason) + (f" — {text}" if text else ""))
+    d.add_event("report", m["text"], key=m["key"], params=m["params"] | {"target": real, "reason": reason}, run=run,
+                phase={"meaning": "understand", "statement": "translate", "proof": "prove"}[real])
+    d.extra.setdefault("flow", 2)
+    plan = gates.report_plan(d, real, reason, text, data.get("ref") if target == "statement" else None)
+    job = ctx.orchestrator.submit(d.id, plan, run=run, **_opts(data))
+    await ctx.repo.save(d)
+    return ok({"dossier": dossier_api(d), "job": job.to_dict()}, status=202)
+
+
 @routes.post("/api/dossiers/{id}/verify")
 async def dossiers_verify(request: web.Request) -> web.Response:
     """« Vérifier l'énoncé » on demand: {learn?: bool, mode?}. The verdict arrives as a `check` event (S-K)."""
@@ -408,6 +548,8 @@ async def dossiers_version_restore(request: web.Request) -> web.Response:
     if act:
         return _busy(DossierBusy(act))
     d.restore(kind, index)
+    if kind != "explanation":
+        gates.drop(d)
     d.status = "proved" if d.proof_is_current else ("draft" if d.status == "proved" else d.status)
     what = {"statement": "énoncé", "proof": "preuve", "explanation": "explication"}[kind]
     m = msg("Retour à la version {n} de la {what}.", n=index + 1, what=msg(what)["text"])
@@ -455,7 +597,7 @@ async def dossiers_split(request: web.Request) -> web.Response:
         spec = {"title": str(lem.get("title") or f"{parent.title} — lemme {i + 1}")[:200],
                 "statement": lem.get("statement", ""), "problem": lem.get("problem", ""),
                 "project_id": parent.project_id, "workspace": parent.workspace, "parent_id": parent.id,
-                "kind": "lemma", "start": data.get("start", True), **_opts(data)}
+                "kind": "lemma", "start": data.get("start", True), **_opts(data), "gates": False}
         try:
             d, job = await create_dossier(ctx, spec)
         except leancheck.StatementError:
