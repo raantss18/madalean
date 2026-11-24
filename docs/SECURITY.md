@@ -42,6 +42,10 @@ la machine.
 **Actualités (S-AV).** La veille mathématique lit des adresses publiques : ce qu'elle reçoit est traité comme un
 texte à lire, jamais comme une consigne (voir « News feeds » plus bas). Rien n'est demandé à Internet en mode Local.
 
+**Mémoire (S-BD).** Un fichier « .madalean-memory » importé n'est jamais cru sur parole : chaque preuve est
+revérifiée ici par Lean, le code de calcul est relu sans être exécuté, les textes qui s'adressent à un modèle sont
+refusés ; l'import ne se fait que sur l'ordinateur hôte (§ 11).
+
 **À faire avant la publication (bloquant).** La revue laisse deux points ouverts (détail dans § 9) :
 - la clé de signature des versions est en clair dans `~/.config/madalean/release-keys/`, sur la machine qui exécute des
   carnets ;
@@ -446,3 +450,20 @@ and secret scanning switched on, and an investigation of the flaky test F13.
   Plans are one-shot, bound to the result, and expire after 15 minutes; a fork whose name differs from the one shown
   stops the sequence. Nothing is ever pushed to the upstream repository itself, never `--force`.
 - **Tests** run only against a fake GitHub API (`publish.GITHUB_API` set to a local server).
+
+## 12. Memory bundles (S-BD, D62) — import threat model
+
+A `.madalean-memory` file (docs/MEMORY.md) may come from anyone: it is **untrusted input**, whatever its manifest says.
+
+| Threat | Control |
+|---|---|
+| A false or altered proof shown as « vérifiée » | Nothing imported is verified: each library row is re-checked by a **fresh strict Lean** (no warm Lean, axiom probe, D28 filter, bubblewrap sandbox) in a local workspace with the **same Lean and Mathlib versions**; the statement shown is recomputed from the proved code (a mismatch is refused); otherwise it stays in « importées, non vérifiées » (`memory/unverified.json`), never given to a prover. Tested with real Lean (`tests/test_memory.py`: a forged proof in a consistently rebuilt bundle stays unverified). |
+| Tampering in transit / corruption | Per-part and per-file SHA-256 + manifest `integrity`; any mismatch refuses the whole bundle before parsing. Not a signature (anyone can rebuild a consistent file) — hence the row above. |
+| Code execution on the host | Lean code: D28 filter + sandbox (as every Lean check). Recipes (Sage / Python): static screen (`os`, `subprocess`, `socket`, `open(`, `eval(`, `exec(`, `__import__`…), validation by preparse / compile **without execution**; an imported recipe never replaces a local best version. Nothing is run at import time. |
+| Prompt injection (titles, Lean comments, lessons, digest quotes reach prover prompts) | Lean comments stripped before the check (the stored code is the checked code); control / bidi characters removed; lengths bounded; `looks_like_injection` → item refused (`suspect_text`), digest statements dropped; rename lessons only between plain identifiers, tactic lists only tactic names. |
+| Zip bombs, path traversal, oversized parts | Fixed member names (`manifest.json`, `parts/<part>.json`, `files/<sha256>`), duplicates and directories refused; ≤ 200 MB total, ≤ 64 MB per part, ≤ 40 MB per file, ≤ 2000 members, compression ratio ≤ 200, ≤ 20 000 rows per part; nothing is extracted to disk by name. |
+| Overwriting local work | Duplicates (statement up to renaming, D59; same lesson id; same recipe code) skipped; graphs are read-only references; digests go to an existing project shelf only when new; lessons start with neutral counters. |
+| A paired device importing | Import, re-verification, deletions and backup settings are **host only** (403 from the remote listener); export and the dataset are readable by paired devices like the library export. |
+| Redistribution of protected texts | Digests of sources whose licence is not CC BY / CC0 / public domain are left out of exports by default and listed in the manifest; original files only when ticked. |
+| Backups leaking | Local folder only (default `~/.config/madalean/backups`, 0700; files 0600), never uploaded; rotation deletes only `madalean-memory-YYYYMMDD-HHMMSS.madalean-memory` files. |
+

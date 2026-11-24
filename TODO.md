@@ -115,8 +115,16 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
      dans le panneau ; placer le résultat dans le fichier Mathlib existant le plus proche
 8. ⬜ **Enseignement francophone et malgache** — interface en malgache, exercices vérifiés (licence, master,
    olympiades), parcours « Apprendre »
-9. ⬜ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
-   preuves vérifiées
+9. ⚠️ **Mémoire qui grossit** — bibliothèque et recettes exportables ; plus tard, petit modèle local affiné sur tes
+   preuves vérifiées (S-BD, D62, docs/MEMORY.md) : Réglages › « Mémoire » ; un seul fichier `.madalean-memory`
+   (bibliothèque avec tampon de vérification, leçons, recettes, graphes, résumés des pièces jointes ; empreintes
+   SHA-256, versions Lean / Mathlib ; choix par partie et par projet ; résumés de sources © exclus par défaut) ;
+   import sur l'hôte avec aperçu, chaque preuve revérifiée par un Lean frais et strict de même version (sinon
+   « importée, non vérifiée » avec la raison), recettes relues sans exécution, leçons à compteurs neutres, graphes en
+   références, doublons ignorés ; sauvegardes automatiques locales (fréquence, nombre gardé, dossier) ; export d'un
+   jeu de données JSONL des paires vérifiées (pour un affinage local futur, non fait, désactivé par défaut)
+   - ⬜ reste : fusion des graphes importés dans les tiens (aujourd'hui : références), affichage d'un graphe importé,
+     essai chez toi (export → import sur un autre ordinateur), l'affinage lui-même (plus tard, mesuré par « Mesurer »)
 10. ⬜ **Travail à plusieurs** — plusieurs chercheurs sur un projet, relecture, attribution
 
 ### Ordre choisi pour la suite (24/11, à ta demande)
@@ -127,9 +135,10 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
    plus de la liste (écran large). Reste : essai chez toi ; recherche par Sage (fonctions, ensembles) non faite — le
    calcul sur petites valeurs couvre l'arithmétique de ℕ, ℤ, ℚ, ℝ
 2. ✅ De l'article au plan formel (S-BB, point 6, D60)
-3. ⬜ Publication 2.2.0 (après 1 et 2 : une seule signature)
+3. ✅ Publication 2.2.0 (24/11)
 4. ✅ Contribuer à Mathlib (S-BC, point 7, D61)
-5. ⬜ Mémoire qui grossit (point 9 : export des leçons, bibliothèque et recettes ; modèle local affiné plus tard)
+5. ✅ Mémoire qui grossit (S-BD, point 9, D62) : fichier de mémoire revérifié à l'import, sauvegardes, jeu de données ;
+   modèle local affiné plus tard
 6. ⬜ Enseignement francophone et malgache (point 8)
 7. ⬜ Travail à plusieurs (point 10 : le plus lourd en sécurité, en dernier)
 Deux sessions au plus en même temps (quota).

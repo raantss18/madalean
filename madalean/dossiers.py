@@ -323,6 +323,7 @@ class LibEntry:
     dossier: str = ""
     deps: list[str] = field(default_factory=list)   # library results this proof uses (inserted first)
     t: float = field(default_factory=time.time)
+    origin: dict = field(default_factory=dict)      # D62: imported from a memory bundle (stamp, re-check), else {}
 
 
 _HEADER_RE = re.compile(r"^\s*(import|set_option|open)\b")
