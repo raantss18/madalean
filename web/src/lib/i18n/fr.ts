@@ -174,6 +174,7 @@ const fr = {
   'lit.attachments': "Pièces jointes",
   'lit.attachIntro': "Image, PDF, LaTeX, BibTeX ou adresse web : lus une seule fois pour tout le projet, puis résumés (énoncés cités, références).",
   'lit.attachFile': "Joindre un fichier",
+  'lit.removeFile': "Retirer ce fichier",
   'lit.attachUrl': "Joindre l’adresse",
   'lit.attached': "Pièce jointe ajoutée : {name}",
   'lit.attachmentN': "Pièce jointe {n}",

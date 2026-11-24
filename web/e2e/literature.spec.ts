@@ -52,3 +52,17 @@ test('literature panel fits a phone screen', async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+test('a file joined to a new problem is attached before the work starts', async ({ page }) => {
+  await open(page, '/', { mode: 'research' });
+  await page.locator('#home-files').setInputFiles({ name: 'given.tex', mimeType: 'application/x-tex', buffer: Buffer.from(TEX) });
+  await expect(page.getByRole('list', { name: 'Joindre un fichier' }).getByText('given.tex')).toBeVisible();
+  await page.locator('#statement-input').click();
+  await page.keyboard.type('Tout nombre premier p > 2 est impair.');
+  await page.getByRole('button', { name: 'Traduire et prouver' }).click();
+  await expect(page).toHaveURL(/\/d\/[^/]+\/lean/);
+  const id = decodeURIComponent(new URL(page.url()).pathname.split('/')[2]);
+  const r = await api<{ attachments: { name?: string; n: number }[] }>('GET', `/dossiers/${encodeURIComponent(id)}/attachments`);
+  expect(r.attachments.length).toBe(1);
+  await axe(page, 'dossier after a new problem with a file');
+});

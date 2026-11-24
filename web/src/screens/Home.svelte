@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { literature, ATTACH_ACCEPT } from '../lib/api/literature';
   // « Énoncé » for a NEW dossier: write in natural language/LaTeX (live preview) or directly in Lean, import .tex,
   // examples; send → the dossier opens on its Lean step.
   import { app } from '../lib/store/app.svelte';
@@ -46,17 +47,36 @@
   const project = $derived(prefs.lastProject ? app.m.projects[prefs.lastProject] : undefined);
   const canSend = $derived(asLean ? lean.trim().length > 0 : text.trim().length > 2);
 
+  let files = $state<File[]>([]);
+  function pickFiles(input: HTMLInputElement) {
+    files = [...files, ...Array.from(input.files ?? [])].slice(0, 8);
+    input.value = '';
+  }
+
   async function send() {
     if (!canSend || busy) return;
     busy = true; err = '';
     try {
+      // S-AX (D56): files joined to a new problem are attached BEFORE the work starts, so that understanding the
+      // problem already sees them (read once, project memory)
+      const withFiles = files.length > 0;
       const r = await api.createDossier({
         ...(asLean ? { statement: lean, problem: text.trim() || undefined } : { problem: text.trim() }),
-        title: title.trim() || undefined, project_id: prefs.lastProject || undefined, start: true,
+        title: title.trim() || undefined, project_id: prefs.lastProject || undefined, start: !withFiles,
         ...(mode ? { mode } : {}), ...(strategy ? { strategy } : {}),
       });
       app.m.full[r.dossier.id] = r.dossier;
       if (r.job) app.m.jobs[r.job.id] = r.job;
+      if (withFiles) {
+        for (const f of files) {
+          try { await literature.attachFile(r.dossier.id, f); }
+          catch (e) { toast('error', `${f.name} — ${errorText(e)}`); }
+        }
+        files = [];
+        const plan = asLean ? (['notes', 'proof', 'explanation'] as const) : (['understand', 'statement', 'proof', 'explanation'] as const);
+        const run = await api.run(r.dossier.id, [...plan], { ...(mode ? { mode } : {}), ...(strategy ? { strategy } : {}) });
+        app.m.jobs[run.job.id] = run.job;
+      }
       removeKey('draft.new');
       text = ''; lean = ''; title = '';
       navigate(`/d/${encodeURIComponent(r.dossier.id)}/${asLean ? 'preuve' : 'lean'}`);
@@ -142,7 +162,16 @@
         <Icon name="send" />{busy ? t('home.sending') : asLean ? t('home.sendLean') : t('home.send')}
       </button>
       <TexImport onpick={(body, ttl) => { asLean = false; text = body; title = ttl; }} />
+      <input id="home-files" class="sr-only" type="file" accept={ATTACH_ACCEPT} multiple onchange={(e) => pickFiles(e.target as HTMLInputElement)} />
+      <label for="home-files" class="btn quiet" title={t('lit.attachFile')}><Icon name="paperclip" size={16} />{t('lit.attachFile')}</label>
     </div>
+    {#if files.length}
+      <ul class="chips" aria-label={t('lit.attachFile')}>
+        {#each files as f, i (f.name + i)}
+          <li class="chip">{f.name}<button class="btn quiet xs" type="button" aria-label={t('lit.removeFile')} onclick={() => { files = files.filter((_, j) => j !== i); }}>×</button></li>
+        {/each}
+      </ul>
+    {/if}
     <p class="hint">{t('home.after')}</p>
   </section>
 
@@ -199,4 +228,6 @@
   .lvl { color: var(--text-3); font-weight: 600; }
   .ex-title { font-family: var(--font-serif); font-weight: 600; }
   .ex-body { color: var(--text-2); }
+  .chips { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0; margin: var(--s-2) 0 0; }
+  .chip { display: inline-flex; align-items: center; gap: var(--s-1); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: .85rem; }
 </style>

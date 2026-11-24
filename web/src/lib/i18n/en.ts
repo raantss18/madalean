@@ -175,6 +175,7 @@ const en: Record<keyof typeof fr, string> = {
   'lit.attachments': "Attachments",
   'lit.attachIntro': "Image, PDF, LaTeX, BibTeX or web address: read once for the whole project, then summarised (quoted statements, references).",
   'lit.attachFile': "Attach a file",
+  'lit.removeFile': "Remove this file",
   'lit.attachUrl': "Attach the address",
   'lit.attached': "Attachment added: {name}",
   'lit.attachmentN': "Attachment {n}",
