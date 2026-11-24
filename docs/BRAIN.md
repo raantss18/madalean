@@ -833,3 +833,33 @@ docs/PROOF_GRAPH.md. What the models see and do:
   or prove (they may route or explain as before), unless the user chose them.
 - **« Mal compris »** lessons (`interpretation`, ≤ 80) are quoted as data in the understand / translate prompts of
   similar problems.
+
+## 24. Prove better, learn from failed attempts (session S-BI, DECISIONS D67)
+
+Order of one proof stage: certificate / Mathlib-first (beside the search) → `decompose.split` (top-level ∧, ↔, a
+disjunctive hypothesis, after moving ∀ / → into the binders; one Lean compile accepts the cut, closers prove what they
+can) → round 0: the best model → the bounded reasoned search of D57 (`proofsteps.reasoned`, ≤ 40 % of the time left,
+stored cut first, else one split proposed by a model) → rounds of other models, one per family first → reinforcement.
+
+- **Blackboard** (`pipeline/blackboard.py`, `job.board`, `dossier.extra.board` for the same text / workspace / Mathlib):
+  rejected proofs leave open goals, unknown names, approaches; their `have`s are rebuilt as standalone lemmas
+  (`autoImplicit false`), checked in one batch then one by one strictly. ≤ 16 lemmas, ≤ 4 new per harvest, view ≤ 2 600
+  characters. A proof that names one gets its code (`Board.assemble`), then the usual strict check. Accepted lemmas are
+  proved nodes of the problem graph. Local `have`s that depend on `obtain` / `cases` variables, and `have`s inside
+  bullets, are not extracted.
+- **Progress**: strong = a new accepted lemma; weak = new kind of error or new open goal; `sorry` / forbidden = none.
+  A line stops when a run brings nothing (with the reasoned search available: after one run without a strong step).
+  After round k ≥ 1: nothing new → `no_progress`; only weak progress → after 2 such rounds (1 when the reasoned search
+  ran or the statement looks large). Rounds where every model was unavailable do not count. All older caps remain.
+- **Open / false claim** (`extra.meaning.known_status`): no one-shot; a reasoned search of ≤ 6 attempts / 6 min for
+  partial lemmas. Plan step `budget_minutes` (1–240, never above `tournament_max_minutes`) lifts it.
+- **Pool**: `Leaderboard.stalls` (≥ 3 recent runs without one Lean check, or ≥ 5 pauses and no run) leaves the race,
+  unless chosen or nothing else remains; the role filter is D65's.
+- **Lessons**: kind `split`; dead ends repeated ≥ 3 times become `approach`; `shown` / `shown_ok` count the searches that
+  had the lesson in context (not on open problems): never with a success after 6 → out of the hints, after 12 → dropped.
+- **Final event**: kind `error`, `params.report = {cause, tried, goal, stop, lemmas: [{name, statement, node}], actions}`;
+  `cause` ∈ open | false | translation | providers | budget | mathlib | unknown (rules, « indéterminée » by default);
+  actions `misunderstood | plan | hint | budget | retry`. Job error `open_problem` when no direct proof was searched.
+- Fixtures (scripted models, real Lean 4.9, `pytest -s tests/test_prove_better.py | grep MEASURE`), before → after:
+  conjunction: not proved, 13 model runs → proved, 1 agent run (+ model proofs of the parts); reuse of a `have`: not proved, 13 →
+  proved, 2; unprovable: 13 runs → 5. They show the mechanisms, not a success rate.

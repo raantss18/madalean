@@ -36,7 +36,7 @@ export interface Explanation {
 export interface Why { node: string; title: string; why: string; reason_text: string; status: string; reason: string;
   alternatives: { parent: string; idea: string; active: boolean; abandoned: boolean; why: string; lemmas: { node: string; title: string; state: string; score: number | null }[] }[];
   attempts: GraphAttempt[]; attempts_n: number; source: { kind: string } | null; citation: Record<string, unknown> | null }
-export interface Lesson { id: string; kind: 'rename' | 'fix' | 'approach' | 'strategy'; ok: number; bad: number; used: number; updated: number;
+export interface Lesson { id: string; kind: 'rename' | 'fix' | 'approach' | 'strategy' | 'split'; parts?: string[]; ok: number; bad: number; used: number; updated: number;
   old?: string; new?: string; mathlib?: string; pattern?: string; shape?: string; tactics?: string[]; approach?: string; reason?: string;
   strategy?: string; evidence: { dossier?: string; workspace?: string; mathlib?: string; t: number }[] }
 

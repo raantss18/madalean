@@ -28,7 +28,7 @@ from .io import InfraError, LoopGuard, outer_cancelled
 from . import tournament as tourn
 from . import certificate as certstage
 from . import literature_hook
-from . import conductor_hook, faithful, gates, leancat
+from . import blackboard as BB, conductor_hook, decompose, faithful, gates, leancat, proofsteps
 from .memory_hook import error_hint, memory_hint
 from .stagecache import StageCache, make_key, normalize_text
 
@@ -396,6 +396,8 @@ class DossierPipeline:
                     if stage not in STAGES:
                         continue
                     job.step_flags = {k: bool(step.get(k)) for k in ("force", "learn")}   # « Prouver quand même », Apprendre
+                    b = step.get("budget_minutes")           # D67: an explicit budget for an open problem
+                    job.step_budget = b if isinstance(b, int) and not isinstance(b, bool) else 0
                     if stage == "proof" and step.get("force"):
                         gates.force(d)                       # explicit approval of the statement (D65)
                     if gates.active(self, job, d):
@@ -1002,7 +1004,8 @@ class DossierPipeline:
         refine = (d.proof, req) if (req and d.proof_is_current) else None
         hint = req if (req and not d.proof_is_current) else ""
         hint = (hint + conductor_hook.hook_of(job).hint("prove")).strip()       # S-AI: the conductor's advice
-        hint = (hint + "\n\n" + memory_hint(self.ctx, d)).strip()               # S-AY (D57): problem memory, lessons
+        job.lesson_ids = []
+        hint = (hint + "\n\n" + memory_hint(self.ctx, d, job.lesson_ids)).strip()               # S-AY (D57): problem memory, lessons
         strategy = self._choose_strategy(job)
         if job.mode == "auto" and strategy == "agent" and not await self._internet(job.mode):
             # no Internet (S-T): the local models do the work, without waiting for every online model to time out
@@ -1014,6 +1017,7 @@ class DossierPipeline:
         except leancheck.StatementError as e:
             raise Failed("{why}", "statement", why=str(e)) from e
         job.mathlib_hint = ""
+        proofsteps.begin(self, job, d, ws, statement)           # S-BI (D67): the target's blackboard
         mf: MathlibResult | None = None
         mf_task: asyncio.Task | None = None
         mkey = ""
@@ -1057,11 +1061,13 @@ class DossierPipeline:
                     cert = extra
                 else:
                     mf = extra
+        proofsteps.learn(self, job, d, res.ok, strategy)
         if not res.ok:
-            d.status = "failed"
-            raise Failed("Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, "
-                         "ou plus d'essais (⚙ Options).", "no_proof",
-                         n=len([a for a in job.attempts if a.stage == "proof"]))
+            refused = not proofsteps.search_allowed(job, d)
+            d.status = "draft" if refused else "failed"
+            job.board.store(d)
+            key, params = proofsteps.report(self, job, d)
+            raise Failed(key, "open_problem" if refused else "no_proof", **params)
         info = workspace_info(ws)
         meta = {"axioms": res.axioms, "lean": info.get("lean", ""), "mathlib": info.get("mathlib", ""),
                 "workspace": ws.key, "seconds": round(res.seconds, 1), "strategy": strategy,
@@ -1126,9 +1132,18 @@ class DossierPipeline:
         Returns (result, strategy); raises Failed when no model could work at all."""
         s = self.settings
         res: ProveResult | None = None
+        if refine is None and (pre := await proofsteps.split_first(self, job, d, io, ws, statement)) is not None:
+            return pre, "graph"
+        if not proofsteps.search_allowed(job, d):
+            # open / false claim (D67): partial lemmas within a small budget, no one-shot attempt
+            res = await self._spending(job, d, proofsteps.reasoned(self, job, d, io, ws, statement,
+                                                                   proofsteps.OPEN["wall_s"], proofsteps.OPEN))
+            return res or ProveResult(False), "graph"
         local_ok = True              # may the local prover still run? (S-T: only offline or when no online model could)
         if strategy == "agent":
             tcfg = tourn.Config.from_settings(s)
+            if getattr(job, "step_budget", 0):
+                tcfg.max_minutes = min(tcfg.max_minutes, float(job.step_budget))
             if tcfg.enabled:
                 # best model first, then races of untried models (S-J, pipeline/tournament.py): bounded, recorded
                 res, strategy, local_ok = await self._tournament(job, d, io, ws, statement, hint or req, refine,
@@ -1173,10 +1188,34 @@ class DossierPipeline:
                              "no_model")
             ctx_len = (self.ctx.local.plan.ctx if getattr(self.ctx.local, "plan", None) else s.server.ctx_size)
             res = await GoedelProver(io, "local").run(statement, ws, s.prove_attempts, s.sampling, s.compile_timeout_s,
-                                                      ctx_len, refine=refine, hint=hint)
+                                                      ctx_len, refine=refine,
+                                                      hint=(hint + "\n\n" + job.board.view()).strip())
+            for x in res.attempts:
+                if x.status == "rejected" and x.code:
+                    job.board.record(x.code, x.errors_text, x.model)
+            if not res.ok:
+                await self._harvest(job, d, io, ws)
             self._record(res.model, "prove", d, ok=res.ok, attempts=len(res.attempts), seconds=res.seconds,
                          lean_errors=sum(1 for x in res.attempts if x.status == "rejected" and x.code))
         return res, strategy
+
+    async def _spending(self, job: Job, d: Dossier, work):
+        from ..brain.spend import SPEND_SCOPE
+        tok = SPEND_SCOPE.set(f"{d.id}:{job.id}")
+        try:
+            return await work
+        finally:
+            SPEND_SCOPE.reset(tok)
+
+    async def _harvest(self, job: Job, d: Dossier, io, ws) -> None:
+        """Lean judges, alone and afresh, the intermediate `have`s of the attempts it rejected (D67)."""
+        board = proofsteps.board_of(job)
+        if board is None or not self._lean_real():
+            return
+        new = await board.harvest(io, ws)
+        if new:
+            await self.event(d, job, "info", "Lemmes intermédiaires vérifiés par Lean, gardés pour les essais suivants : "
+                             "{n}.", n=len(new), detail="\n".join(f"- `{m['head'][:300]}`" for m in new))
 
     async def _race(self, job: Job, d: Dossier, io: JobIO, ws, statement: str, req: str, gate: asyncio.Task | None,
                     mf_task: asyncio.Task | None, search, mkey: str, cert_task: asyncio.Task | None = None):
@@ -1511,6 +1550,7 @@ class DossierPipeline:
                 refs = []
             out = [tourn.Contestant(r.key, r.name or r.model_id, "agent", bool(r.paid)) for r in refs
                    if not r.local and r.provider != "huggingface" and (not r.paid or paid_ok or r.key == chosen)]
+            out = [c for c in out if c.key == chosen or not lb.stalls(c.key, "prove")] or out     # D67
             if not pins:
                 out = out[:1]              # an agent that cannot be pinned to a model is one contestant (the router)
             out = conductor_hook.hook_of(job).lead(out)      # S-AI: the conductor's prover leads round 0
@@ -1524,6 +1564,17 @@ class DossierPipeline:
                 else:
                     out.append(goedel)
             return out
+
+        board = job.board
+        early = refine is None and proofsteps.can_search(self, d)
+
+        async def between(left: float):            # D67: the best model failed once: split before more one-shots
+            if refine is not None:
+                return None
+            r = await proofsteps.reasoned(self, job, d, io, ws, statement, left * proofsteps.DECOMPOSE_SHARE,
+                                          proofsteps.DECOMPOSE)
+            return tourn.Outcome(tourn.Contestant("madalean:decompose", "Madalean", "split"), 0, ok=True, result=r) \
+                if r is not None else None
 
         reinforced: set[str] = set()
         t_start = time.monotonic()
@@ -1572,6 +1623,7 @@ class DossierPipeline:
                     if left < 30:
                         break
                     st: dict = {}
+                    before = board.mark()
                     r = await self._agent(job, d, rio, ws, statement,
                                           (hint + "\n\n" + getattr(job, "mathlib_hint", "") + "\n\n"
                                            + getattr(job, "literature_hint", "")).strip(),
@@ -1587,6 +1639,10 @@ class DossierPipeline:
                         o.unavailable = i == 0     # could not run at all: a pause, not a mathematical failure
                         o.error = str(st.get("error") or "")
                         break
+                    await self._harvest(job, d, rio, ws)
+                    after = board.mark()
+                    if after == before or (early and after[0] == before[0]):
+                        break                      # D67: nothing new (or: split now rather than try again)
                 o.seconds = time.monotonic() - t0
                 return o
             except asyncio.CancelledError:
@@ -1610,7 +1666,9 @@ class DossierPipeline:
 
         from ..brain.spend import SPEND_SCOPE
         t = tourn.Tournament(cfg, candidates=candidates, run=run, record=record, on_round=on_round, on_join=on_join,
-                             online_slots=int(ctx.slots.caps.get("online", 3)), reinforce=reinforce)
+                             online_slots=int(ctx.slots.caps.get("online", 3)), reinforce=reinforce,
+                             progress=board.mark, between=between, family=lambda c: faithful.family(c.key),
+                             weak_rounds=1 if early or decompose.looks_large(statement) else tourn.WEAK_ROUNDS)
         scope_token = SPEND_SCOPE.set(f"{d.id}:{job.id}")
         try:
             res = await t.run()
@@ -1620,6 +1678,10 @@ class DossierPipeline:
         state.update(state=res.stop, winner=w.contestant.key if w else "", tried=res.tried, rounds=res.rounds,
                      minutes=round((time.monotonic() - t_start) / 60, 1))
         ctx.publish_job(job)
+        ran = [o for o in res.outcomes if not o.unavailable and not o.cancelled and o.contestant.kind != "split"]
+        if ran:
+            job.tried_steps.append({"what": "models", "models": [o.contestant.name or o.contestant.key for o in ran][:8],
+                                    "n": sum(max(1, o.attempts) for o in ran)})
         if res.rounds > 1:
             if w is not None:
                 await self.event(d, job, "info", "Tournoi : {name} a trouvé la preuve au round {k}. Classement des "
@@ -1631,6 +1693,8 @@ class DossierPipeline:
         local_ok = not any(not o.unavailable and not o.cancelled for o in res.outcomes) or self._legacy_fallback()
         if w is None:
             return ProveResult(False), "agent", local_ok
+        if w.contestant.kind == "split":
+            return w.result, "graph", False
         return w.result, ("goedel" if w.contestant.kind in ("goedel", "goedel_online") else "agent"), False
 
     async def _goedel_contestant(self, c, k: int, n: int, rio: "_RoundIO", ws, statement: str, hint: str, refine,
@@ -1646,7 +1710,9 @@ class DossierPipeline:
             sampling = s.sampling
         o = tourn.Outcome(c, k)
         try:
-            r = await prover.run(statement, ws, n, sampling, s.compile_timeout_s, ctx_len, refine=refine, hint=hint)
+            board = proofsteps.board_of(rio.job)
+            r = await prover.run(statement, ws, n, sampling, s.compile_timeout_s, ctx_len, refine=refine,
+                                 hint=(hint + "\n\n" + board.view(c.key)).strip())
             o.ok, o.result = r.ok, (r if r.ok else None)
         except InfraError as e:
             if e.kind == "workspace":
@@ -1656,6 +1722,9 @@ class DossierPipeline:
         atts = getattr(prover, "attempts", rio.attempts)
         o.attempts = max(1, len(atts))
         o.lean_errors = sum(1 for a in atts if a.status == "rejected" and a.code)
+        for a in atts:
+            if a.status == "rejected" and a.code:
+                proofsteps.board_of(rio.job).record(a.code, a.errors_text, c.key)
         o.tokens = sum(int(a.tokens or 0) for a in atts)
         o.seconds = time.monotonic() - t0
         return o
@@ -1671,15 +1740,24 @@ class DossierPipeline:
         stats = stats if stats is not None else {}
         name = leancheck.theorem_name(statement)
         a = io.new_attempt("proof", "agent")
+        board = proofsteps.board_of(job) or BB.Board(statement)
+        hint = (hint + "\n\n" + board.view(only or "")).strip()         # D67: what every earlier attempt left
+        same = [0, ""]
 
         async def check(code: str) -> dict:
             try:
-                assembled = leancheck.assemble_proof(statement, code)
+                assembled = board.assemble(statement, code)
             except leancheck.StatementError as e:
                 return {"ok": False, "feedback": str(e), "verdict": {"ok": False, "summary": str(e)}}
             r = await io.check(leancheck.with_axiom_probe(assembled, name), ws, self.settings.compile_timeout_s, name)
             fb = "" if r.verdict.ok else leancheck.errors_for_feedback(r.code, r.verdict)
+            if not r.verdict.ok and not r.infra_error:
+                board.record(assembled, fb, only or "")
+                kind = BB.error_kind(fb)
+                same[:] = [same[0] + 1 if kind == same[1] else 1, kind]
             fb += error_hint(self.ctx, d, fb) if fb else ""                   # S-AY (D57b): known renames
+            if same[0] >= 4 and fb:
+                fb += f"\nThe same error came back {same[0]} times: this approach does not work, change it."
             return {"ok": r.verdict.ok, "feedback": fb, "verdict": r.to_dict()}
 
         async def library_search(query: str, k: int = 8) -> list[dict]:
@@ -1750,6 +1828,8 @@ class DossierPipeline:
                 io.update_attempt(a)
                 return ProveResult(False, model=a.model)
         a.raw = "\n".join(str(m.get("content", ""))[:4000] for m in (out.get("transcript") or [])[-40:])
+        if "forbidden constructs" in a.raw:
+            board.cheat(only or a.model)
         code = out.get("code")
         if not code:
             a.status, a.summary = "rejected", msg("L'agent n'a pas trouvé de preuve ({steps} étapes).",
@@ -1761,7 +1841,7 @@ class DossierPipeline:
             return ProveResult(False, model=a.model)
         # never trust the agent: the server re-checks the final proof with the strict verdict
         try:
-            a.code = leancheck.assemble_proof(statement, code)
+            a.code = board.assemble(statement, code)
         except leancheck.StatementError as e:
             a.status, a.summary = "rejected", str(e)
             io.update_attempt(a)

@@ -109,7 +109,7 @@ export const api = {
   /** « Vérifier l'énoncé » (S-K): the verdict arrives as a `check` event in the thread. */
   verify: (id: string, learn = false, extra: { mode?: Mode } = {}) =>
     request<{ job: Job }>('POST', `/dossiers/${enc(id)}/verify`, { learn, ...extra }),
-  run: (id: string, plan: (Stage | { stage: Stage; request?: string; force?: boolean; learn?: boolean })[], extra: { mode?: Mode; strategy?: Strategy } = {}) =>
+  run: (id: string, plan: (Stage | { stage: Stage; request?: string; force?: boolean; learn?: boolean; budget_minutes?: number })[], extra: { mode?: Mode; strategy?: Strategy } = {}) =>
     request<{ job: Job }>('POST', `/dossiers/${enc(id)}/run`, { plan, ...extra }),
   stop: (id: string) => request<{ stopped: boolean }>('POST', `/dossiers/${enc(id)}/stop`, {}),
   /** Manual edit as a new user version (proof re-checked strictly by Lean). */

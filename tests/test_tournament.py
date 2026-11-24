@@ -319,9 +319,9 @@ async def test_pipeline_tournament_finds_the_winner_records_it_and_reuses_it(tmp
     await wait_idle(ctx)
     assert job.state == "done" and d.proof_is_current, (job.error, job.summary)
     assert d.proofs[-1].model == "free:winner" and d.proofs[-1].meta["strategy"] == "agent"
-    # round 0: A, 4 runs; round 1: B, Rate-limited, Winner (paid Opus never raced without paid_first)
-    assert log[:4] == ["free:a"] * 4 and "paid:opus" not in log
-    assert set(log[4:7]) == {"free:b", "free:rate", "free:winner"}
+    # round 0: A, stopped after the same error twice (D67); round 1: B, Rate-limited, Winner (paid Opus never raced without paid_first)
+    assert log[:2] == ["free:a"] * 2 and "paid:opus" not in log
+    assert set(log[2:5]) == {"free:b", "free:rate", "free:winner"}
     assert job.tournament["winner"] == "free:winner" and job.tournament["state"] == "won"
     assert {a.round for a in job.attempts} == {0, 1}
     assert ctx.slots.max_seen["online"] <= 3 and ctx.slots.max_seen["lean"] <= 2
@@ -330,7 +330,7 @@ async def test_pipeline_tournament_finds_the_winner_records_it_and_reuses_it(tmp
     lb = brain.lb
     assert lb.entry("free:winner", "prove").total_ok == 1 and lb.entry("free:a", "prove").total == 1
     assert lb.entry("free:rate", "prove").pauses > 0.99 and lb.entry("free:rate", "prove").total == 0
-    assert lb.entry("free:a", "prove").lean_err == pytest.approx(8, rel=1e-3)      # 4 runs × 2 rejected checks
+    assert lb.entry("free:a", "prove").lean_err == pytest.approx(4, rel=1e-3)      # 2 runs × 2 rejected checks
     # next task: the winner leads round 0 and proves at once
     log.clear()
     job2 = ctx.orchestrator.submit(d.id, [{"stage": "proof"}], strategy="agent")
@@ -375,8 +375,8 @@ async def test_pipeline_all_fail_is_bounded(tmp_path, monkeypatch):
     finally:
         PoolBrain.MODELS = saved
     assert job.state == "failed" and job.error == "no_proof"
-    assert len(log) == len(set(log[3:])) + 3 and len([a for a in job.attempts if a.stage == "proof"]) <= 16
-    assert job.tournament["state"] in ("exhausted", "rounds") and job.tournament["round"] <= 3
+    assert len(log) == len(set(log[1:])) + 1 and len([a for a in job.attempts if a.stage == "proof"]) <= 16
+    assert job.tournament["state"] in ("exhausted", "rounds", "no_progress") and job.tournament["round"] <= 3
     await ctx.stop()
 
 

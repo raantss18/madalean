@@ -16,7 +16,8 @@ def _env(ctx, d) -> dict:
         return {}
 
 
-def memory_hint(ctx, d) -> str:
+def memory_hint(ctx, d, ids: list | None = None) -> str:
+    """`ids` receives the lessons put in the hint (their outcome is recorded, D67)."""
     parts = []
     try:
         gs = getattr(getattr(ctx, "research", None), "graphs", None)
@@ -28,7 +29,7 @@ def memory_hint(ctx, d) -> str:
         from ..research import lessons
         st = lessons.store_of(ctx)
         if st is not None and d.statement:
-            parts.append(st.hint(d.statement, _env(ctx, d)))
+            parts.append(st.hint(d.statement, _env(ctx, d), ids=ids))
     except Exception:  # noqa: BLE001
         log.exception("lessons hint")
     return "\n\n".join(p for p in parts if p)

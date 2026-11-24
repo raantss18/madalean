@@ -244,6 +244,40 @@ EN: dict[str, str] = {
         "Lean rejects the translation. Fix the statement in the “Lean statement” tab, or ask for a correction below.",
     "Aucune preuve trouvée après {n} essais. Essayez : « autre méthode », un énoncé plus simple, ou plus d'essais (⚙ Options).":
         "No proof found after {n} attempts. Try: “another method”, a simpler statement, or more attempts (⚙ Options).",
+    "Aucune preuve trouvée après {n} essais. Cause probable : {cause}.": "No proof found after {n} attempts. Likely cause: {cause}.",
+    "Preuve directe non cherchée : {cause}.": "Direct proof not attempted: {cause}.",
+    "le problème est ouvert, d'après l'étude du sens : une preuve directe n'est pas à attendre":
+        "the problem is open, according to the study of its meaning: a direct proof is not to be expected",
+    "l'affirmation est dite fausse dans l'étude du sens": "the claim is said to be false in the study of its meaning",
+    "la traduction Lean est mise en doute": "the Lean translation is doubtful",
+    "les fournisseurs de modèles n'ont pas répondu : ce n'est pas un échec mathématique":
+        "the model providers did not answer: this is not a mathematical failure",
+    "le budget de recherche est épuisé": "the search budget is used up",
+    "plusieurs noms cherchés n'existent pas dans ce Mathlib : une théorie manque peut-être":
+        "several names that were tried do not exist in this Mathlib: a theory may be missing",
+    "indéterminée": "undetermined",
+    "conjonction": "conjunction",
+    "équivalence": "equivalence",
+    "disjonction de cas": "case analysis",
+    "Découpage sans modèle ({pattern}) : {n} morceaux, {k} prouvés directement par Lean.":
+        "Split without a model ({pattern}): {n} parts, {k} proved directly by Lean.",
+    "Découpage en lemmes : {n} vérifiés par Lean, {m} encore ouverts.": "Split into lemmas: {n} verified by Lean, {m} still open.",
+    "Lemmes intermédiaires vérifiés par Lean, gardés pour les essais suivants : {n}.":
+        "Intermediate lemmas verified by Lean, kept for the next attempts: {n}.",
+    "Recherche dans Mathlib.": "Search in Mathlib.",
+    "Certificat par le calcul.": "Certificate by computation.",
+    "Découpage sans modèle ({pattern}) : {k} morceaux sur {n} prouvés.": "Split without a model ({pattern}): {k} of {n} parts proved.",
+    "Recherche par lemmes : {n} vérifiés, {m} ouverts.": "Search through lemmas: {n} verified, {m} open.",
+    "Essais directs : {models} ({n} essais).": "Direct attempts: {models} ({n} attempts).",
+    "Aucun essai direct : problème ouvert ou dit faux, sans budget demandé.":
+        "No direct attempt: the problem is open or said to be false, and no budget was requested.",
+    "Arrêt : plus aucun progrès.": "Stopped: no more progress.",
+    "Essayé, dans l'ordre": "Tried, in order",
+    "Établi (vérifié par Lean)": "Established (verified by Lean)",
+    "Rien de plus que l'énoncé.": "Nothing beyond the statement.",
+    "Où cela bloque": "Where it is stuck",
+    "Aucun but précis n'a été relevé.": "No precise goal was recorded.",
+    "Cause probable": "Likely cause",
     "Preuve trouvée et vérifiée par Lean (essai {i}, {s:.0f} s).": "Proof found and checked by Lean (attempt {i}, {s:.0f} s).",
     "Ajouté à votre bibliothèque sous le nom « {name} » : réutilisable dans vos prochaines preuves.":
         "Added to your library as “{name}”: reusable in your next proofs.",
