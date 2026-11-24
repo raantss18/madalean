@@ -30,7 +30,7 @@ keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 gethostname = "0.5"
 ed25519-compact = { version = "2", default-features = false, features = ["std"] }
 sha2 = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 # Host mode (« Madalean Server »): program name / WM class set before GTK starts. Same version as tauri's own.
 gtk = "0.18"
 
