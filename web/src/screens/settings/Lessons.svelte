@@ -23,6 +23,7 @@
     if (l.kind === 'rename') return t('lessons.rename', { old: l.old ?? '', new: l.new ?? '' });
     if (l.kind === 'fix') return t('lessons.fix', { pattern: l.pattern ?? '', tactics: (l.tactics ?? []).join(', ') });
     if (l.kind === 'approach') return t('lessons.approach', { approach: l.approach ?? '', reason: l.reason ?? '' });
+    if (l.kind === 'split') return t('lessons.split', { pattern: l.pattern ?? '', parts: (l.parts ?? []).join(' ; ') });
     return t('lessons.strategy', { strategy: l.strategy ?? '', tactics: (l.tactics ?? []).join(', ') });
   }
   async function del(l: Lesson) {

@@ -166,6 +166,14 @@ class Leaderboard:
                 self.entries[k] = e
             self._save()
 
+    def stalls(self, model: str, task: str) -> bool:
+        """D67: asked at least 3 times lately, it never gave Lean anything to check (or could never run at all)."""
+        e = self.entries.get(f"{model}|{task}")
+        if e is None:
+            return False
+        e = e.decayed(now())
+        return e.ok < 0.05 and ((e.n >= 2.9 and e.lean_err < 0.05) or (e.pauses >= 5 and e.n < 0.05))
+
     def reset(self) -> None:
         with self._lock:
             self.entries.clear()

@@ -11,6 +11,7 @@ model), so that whichever model runs next profits from them:
 - `approach` — an approach that failed on a statement shape → the reason (from the problem graph).
 - `interpretation` — a « mal compris » report of the user (D65): the words of the problem, what was wrong and the user's
                words; given as data to the understand / translate prompts for similar problems.
+- `split`    — a decomposition whose parts and combination Lean accepted, by statement shape (D67).
 - `strategy` — which strategy / tactic family succeeded on a statement shape (counts).
 
 Hygiene: every lesson carries evidence (dossier, date, workspace, Lean / Mathlib versions), success / failure
@@ -28,7 +29,8 @@ from pathlib import Path
 
 from .. import config, leancheck
 
-KINDS = ("rename", "fix", "approach", "strategy", "interpretation")
+KINDS = ("rename", "fix", "approach", "strategy", "interpretation", "split")
+FADE_AFTER = 6                 # times given to a model without one success: the lesson leaves the hints
 MAX_INTERPRETATIONS = 80
 MAX_LESSONS = 400
 MAX_EVIDENCE = 5
@@ -112,7 +114,8 @@ class Lessons:
         for k, x in list(self.items.items()):
             stale = now - float(x.get("updated", now)) > DECAY_DAYS * 86400 and int(x.get("ok", 0)) <= 1
             useless = int(x.get("bad", 0)) >= 3 and int(x.get("bad", 0)) > 2 * int(x.get("ok", 0))
-            if stale or useless:
+            idle = int(x.get("shown", 0)) >= 2 * FADE_AFTER and not int(x.get("shown_ok", 0))
+            if stale or useless or idle:
                 self.items.pop(k, None)
         if len(self.items) > MAX_LESSONS:
             keep = sorted(self.items.values(), key=lambda x: (self.value(x), x.get("updated", 0)), reverse=True)
@@ -120,7 +123,23 @@ class Lessons:
 
     @staticmethod
     def value(x: dict) -> float:
-        return (int(x.get("ok", 0)) + 1) / (int(x.get("bad", 0)) + 2)
+        v = (int(x.get("ok", 0)) + 1) / (int(x.get("bad", 0)) + 2)
+        shown, won = int(x.get("shown", 0)), int(x.get("shown_ok", 0))
+        return v * (2 + won) / (2 + shown) if shown > won else v      # given often, rarely with a success: fades
+
+    @staticmethod
+    def faded(x: dict) -> bool:
+        return int(x.get("shown", 0)) >= FADE_AFTER and not int(x.get("shown_ok", 0))
+
+    def outcome(self, ids: list[str], ok: bool) -> None:
+        """D67: these lessons were in a prover's context; the search succeeded or not. An association, not a proof of
+        usefulness: it only makes lessons that never go with a success fade."""
+        hit = [self.items[i] for i in dict.fromkeys(ids) if i in self.items]
+        for x in hit:
+            x["shown"] = min(10_000, int(x.get("shown", 0)) + 1)
+            x["shown_ok"] = min(10_000, int(x.get("shown_ok", 0)) + bool(ok))
+        if hit:
+            self.save()
 
     def _upsert(self, lid: str, base: dict, evidence: dict) -> dict:
         x = self.items.get(lid)
@@ -179,6 +198,15 @@ class Lessons:
         x = self._upsert(_id("approach", shape_of(statement), approach[:120]), {
             "kind": "approach", "shape": shape_of(statement), "domain": domain_of(statement),
             "approach": approach[:200], "reason": reason[:300]}, ev)
+        self.save()
+        return x
+
+    def learn_split(self, statement: str, pattern: str, parts: list[str], env: dict, dossier: str = "") -> dict:
+        """A decomposition that led to a verified proof."""
+        ev = {"dossier": dossier, "workspace": env.get("workspace", ""), "mathlib": env.get("mathlib", "")}
+        x = self._upsert(_id("split", shape_of(statement), pattern), {
+            "kind": "split", "shape": shape_of(statement), "domain": domain_of(statement), "pattern": pattern[:20],
+            "parts": [shape_of(p)[:120] for p in parts[:6]]}, ev)
         self.save()
         return x
 
@@ -252,7 +280,7 @@ class Lessons:
         shape, dom, toks = shape_of(statement), set(domain_of(statement)), _tokens(statement)
         scored = []
         for x in self.items.values():
-            if x["kind"] == "interpretation":
+            if x["kind"] == "interpretation" or self.faded(x):
                 continue                      # about words, not about Lean: `interpretation_hint`
             if x["kind"] == "rename":
                 if x.get("mathlib", "") != env.get("mathlib", ""):
@@ -269,10 +297,11 @@ class Lessons:
                 scored.append((round(s, 3), x["id"], x))
         return [x for _s, _i, x in sorted(scored, key=lambda t: (-t[0], t[1]))[:k]]
 
-    def hint(self, statement: str, env: dict, max_chars: int = HINT_CHARS) -> str:
+    def hint(self, statement: str, env: dict, max_chars: int = HINT_CHARS, ids: list | None = None) -> str:
         rel = sorted(self.relevant(statement, env), key=lambda x: x["id"])      # stable order (prompt caching)
-        lines = []
+        lines, of = [], []
         for x in rel:
+            before = len(lines)
             if x["kind"] == "rename":
                 lines.append(f"- `{x['old']}` does not exist in this Mathlib; use `{x['new']}`.")
             elif x["kind"] == "fix":
@@ -282,12 +311,18 @@ class Lessons:
                 lines.append(f"- Failed before on this shape: {x['approach'][:100]} — {x['reason'][:140]}.")
             elif x["kind"] == "strategy":
                 lines.append(f"- Worked on this shape: {x['strategy']} ({', '.join(x.get('tactics') or [])}).")
+            elif x["kind"] == "split":
+                lines.append(f"- This shape was proved by a split ({x.get('pattern', '')}): "
+                             + "; ".join(x.get("parts") or ["lemmas"])[:200] + ".")
+            of += [x["id"]] * (len(lines) - before)
         out, used = [], 0
         for ln in lines:
             if used + len(ln) > max_chars:
                 break
             out.append(ln)
             used += len(ln) + 1
+        if ids is not None:
+            ids += of[:len(out)]
         return ("Lessons from earlier verified work (Madalean):\n" + "\n".join(out)) if out else ""
 
     def error_hint(self, feedback: str, env: dict) -> str:

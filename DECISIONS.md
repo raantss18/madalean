@@ -1509,3 +1509,21 @@
   the model's word, said so; no answer → `unknown`. Known results are the model's, with a `source` only when a
   retrieved passage holds their numbers and words; each stops at its own statement gate.
 - Lean constants remain a literature fallback only for a statement given without any words.
+
+## D67 — Prove better: split early, one blackboard, stop without progress, an honest report (TODO S-BI, 2026-11-24)
+- Evidence: D64's 40 min, 20 models from zero, « Aucune preuve trouvée après 24 essais ».
+- **Decompose after ONE failure** with the existing graph search, not a second engine; a split without a model first when
+  the syntax shows one. Lean accepts the cut; the final code is checked again, strictly, against the approved statement.
+  D31 stays for the user's plans: lemmas of a plan get no model split.
+- **Facts, not transcripts, are shared**; only a lemma Lean accepted alone is called accepted. A rejected proof's `have`
+  that needs unavailable context is simply lost.
+- **Error counts and fewer goals are not strong progress** (a shorter bad proof has fewer errors): only a new accepted
+  lemma is. New errors allow a bounded extra effort. Accepted risk: a model of round 3 that would have proved alone is
+  no longer asked; measured only on fixtures. `tournament_enabled = false` keeps the old loop.
+- **Open problem**: the status was approved by the user at the meaning gate (even when model-only, said so in the report);
+  « Prouver quand même » alone does not start a tournament, a budget does. Hard caps are never raised by it.
+- **Lessons fade by association**, not causation: it removes useless hints, it proves no learning. Nothing claims
+  that Madalean learns better until measured on real runs.
+- **Report by rules** (no model). Its cause is « probable », « indéterminée » when no rule applies.
+- Rejected: letting models write the report; trusting the extracted `have`s of `sorry` skeletons; unlimited « one more
+  round »; merging the blackboard across statements.

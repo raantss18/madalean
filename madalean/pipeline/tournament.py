@@ -28,6 +28,8 @@ log = get("tournament")
 MAX_TOTAL_ATTEMPTS = 16        # agent runs + Goedel attempts in one proof stage
 MAX_TOTAL_TOKENS = 3_000_000   # when known (Goedel attempts report their tokens; agents report theirs if any)
 ROUND0_TIME_SHARE = 0.5        # round 0 may use at most half of the wall-time budget: exploration must get its turn
+WEAK_ROUNDS = 2                # D67: rounds without a new accepted lemma before the tournament stops (a round that
+                               # brings nothing at all stops it at once)
 EXPLORE_RUNS = 1               # attempts of an online contestant in an exploration round (one agent run)
 CANCEL_GRACE = 20.0            # seconds to wait for cancelled contestants to unwind
 REFILLS_PER_SLOT = 2           # a contestant that could not run at all (429…) is replaced at once by the next untried
@@ -89,7 +91,7 @@ class Result:
     winner: Outcome | None = None
     outcomes: list[Outcome] = field(default_factory=list)
     rounds: int = 0
-    stop: str = ""            # won | exhausted | rounds | time | attempts | tokens | reinforcement (paid round failed)
+    stop: str = ""            # won | exhausted | rounds | no_progress | time | attempts | tokens | reinforcement (paid round failed)
     tried: list[str] = field(default_factory=list)
 
 
@@ -102,7 +104,13 @@ class Tournament:
                  on_round: Callable[[int, list[Contestant]], Any] | None = None,
                  on_join: Callable[[int, Contestant], Any] | None = None, online_slots: int = 3,
                  clock: Callable[[], float] = time.monotonic,
-                 reinforce: Callable[[], list[Contestant]] | None = None):
+                 reinforce: Callable[[], list[Contestant]] | None = None,
+                 progress: Callable[[], tuple[int, int]] | None = None,
+                 between: Callable[[float], Awaitable["Outcome | None"]] | None = None,
+                 family: Callable[[Contestant], str] | None = None, weak_rounds: int = WEAK_ROUNDS):
+        self.progress = progress              # D67: (strong, weak) progress so far, monotone
+        self.between = between                # D67: decomposition after a failed round 0 (seconds left → outcome)
+        self.family, self.weak_rounds = family, max(1, weak_rounds)
         self.cfg, self.candidates, self.run_one = cfg, candidates, run
         self.reinforce = reinforce            # paid reinforcement (S-M): final round when every free model failed
         self.record_fn, self.on_round, self.on_join = record, on_round, on_join
@@ -222,6 +230,13 @@ class Tournament:
                 return self._done(o, "won")
             if not o.unavailable:
                 break                              # it ran and failed: race other models now
+        if self.between is not None and any(not o.unavailable for o in self.res.outcomes) \
+                and not self._budget_stop(deadline):
+            o = await self.between(max(0.0, deadline - self.clock()))
+            if o is not None and o.ok:
+                self.res.outcomes.append(o)        # Lean's work, no model's: nothing for the leaderboard
+                return self._done(o, "won")
+        mark, weak = self.progress() if self.progress else (0, 0), 0
         # ---- rounds 1…max_rounds: races of untried models
         for k in range(1, cfg.max_rounds + 1):
             if (why := self._budget_stop(deadline)):
@@ -243,6 +258,13 @@ class Tournament:
             winner = await self._race(k, plan, deadline)
             if winner is not None:
                 return self._done(winner, "won")
+            if self.progress is not None and any(o.round == k and not o.unavailable and not o.cancelled
+                                                 for o in self.res.outcomes):
+                now = self.progress()
+                weak = 0 if now[0] > mark[0] else weak + 1
+                nothing, mark = now == mark, now
+                if k < cfg.max_rounds and (nothing or weak >= self.weak_rounds):
+                    return self._done(None, "no_progress")
         why = self._budget_stop(deadline)
         return self._done(None, why or ("exhausted" if not self._fresh() else "rounds"))
 
@@ -250,7 +272,12 @@ class Tournament:
         """K contestants: the local Goedel prover (when offered) is one of them; online ones ≤ online slots."""
         k = max(1, self.cfg.contestants)
         goedel = [c for c in fresh if c.kind == "goedel"][:1]
-        online = [c for c in fresh if c.kind != "goedel"][:max(0, min(k - len(goedel), self.online_slots))]
+        pool = [c for c in fresh if c.kind != "goedel"]
+        if self.family is not None:               # D67: one per model family first, in the router's order
+            seen: set[str] = set()
+            first = [c for c in pool if not ((f := self.family(c)) in seen or seen.add(f))]
+            pool = first + [c for c in pool if c not in first]
+        online = pool[:max(0, min(k - len(goedel), self.online_slots))]
         return (online + goedel)[:k] if online or goedel else []
 
     async def _race(self, k: int, plan: list[tuple[Contestant, int]], deadline: float) -> Outcome | None:

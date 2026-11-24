@@ -121,6 +121,9 @@ def _plan_arg(raw) -> list[dict] | None:
         step = {"stage": st, "request": str(req)[:4000]}
         if isinstance(item, dict):           # « Prouver quand même » (skip the statement check), Learn mode (S-K)
             step.update({k: True for k in ("force", "learn") if item.get(k) is True})
+            b = item.get("budget_minutes")       # explicit budget for an open problem (D67)
+            if isinstance(b, int) and not isinstance(b, bool) and b > 0:
+                step["budget_minutes"] = min(b, 240)
         out.append(step)
     return out
 

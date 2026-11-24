@@ -62,3 +62,5 @@ must never silently change it, and is labelled « change l'énoncé » when it d
   notes | verify | proof | mathlib | certificate | literature | explanation | informal` (params `{}` today).
 - Known results are opened for `open` / `false` (and `unclear` when a source contradicts the model).
 - `known_status` when no status check answered at all: `unknown`. A model's word alone stays `model_only`.
+- S-BI (D67): the `error` event of a proof stage carries `params.report` (docs/BRAIN.md §24); plan step `budget_minutes`;
+  job error `open_problem` (no direct proof searched on an open / false claim).

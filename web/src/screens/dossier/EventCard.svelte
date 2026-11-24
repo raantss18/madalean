@@ -4,6 +4,7 @@
   import type { Dossier, DossierEvent, FollowStage, Job } from '../../lib/api/types';
   import type { ReportTarget } from '../../lib/api/flow';
   import type { Part } from '../../lib/flow';
+  import { api } from '../../lib/api/client';
   import { t, fmtTime } from '../../lib/i18n/index.svelte';
   import { modelLabel } from '../../lib/status';
   import Md from '../../components/Md.svelte';
@@ -24,6 +25,16 @@
   const target = $derived<ReportTarget>(ev.kind === 'understood' ? 'meaning' : part === 'lean' ? 'statement' : part === 'preuve' ? 'proof' : 'event');
   const who = $derived(ev.kind === 'certificate' ? 'Sage + Lean' : ev.kind === 'literature' ? t('lit.title') : ev.model ? modelLabel(ev.model).name : ev.kind === 'info' || ev.kind === 'error' || ev.kind === 'report' ? 'Madalean' : 'Lean');
   const version = $derived(ev.kind === 'statement' && ev.ref !== null ? d.statements[ev.ref] : undefined);
+  // the final report (D67): what to do next, as buttons of the card
+  type Action = { id: string; part?: Part; minutes?: number };
+  const actions = $derived<Action[]>(((ev.params?.report as { actions?: Action[] } | undefined)?.actions ?? []).filter((a) => ['plan', 'hint', 'budget', 'retry'].includes(a.id)));
+  let failed = $state('');
+  async function act(a: Action) {
+    if (a.id === 'hint') return onabout('proof');
+    failed = '';
+    try { await api.run(d.id, [{ stage: 'proof', ...(a.id === 'budget' ? { budget_minutes: a.minutes ?? 10 } : {}) }]); }
+    catch (e) { failed = e instanceof Error ? e.message : String(e); }
+  }
   const gated = $derived(d.gate?.kind === 'meaning' && d.gate.state === 'pending');
 </script>
 
@@ -45,6 +56,15 @@
     {#if ev.kind === 'understood' && latest && !gated}<div class="said"><Md src={rest} /></div>
     {:else}<details><summary class="xs">{t('thread.details')}</summary><Md src={rest} /></details>{/if}
   {/if}
+  {#if latest && actions.length}
+    <p class="acts next">
+      {#each actions as a (a.id)}
+        {#if a.id === 'plan'}<a class="lk" href="/d/{encodeURIComponent(d.id)}/plan">{t('next.plan')}</a>
+        {:else}<button class="lk" disabled={a.id !== 'hint' && Boolean(job)} onclick={() => act(a)}>{t(`next.${a.id}` as 'next.hint', { n: a.minutes ?? 10 })}</button>{/if}
+      {/each}
+    </p>
+    {#if failed}<p class="xs" role="alert">{failed}</p>{/if}
+  {/if}
 </article>
 
 <style>
@@ -61,6 +81,7 @@
   summary { cursor: pointer; color: var(--text-2); }
   pre { margin: 4px 0; background: var(--surface-2); padding: var(--s-2); border-radius: var(--r-1); font: 0.8125rem/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
   .acts { margin-left: auto; display: flex; flex-wrap: wrap; gap: 0 var(--s-3); }
+  .acts.next { margin: 4px 0 0; }
   .lk { background: none; border: 0; padding: 0; font: 400 var(--fs-xs)/1 var(--font-ui); color: var(--accent); text-decoration: underline; cursor: pointer; min-height: 28px; display: inline-flex; align-items: center; }
   @media (pointer: coarse) { .lk { min-height: var(--touch); } }
 </style>

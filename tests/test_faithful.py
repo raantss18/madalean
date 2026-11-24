@@ -297,7 +297,8 @@ async def test_chromatic_case_from_the_meaning_to_the_proof(tmp_path):
     back = ctx.brain.behaviour["back"][-1]
     assert "chromatique" not in back.lower() and d.theorem not in back                # blind
     await answer(ctx, d)
-    assert d.extra["gate"]["state"] == "approved" and d.proof_is_current and "prove" in roles(ctx)
+    assert d.extra["gate"]["state"] == "approved" and not d.proof_is_current and "prove" not in roles(ctx)
+    assert any(e.params.get("report", {}).get("cause") == "open" for e in d.events)  # D67: open → no one-shot search
     assert [(e.params["gate_kind"], e.params["action"]) for e in d.events if e.kind == "gate"] == [
         ("meaning", "approve"), ("statement", "approve")]
     # phase / run / attempt on every event: one run, phases in order
@@ -306,6 +307,9 @@ async def test_chromatic_case_from_the_meaning_to_the_proof(tmp_path):
     order = ["understand", "translate", "literature", "decompose", "prove", "verify", "explain"]
     ranks = [order.index(e.phase) for e in evs]
     assert ranks == sorted(ranks), [(e.kind, e.phase) for e in d.events]
+    ctx.orchestrator.submit(d.id, [{"stage": "proof", "budget_minutes": 5}])          # asked, with a budget
+    await wait_idle(ctx)
+    assert d.proof_is_current and "prove" in roles(ctx)
     await ctx.stop()
 
 
