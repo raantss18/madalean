@@ -79,7 +79,7 @@
       }
       removeKey('draft.new');
       text = ''; lean = ''; title = '';
-      navigate(`/d/${encodeURIComponent(r.dossier.id)}/${asLean ? 'preuve' : 'lean'}`);
+      navigate(`/d/${encodeURIComponent(r.dossier.id)}`);
     } catch (e) {
       err = errorText(e);
       toast('error', err);

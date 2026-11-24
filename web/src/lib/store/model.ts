@@ -68,6 +68,7 @@ export function summaryOf(d: Dossier): DossierSummary {
     id: d.id, title: d.title, project_id: d.project_id, status: d.status, parent_id: d.parent_id, kind: d.kind,
     theorem: d.theorem, workspace: d.workspace, created: d.created, updated: d.updated, archived: d.archived,
     has_statement: d.statements.length > 0, proved: d.status === 'proved',
+    ...(d.gate !== undefined ? { gate: d.gate } : {}), ...(d.now !== undefined ? { now: d.now } : {}),
   };
 }
 
@@ -94,6 +95,13 @@ export function applyEvent(m: Model, ev: SeqEvent): boolean {
       const d = e['dossier'] as Dossier;
       m.dossiers[d.id] = summaryOf(d);
       m.full[d.id] = d;
+      return true;
+    }
+    case 'dossier.now': {                                    // D64: what happens right now, without the whole dossier
+      const id = e['dossier_id'] as string;
+      const now = (e['now'] as Dossier['now']) ?? null;
+      if (m.full[id]) m.full[id]!.now = now;
+      if (m.dossiers[id]) m.dossiers[id]!.now = now;
       return true;
     }
     case 'dossier.deleted': {

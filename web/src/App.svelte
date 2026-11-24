@@ -50,6 +50,8 @@
     }
   });
 
+  // D66: a part of a dossier in its own window: no bars, only the content
+  const solo = $derived(route.name === 'dossier' && route.query.get('solo') === '1');
   const def = $derived(routes.find((r) => r.name === route.name));
   // The screen's chunk downloads alongside GET /state, not after it (S-AP: one round trip less on a cold load).
   $effect.pre(() => { if (def) void load(def).catch(() => { /* shown by the {#await} below */ }); });
@@ -101,8 +103,8 @@
   {#await load(def) then Screen}<Screen params={route.params} />{/await}
 {:else}
   <a class="skip-link" href="#main">{t('a11y.skip')}</a>
-  <div class="shell">
-    <header class="topbar">
+  <div class="shell" class:solo>
+    {#if !solo}<header class="topbar">
       <AppMenu {barOnScreen} />
       <ContextSwitcher />
       <div class="spacer"></div>
@@ -110,10 +112,10 @@
         <Icon name="search" /><span class="lbl">{t('cmd.short')}</span><kbd class="kbd" aria-hidden="true">Ctrl K</kbd>
       </button>
       <StatusPanel />
-    </header>
+    </header>{/if}
     <ConnectionBanner />
-    {#if app.m.demo}<p class="demo-band" role="note">{t('demo.band')}</p>{/if}
-    {#if barOnScreen}<ProjectBar />{/if}
+    {#if app.m.demo && !solo}<p class="demo-band" role="note">{t('demo.band')}</p>{/if}
+    {#if barOnScreen && !solo}<ProjectBar />{/if}
     <main id="main">
       {#if app.bootError && !app.m.loaded}
         <div class="boot-error">
@@ -145,6 +147,7 @@
 
 <style>
   .shell { min-height: 100dvh; display: flex; flex-direction: column; }
+  .shell.solo { --topbar-h: 0px; }
   .topbar { position: sticky; top: 0; z-index: 500; display: flex; align-items: center; gap: var(--s-2); height: var(--topbar-h); padding: 0 max(var(--s-3), env(safe-area-inset-right)) 0 max(var(--s-3), env(safe-area-inset-left)); background: var(--surface); border-bottom: 1px solid var(--line); }   /* no backdrop-filter: it would make the top bar the containing block of the fixed sheets inside it */
   .spacer { flex: 1 0 var(--s-2); }
   .search-btn { flex: none; }

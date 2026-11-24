@@ -16,14 +16,18 @@ test('phone layout: no bottom bar, no horizontal scroll, steps reachable, touch 
   }
   const d = (await api<{ dossiers: { id: string; status: string }[] }>('GET', '/dossiers')).dossiers.find((x) => x.status === 'proved')!;
   await page.goto(`${process.env['MADALEAN_URL']}/d/${d.id}`);
-  await page.getByRole('tab', { name: /Traduction Lean/ }).click();
+  // S-BH: on a phone the reference views are a sheet
+  await page.getByRole('button', { name: 'Références' }).click();
+  await page.getByRole('tab', { name: 'Lean', exact: true }).click();
   await expect(page.locator('.cm-content').first()).toBeVisible();
   // Tap a Lean token → its meaning appears in the learn panel.
   await page.locator('.cm-content').first().getByText('theorem').first().click();
   await expect(page.getByText(/Déclare un théorème/)).toBeVisible();
   await axe(page, 'phone lean step');
   // Touch targets of the top bar, the project bar and the step tabs are ≥ 44 px.
-  for (const el of await page.locator('.topbar button, #project-bar a, [role=tab]').all()) {
+  for (const el of await page.locator('[role=tab]').all()) expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.getByRole('button', { name: 'Masquer le volet' }).click();
+  for (const el of await page.locator('.topbar button, #project-bar a').all()) {
     const b = (await el.boundingBox())!;
     expect(b.height).toBeGreaterThanOrEqual(44);
     expect(b.width).toBeGreaterThanOrEqual(44);

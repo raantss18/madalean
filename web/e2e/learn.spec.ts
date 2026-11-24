@@ -18,6 +18,9 @@ test('Research mode: proof shown at once, no hint ladder; split into lemmas show
   await page.getByRole('radio', { name: 'Les écrire moi-même' }).check();
   await page.getByLabel('Lemmes (un par paragraphe, en mots ou en Lean)').fill('La somme de deux pairs est paire.\n\nZéro est pair.');
   await page.getByRole('button', { name: 'Découper et lancer' }).click();
+  // S-BH: a card per sub-dossier in the thread, the tree in the « Sous-lemmes » tab
+  await expect(page.getByRole('article', { name: /^Sous-dossier/ })).toHaveCount(2, { timeout: 20_000 });
+  await page.getByRole('tab', { name: 'Sous-lemmes' }).click();
   await expect(page.getByRole('heading', { name: /Lemmes : \d+ prouvés sur 2/ })).toBeVisible({ timeout: 20_000 });
   for (const j of (await api<{ active: { dossier_id: string }[] }>('GET', '/jobs')).active) await api('POST', `/dossiers/${j.dossier_id}/stop`, {});
 });

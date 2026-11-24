@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { open, api, axe } from './util';
 
-// S-AX (D56): « Littérature » in the proof step — the demo answers come from a real search about Bertrand's
+// S-AX (D56): the « Littérature » tab of the pane — the demo answers come from a real search about Bertrand's
 // postulate recorded once (madalean/literature/demo_http); attachments are read once.
 
 const STATEMENT = 'theorem bertrand_postulate (n : ℕ) (hn : 1 ≤ n) : ∃ p, Nat.Prime p ∧ n < p ∧ p ≤ 2 * n := by sorry';
@@ -11,7 +11,7 @@ type D = { dossier: { id: string } };
 
 test('literature: quoted references with labels, Sources, bibliography, attachment read once', async ({ page }) => {
   const { dossier } = await api<D>('POST', '/dossiers', { statement: STATEMENT, problem: WORDS, title: 'Bertrand', start: false });
-  await open(page, `/d/${dossier.id}/preuve`, { mode: 'research' });
+  await open(page, `/d/${dossier.id}/litterature`, { mode: 'research' });
   const panel = page.getByRole('region', { name: 'Littérature' });
   await expect(panel).toBeVisible({ timeout: 20_000 });
   await panel.getByRole('button', { name: 'Chercher dans la littérature' }).click();
@@ -36,16 +36,16 @@ test('literature: quoted references with labels, Sources, bibliography, attachme
   // English
   await api('PATCH', '/settings', { language: 'en' });
   try {
-    await open(page, `/d/${dossier.id}/preuve`, { mode: 'research' });
-    await expect(page.getByRole('region', { name: 'Literature' })).toContainText('Journal (peer reviewed)', { timeout: 20_000 });
-    await expect(page.getByRole('region', { name: 'Literature' })).toContainText('Attachments');
+    await open(page, `/d/${dossier.id}/litterature`, { mode: 'research' });
+    await expect(page.getByRole('region', { name: 'Literature', exact: true })).toContainText('Journal (peer reviewed)', { timeout: 20_000 });
+    await expect(page.getByRole('region', { name: 'Literature', exact: true })).toContainText('Attachments');
   } finally { await api('PATCH', '/settings', { language: 'fr' }); }
 });
 
 test('literature panel fits a phone screen', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   const { dossier } = await api<D>('POST', '/dossiers', { statement: STATEMENT, problem: WORDS, title: 'Bertrand phone', start: false });
-  await open(page, `/d/${dossier.id}/preuve`, { mode: 'research' });
+  await open(page, `/d/${dossier.id}/litterature`, { mode: 'research' });
   const panel = page.getByRole('region', { name: 'Littérature' });
   await panel.getByRole('button', { name: 'Chercher dans la littérature' }).click();
   await expect(panel.locator('li.ref').first()).toBeVisible({ timeout: 30_000 });
@@ -60,7 +60,7 @@ test('a file joined to a new problem is attached before the work starts', async 
   await page.locator('#statement-input').click();
   await page.keyboard.type('Tout nombre premier p > 2 est impair.');
   await page.getByRole('button', { name: 'Traduire et prouver' }).click();
-  await expect(page).toHaveURL(/\/d\/[^/]+\/lean/);
+  await expect(page).toHaveURL(/\/d\/[^/]+$/);
   const id = decodeURIComponent(new URL(page.url()).pathname.split('/')[2] ?? '');
   const r = await api<{ attachments: { name?: string; n: number }[] }>('GET', `/dossiers/${encodeURIComponent(id)}/attachments`);
   expect(r.attachments.length).toBe(1);

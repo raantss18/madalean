@@ -873,3 +873,28 @@ Screenshots: `docs/screenshots/v2/news-{list,item}-{360,820,1440}-{light,dark}.p
 - No jargon on screen: « témoin », « certificat », « vérifié par Lean »; tactic names appear only in the small
   « contrôle : … » line of the Calcul panel and in the proof itself.
 - Tests: `e2e/workbench.spec.ts` (menu, panel, axe, phone width) against the demo server's canned outcome.
+
+## 19. The dossier as one thread (session S-BH, 2026-11-24, DECISIONS D64 + D66, docs/DOSSIER_FLOW.md)
+
+| File | Role |
+| --- | --- |
+| `lib/flow.ts` | pure: `deriveNow`, `deriveSteps`, `threadItems` → `buildThread` (filter, last 60, run → phase → attempt), `failureSummary`, parts |
+| `lib/api/flow.ts` | `gate`, `approveMany`, `report` |
+| `lib/ui/solo.svelte.ts` | parts open in their own window (BroadcastChannel `madalean.solo`) |
+| `screens/dossier/Dossier.svelte` | layout, pane (width, open, split: localStorage `madalean.dossier.pane`), sheet below 900 px, `?solo=1` |
+| `FlowHeader` | stepper + « En ce moment », « Arrêter » (only here), jump to the question / the failure |
+| `Thread`, `EventCard`, `ChildCard`, `NextCard`, `Composer` | the thread; `NextCard` = what was tried, last cause, next actions |
+| `GateCard`, `BatchGates`, `ReportDialog` | meaning and statement questions, several approvals, « Mal compris » |
+| `Pane`, `PartView`, `VersionsPanel` | tabs Énoncé, Lean, Preuve, Sous-lemmes, Littérature, Calculs (if any certificate), Versions |
+
+- `flowtext.ts` translates `now.activity`: `activity.<key>`, then `<key>`, `stage.<key>`, `flow.phase.<key>`, then the
+  phase. An unknown key never shows raw. To add an activity: one i18n key `activity.<key>` in fr and en.
+- Scroll: the page scrolls; it follows the end only when the reader is there. Opening goes to the pending question, else
+  the end. Phases use `content-visibility: auto`.
+- Announcements: one polite status in the header (without the elapsed time) and one polite line with the latest event;
+  streamed text is never announced.
+- Keyboard: tabs with arrows / Home / End, separator with arrows / Home / End, Escape closes the phone sheet.
+- Step components use the container query `part` for narrow panes.
+- Tests: `tests/unit/flow.test.ts`, `e2e/one-thread.spec.ts` (gates mocked on top of demo dossiers; set
+  `ONE_THREAD_SHOTS=<dir>` for screenshots).
+- Not verified: a real screen reader, the new server fields end to end (S-BG runs in parallel), a real phone.

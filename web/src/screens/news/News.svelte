@@ -152,7 +152,7 @@
       } else if (kind === 'dossier') {
         const r = await api.createDossier({ problem: `${it.title}\n\n${excerpt(it)}\n\n(${cite(it)})`.trim(), title: it.title.slice(0, 80), project_id: pid || undefined, start: false });
         app.m.full[r.dossier.id] = r.dossier;
-        toast('ok', t('news.did.dossier'), { action: { label: t('news.open'), run: () => navigate(`/d/${encodeURIComponent(r.dossier.id)}/enonce`) } });
+        toast('ok', t('news.did.dossier'), { action: { label: t('news.open'), run: () => navigate(`/d/${encodeURIComponent(r.dossier.id)}`) } });
       } else {
         const body = [`> ${excerpt(it, 3000).replace(/\n+/g, '\n> ')}`, '', `— ${[authors(it), `[${srcTitle(it)}](${it.url})`, new Intl.DateTimeFormat(lang, { dateStyle: 'long' }).format(new Date(it.published * 1000))].filter(Boolean).join(', ')}`,
           ...(it.fr ? ['', `**${t('news.autoSummary')}** ${it.fr}`] : [])].join('\n');
