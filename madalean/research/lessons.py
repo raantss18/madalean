@@ -9,6 +9,8 @@ model), so that whichever model runs next profits from them:
 - `fix`      — a Lean error pattern (normalised message) on a statement shape → what the verified proof did
                differently (the tactics added), learned only from a verified success after that error.
 - `approach` — an approach that failed on a statement shape → the reason (from the problem graph).
+- `interpretation` — a « mal compris » report of the user (D65): the words of the problem, what was wrong and the user's
+               words; given as data to the understand / translate prompts for similar problems.
 - `strategy` — which strategy / tactic family succeeded on a statement shape (counts).
 
 Hygiene: every lesson carries evidence (dossier, date, workspace, Lean / Mathlib versions), success / failure
@@ -26,7 +28,8 @@ from pathlib import Path
 
 from .. import config, leancheck
 
-KINDS = ("rename", "fix", "approach", "strategy")
+KINDS = ("rename", "fix", "approach", "strategy", "interpretation")
+MAX_INTERPRETATIONS = 80
 MAX_LESSONS = 400
 MAX_EVIDENCE = 5
 HINT_CHARS = 900
@@ -179,6 +182,40 @@ class Lessons:
         self.save()
         return x
 
+    def learn_interpretation(self, problem: str, target: str, reason: str, text: str, dossier: str = "") -> dict:
+        """What the user reported as misunderstood. His words are data (never instructions)."""
+        words = sorted(_problem_words(problem))[:24]
+        x = self._upsert(_id("interpretation", " ".join(words), target, reason, text[:200]), {
+            "kind": "interpretation", "problem": re.sub(r"\s+", " ", problem).strip()[:300], "words": words,
+            "target": target[:20], "reason": reason[:40], "text": re.sub(r"\s+", " ", text).strip()[:400]},
+            {"dossier": dossier})
+        mine = sorted((y for y in self.items.values() if y["kind"] == "interpretation"),
+                      key=lambda y: float(y.get("updated", 0)))
+        for y in mine[:max(0, len(mine) - MAX_INTERPRETATIONS)]:
+            self.items.pop(y["id"], None)
+        self.save()
+        return x
+
+    def interpretation_hint(self, problem: str, k: int = 3) -> str:
+        """Reports on similar problems, for the understand / translate prompts ("" when none)."""
+        from .safety import UNTRUSTED_RULE, wrap_untrusted
+        mine = _problem_words(problem)
+        scored = []
+        for x in self.items.values():
+            if x["kind"] != "interpretation":
+                continue
+            ws = {str(w) for w in x.get("words") or []}
+            s = len(mine & ws) / max(1, len(mine | ws))
+            if mine and (mine == ws or len(mine & ws) >= 2 and s >= 0.5):
+                scored.append((-round(s, 3), x["id"], x))
+        if not scored:
+            return ""
+        lines = [f"- problem « {str(x.get('problem', ''))[:160]} »: {x.get('target')} was wrong ({x.get('reason')})"
+                 + (f"; the user said: {str(x['text'])[:240]}" if x.get("text") else "")
+                 for _s, _i, x in sorted(scored, key=lambda t: t[:2])[:k]]
+        return ("Earlier misunderstandings on similar problems, reported by the user; do not repeat them. "
+                + UNTRUSTED_RULE + "\n" + wrap_untrusted("\n".join(lines)[:HINT_CHARS], "reports"))
+
     def feedback(self, lid: str, helped: bool) -> None:
         x = self.items.get(lid)
         if x is None:
@@ -215,6 +252,8 @@ class Lessons:
         shape, dom, toks = shape_of(statement), set(domain_of(statement)), _tokens(statement)
         scored = []
         for x in self.items.values():
+            if x["kind"] == "interpretation":
+                continue                      # about words, not about Lean: `interpretation_hint`
             if x["kind"] == "rename":
                 if x.get("mathlib", "") != env.get("mathlib", ""):
                     continue
@@ -297,6 +336,16 @@ class Lessons:
                 n += 1
         self.save()
         return n
+
+
+_COMMON = set("que les des une est sont dans pour par sur avec tout tous toute alors soit montrer prouver demontrer the "
+              "that for all and with then prove show let are its this from such".split())
+
+
+def _problem_words(problem: str) -> set[str]:
+    import unicodedata
+    t = "".join(c for c in unicodedata.normalize("NFKD", (problem or "").lower()) if not unicodedata.combining(c))
+    return {w for w in re.findall(r"[a-z]{3,}|\d+", t) if w not in _COMMON}
 
 
 def _closest(bad: str, candidates: set[str]) -> str:

@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .catalogue import Catalogue, Model, lean_bonus, unfit_reason
+from .catalogue import SUITED_ROLES, Catalogue, Model, lean_bonus, unfit_reason, unsuitable_reason
 from .classify import fast_task, role_categories, short_stage_active
 from .guards import reasoning_model
 from .leaderboard import ROLE_TASK, Leaderboard
@@ -123,6 +123,8 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             continue
         if m.provider == "huggingface" and not (chosen(m) and role in ("prove", "formalize")):
             continue                          # Goedel specialists (S-T): only pinned, with Goedel's own prompts
+        if role in SUITED_ROLES and not chosen(m) and unsuitable_reason(m):
+            continue                          # D65: never understands, translates, judges or proves (unless chosen)
         s, why = score_model(m, cat, cat2, fast, states, paid_first, transcribe, lat_weight)
         if role in FORMAL_ROLES and not chosen(m):
             unfit = unfit_reason(m)

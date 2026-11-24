@@ -254,6 +254,40 @@ _SIZE = re.compile(r"(?<![a-z])(\d+(?:\.\d+)?)\s*b\b", re.I)
 TINY_B = 7.0
 
 
+# S-BG (D65): models that are not general chat models, whatever the role (real run 2026-11-24: an « ising-calibration »
+# model understood the problem and a « content-safety » model was a prover)
+_SPECIAL = [
+    ("safety / moderation", r"guard(?:ian)?\b|guard[-_ ]?\d|shield|safety|safeguard|moderat|jailbreak|toxic|\bpii\b"),
+    ("embedding", r"embed|\bbge\b|\be5-|\bgte-|minilm|retriev|colbert"),
+    ("rerank", r"re-?rank"),
+    ("OCR", r"(?<![a-z])ocr(?![a-z])|docling|nougat|page-?elements|table-?structure"),
+    ("speech / audio", r"whisper|\btts\b|\basr\b|speech|parakeet|\bcanary|transcri|voxtral|audio|\briva\b|lyria"),
+    ("image / video", r"dall-?e|diffusion|\bflux\b|imagen|gpt-image|\bsora\b|\bveo\b|\bvideo\b|sdxl|caption"),
+    ("calibration", r"calibrat"),
+    ("reward", r"reward|(?<![a-z])prm(?![a-z])"),
+    ("classifier", r"classif|detector|-detect\b|topic-control"),
+    ("translation / summary", r"translat(?:e|or|ion|egemma)\b|summar|\bnllb|madlad|opus-mt|hunyuan-mt"),
+    ("other special", r"(?<![a-z])aqa(?![a-z])|robotics|computer-use|\bgenie\b|protein|\besm|genomic|molecul|weather|"
+                      r"climate|usd(?:code|search|validate)|cuopt|vista-?3d"),
+]
+_SPECIAL_RE = [(why, re.compile(rx, re.I)) for why, rx in _SPECIAL]
+SUITED_ROLES = ("understand", "formalize", "prove", "judge", "plan", "fix", "final")
+
+
+def unsuitable_reason(m: Model) -> str:
+    """Why `m` must not understand, translate, judge or prove, or "" — by name and metadata, deterministic."""
+    if m.provider == "local":
+        return ""
+    n = f"{m.model_id} {m.name}".lower()
+    for why, rx in _SPECIAL_RE:
+        hit = rx.search(n)
+        if hit:
+            return f"{why} model ({hit.group(0).strip()})"
+    if m.quality and set(m.quality) <= {"translation", "embedding", "rerank", "moderation", "image", "audio"}:
+        return "special model (catalogue)"
+    return ""
+
+
 def unfit_reason(m: Model) -> str:
     """Why `m` should not do formal work (prove / formalize / route), or "" when it may."""
     if m.provider == "local":
@@ -262,6 +296,9 @@ def unfit_reason(m: Model) -> str:
     hit = _UNFIT.search(n)
     if hit:
         return f"task-specific model ({hit.group(0)})"
+    special = unsuitable_reason(m)
+    if special:
+        return special
     small = _SMALL.search(n)
     if small:
         return f"small model ({small.group(0)})"

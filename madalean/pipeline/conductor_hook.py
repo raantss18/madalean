@@ -427,7 +427,7 @@ class Hook:
             job.error, job.summary = "", {}
             await self._event("info", "{name} a corrigé l'erreur Lean : {what}", name=r.name,
                               what=str(r.data.get("what") or "")[:300])
-            await self.p.event(d, job, "statement", "L'IA a traduit le problème en Lean et Lean accepte l'énoncé. "
+            await self.p.event(d, job, "statement", "L'IA a traduit le problème en Lean. Lean comprend le code (cela ne dit pas qu'il est fidèle). "
                                "Relisez-le : la preuve portera exactement sur ce texte.", ref=idx, model=r.key)
             if s.pause_after_translation:
                 job.plan = []

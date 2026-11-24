@@ -101,6 +101,8 @@ class ServerContext:
 
     def publish_job(self, job: Job) -> None:
         self.bus.publish("job.updated", {"job": job.to_dict()})
+        if getattr(self, "orchestrator", None) is not None:
+            self.orchestrator.publish_now(job.dossier_id)          # S-BG: the dossier's live « now »
 
     def toast(self, key: str, level: str = "info", **params) -> None:
         self.publish("toast", {"level": level, **i18n.msg(key, **params)})

@@ -137,7 +137,8 @@ async def contrib_reprove(request: web.Request) -> web.Response:
                                          if s.get("dossier") else ""})
     hint = ("A proof of this statement was verified with an older Mathlib (Lean 4.9); names may have changed "
             "since. Adapt it:\n```lean4\n" + s["body"][:6000] + "\n```")
-    job = ctx.orchestrator.submit(d.id, [{"stage": "proof", "request": hint}])
+    # the statement is the one already proved and validated (older Mathlib): no gate (D65)
+    job = ctx.orchestrator.submit(d.id, [{"stage": "proof", "request": hint}], gates=False)
     return ok({"dossier": d.id, "job": job.id})
 
 

@@ -178,15 +178,18 @@ class FormalizeResult:
     errors: list = field(default_factory=list)
     summary: dict = field(default_factory=dict)
     model: str = ""
+    refused: list = field(default_factory=list)      # [(code, reasons)]: Lean accepts it, the judge does not (D65)
 
 
 class Formalizer:
     """Natural language → Lean statement: generation + Lean check of the statement, up to `tries` (D12)."""
 
-    def __init__(self, io: StageIO, mode: str = "local", prefer: str | None = None):
+    def __init__(self, io: StageIO, mode: str = "local", prefer: str | None = None, only: str | None = None,
+                 judge=None):
         """`prefer`: Goedel-Formalizer-V2 served online (S-T) when a provider serves it — tried first, the router's
-        other models follow if it fails."""
-        self.io, self.mode, self.prefer = io, mode, prefer
+        other models follow if it fails. `only`: this model alone (an independent candidate). `judge`: async code →
+        reasons to refuse a statement Lean accepts (S-BG); they feed the next attempt."""
+        self.io, self.mode, self.prefer, self.only, self.judge = io, mode, prefer, only, judge
 
     async def run(self, text: str, ws, tries: int, timeout_s: int, name: str = leancheck.DEFAULT_THEOREM_NAME,
                   profile: str = "", previous: str = "", request: str = "") -> FormalizeResult:
@@ -201,7 +204,8 @@ class Formalizer:
                                                text + feedback, name)}],
                                            a, temperature=0.9, max_tokens=12000,
                                            extra={"top_p": 0.95, "top_k": 20}, mode=self.mode, stage="statement",
-                                           **({"prefer": self.prefer} if self.prefer else {}))
+                                           **({"only": self.only} if self.only else
+                                              {"prefer": self.prefer} if self.prefer else {}))
             except BrainError as e:
                 a.status, a.summary, a.errors_text = "error", msg("La traduction a échoué.")["text"], str(e)
                 self.io.update_attempt(a)
@@ -242,6 +246,17 @@ class Formalizer:
                 self.io.update_attempt(a)
                 feedback = ("\n\nA previous attempt stated something trivial (`True` or `x = x`). State the actual "
                             "mathematical content of the problem.\n")
+                continue
+            reasons = await self.judge(a.code) if self.judge and not r.verdict.errors and not r.timed_out else []
+            if reasons:
+                res.refused.append((a.code, reasons))
+                a.status, a.summary = "rejected", msg("Traduction refusée : elle ne dit pas ce que dit le "
+                                                      "problème.")["text"]
+                a.errors_text = "\n".join(reasons)
+                self.io.update_attempt(a)
+                feedback = (f"\n\nA previous attempt was:\n```lean4\n{leancheck._body(a.code)}\n```\nIt is valid Lean "
+                            "but does not state the problem:\n" + "\n".join(f"- {x}" for x in reasons) +
+                            "\nState exactly the problem, with its own objects and numbers.\n")
                 continue
             if not r.verdict.errors and not r.timed_out:
                 a.status, a.summary = "accepted", msg("Énoncé valide en Lean (à relire)")["text"]

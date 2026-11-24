@@ -49,8 +49,9 @@ async def _extra_keywords(io: formal.LitIO, plan, statement: str, text: str) -> 
     if io.budget.over or not io.free_models("understand"):
         return []
     from ..brain import classify
-    prompt = QP.KEYWORDS_PROMPT.format(n=QP.MAX_EXTRA, lean=formal._decl_only(statement)[:1500] or statement[:1500],
-                                       text=(text or "")[:800])
+    # D65: the problem's words, never the Lean code beside them (« square root », « number » came from the code)
+    lean = "(not given)" if (text or "").strip() else formal._decl_only(statement)[:1500] or statement[:1500]
+    prompt = QP.KEYWORDS_PROMPT.format(n=QP.MAX_EXTRA, lean=lean, text=(text or "")[:800])
     try:
         with classify.short_stage():
             c = await io.complete("understand", [{"role": "user", "content": prompt}], temperature=0.2,
@@ -265,9 +266,9 @@ async def _confirm(fetcher, recs: list[R.Record], mode: str, budget: Budget, rej
 async def search(statement: str, ctx, budget: Budget | None = None, *, text: str = "", depth: str = "quick",
                  mode: str | None = None, project_id: str = "", ws=None, fetcher=None, lang: str = "fr",
                  formalize: bool = True, owner: str = "literature", on_event: Callable | None = None,
-                 use_cache: bool = True) -> LiteratureResult:
+                 use_cache: bool = True, names: list[str] | None = None) -> LiteratureResult:
     """Search the literature for results related to a Lean statement (+ the user's words). Plain async function
-    (also exposed to MCP); never raises for a provider or model failure; Local mode → zero network requests."""
+    (also exposed to MCP); `names`: classical names of the problem; never raises for a provider or model failure; Local mode → zero network requests."""
     budget = (budget or Budget.for_depth(depth)).start()
     mode = mode or getattr(getattr(ctx, "settings", None), "mode", "auto")
     if ws is None and ctx is not None:
@@ -275,7 +276,7 @@ async def search(statement: str, ctx, budget: Budget | None = None, *, text: str
     t0 = time.monotonic()
     res = LiteratureResult(statement=statement, depth=depth if depth in ("quick", "deep") else "quick",
                            local_mode=(mode == "local"), versions=_versions(ws))
-    key = cache_key(statement, ws, res.depth, text) if use_cache else ""
+    key = cache_key(statement, ws, res.depth, text, names) if use_cache else ""
     if key:
         hit = await _cache_get(ctx, key)
         if hit is not None:
@@ -288,7 +289,7 @@ async def search(statement: str, ctx, budget: Budget | None = None, *, text: str
         except Exception:  # noqa: BLE001
             fetcher = None
     io = formal.LitIO(ctx, mode, budget, owner=owner, warm=owner != "literature")
-    plan = QP.build(statement, text)
+    plan = QP.build(statement, text, names)
     res.query = plan
     try:
         if mode != "local" and plan.keywords:
@@ -302,7 +303,11 @@ async def search(statement: str, ctx, budget: Budget | None = None, *, text: str
         _emit(on_event, "retrieved", records=len(recs))
         kws = plan.keywords + plan.extra_keywords
         scored = sorted(((*_score(r, kws), r) for r in recs), key=lambda x: -x[0])
-        top = [x for x in scored if x[0] >= MIN_SCORE][: budget.items * 2]
+        kept = [x for x in scored if QP.relevant(plan, x[2].csl.get("title", "") or "",
+                                                 " ".join(t.text for t in x[2].texts)[:8000], x[1])]
+        if len(kept) < len(scored):
+            res.rejected["off_topic"] = len(scored) - len(kept)
+        top = [x for x in kept if x[0] >= MIN_SCORE][: budget.items * 2]
         await _confirm(fetcher, [r for _s, _m, r in top], mode, budget, res.rejected, res.providers)
         top = _dedupe(top)
         items: list[LiteratureItem] = []
@@ -422,9 +427,10 @@ def _versions(ws) -> dict:
         return {"workspace": getattr(ws, "key", "")}
 
 
-def cache_key(statement: str, ws, depth: str, text: str = "") -> str:
+def cache_key(statement: str, ws, depth: str, text: str = "", names: list[str] | None = None) -> str:
     from ..pipeline.stagecache import make_key, normalize_text
-    return make_key(statement, _versions(ws), "literature-v1", depth, normalize_text(text)[:400])
+    return make_key(statement, _versions(ws), "literature-v2", depth, normalize_text(text)[:400],
+                    *(["|".join(names)] if names else []))
 
 
 def _cache(ctx):

@@ -1140,6 +1140,9 @@ class GraphService:
             raise G.GraphError("no_statement", 409)
         if d.proof_is_current:
             raise G.GraphError("already_proved", 409)
+        from ..pipeline import gates
+        if not gates.may_prove(self.ctx.settings, d):
+            raise G.GraphError("gate_pending", 409)        # D65: the user approves the statement first
         r = self.runs.get(did)
         if r is not None and not r["task"].done():
             raise G.GraphError("busy", 409)
@@ -1451,7 +1454,7 @@ class GraphService:
         lean = (context + "\n\n" + n["lean"]).strip() if n.get("lean") else ""
         spec = {"title": n["title"], "problem": n.get("statement_nl") or n["title"], "statement": lean,
                 "project_id": d.project_id, "workspace": d.workspace, "parent_id": d.id, "kind": "lemma",
-                "start": False}
+                "start": False, "gates": False}
         try:
             child, _job = await create_dossier(self.ctx, spec, user_event=True)
         except leancheck.StatementError:

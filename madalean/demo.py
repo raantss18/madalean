@@ -46,7 +46,7 @@ async def seed(ctx: ServerContext) -> None:
                 + d.understood_display, model="local:Qwen3-8B-Q4_K_M.gguf")
     st = PROVED_STATEMENT.format(name=d.theorem)
     i = d.add_statement(st, model="local:Goedel-Formalizer-V2-8B.Q4_K_M.gguf")
-    d.add_event("statement", "L'IA a traduit le problème en Lean et Lean accepte l'énoncé. Relisez-le : la preuve "
+    d.add_event("statement", "L'IA a traduit le problème en Lean. Lean comprend le code (cela ne dit pas qu'il est fidèle). Relisez-le : la preuve "
                 "portera exactement sur ce texte.", ref=i, model="local:Goedel-Formalizer-V2-8B.Q4_K_M.gguf")
     d.add_notes("- `(a b : ℕ)` : $a$ et $b$ sont des entiers naturels.\n- `(ha : Even a)` : $a$ est pair.\n"
                 "- `(hb : Even b)` : $b$ est pair.\n- `: Even (a + b)` : la conclusion.\n\nEn résumé : la somme de "

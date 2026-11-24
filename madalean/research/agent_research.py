@@ -653,7 +653,7 @@ class Agent:
             if not plan_ or (d is not None and d.proof_is_current):
                 continue
             try:
-                job = self.ctx.orchestrator.submit(did, plan_, **opts, **({"strategy": strategy} if strategy else {}))
+                job = self.ctx.orchestrator.submit(did, plan_, gates=False, **opts, **({"strategy": strategy} if strategy else {}))
             except DossierBusy as e:
                 job = e.job
             run["jobs"].append(job.id)
@@ -835,7 +835,8 @@ class Agent:
                     from ..pipeline.runner import full_plan
                     from ..orchestrator import DossierBusy
                     try:
-                        job = self.ctx.orchestrator.submit(d.id, full_plan(), **({"mode": run["mode"]}))
+                        job = self.ctx.orchestrator.submit(d.id, full_plan(), gates=False,
+                                                               mode=run["mode"])
                         job_id = job.id
                         run["jobs"].append(job.id)
                     except DossierBusy:

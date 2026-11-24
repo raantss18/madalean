@@ -80,6 +80,8 @@ class Settings:
     # proof tournament (S-J, docs/BRAIN.md §11): best models first, then races of untried models, all bounded
     # statement check and Mathlib-first search (S-K): before any proof search, bounded (≈ 1–3 min each)
     statement_check: bool = True            # « Vérifier l'énoncé »: fidelity (model) + truth probes (Lean)
+    # S-BG (D65): the user validates the meaning, then the Lean statement, before any proof (docs/DOSSIER_FLOW.md)
+    validate_before_proof: bool = True
     mathlib_first: bool = True              # look for the theorem in Mathlib before the prover models
     certificates: bool = True               # S-AT (D52): « Sage calcule, Lean vérifie » before the prover models
     # S-AX (D56): « Chercher dans la littérature » beside Mathlib-first (never in Local mode); quick | deep

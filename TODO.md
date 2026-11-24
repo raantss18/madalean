@@ -143,7 +143,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 
 ### Refonte « comprendre, traduire, prouver » (24/11, D64)
 Cas d'échec réel : « le nombre chromatique du plan est 6 » (dossier 20261124-072123-e433).
-1. ⬜ Comprendre et traduire fidèlement (S-BG) : problème ouvert reconnu, résultats connus en sous-dossiers,
+1. ⚠️ Comprendre et traduire fidèlement (S-BG, D65 ; serveur fait et testé avec des modèles simulés et le vrai Lean, reste : vrais modèles) : problème ouvert reconnu, résultats connus en sous-dossiers,
    validation toujours demandée (sens puis énoncé Lean), « Mal compris », deux traductions, refus des énoncés vides
 2. ✅ (S-BH, interface ; à essayer avec le vrai serveur S-BG) Fil unique chronologique + volet, parties séparables, « En ce moment » toujours exact (S-BH)
 3. ⬜ Mieux prouver et apprendre de ses échecs (S-BI, après 1 et 2)

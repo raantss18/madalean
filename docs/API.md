@@ -1019,6 +1019,19 @@ bad_part | missing_file | unexpected_member | newer_schema | too_large | ratio |
 Event `memory.import` `{token, stage: library|done|error, done, total, name}`. Library entries (`GET /api/library`)
 gain `origin` (`{}` for local results; for an imported one `{bundle, from, checked, lean, mathlib, axioms, nl, model}`).
 
+## 6m. Gates and « Mal compris » (session S-BG, DECISIONS D65, docs/DOSSIER_FLOW.md)
+
+| Method | Path | Body | Answer |
+| --- | --- | --- | --- |
+| POST | `/api/dossiers/{id}/gate` | `{gate_id, action: approve\|edit\|reject, text?, candidate?, mode?, strategy?}` | 202 `{dossier, job}`; 409 `stale_gate`, `refused_statement`, `busy`; 400 `bad_action`, `empty`, `bad_candidate` |
+| POST | `/api/dossiers/gates/approve` | `{items: [{dossier_id, gate_id}]}` (≤ 50, statement gates only) | `{results: [{dossier_id, ok, error, dossier, job}]}` |
+| POST | `/api/dossiers/{id}/report` | `{target: meaning\|statement\|proof\|event, ref?, reason, text?}` | 202 `{dossier, job}`; stops what depends on it, redoes that stage, keeps an `interpretation` lesson |
+
+Dossiers gain `gate`, `now`, `meaning` (approved), `reports`; events gain `phase`, `run`, `attempt`; jobs gain `run`,
+`gates`. WebSocket event `dossier.now` `{dossier_id, now}`. `PATCH /api/settings {validate_before_proof}` (default
+true). `gates: false` in `POST /api/dossiers`, `/run`, `/message` opts out explicitly. `GET /api/lessons` lists kind
+`interpretation`.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

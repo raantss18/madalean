@@ -67,6 +67,8 @@ class Job:
     # plan: [{id, kind, goal, model, model_name, why, wave, depends_on, advisory, stage}], ask: {spent, cap, step} |
     # None (the cap question waiting for the user), state: planning | running | asking | off | done, final}
     conductor: dict = field(default_factory=dict)
+    run: str = ""                    # S-BG: the user request this job belongs to (a gate's answer keeps it)
+    gates: bool = False              # S-BG: stops at the dossier's gates (False = explicit opt-out)
 
     @classmethod
     def new(cls, dossier_id: str, plan: list[dict], mode: str, strategy: str, user: bool = True) -> "Job":

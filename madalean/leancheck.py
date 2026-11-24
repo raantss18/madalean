@@ -549,12 +549,15 @@ UNDERSTAND_PROMPT = (
 LANG_NAMES = {"fr": ("FR", "French"), "en": ("EN2", "English")}
 
 
-def understand_messages(problem: str, profile: str = "", lang: str = "fr") -> list[dict]:
+def understand_messages(problem: str, profile: str = "", lang: str = "fr", structured: bool = False) -> list[dict]:
     """Conversation for the general model: user's words -> precise, self-contained statement (given to the formalizer)."""
     prof = f"Conventions of the user (respect them): {profile.strip()}\n" if profile.strip() else ""
     tag, name = LANG_NAMES.get(lang, LANG_NAMES["fr"])
-    return [{"role": "user", "content": UNDERSTAND_PROMPT.format(profile=prof, problem=problem.strip(), lang_tag=tag,
-                                                                 lang_name=name)}]
+    text = UNDERSTAND_PROMPT.format(profile=prof, problem=problem.strip(), lang_tag=tag, lang_name=name)
+    if structured:                      # S-BG (D65): the meaning shown at the gate
+        from .pipeline.faithful import MEANING_PROMPT
+        text += MEANING_PROMPT.format(lang_name=name)
+    return [{"role": "user", "content": text}]
 
 
 def parse_understood(text: str) -> tuple[str, str]:

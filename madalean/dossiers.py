@@ -2,6 +2,7 @@
 decides which stage a follow-up request should redo. Pure Python, no Qt: everything here is unit-tested."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -36,6 +37,15 @@ def title_from_problem(problem: str, max_len: int = 60) -> str:
 
 
 # ---------------------------------------------------------------- dossier
+# flow phase (docs/DOSSIER_FLOW.md) of an event kind / a pipeline stage
+PHASE_OF_KIND = {"understood": "understand", "status": "understand", "statement": "translate", "notes": "translate",
+                 "check": "translate", "literature": "literature", "certificate": "prove", "proof": "verify",
+                 "explanation": "explain", "informal": "explain"}
+PHASE_OF_STAGE = {"understand": "understand", "route": "understand", "statement": "translate", "notes": "translate",
+                  "verify": "translate", "proof": "prove", "mathlib": "prove", "certificate": "prove",
+                  "search": "prove", "literature": "literature", "explanation": "explain", "informal": "explain"}
+
+
 @dataclass
 class Event:
     kind: str          # user | understood | statement | notes | proof | explanation | informal | info | error
@@ -47,6 +57,10 @@ class Event:
     key: str = ""                     # i18n source template of `text` (French), so a client can re-localize
     params: dict = field(default_factory=dict)
     job: str = ""                     # job id that wrote it
+    # S-BG (D65, docs/DOSSIER_FLOW.md): stage of the flow, user request that caused it, attempt inside run + phase
+    phase: str = ""
+    run: str = ""
+    attempt: int = 0
 
 
 @dataclass
@@ -59,6 +73,9 @@ class Version:
     note: str = ""                    # request that produced this version
     model: str = ""                   # model key that produced it
     meta: dict = field(default_factory=dict)   # proof: {axioms, lean, mathlib, seconds, attempts}
+
+    def code_key(self) -> str:
+        return hashlib.sha256(self.code.encode("utf-8")).hexdigest()[:16]
 
 
 STATUSES = ("draft", "translating", "proving", "proved", "failed", "stopped")
@@ -146,8 +163,10 @@ class Dossier:
         self.updated = time.time()
 
     def add_event(self, kind: str, text: str, ref: int | None = None, stage: str = "", model: str = "",
-                  key: str = "", params: dict | None = None, job: str = "") -> Event:
-        e = Event(kind, text, ref=ref, stage=stage, model=model, key=key, params=dict(params or {}), job=job)
+                  key: str = "", params: dict | None = None, job: str = "", phase: str = "", run: str = "",
+                  attempt: int = 0) -> Event:
+        e = Event(kind, text, ref=ref, stage=stage, model=model, key=key, params=dict(params or {}), job=job,
+                  phase=phase or PHASE_OF_KIND.get(kind, ""), run=run, attempt=attempt)
         self.events.append(e)
         self.touch()
         return e
@@ -232,6 +251,7 @@ class DossierStore:
         title = title or title_from_problem(problem)
         d = Dossier(id=did, title=title, problem=problem, workspace=workspace,
                     theorem=f"{slugify(title)}_{did[-4:]}")
+        d.extra["flow"] = 2                  # S-BG: gates before any proof (older files: none, as before)
         return d
 
     def save(self, d: Dossier) -> None:

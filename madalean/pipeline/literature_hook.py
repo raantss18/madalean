@@ -155,6 +155,7 @@ async def run(pipe, job, d, ws) -> None:
     if enabled(pipe, job, d, None):
         try:
             res = await literature.search(statement, ctx, budget, text=d.understood or d.problem, depth=depth,
+                                          names=(d.extra.get("meaning") or {}).get("names") or None,
                                           mode=job.mode, project_id=d.project_id, ws=ws,
                                           owner=f"{job.id}#literature", lang=language())
         except asyncio.CancelledError:
