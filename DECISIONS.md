@@ -1383,3 +1383,45 @@
 - Verified: `tests/test_paperplan.py` (structure, exact graph, verbatim, closure, exports, arXiv path; fake model +
   real Lean: budget 2 → resume, `exact?` → in Mathlib, top-level dossier + sub-dossier, conditional, a real Lean
   proof of the lemma rolls up, idempotent re-run), `web/e2e/paper-plan.spec.ts` (demo plan, axe).
+
+## D62 — « Mémoire qui grossit »: one portable memory bundle, re-verified on import; local backups; a verified dataset (TODO « Stratégie 2.1 » item 9, « Ordre choisi » item 5, 2026-11-24, S-BD)
+- Request: export the library, lessons and recipes; later, a small local model fine-tuned on the user's verified
+  proofs. Portable, verifiable, model-independent; no training now.
+- **One bundle** (`madalean/memory.py`, docs/MEMORY.md): `.madalean-memory` = zip with a fixed member set
+  (`manifest.json`, `parts/{library,lessons,recipes,graphs,digests}.json`, `files/<sha256>`); manifest = schema,
+  Madalean version, created, Lean / Mathlib versions of each workspace, per-part SHA-256 / count / bytes, excluded
+  items with the reason, `integrity` (SHA-256 of the canonical manifest). Library rows carry the verification stamp
+  and travel with their dependency closure; recipes = the best version per intent; graphs = the plan file's graph;
+  digests text only. Choices per part and per project. © digests (licence not CC BY / CC0 / public domain — the
+  publication rule) excluded by default and listed; original files only when ticked. Rejected: one file per part
+  (the user asked for one file; the lessons' own JSON export stays); signing bundles (it says who, not what is true —
+  Lean decides anyway; a key to manage for nothing); the glossary (built in, no user entries).
+- **Import = nothing trusted.** Host only; dry-run preview first (per item: add / verify / validate / reference /
+  unverified / skip + reason), applied in the background, one at a time. Library: a local workspace with the same
+  Lean AND Mathlib versions (any key), comments stripped, name and displayed statement must match the proved code,
+  then a **fresh strict Lean** (`GOEDEL_HEADER` + deps + proof + axiom probe); refused or not checkable →
+  `memory/unverified.json` (« importée, non vérifiée », reason; never given to a prover; « Revérifier »). Accepted →
+  `LibEntry.origin` (new optional field: bundle, checked, versions, axioms). Lessons: evidence kept, counters neutral
+  (ok = bad = 0): they count once they help here. Recipes: static screen (system access refused), re-keyed by the
+  local intent analysis, re-validated by preparse / compile / Sage names without execution, stored as a non-best
+  version unless the request had none. Graphs: read-only references, with the count of statements already present
+  (D59 `statement_key`). Digests: into the same-id project's shelf when new (« résultats fournis »), else references.
+  Duplicates: statement up to renaming, lesson id, normalised recipe code, content hash of graphs, digest SHA. Hostile
+  text: control / bidi characters, bounded lengths, the news injection heuristic → refused. Limits: 200 MB, 64 MB per
+  part, 40 MB per file, 2000 members, ratio 200, 20 000 rows. Rejected: trusting the exporter's stamp (anyone can
+  rebuild a consistent bundle — tested with a forged proof); merging imported graphs into local ones (silent changes
+  to the user's work; the counts say what matches); re-checking with the warm Lean (D37: only a fresh run decides).
+- **Backups**: off by default; every 1 / 7 / 30 days, keep 1–100, folder (absolute; default `<config>/backups`), hourly
+  check in the plugin, atomic 0600 files named `madalean-memory-YYYYMMDD-HHMMSS.madalean-memory`, rotation deletes
+  only that pattern; settings in `memory/backups.json` (not in `Settings`: the hook stays small). Never uploaded.
+- **Dataset for a future fine-tune**: `GET /api/memory/dataset`, JSONL `madalean-train/1`, statement → proof (library:
+  strict-verified) and error → fix (rename / fix lessons with ok ≥ 1), licence and provenance per row. docs/MEMORY.md §6
+  describes the optional, off-by-default LoRA of the local prover (≈ 10–12 GB GPU for a 4-bit QLoRA of 8B, 1–3 h per
+  epoch for a few thousand rows) — not implemented; the lessons already give most of the benefit (D57b).
+- UI: Réglages › « Mémoire » (lazy-loaded section): export with choices, import with preview and report, « Importées,
+  non vérifiées », imported references, backups (autosaved), dataset; FR + EN; manual page `memory` (fr / en).
+- Verified: `tests/test_memory.py` (round trip into an empty config with real Lean on lean-prover49: proofs
+  re-verified, a forged proof stays unverified, tampered part / manifest / member refused, preview, duplicates,
+  hostile recipe / lesson, no matching workspace, © digests excluded by default, backups rotation and 0600, dataset
+  verified-only, API host-only), `web/e2e/memory.spec.ts`.
+

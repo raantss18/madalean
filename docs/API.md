@@ -969,6 +969,31 @@ Event `graph.updated` `{dossier_id, rev, run}`. Deleting a dossier also moves it
 Settings: `problem_graph`, `graph_viability_model`, `graph_search_minutes`, `graph_search_attempts`,
 `graph_search_usd` (≤ `conductor_cap_usd`), `lessons`.
 
+## 6k. Memory bundles, backups, training dataset (session S-BD, DECISIONS D62, plugin `memory.py`, docs/MEMORY.md)
+
+Errors: `{error: not_a_bundle | no_manifest | bad_manifest | manifest_tampered | hash_mismatch | missing_part |
+bad_part | missing_file | unexpected_member | newer_schema | too_large | ratio | too_many_files, detail}` (400, 413 for
+`too_large`), `not_found` (404), `already_started | busy` (409), `{error: bad_value | folder_not_absolute, field}` (400).
+
+| Method | Path | Body / query | Answer |
+| --- | --- | --- | --- |
+| GET | `/api/memory` | — | `{counts: {library, lessons, recipes, unverified}, projects: [{id, title}], backups: {enabled, every_days, keep, folder, last, last_error, include_copyrighted, include_files, folder_effective, files: [{name, bytes, t}]}}` |
+| GET | `/api/memory/export` | `?parts=library,lessons,recipes,graphs,digests&projects=id,…\|global&include_copyrighted=1&include_files=1` (absent `projects` = all) | the `.madalean-memory` file (`application/zip`, attachment; `X-Madalean-Excluded`: count of left-out items) |
+| POST | `/api/memory/import` | raw bundle bytes (`application/octet-stream`, ≤ 200 MB) | `{token, preview: {bundle: {madalean, created, schema, workspaces, excluded}, items: {part: [{action: add\|verify\|validate\|reference\|unverified\|skip, reason, …}]}, summary: {part: {action: n}}}}` — **host only**, nothing written |
+| POST | `/api/memory/import/{token}` | — | `{started: true}` — **host only**; applies in the background (one at a time) |
+| GET | `/api/memory/import/{token}` | — | `{state: ready\|running\|done\|error, progress: {stage, done, total, name}, report, preview}` |
+| GET | `/api/memory/unverified` | — | `{entries: [{name, title, statement, workspace, reason, detail, t_import}]}` (« importées, non vérifiées ») |
+| POST | `/api/memory/unverified/verify` | — | `{token}` — **host only**; re-checks them all with Lean (same session endpoint) |
+| DELETE | `/api/memory/unverified/{name}` | — | `{deleted}` — **host only** |
+| GET | `/api/memory/references` | — | `{graphs: [{id, title, project, nodes, same_statements, imported}], digests: [{id, title, project, statements, license, imported}]}` |
+| DELETE | `/api/memory/references/{graphs\|digests}/{id}` | — | `{deleted}` — **host only** |
+| PATCH | `/api/memory/backups` | `{enabled?, every_days? (1–90), keep? (1–100), folder? (absolute or ""), include_copyrighted?, include_files?}` | `{backups}` — **host only** |
+| POST | `/api/memory/backups/run` | — | `{name, bytes, removed, counts, files, excluded}` — **host only** |
+| GET | `/api/memory/dataset` | — | JSONL (`application/x-ndjson`, attachment `madalean-dataset.jsonl`; `X-Madalean-Rows`) — verified pairs only, schema `madalean-train/1` |
+
+Event `memory.import` `{token, stage: library|done|error, done, total, name}`. Library entries (`GET /api/library`)
+gain `origin` (`{}` for local results; for an imported one `{bundle, from, checked, lean, mathlib, axioms, nl, model}`).
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at
