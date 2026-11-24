@@ -1,40 +1,36 @@
 <script lang="ts">
-  // One dossier = one fluid flow: Énoncé → Traduction Lean → Preuve (each step re-openable, state always shown),
-  // with the thread (follow-up requests) beside it on wide screens and below it otherwise.
+  // One dossier (D66): the header says where it stands, the thread at the centre says everything that happened in
+  // order, the side pane holds the reference views (Énoncé, Lean, Preuve, Sous-lemmes, Littérature, Calculs, Versions).
+  // `/d/:id/<part>` opens that tab; `?solo=1` shows that part alone in its own window.
+  import { onMount, tick } from 'svelte';
   import { app } from '../../lib/store/app.svelte';
-  import { navigate } from '../../lib/router.svelte';
+  import { navigate, route } from '../../lib/router.svelte';
   import { t, tk } from '../../lib/i18n/index.svelte';
-  import { phaseOf, modelLabel, jobModel, providerName, sideStages } from '../../lib/status';
-  import { prefs } from '../../lib/prefs.svelte';
+  import { phaseOf } from '../../lib/status';
+  import { loadJSON, prefs, saveJSON } from '../../lib/prefs.svelte';
   import { ApiError, api } from '../../lib/api/client';
+  import { autoPart, deriveNow, isConditional, partOf, pendingGate, recheckState, PARTS, type Part } from '../../lib/flow';
+  import { announceSolo, watchSolo } from '../../lib/ui/solo.svelte';
+  import type { Dossier } from '../../lib/api/types';
   import InlineTitle from '../../components/InlineTitle.svelte';
   import StatusMark from '../../components/StatusMark.svelte';
   import Icon from '../../components/Icon.svelte';
-  import StepStatement from './StepStatement.svelte';
-  import StepLean from './StepLean.svelte';
-  import StepProof from './StepProof.svelte';
-  import Thread from './Thread.svelte';
-  import { preloadKatex } from '../../lib/katex.svelte';
-  import { prefetch } from '../../lib/ui/idle';
-  import DossierMenu from './DossierMenu.svelte';
   import HelpLink from '../../components/HelpLink.svelte';
   import ConductorLine from '../../components/ConductorLine.svelte';
-  import { stop } from './actions';
+  import { preloadKatex } from '../../lib/katex.svelte';
+  import { prefetch } from '../../lib/ui/idle';
+  import Thread from './Thread.svelte';
+  import Pane from './Pane.svelte';
+  import PartView from './PartView.svelte';
+  import FlowHeader from './FlowHeader.svelte';
+  import DossierMenu from './DossierMenu.svelte';
 
   let { params }: { params: Record<string, string> } = $props();
   const id = $derived(params['id'] ?? '');
-  // S-AP: the plan (tree, map, outline) is its own chunk, fetched on the « Plan » step or when the browser is idle;
-  // statements and proofs are full of formulas, so KaTeX starts downloading with the dossier.
-  let planChunk: Promise<typeof import('./PlanTree.svelte').default> | null = null;
-  function loadPlan() {
-    planChunk ??= import('./PlanTree.svelte').then((m) => m.default);
-    planChunk.catch(() => { planChunk = null; });
-    return planChunk;
-  }
+  // S-AP: the plan is its own chunk, fetched when the browser is idle; KaTeX starts downloading with the dossier.
   preloadKatex();
-  prefetch('dossier.plan', loadPlan);
+  prefetch('dossier.plan', () => import('./PlanTree.svelte'));
   let loadError = $state<'' | 'not_found' | 'other'>('');
-
   $effect(() => {
     const did = id;
     void app.epoch;
@@ -45,50 +41,105 @@
   const d = $derived(app.m.full[id]);
   const job = $derived(app.activeJob(id));
   const last = $derived(app.lastJob(id));
+  const now = $derived(deriveNow(d, job));
   const phase = $derived(phaseOf(d?.status ?? app.m.dossiers[id]?.status ?? 'draft', job));
-  const conditional = $derived((d?.['extra'] as { conditional_proof?: { verdict?: string } } | undefined)?.conditional_proof?.verdict === 'proved_modulo' || (d?.['conditional_proof'] as { verdict?: string } | undefined)?.verdict === 'proved_modulo');
-  const recheck = $derived(((d?.['extra'] as { recheck?: { state?: string } } | undefined)?.recheck ?? (d?.['recheck'] as { state?: string } | undefined))?.state ?? '');
-  const LEAN_STAGES = ['understand', 'route', 'statement', 'notes'];
-  const PROOF_STAGES = ['proof', 'explanation', 'informal'];
-
-  type StepKey = 'enonce' | 'lean' | 'preuve' | 'plan';
-  const steps: StepKey[] = ['enonce', 'lean', 'preuve', 'plan'];
-  const stepState = $derived.by<Record<StepKey, 'todo' | 'running' | 'queued' | 'done' | 'failed' | 'conditional'>>(() => {
-    const st = job?.stage ?? '';
-    const queued = job && (job.state === 'queued' || job.waiting);
-    const r = (k: string[]) => (job && k.includes(st) ? (queued ? 'queued' : 'running') : null);
-    const hasStatement = (d?.statements.length ?? 0) > 0;
-    const statementOk = hasStatement && d!.statements[d!.cur_statement]?.ok !== false;
-    return {
-      enonce: d?.problem || hasStatement ? 'done' : 'todo',
-      lean: r(LEAN_STAGES) ?? (statementOk ? 'done' : hasStatement ? 'failed' : last?.state === 'failed' && !hasStatement ? 'failed' : 'todo'),
-      preuve: r(PROOF_STAGES) ?? (d?.status === 'proved' ? 'done' : d?.status === 'failed' && hasStatement ? 'failed' : 'todo'),
-      plan: conditional ? 'conditional' : d?.status === 'proved' && (d?.uses?.length ?? 0) > 0 ? 'done' : 'todo',
-    };
-  });
-  const autoStep = $derived.by<StepKey>(() => {
-    if (job && LEAN_STAGES.includes(job.stage)) return 'lean';
-    if (job && PROOF_STAGES.includes(job.stage)) return 'preuve';
-    if (!d) return 'lean';
-    if (d.status === 'proved' || d.proofs.length) return 'preuve';
-    if (d.statements.length) return d.status === 'failed' || d.status === 'proving' ? 'preuve' : 'lean';
-    return d.problem ? 'lean' : 'enonce';
-  });
-  const step = $derived<StepKey>((steps as string[]).includes(params['step'] ?? '') ? (params['step'] as StepKey) : autoStep);
-  const model = $derived(modelLabel((job && (app.liveModel[job.id] || jobModel(job))) || ''));
-
-  function go(s: StepKey) { navigate(`/d/${encodeURIComponent(id)}/${s}`, { focus: false }); }
-  function tabKey(e: KeyboardEvent, i: number) {
-    let j = -1;
-    const n = steps.length;
-    if (e.key === 'ArrowRight') j = (i + 1) % n;
-    else if (e.key === 'ArrowLeft') j = (i + n - 1) % n;
-    else if (e.key === 'Home') j = 0;
-    else if (e.key === 'End') j = n - 1;
-    if (j >= 0) { e.preventDefault(); go(steps[j]!); queueMicrotask(() => document.getElementById(`tab-${steps[j]}`)?.focus()); }
-  }
+  const recheck = $derived(d ? recheckState(d) : '');
   const parent = $derived(d?.parent_id ? app.m.dossiers[d.parent_id] : undefined);
+
+  // Sub-dossiers whose Lean statement waits for an approval (one card for all of them)
+  const children = $derived(Object.values(app.m.dossiers).filter((c) => c.parent_id === id));
+  const waiting = $derived(children.map((c) => app.m.full[c.id]).filter((c): c is Dossier => Boolean(c && pendingGate(c)?.kind === 'statement')));
+  const asked = new Set<string>();
+  $effect(() => {
+    // summaries without `gate` (older servers): the sub-dossiers still at work on their statement are read once
+    for (const c of children) {
+      if (asked.has(c.id) || app.m.full[c.id] || c.proved || asked.size > 40) continue;
+      if (c.gate !== undefined && c.gate?.state !== 'pending') continue;
+      asked.add(c.id);
+      void app.ensureDossier(c.id).catch(() => null);
+    }
+  });
+
+  // --- the pane
+  const solo = $derived(route.query.get('solo') === '1');
+  const asked_part = $derived(partOf(params['step']));
+  const part = $derived<Part>(asked_part ?? (d ? autoPart(d, now) : 'enonce'));
+  interface Saved { open: boolean; w: number; split: Part | '' }
+  const saved = loadJSON<Partial<Saved>>('dossier.pane', {});
+  let open = $state(saved.open ?? true);
+  let width = $state(Math.min(70, Math.max(28, saved.w ?? 45)));
+  let split = $state<Part | ''>(saved.split && (PARTS as readonly string[]).includes(saved.split) ? saved.split : '');
+  $effect(() => saveJSON('dossier.pane', { open, w: width, split } satisfies Saved));
+  let narrow = $state(false);
+  let wide = $state(true);
+  let sheetOpen = $state(false);
+  let seenPath = '';
+  $effect(() => {                                           // an address naming a part opens it (sheet on phones)
+    const p = route.path;
+    if (p === seenPath) return;
+    seenPath = p;
+    peek = '';
+    if (asked_part) { open = true; sheetOpen = true; } else sheetOpen = false;
+  });
+  onMount(() => {
+    const a = window.matchMedia('(max-width: 899px)');
+    const b = window.matchMedia('(min-width: 1280px)');
+    const f = () => { narrow = a.matches; wide = b.matches; };
+    f();
+    a.addEventListener('change', f);
+    b.addEventListener('change', f);
+    if (!solo) watchSolo();
+    return () => { a.removeEventListener('change', f); b.removeEventListener('change', f); };
+  });
+  $effect(() => { if (solo && id && asked_part) return announceSolo(id, asked_part); });
+
+  let peek = $state('');
+  let peekPart = $state<Part>('enonce');
+  const peeked = $derived(peek ? app.m.full[peek] : undefined);
+  function onpeek(cid: string) {
+    void app.ensureDossier(cid).then((c) => { if (c) { peek = cid; peekPart = autoPart(c, deriveNow(c, app.activeJob(cid))); open = true; sheetOpen = true; void focusSheet(); } });
+  }
+  const shown = $derived(narrow ? sheetOpen : open);
+  async function focusSheet() { if (narrow) { await tick(); document.getElementById('pane-close')?.focus(); } }
+  function go(p: Part) { if (peek) peekPart = p; else navigate(`/d/${encodeURIComponent(id)}/${p}`, { focus: false }); }
+  function show() { open = true; sheetOpen = true; void focusSheet(); }
+  function hide() {
+    if (narrow) { sheetOpen = false; if (asked_part) navigate(`/d/${encodeURIComponent(id)}`, { replace: true, focus: false }); } else open = false;
+    peek = '';
+    void tick().then(() => document.getElementById('pane-show')?.focus());
+  }
+  function setSplit(p: Part | '') {
+    split = p;
+    if (p && p === part) go(p === 'lean' ? 'preuve' : 'lean');
+  }
+  function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && narrow && sheetOpen && !e.defaultPrevented && !document.querySelector('dialog[open], [role=menu]')) { e.preventDefault(); hide(); } }
+
+  // --- resizing (pointer and keyboard)
+  let layoutEl: HTMLDivElement | undefined = $state();
+  const clamp = (x: number) => Math.min(70, Math.max(28, Math.round(x)));
+  function drag(e: PointerEvent) {
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => { const r = layoutEl!.getBoundingClientRect(); width = clamp(((r.right - ev.clientX) / r.width) * 100); };
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  }
+  function sepKey(e: KeyboardEvent) {
+    const s = e.key === 'ArrowLeft' ? 3 : e.key === 'ArrowRight' ? -3 : e.key === 'Home' ? 100 : e.key === 'End' ? -100 : 0;
+    if (s) { e.preventDefault(); width = clamp(width + s); }
+  }
+  let fh = $state(120);
+  async function jump(what: string) {
+    if (narrow) sheetOpen = false;
+    await tick();
+    const el = document.getElementById(`${what}-${id}`);
+    el?.scrollIntoView({ block: 'start' });
+    el?.focus({ preventScroll: true });
+  }
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 {#if loadError}
   <div class="state-msg">
@@ -98,92 +149,75 @@
   </div>
 {:else if !d}
   <div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span><div class="skel"></div></div>
-{:else}
-  <article class="dossier" class:research={prefs.mode === 'research'}>
-    <header class="dh">
-      {#if parent}<p class="crumb small"><a href="/d/{encodeURIComponent(parent.id)}">{parent.title}</a> › {t('dossier.lemma')}</p>{/if}
-      <div class="row title-row">
-        <StatusMark {phase} size={18} />
-        <InlineTitle id="dossier-title" value={d.title || d.theorem} label={t('dossier.titleEdit')} save={async (v) => { const r = await api.patchDossier(d.id, { title: v }); app.m.full[d.id] = r.dossier; const s = app.m.dossiers[d.id]; if (s) s.title = r.dossier.title; }} />
-      </div>
-      <div class="row meta small">
-        <span class="phase-txt">{tk(`phase.${phase}`, phase)}{#if job}&nbsp;— {tk(`stage.${job.stage}`, t('stage.starting'))}{#if sideStages(job).length} ({t('stage.alsoRunning', { list: sideStages(job).map((s) => tk(`stage.${s}`, s).toLowerCase()).join(', ') })}){/if}{#if job.waiting} · <span class="wait">{tk(`waiting.${job.waiting}`, '')}</span>{/if}{/if}</span>
-        {#if model.name}<span class="chip {model.local ? 'local' : 'online'}" title={providerName(model.provider)}><Icon name={model.local ? 'cpu' : 'cloud'} size={12} />{model.name}</span>{/if}
-        {#if conditional}<span class="chip running cond">{t('plan.conditional')}</span>{/if}
-        {#if recheck === 'pending' || recheck === 'regressed'}<span class="chip {recheck === 'regressed' ? 'failed' : 'running'}">{tk(`recheck.${recheck}`, recheck)}</span>{/if}
-        <span class="mono xs muted theorem-name" title={t('dossier.theoremName')}>{d.theorem}</span>
-        <span class="spacer"></span>
-        {#if job}<button class="btn small danger" onclick={() => stop(id)}><Icon name="stop" size={14} />{t('common.stop')}</button>{/if}
-        <HelpLink page={step === 'plan' ? 'proof-plans' : step === 'lean' ? 'reading-lean' : 'workflow'} />
-        <DossierMenu dossier={d} busy={Boolean(job)} />
-      </div>
-      <ConductorLine job={job ?? last} />
+{:else if solo}
+  <article class="dossier solo">
+    <header class="row sh">
+      <StatusMark {phase} size={16} /><h1>{t(`pane.${part}`)} — {d.title || d.theorem}</h1><span class="spacer"></span>
+      <button class="btn small" onclick={() => { window.close(); if (!window.closed) navigate(`/d/${encodeURIComponent(id)}/${part}`); }}><Icon name="undo" size={14} />{t('pane.back')}</button>
     </header>
-
-    <div class="tabs" role="tablist" aria-label={t('dossier.steps')}>
-      {#each steps as s, i (s)}
-        {@const st = stepState[s]}
-        <button id="tab-{s}" role="tab" class="tab {st}" aria-selected={step === s} aria-controls="panel-{s}" tabindex={step === s ? 0 : -1}
-          onclick={() => go(s)} onkeydown={(e) => tabKey(e, i)}>
-          <span class="num" aria-hidden="true">{i + 1}</span>
-          <span class="tl">{t(`step.${s}`)}</span>
-          <span class="ts xs">{t(`stepstate.${st}`)}</span>
-        </button>
-      {/each}
+    {#if job && now}<p class="small livenote" role="status">{t('flow.liveInThread')} <a href="/d/{encodeURIComponent(id)}">{t('flow.toThread')}</a></p>{/if}
+    <PartView dossier={d} {job} {part} />
+  </article>
+{:else}
+  <article class="dossier" class:research={prefs.mode === 'research'} style:--fh="{fh}px" style:--pane="{width}%">
+    <div class="fixedpart" inert={narrow && shown}>
+      <header class="dh">
+        {#if parent}<p class="crumb small"><a href="/d/{encodeURIComponent(parent.id)}">{parent.title}</a> › {t('dossier.lemma')}</p>{/if}
+        <div class="row title-row">
+          <StatusMark {phase} size={18} />
+          <InlineTitle id="dossier-title" value={d.title || d.theorem} label={t('dossier.titleEdit')} save={async (v) => { const r = await api.patchDossier(d.id, { title: v }); app.m.full[d.id] = r.dossier; const s = app.m.dossiers[d.id]; if (s) s.title = r.dossier.title; }} />
+          <span class="spacer"></span>
+          {#if isConditional(d)}<span class="chip running cond">{t('plan.conditional')}</span>{/if}
+          {#if recheck === 'pending' || recheck === 'regressed'}<span class="chip {recheck === 'regressed' ? 'failed' : 'running'}">{tk(`recheck.${recheck}`, recheck)}</span>{/if}
+          <div class="row tools"><HelpLink page="workflow" /><DossierMenu dossier={d} busy={Boolean(job)} />
+            {#if !shown}<button id="pane-show" class="btn" aria-expanded="false" onclick={show}><Icon name="book" size={16} />{t('pane.show')}</button>{/if}</div>
+        </div>
+        <ConductorLine job={job ?? last} />
+      </header>
     </div>
+    <div class="sticky" bind:clientHeight={fh} inert={narrow && shown}><FlowHeader dossier={d} {job} {last} {now} waitingChildren={waiting.length} {jump} /></div>
 
-    <div class="layout" class:solo={step === 'plan'}>
-      <div id="panel-{step}" class="panel-step" role="tabpanel" aria-labelledby="tab-{step}">
-        {#if step === 'enonce'}<StepStatement dossier={d} {job} />
-        {:else if step === 'lean'}<StepLean dossier={d} {job} />
-        {:else if step === 'preuve'}<StepProof dossier={d} {job} />
-        {:else}{#await loadPlan()}<div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span><div class="skel"></div></div>{:then PlanTree}<PlanTree dossier={d} />{/await}{/if}
+    <div class="layout" class:pane={shown && !narrow} bind:this={layoutEl}>
+      <div class="main" inert={narrow && shown}>
+        <Thread dossier={d} {job} {last} {now} {waiting} {onpeek} />
       </div>
-      <aside class="side" aria-label={t('thread.title')}>
-        <Thread dossier={d} {job} />
-      </aside>
+      {#if shown}
+        {#if !narrow}
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (a focusable separator is the ARIA window splitter) -->
+          <div class="sep" role="separator" aria-orientation="vertical" aria-label={t('pane.resize')} aria-valuenow={width} aria-valuemin={28} aria-valuemax={70} tabindex="0" onpointerdown={drag} onkeydown={sepKey}></div>
+        {/if}
+        {@const pd = peeked ?? d}
+        <aside class="side" class:sheet={narrow} aria-label={t('pane.title')} role={narrow ? 'dialog' : undefined}>
+          {#key pd.id}<Pane dossier={pd} job={peeked ? app.activeJob(pd.id) : job} part={peeked ? peekPart : part} split={wide ? split : ''} sheet={narrow} peek={Boolean(peeked)}
+            ontab={go} onsplit={setSplit} onclose={hide} onpeekback={() => (peek = '')} />{/key}
+        </aside>
+      {/if}
     </div>
   </article>
 {/if}
 
 <style>
-  .dossier { max-width: 1500px; }
+  .dossier { max-width: 1900px; margin: 0 auto calc(-1 * var(--s-6)); }
+  .dossier.solo { margin-bottom: 0; }
   .crumb { margin: 0 0 4px; color: var(--text-2); }
-  .title-row { flex-wrap: nowrap; align-items: baseline; gap: 10px; }
-  .meta { margin: 6px 0 var(--s-4); color: var(--text-2); }
-  .wait { color: var(--running); font-weight: 600; }
-  .theorem-name { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip :global(.ico) { margin-right: 2px; }
-  .tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-bottom: 1px solid var(--line); margin-bottom: var(--s-4); position: sticky; top: var(--topbar-h); z-index: 50; background: var(--bg); }
-  .tab { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; min-height: 56px; padding: 8px 12px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--text-2); cursor: pointer; font: inherit; }
-  .tab:hover { background: var(--surface-2); }
-  .tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--laterite-mark); }
-  .num { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--line-strong); font-weight: 700; font-size: var(--fs-sm); }
-  .tab.done .num { background: var(--proved); border-color: var(--proved); color: var(--surface); }
-  .tab.running .num { border-color: var(--running-fill); background: var(--running-soft); color: var(--running); }
-  .tab.queued .num { border-style: dashed; }
-  .tab.failed .num { border-color: var(--failed); color: var(--failed); }
-  .tab.conditional .num { border: 2px dashed var(--running-fill); color: var(--running); }
-  .tab.conditional .ts { color: var(--running); font-weight: 600; }
+  .title-row { align-items: center; gap: 10px; margin-bottom: var(--s-2); }
+  .title-row :global(h1) { margin: 0; }
+  .tools { gap: 4px; }
   .cond { border: 1.5px dashed var(--running); }
-  .tl { font-weight: 700; font-family: var(--font-serif); font-size: 1.0625rem; }
-  .ts { color: var(--text-3); }
-  .tab.running .ts { color: var(--running); font-weight: 600; }
-  .tab.failed .ts { color: var(--failed); font-weight: 600; }
-  .tab.done .ts { color: var(--proved); }
-  .layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--inspector-w); gap: var(--s-5); align-items: start; }
-  .side { position: sticky; top: calc(var(--topbar-h) + 72px); max-height: calc(100dvh - var(--topbar-h) - 88px); overflow: auto; }
-  @media (max-width: 1279px) { .layout { grid-template-columns: minmax(0, 1fr); } .side { position: static; max-height: none; } }
-  /* the plan's mind map needs the width: the thread goes below it */
-  .layout.solo { grid-template-columns: minmax(0, 1fr); }
-  .layout.solo .side { position: static; max-height: none; }
-  @media (max-width: 767px) {
-    .tab { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 6px 4px; min-height: 60px; }
-    .num { grid-row: auto; }
-    .tl { font-size: var(--fs-sm); }
-    .ts { display: none; }
-    .theorem-name { display: none; }
-  }
+  .sticky { position: sticky; top: var(--topbar-h); z-index: 60; margin-bottom: var(--s-3); }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .main { width: 100%; max-width: 62rem; margin: 0 auto; min-width: 0; min-height: calc(100dvh - var(--topbar-h) - var(--fh) - 170px); display: grid; }
+  .layout.pane { grid-template-columns: minmax(0, 1fr) 14px minmax(0, var(--pane)); }
+  .side { min-width: 0; position: sticky; top: calc(var(--topbar-h) + var(--fh) + 12px); height: calc(100dvh - var(--topbar-h) - var(--fh) - 24px); }
+  .sep { align-self: stretch; cursor: col-resize; touch-action: none; position: relative; }
+  .sep::after { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--line); border-radius: 2px; }
+  .sep:hover::after, .sep:focus-visible::after { background: var(--accent); width: 3px; }
+  .side.sheet { position: fixed; inset: var(--topbar-h) 0 0; height: auto; z-index: 450; background: var(--bg); }
+  .solo { max-width: 1200px; }
+  .sh { margin-bottom: var(--s-3); }
+  .sh h1 { margin: 0; font-size: var(--fs-lg); }
+  .livenote { background: var(--running-soft); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); }
+  @media (max-width: 767px) { .dossier:not(.solo) { margin-bottom: calc(-1 * var(--s-5)); } .title-row { gap: 6px; } .tools { width: 100%; justify-content: flex-end; } .main { min-height: 0; } .title-row :global(h1) { flex: 1 1 60%; } }
   .state-msg { max-width: 36rem; }
   .skel { height: 32px; width: 40%; background: var(--surface-2); border-radius: var(--r-2); }
 </style>

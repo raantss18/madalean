@@ -13,7 +13,7 @@ test('two browser contexts stay in sync live (dossier, status, settings, deletio
   await a.keyboard.type('theorem sync_t (a b : ℕ) (ha : Even a) (hb : Even b) : Even (a + b) := by sorry');
   await a.getByLabel('Titre du dossier').fill('Synchronisé');
   await a.getByRole('button', { name: 'Prouver cet énoncé' }).click();
-  await expect(a).toHaveURL(/\/d\/.+\/preuve/);
+  await expect(a).toHaveURL(/\/d\/.+/);
   const id = a.url().split('/d/')[1]!.split('/')[0]!;
   await b.goto(`${process.env['MADALEAN_URL']}/d/${id}`);
   await expect(b.getByRole('heading', { level: 1, name: 'Synchronisé' })).toBeVisible();

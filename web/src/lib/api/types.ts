@@ -30,14 +30,37 @@ export interface Version {
 }
 export type VersionKind = 'statement' | 'proof' | 'explanation';
 
-export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'check' | 'proof' | 'explanation' | 'informal' | 'info' | 'error' | 'certificate' | 'literature';
+export type EventKind = 'user' | 'understood' | 'statement' | 'notes' | 'check' | 'proof' | 'explanation' | 'informal' | 'info' | 'error' | 'certificate' | 'literature' | 'report';
 /** `check` event params (statement check, S-K). */
 export interface CheckIssue { kind: string; severity: 'high' | 'low'; explanation: string; fix: string; checked: string }
 export type CheckVerdict = 'faithful' | 'doubtful' | 'false' | 'unknown';
 export interface DossierEvent {
   kind: EventKind; text: string; t: number; ref: number | null; stage: string; model: string; key: string;
   params: Record<string, unknown>; job: string;
+  /** D64 (docs/DOSSIER_FLOW.md): absent on old events. */
+  phase?: FlowPhase; run?: string; attempt?: number;
 }
+export type FlowPhase = 'understand' | 'translate' | 'literature' | 'decompose' | 'prove' | 'verify' | 'explain';
+type Activity = string | { key: string; params?: Record<string, unknown> };
+export interface DossierNow {
+  phase: FlowPhase; run: string; attempt: number; activity: Activity; params?: Record<string, unknown>; model: string;
+  started: number; waiting: '' | 'user' | 'slot' | 'quota';
+  side: { phase: FlowPhase; activity: Activity; params?: Record<string, unknown> }[];
+}
+export type KnownStatus = 'known' | 'open' | 'false' | 'unclear' | 'unknown';
+export interface KnownResult { id: string; title: string; statement: string; source?: string | { title?: string; url?: string }; dossier_id?: string }
+export interface GateMeaning {
+  restated: string; objects: { name: string; meaning: string }[]; hypotheses: string[]; claim: string; known_status: KnownStatus;
+  status_sources: { title: string; url: string; quote: string }[]; status_confidence: 'cited' | 'model_only';
+  known_results: KnownResult[]; questions: string[];
+}
+export interface GateCandidate { version: number; code: string; back_translation: string; model: string; objects_missing: string[]; verdict: string; reasons: string[] }
+export interface GateStatement { candidates: GateCandidate[]; chosen: number; agreement: 'equivalent' | 'different' | 'single' | 'unchecked' }
+export interface Gate {
+  id: string; kind: 'meaning' | 'statement'; state: 'pending' | 'approved' | 'rejected'; version: number; t: number;
+  meaning?: Partial<GateMeaning>; statement?: Partial<GateStatement>;
+}
+export type ReportReason = 'wrong_object' | 'too_general' | 'missing_hypothesis' | 'wrong_claim' | 'ignored_request' | 'other';
 
 export type DossierStatus = 'draft' | 'translating' | 'proving' | 'proved' | 'failed' | 'stopped';
 export interface Dossier {
@@ -52,12 +75,13 @@ export interface Dossier {
   uses: string[];
   current: { statement: string; proof: string; explanation: string; statement_notes: string; informal_proof: string;
     proof_is_current: boolean };
+  now?: DossierNow | null; gate?: Gate | null;
   [extra: string]: unknown;
 }
 export interface DossierSummary {
   id: string; title: string; project_id: string; status: DossierStatus; parent_id: string; kind: string;
   theorem: string; workspace: string; created: number; updated: number; archived: boolean;
-  has_statement: boolean; proved: boolean;
+  has_statement: boolean; proved: boolean; gate?: Gate | null; now?: DossierNow | null;
 }
 
 export interface Attempt {

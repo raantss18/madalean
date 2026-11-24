@@ -22,4 +22,9 @@ describe('untrusted Markdown', () => {
     expect(html).not.toContain('class="x"');
     expect(renderInline('<svg onload=alert(1)>')).not.toContain('<svg');
   });
+  it('a formula may start with a digit; prices stay text (S-BH)', () => {
+    expect(renderMarkdown('vaut $6$ et $5 \\le x$')).not.toContain('$');
+    expect(renderMarkdown('from $5 to $10')).toContain('$5 to $10');
+    expect(renderMarkdown('$5 and $6')).toContain('$5 and $6');
+  });
 });

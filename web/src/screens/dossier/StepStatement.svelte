@@ -5,7 +5,6 @@
   import { modelLabel } from '../../lib/status';
   import CodeEditor from '../../components/CodeEditor.svelte';
   import Md from '../../components/Md.svelte';
-  import StreamView from '../../components/StreamView.svelte';
   import { run } from './actions';
   import { onDestroy, untrack } from 'svelte';
   import { api } from '../../lib/api/client';
@@ -34,7 +33,7 @@
     if (!text.trim()) return;
     if (!(await saver.flush()) && saver.status !== 'saved') return;
     editing = false;
-    if (await run(d.id, ['understand', 'statement'])) navigate(`/d/${encodeURIComponent(d.id)}/lean`);
+    if (await run(d.id, ['understand', 'statement'])) navigate(`/d/${encodeURIComponent(d.id)}`);
   }
 </script>
 
@@ -65,15 +64,14 @@
   <section class="panel" aria-labelledby="und-h">
     <h2 id="und-h">{t('enonce.understood')}</h2>
     {#if translating && job}
-      <p class="small">{t('enonce.understanding')}</p>
-      <StreamView jobId={job.id} stage={job.stage} maxHeight="240px" />
+      <p class="small">{t('flow.liveInThread')}</p>
     {:else if d.understood_display}
       <p class="hint">{t('enonce.understoodHint')}</p>
       <div class="theorem understood"><Md src={d.understood_display} cls="th-body" /></div>
       {#if understoodEvent?.model}<p class="xs muted">{t('common.by', { model: modelLabel(understoodEvent.model).name })}</p>{/if}
     {:else}
       <p class="muted small">{d.statements.length ? t('enonce.leanOnly') : t('enonce.notYet')}</p>
-      {#if d.problem && !job}<button class="btn primary" onclick={async () => { if (await run(d.id, ['understand', 'statement'])) navigate(`/d/${encodeURIComponent(d.id)}/lean`); }}>{t('enonce.translate')}</button>{/if}
+      {#if d.problem && !job && d.gate?.state !== 'pending'}<button class="btn primary" onclick={async () => { if (await run(d.id, ['understand', 'statement'])) navigate(`/d/${encodeURIComponent(d.id)}`); }}>{t('enonce.translate')}</button>{/if}
     {/if}
   </section>
 </div>

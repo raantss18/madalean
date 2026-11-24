@@ -22,10 +22,10 @@ test('409 busy is explained with a « stop » action', async ({ page }) => {
   await open(page, '/', { mode: 'research' });
   const { dossier } = await api<{ dossier: { id: string } }>('POST', '/dossiers', { problem: 'Montrer que 2 + 2 = 4.', title: 'Occupé' });
   await page.goto(`${process.env['MADALEAN_URL']}/d/${dossier.id}/lean`);
-  // While it works, the thread offers « Arrêter » instead of sending; quick API call to provoke 409:
+  // While it works, the header offers « Arrêter »; quick API call to provoke 409:
   const r = await page.request.post(`${process.env['MADALEAN_URL']}/api/dossiers/${dossier.id}/message`, { data: { text: 'x', stage: 'auto' } });
   expect([202, 409]).toContain(r.status());
-  await expect(page.locator('aside').getByRole('button', { name: 'Arrêter' })).toBeVisible();
-  await page.locator('aside').getByRole('button', { name: 'Arrêter' }).click();
+  await expect(page.getByRole('region', { name: 'Avancement du dossier' }).getByRole('button', { name: 'Arrêter' })).toBeVisible();
+  await page.getByRole('region', { name: 'Avancement du dossier' }).getByRole('button', { name: 'Arrêter' }).click();
   await expect.poll(async () => (await api<{ job: unknown }>('GET', `/dossiers/${dossier.id}`)).job, { timeout: 15_000 }).toBeNull();
 });

@@ -37,7 +37,7 @@
   {/if}
   {#if actions && verdict !== 'faithful' && verdict !== 'unknown'}
     <div class="row">
-      {#if fix}<button class="btn small primary" disabled={busy} onclick={() => follow(id, fix, 'statement')}>{t('check.fixWith', { fix })}</button>{/if}
+      {#if fix}<button class="btn small primary" disabled={busy} onclick={() => follow(id, fix, 'statement')}>{t('check.fixWith', { fix })}</button>{#if params.changes_statement}<span class="chip running">{t('check.changes')}</span>{/if}{/if}
       <button class="btn small" disabled={busy} onclick={() => run(id, [{ stage: 'proof', force: true }, 'explanation'])}>{t('check.proveAnyway')}</button>
     </div>
   {/if}

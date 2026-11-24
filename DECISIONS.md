@@ -1474,3 +1474,17 @@
   automatically; (3) the user ALWAYS validates the meaning, then the Lean statement, before any proof (including
   sub-dossiers: one card can approve several statements); (4) « Mal compris » reporting everywhere, and its
   corrections feed the lessons.
+
+## D66 — The dossier is one thread with a separable pane (S-BH, 2026-11-24)
+- The screen had three places telling the same story (step tabs, panels, side thread) and none said which phase was
+  running. Now: a sticky header (stepper + ONE « En ce moment » line), ONE chronological thread at the centre, and a
+  pane of reference views. Live model output exists only at the end of the thread.
+- `lib/flow.ts` is the only place that derives `now`, the steps and the thread (pure, unit tested). `dossier.now` and
+  `gate` win; without them everything falls back on the job, `stage` and `kind`, so old dossiers and servers work. The
+  old stage `verify` (check of the STATEMENT) maps to « Traduire », never to « Vérifier ».
+- Events keep the server's order; attempts, sub-dossiers, gates and reports are inserted by time. A `user` event starts
+  a run; a run that comes back after another one is shown again as « suite », never moved: strict chronology wins.
+- A part is separated with `?solo=1` (no bars) and a BroadcastChannel that only says which windows are open; the data
+  is synced by the normal WebSocket. Old addresses `/d/:id/<part>` open the pane tab.
+- « Lean accepte l'énoncé » became « Lean comprend le code », never green; « prouvé » appears only after verification.
+- While a gate is pending the pane offers no « Prouver » / « Traduire »: one question, in one place.

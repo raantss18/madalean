@@ -30,7 +30,7 @@ function mathInline(state: StateInline, silent: boolean): boolean {
   else if (src.startsWith('\\(', start)) { open = '\\('; close = '\\)'; }
   else if (src.startsWith('\\[', start)) { open = '\\['; close = '\\]'; }
   else return false;
-  if (open === '$' && /[\s\d]/.test(src[start + 1] ?? ' ')) return false;   // "$ 5" / "$5" are not maths
+  if (open === '$' && /\s/.test(src[start + 1] ?? ' ')) return false;   // "$ 5" is not maths
   let pos = start + open.length;
   let end = -1;
   while (pos < state.posMax) {
@@ -40,7 +40,8 @@ function mathInline(state: StateInline, silent: boolean): boolean {
     pos = i + 1;
   }
   if (end < 0 || end === start + open.length) return false;
-  if (open === '$' && /\s/.test(src[end - 1] ?? '')) return false;
+  // prices (« $5 and $6 »): the closing $ follows a space or precedes a digit; « $6$ » and « $5 \le x$ » are maths
+  if (open === '$' && (/\s/.test(src[end - 1] ?? '') || /\d/.test(src[end + 1] ?? ''))) return false;
   if (!silent) {
     const tok = state.push('math', 'math', 0);
     tok.content = src.slice(start + open.length, end);

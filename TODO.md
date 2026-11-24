@@ -145,7 +145,7 @@ gagne sur la confiance (tout est revérifiable), le coût (preuve vérifiée par
 Cas d'échec réel : « le nombre chromatique du plan est 6 » (dossier 20261124-072123-e433).
 1. ⬜ Comprendre et traduire fidèlement (S-BG) : problème ouvert reconnu, résultats connus en sous-dossiers,
    validation toujours demandée (sens puis énoncé Lean), « Mal compris », deux traductions, refus des énoncés vides
-2. ⬜ Fil unique chronologique + volet, parties séparables, « En ce moment » toujours exact (S-BH)
+2. ✅ (S-BH, interface ; à essayer avec le vrai serveur S-BG) Fil unique chronologique + volet, parties séparables, « En ce moment » toujours exact (S-BH)
 3. ⬜ Mieux prouver et apprendre de ses échecs (S-BI, après 1 et 2)
 Deux sessions au plus en même temps (quota).
 

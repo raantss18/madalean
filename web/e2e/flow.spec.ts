@@ -11,10 +11,12 @@ test('statement → Lean → proof → export, follow-up, version restore', asyn
   await page.keyboard.type('Montrer que la somme de deux entiers pairs est paire. $a+b$');
   await expect(page.locator('.preview-box .katex').first()).toBeVisible();
   await page.getByRole('button', { name: 'Traduire et prouver' }).click();
-  // (b) Traduction Lean: lands on the Lean step, streaming then the statement.
+  // (b) S-BH: lands on the thread; the live output streams there, the Lean tab of the pane shows the statement.
+  await expect(page).toHaveURL(/\/d\/[^/]+$/);
+  await page.getByRole('tab', { name: 'Lean', exact: true }).click();
   await expect(page).toHaveURL(/\/d\/[^/]+\/lean$/);
-  await expect(page.getByRole('tab', { name: /Traduction Lean/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByText('Lean accepte l’énoncé').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('tab', { name: 'Lean', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.lean-step').getByText('Lean comprend le code').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.cm-content').first()).toContainText('Even (a + b)');
   // (c) Preuve: the pipeline continues by itself; go to the proof step and wait for the verdict.
   await page.getByRole('tab', { name: /Preuve/ }).click();
@@ -30,7 +32,7 @@ test('statement → Lean → proof → export, follow-up, version restore', asyn
   // Follow-up in the thread.
   const box = page.getByRole('textbox', { name: 'Une précision, une correction ?' });
   await box.fill('Trouve une preuve plus courte.');
-  await page.getByRole('combobox', { name: 'Ce qui doit changer' }).selectOption('proof');
+  await page.getByRole('combobox', { name: 'À propos de' }).selectOption('proof');
   await page.getByRole('button', { name: 'Envoyer' }).click();
   await expect(page.locator('.ev.user').last()).toContainText('Trouve une preuve plus courte.');
   await expect.poll(async () => (await api<{ dossier: { proofs: unknown[] }; job: unknown }>('GET', `/dossiers/${id}`)).job, { timeout: 45_000 }).toBeNull();

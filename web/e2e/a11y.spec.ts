@@ -9,7 +9,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await axe(page, `home ${scheme}`);
     for (const path of [`/d/${d.id}/enonce`, `/d/${d.id}/lean`, `/d/${d.id}/preuve`, '/activite', '/actualites', '/bibliotheque', '/glossaire', '/carnet',
       '/reglages/modeles', '/reglages/appareils', '/reglages/systeme', '/reglages/apparence', '/reglages/mises-a-jour',
-      '/projet', '/sources', '/notes', '/graphe', '/blueprint', '/article', '/conjectures', '/explorer', '/calcul', '/publier', '/aide', '/aide/pairing', `/d/${d.id}/plan`]) {
+      '/projet', '/sources', '/notes', '/graphe', '/blueprint', '/article', '/conjectures', '/explorer', '/calcul', '/publier', '/aide', '/aide/pairing', `/d/${d.id}`, `/d/${d.id}/plan`, `/d/${d.id}/litterature`, `/d/${d.id}/versions`, `/d/${d.id}/lean?solo=1`]) {
       await page.goto(process.env['MADALEAN_URL'] + path);
       await page.waitForTimeout(500);
       await axe(page, `${path} ${scheme}`);
@@ -21,7 +21,7 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
-test('keyboard: skip link, command palette, step tabs with arrows, Escape closes', async ({ page }) => {
+test('keyboard: skip link, command palette, pane tabs with arrows, Escape closes', async ({ page }) => {
   await open(page, '/', { mode: 'research' });
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Aller au contenu' })).toBeFocused();

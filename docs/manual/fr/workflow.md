@@ -4,14 +4,37 @@ title: De l'énoncé à la preuve
 order: 100
 section: use
 audience: all
-summary: Les quatre étapes d'un dossier — énoncé, traduction Lean, preuve, explication — puis l'export.
+summary: Un dossier en un seul fil — comprendre, traduire, prouver, vérifier — puis l'explication et l'export.
 ---
 
 # De l'énoncé à la preuve
 
-Chaque problème vit dans un **dossier**. Un dossier suit quatre étapes, visibles en haut de l'écran :
-**Énoncé › Traduction Lean › Preuve**, puis l'explication. Le **fil du dossier**, à droite, garde la trace de tout
-ce qui s'est passé et reçoit vos demandes de suivi.
+Chaque problème vit dans un **dossier**. En haut de l'écran, quatre étapes disent où vous en êtes :
+**Comprendre › Traduire › Prouver › Vérifier**, chacune « pas commencé », « en cours », « vous attend », « fait » ou
+« échec ». Juste dessous, une seule ligne **« En ce moment »** dit ce que fait Madalean, le numéro de l'essai, le
+modèle, depuis combien de temps et ce qui tourne à côté ; « Arrêter » est toujours là. Si c'est à vous de répondre,
+elle le dit et vous y mène ; en cas d'échec, elle mène à ce qui a été essayé, à la dernière cause et aux suites possibles.
+
+Au centre, le **fil** raconte tout dans l'ordre : vos demandes, puis chaque phase, ses essais (repliés), les réponses
+des modèles en direct, les sous-dossiers là où ils ont été créés. Des filtres montrent seulement vos demandes, les
+résultats, les contrôles ou les essais. Le champ du bas dit **à propos de** quoi porte votre demande.
+
+À côté, le **volet** garde les références : Énoncé, Lean, Preuve, Sous-lemmes (arbre, plan et graphe), Littérature,
+Calculs, Versions. « Séparer » met une partie dans sa propre fenêtre ou dans une colonne, « Remettre » la ramène. Le
+volet se redimensionne et se masque ; sur téléphone, le bouton « Références » l'ouvre par-dessus le fil.
+
+### Vos deux accords
+
+Avant toute preuve, Madalean vous montre ce qu'il a **compris** (texte reformulé, objets, hypothèses, affirmation, ce
+qu'on en sait avec les citations), puis l'**énoncé Lean** avec sa relecture en langage courant. Pour chacun :
+« Approuver », « Corriger » ou « Refuser ». « Lean comprend le code » ne veut dire ni « fidèle » ni « prouvé ». Un
+problème ouvert est annoncé comme tel ; les résultats connus autour deviennent des sous-dossiers qu'une seule carte
+permet d'approuver. Le statut « d'après un modèle, à vérifier » n'a pas de référence.
+
+### « Mal compris »
+
+Sur le sens, l'énoncé, la preuve ou un message, « Mal compris » signale une mauvaise interprétation : une raison, un
+mot d'explication, et l'étape est refaite avec votre remarque.
 
 ## 1. Écrire l'énoncé
 
@@ -29,7 +52,7 @@ et la conclusion.
 
 Un premier modèle reformule votre demande en énoncé mathématique précis (« théorème de la base incomplète » devient
 « toute famille libre d'un espace vectoriel de dimension finie se complète en une base »). Un second la traduit en
-Lean ; **Lean vérifie que l'énoncé est bien formé** avant d'aller plus loin. Le badge « Lean accepte l'énoncé »
+Lean ; **Lean vérifie que l'énoncé est bien formé** avant d'aller plus loin. La mention « Lean comprend le code »
 signifie seulement que l'énoncé a un sens pour Lean, pas qu'il est vrai, ni qu'il dit ce que vous vouliez.
 
 ![Énoncé Lean à côté du texte d'origine](../img/lean-statement.png)
@@ -56,7 +79,7 @@ Quelle que soit la méthode, la preuve finale est **revérifiée par le serveur*
 « Preuve vérifiée par Lean » donne la version de Lean, la révision de Mathlib, la durée, le nombre d'essais, le
 modèle qui l'a écrite et les axiomes utilisés.
 
-Pendant la recherche, vous voyez le texte des modèles arriver en direct et chaque essai compilé. « Arrêter » coupe
+Pendant la recherche, le texte des modèles arrive en direct à la fin du fil, avec chaque essai compilé. « Arrêter » coupe
 tout, à tout moment (requête au modèle et compilation Lean).
 
 En mode *Apprendre*, la preuve n'est pas montrée tout de suite : une échelle d'indices (coup de pouce, stratégie,

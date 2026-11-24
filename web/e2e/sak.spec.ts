@@ -152,7 +152,7 @@ test('Enter sends, Shift+Enter is a new line: new problem, follow-up request', a
   await expect(page.locator('.cm-line')).toHaveCount(2);
   await expect(page.getByText('Entrée pour envoyer · Maj+Entrée pour aller à la ligne').first()).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/d\/[^/]+\/lean/);
+  await expect(page).toHaveURL(/\/d\/[^/]+$/);
   const id = new URL(page.url()).pathname.split('/')[2]!;
   // follow-up request in the thread: Shift+Enter keeps writing, Enter sends
   const box = page.locator(`#follow-${id}`);

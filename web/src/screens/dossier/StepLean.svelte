@@ -14,8 +14,8 @@
   import type { GlossEntry } from '../../lib/lean/glossary';
   import CodeEditor from '../../components/CodeEditor.svelte';
   import Md from '../../components/Md.svelte';
-  import StreamView from '../../components/StreamView.svelte';
   import CheckResultView from '../../components/CheckResultView.svelte';
+  import { pendingGate } from '../../lib/flow';
   import Versions from './Versions.svelte';
   import ExplainBack from './ExplainBack.svelte';
   import { follow, run, reportError, verify as verifyStatement } from './actions';
@@ -45,6 +45,7 @@
   let ctl: AbortController | null = null;
 
   const v = $derived(d.statements[d.cur_statement]);
+  const gated = $derived(Boolean(pendingGate(d)));
   const statement = $derived(d.current.statement);
   const running = $derived(job && ['understand', 'route', 'statement', 'notes'].includes(job.stage));
   const notes = $derived(d.current.statement_notes);
@@ -90,7 +91,7 @@
     if (await follow(d.id, correction.trim(), 'statement')) { correction = ''; correcting = false; }
   }
   async function prove() {
-    if (await run(d.id, d.statement_notes.some((n) => n.parent === d.cur_statement) || !app.m.settings?.statement_notes ? ['proof', 'explanation'] : ['notes', 'proof', 'explanation'])) navigate(`/d/${encodeURIComponent(d.id)}/preuve`);
+    if (await run(d.id, d.statement_notes.some((n) => n.parent === d.cur_statement) || !app.m.settings?.statement_notes ? ['proof', 'explanation'] : ['notes', 'proof', 'explanation'])) navigate(`/d/${encodeURIComponent(d.id)}`);
   }
   async function makeNotes() { await run(d.id, ['notes']); }
 </script>
@@ -110,11 +111,10 @@
 
     <section class="panel" aria-labelledby="lean-h">
       <div class="row"><h2 id="lean-h">{t('lean.leanStatement')}</h2><span class="spacer"></span>
-        {#if v}<span class="chip {v.ok ? 'proved' : 'failed'}">{v.ok ? t('lean.accepted') : t('lean.rejected')}</span>{/if}
+        {#if v}<span class="chip {v.ok ? '' : 'failed'}" title={t('gate.statementNote')}>{v.ok ? t('lean.accepted') : t('lean.rejected')}</span>{/if}
       </div>
       {#if running && job && (job.stage === 'statement' || !statement)}
-        <p class="small">{tk(`stage.${job.stage}`, '')}…</p>
-        <StreamView jobId={job.id} stage={job.stage} maxHeight="300px" />
+        <p class="small">{tk(`stage.${job.stage}`, '')}… {t('flow.liveInThread')}</p>
       {:else if statement}
         {#if v}<p class="xs muted">{v.source === 'user' ? t('versions.byYou') : t('common.by', { model: modelLabel(v.model).name || t('versions.byAi') })}{#if v.note} — {v.note}{/if}</p>{/if}
         {#if editing && serverChangedWhileEditing}<p class="notice small" role="status">{t('lean.serverChanged')} <button class="btn small" onclick={() => { code = statement; editBase = statement; serverChangedWhileEditing = false; }}>{t('lean.takeServer')}</button></p>{/if}
@@ -146,8 +146,9 @@
           </div>
         {/if}
         {#if check}<CheckResultView {check} />{/if}
-        {#if v?.meta?.check}<StatementVerdict id={d.id} params={v.meta.check as Record<string, unknown>} busy={Boolean(job)} actions={!d.proofs.some((p) => p.parent === d.cur_statement && p.ok)} />{/if}
-        {#if !job && !d.proofs.some((p) => p.parent === d.cur_statement) && v?.ok}
+        {#if v?.meta?.check}<StatementVerdict id={d.id} params={v.meta.check as Record<string, unknown>} busy={Boolean(job)} actions={!gated && !d.proofs.some((p) => p.parent === d.cur_statement && p.ok)} />{/if}
+        {#if gated}<p class="notice small">{t('gate.pendingElsewhere')}</p>{/if}
+        {#if !gated && !job && !d.proofs.some((p) => p.parent === d.cur_statement) && v?.ok}
           <div class="next">
             <button class="btn primary" onclick={prove}>{t('lean.prove')}</button>
             <span class="hint">{t('lean.proveHint')}</span>
@@ -171,7 +172,7 @@
         <div class="learn-grid">
           <div>
             <h3>{t('learn.gloss')}</h3>
-            {#if job && jobRuns(job, 'notes')}<StreamView jobId={job.id} stage="notes" maxHeight="220px" />
+            {#if job && jobRuns(job, 'notes')}<p class="small">{t('flow.liveInThread')}</p>
             {:else if notes}<Md src={notes} cls="gloss" />
             {:else}<p class="muted small">{t('learn.noGloss')}</p>{#if !job}<button class="btn small" onclick={makeNotes}>{t('learn.makeGloss')}</button>{/if}{/if}
           </div>
@@ -200,6 +201,8 @@
 <style>
   .compare { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: var(--s-4); align-items: start; }
   @media (max-width: 1023px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+  @container part (max-width: 900px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+  @container part (max-width: 640px) { .learn-grid { grid-template-columns: minmax(0, 1fr) !important; } }
   h2 { margin: 0; }
   .sub { margin: var(--s-3) 0 4px; font-size: var(--fs-sm); color: var(--text-2); }
   .theorem { margin-top: var(--s-2); }

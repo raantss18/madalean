@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Step 3 « Preuve »: attempts streaming live, Lean's verdict, the verified proof, the natural-language proof
-  // and the tactic-by-tactic explanation, quick actions, lemmas, versions, Learn-mode hint ladder and exercise.
+  // Pane « Preuve »: Lean's verdict, the verified proof, the natural-language proof
+  // and the tactic-by-tactic explanation, quick actions, versions, Learn-mode hint ladder and exercise.
   import type { Dossier, Job, Attempt } from '../../lib/api/types';
   import { app } from '../../lib/store/app.svelte';
   import { t, tk, fmtTime, fmtDuration } from '../../lib/i18n/index.svelte';
@@ -8,7 +8,6 @@
   import { modelLabel, phaseOf, providerName } from '../../lib/status';
   import CodeEditor from '../../components/CodeEditor.svelte';
   import Md from '../../components/Md.svelte';
-  import StreamView from '../../components/StreamView.svelte';
   import StatusMark from '../../components/StatusMark.svelte';
   import Icon from '../../components/Icon.svelte';
   import Versions from './Versions.svelte';
@@ -19,25 +18,18 @@
   import SplitDialog from './SplitDialog.svelte';
   import { follow, run, reportError } from './actions';
   import LeanExplain from '../../components/LeanExplain.svelte';
+  import { pendingGate } from '../../lib/flow';
   import { api } from '../../lib/api/client';
   import { toast } from '../../lib/ui/toasts.svelte';
-  import { navigate } from '../../lib/router.svelte';
 
   let { dossier: d, job }: { dossier: Dossier; job: Job | undefined } = $props();
   let mlOpen = $state(false);
-  // S-AX (D56): the « Littérature » panel is its own chunk, fetched with the proof step
-  let litChunk: Promise<typeof import('./LiteraturePanel.svelte').default> | null = null;
-  function loadLit() {
-    litChunk ??= import('./LiteraturePanel.svelte').then((m) => m.default);
-    litChunk.catch(() => { litChunk = null; });
-    return litChunk;
-  }
+  const gated = $derived(Boolean(pendingGate(d)));
   const proving = $derived(job && ['proof', 'explanation', 'informal'].includes(job.stage));
   const proofV = $derived(d.proofs[d.cur_proof]);
   const hasProof = $derived(Boolean(d.current.proof) && d.current.proof_is_current);
   const proved = $derived(d.status === 'proved' && hasProof);
   const attempts = $derived<Attempt[]>((job ?? app.lastJob(d.id))?.attempts.filter((a) => a.stage === 'proof') ?? []);
-  const lastAttempt = $derived(attempts[attempts.length - 1]);
   const revealKey = $derived(`revealed.${d.id}.${d.cur_proof}`);
   let revealed = $state(false);
   $effect(() => { revealed = loadJSON<boolean>(revealKey, false); });
@@ -51,7 +43,6 @@
   const extra = $derived((d['extra'] as Record<string, unknown> | undefined) ?? {});
   const cond = $derived((extra['conditional_proof'] ?? d['conditional_proof']) as { verdict?: string; admitted?: string[]; code?: string; source?: string; cited?: { short: string }[] } | undefined);
   const recheck = $derived(((extra['recheck'] ?? d['recheck']) as { state?: string } | undefined)?.state ?? '');
-  const children = $derived(Object.values(app.m.dossiers).filter((c) => c.parent_id === d.id).sort((a, b) => a.created - b.created));
   const explV = $derived(d.explanations[d.cur_explanation]);
   const informalV = $derived(d.informal_proofs.find((v) => v.parent === d.cur_proof) ?? d.informal_proofs[d.informal_proofs.length - 1]);
 
@@ -79,41 +70,7 @@
 </script>
 
 <div class="proof-step stack">
-  {#if proving && job}
-    <section class="panel live" aria-labelledby="live-h">
-      <div class="row"><h2 id="live-h">{job.stage === 'proof' ? t('proof.searching') : tk(`stage.${job.stage}`, '')}</h2>
-        {#if job.waiting}<span class="chip running">{tk(`waiting.${job.waiting}`, '')}</span>{/if}
-      </div>
-      {#if job.stage === 'proof'}
-        {#if job.tournament && 'names' in job.tournament && job.tournament.names.length}
-          <p class="small" role="status">{t('proof.tournament', { k: job.tournament.round, models: job.tournament.names.join(', ') })}</p>
-        {/if}
-        <ol class="attempts">
-          {#each attempts as a (a.index)}
-            <li class={a.status}>
-              <details open={a === lastAttempt && a.status === 'generating'}>
-                <summary>
-                  <StatusMark phase={a.status === 'accepted' ? 'proved' : a.status === 'rejected' || a.status === 'error' ? 'failed' : a.status === 'cancelled' ? 'stopped' : 'running'} />
-                  <span>{t('proof.attempt', { n: a.index + 1 })} · {tk(`attempt.kind.${a.kind}`, a.kind)} · {tk(`attempt.status.${a.status}`, a.status)}</span>
-                  {#if a.model}<span class="chip {modelLabel(a.model).local ? 'local' : 'online'}">{modelLabel(a.model).name}</span>{/if}
-                  {#if a.gen_seconds}<span class="xs muted">{fmtDuration(a.gen_seconds + a.compile_seconds)}</span>{/if}
-                </summary>
-                {#if a.status === 'generating'}<StreamView jobId={job.id} stage="proof" attempt={a.index} maxHeight="360px" />
-                {:else}
-                  {#if a.summary}<p class="small">{a.summary}</p>{/if}
-                  {#if a.errors_text}<pre class="errs">{a.errors_text}</pre>{/if}
-                {/if}
-              </details>
-            </li>
-          {:else}
-            <li><StreamView jobId={job.id} stage="proof" maxHeight="320px" /></li>
-          {/each}
-        </ol>
-      {:else}
-        <StreamView jobId={job.id} stage={job.stage} maxHeight="320px" />
-      {/if}
-    </section>
-  {/if}
+  {#if proving && job}<p class="small livenote" role="status">{tk(`stage.${job.stage}`, '')}… {t('flow.liveInThread')}</p>{/if}
 
   {#if cond?.verdict === 'proved_modulo'}
     <section class="panel conditional" role="status" aria-labelledby="cond-h">
@@ -217,19 +174,12 @@
     {/if}
   {:else if !proving}
     <section class="panel empty-proof">
+      <!-- what was tried and what to do now is the last card of the thread (NextCard) -->
       {#if d.status === 'failed' || (app.lastJob(d.id)?.state === 'failed' && d.statements.length)}
         <h2>{t('proof.failedTitle')}</h2>
-        <p>{tk(`joberr.${app.lastJob(d.id)?.error ?? ''}`, t('proof.failedText'))}</p>
-        <div class="row">
-          <button class="btn primary" onclick={() => run(d.id, ['proof', 'explanation'])}>{t('proof.retry')}</button>
-          <a class="btn" href="/d/{encodeURIComponent(d.id)}/plan"><Icon name="split" size={16} />{t('plan.split')}</a>
-          <button class="btn" onclick={() => navigate(`/d/${encodeURIComponent(d.id)}/lean`)}>{t('proof.reviewStatement')}</button>
-        </div>
-        <p class="hint">{t('proof.failedHint')}</p>
       {:else if d.statements.length}
         <h2>{t('proof.notStarted')}</h2>
-        <p>{t('proof.notStartedText')}</p>
-        <button class="btn primary" onclick={() => run(d.id, ['proof', 'explanation'])}>{t('lean.prove')}</button>
+        <p>{t(gated ? 'gate.pendingElsewhere' : 'proof.notStartedText')}</p>
       {:else}
         <h2>{t('proof.needStatement')}</h2>
         <a class="btn primary" href="/d/{encodeURIComponent(d.id)}/lean">{t('proof.toStatement')}</a>
@@ -244,28 +194,13 @@
       {/if}
     </section>
   {/if}
-
-  {#if children.length}
-    <section class="panel" aria-labelledby="lem-h">
-      <h2 id="lem-h">{t('proof.lemmas', { done: children.filter((c) => c.proved).length, n: children.length })}</h2>
-      {#if d.retry_parent}<p class="hint">{t('proof.retryParent')}</p>{/if}
-      <ul class="tree">
-        {#each children as c (c.id)}
-          {@const cj = app.activeJob(c.id)}
-          <li><a href="/d/{encodeURIComponent(c.id)}"><StatusMark phase={phaseOf(c.status, cj)} showLabel /><span>{c.title || c.theorem}</span>{#if cj}<span class="xs muted">{tk(`stage.${cj.stage}`, '')}{#if cj.waiting} · {tk(`waiting.${cj.waiting}`, '')}{/if}</span>{/if}</a></li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-  {#await loadLit()}<div class="loading" aria-busy="true"><span class="sr-only">{t('common.loading')}</span></div>{:then LiteraturePanel}<LiteraturePanel dossier={d} />{/await}
 </div>
 <SplitDialog dossier={d} bind:open={splitting} />
 
 <style>
   h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
   h3 { margin: var(--s-3) 0 var(--s-2); }
-  .attempts { list-style: none; padding: 0; margin: var(--s-3) 0 0; display: grid; gap: var(--s-2); }
-  .attempts summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: var(--touch); cursor: pointer; font-size: var(--fs-sm); }
+  .livenote { background: var(--running-soft); padding: var(--s-2) var(--s-3); border-radius: var(--r-2); }
   .errs { font: 0.75rem/1.45 var(--font-mono); white-space: pre-wrap; background: var(--failed-soft); padding: var(--s-2); border-radius: var(--r-1); max-height: 180px; overflow: auto; }
   .conditional { border: 2px dashed var(--running-fill); background: var(--running-soft); }
   .conditional h2 { color: var(--running); }
@@ -278,9 +213,6 @@
   .last-bad { margin-top: var(--s-3); }
   .prose { max-width: var(--measure); margin: var(--s-3) 0; font-family: var(--font-serif); font-size: 1.0625rem; line-height: 1.65; }
   .quick { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-  .tree { list-style: none; padding: 0; margin: var(--s-2) 0 0; }
-  .tree a { display: flex; align-items: center; gap: var(--s-3); min-height: var(--touch); color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .tree a:hover { background: var(--surface-2); }
   .linkish { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font: inherit; min-height: 24px; }
   @media (pointer: coarse) { .linkish { min-height: var(--touch); } }
 </style>
