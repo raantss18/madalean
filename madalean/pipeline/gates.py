@@ -290,7 +290,8 @@ async def launch_known(pipe, job, d: Dossier, meaning: dict) -> None:
         c.project_id, c.parent_id = d.project_id, d.id
         c.understood = c.understood_display = k["statement"]
         c.extra["known_result"] = {"dossier": d.id, "id": k["id"], "source": k.get("source")}
-        c.extra["meaning"] = {"restated": k["statement"], "objects": [], "hypotheses": [], "claim": k["statement"],
+        c.extra["meaning"] = {"restated": k["statement"], "objects": F.shared_objects(meaning, k["statement"]),
+                              "hypotheses": [], "claim": k["statement"],
                               "known_status": "known", "status_sources": [k["source"]] if k.get("source") else [],
                               "status_confidence": "cited" if k.get("source") else "model_only",
                               "known_results": [], "questions": [], "names": []}
@@ -311,7 +312,8 @@ async def evaluate(pipe, job, d: Dossier, io, ws, code: str, model: str, version
     r = F.refusals(code, meaning, words)
     notes: list[str] = []
     if pipe._lean_real() and not r["hard"]:
-        hard, notes = await F.lean_refusals(io, ws, code, meaning.get("known_status", ""))
+        hard, notes = await F.lean_refusals(io, ws, code, meaning.get("known_status", ""),
+                                              deep=bool(d.extra.get("known_result")))
         r["hard"] += hard
     back, reader = "", ""
     if pipe.has_model("understand", job.mode):

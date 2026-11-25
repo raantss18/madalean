@@ -56,8 +56,8 @@ MEANING_PROMPT = (
     "[\"<Mathlib name, only if you are sure it exists>\"]}}], \"hypotheses\": [\"…\"], \"claim\": \"<the exact claim, "
     "with its numbers and relation, unchanged>\", \"names\": [\"<classical English name of the problem or theorem, "
     "e.g. Hadwiger–Nelson problem>\"], \"status\": \"known|open|false|unclear\", \"known_results\": [{{\"title\": "
-    "\"…\", \"statement\": \"<a weaker or related PROVED result, stated completely and never stronger than what is "
-    "proved>\"}}], \"questions\": [\"<only if the request is really ambiguous>\"]}}\n"
+    "\"…\", \"statement\": \"<a weaker or related PROVED result: ONE purely mathematical sentence, complete, never "
+    "stronger than what is proved; no history, method, name, year, nor what is known or not>\"}}], \"questions\": [\"<only if the request is really ambiguous>\"]}}\n"
     "Never change the claim to make it true: an open or false claim is stated as asked and its status is \"open\" or "
     "\"false\". If you are not sure of the status write \"unclear\". known_results only for an open or false claim.")
 
@@ -95,7 +95,7 @@ def parse_meaning(data: dict, restated: str) -> dict:
     for r in (data.get("known_results") if isinstance(data.get("known_results"), list) else [])[:MAX_KNOWN]:
         if isinstance(r, dict) and _str(r.get("statement"), 1000):
             st = _str(r["statement"], 1000)
-            if any(same_words(st, k["statement"]) for k in known):
+            if not mathematical(st) or any(same_words(st, k["statement"]) for k in known):
                 continue
             known.append({"id": f"k{len(known) + 1}", "title": _str(r.get("title"), 160) or st[:80], "statement": st})
     st = _str(data.get("status"), 20).lower()
@@ -161,6 +161,16 @@ def wanted_objects(meaning: dict, problem: str) -> list[tuple[str, list[tuple]]]
             m = re.search(c[1], fold(problem))
             out.append((m.group(0) if m else c[0], [c]))
     return out
+
+
+def shared_objects(meaning: dict, statement: str) -> list[dict]:
+    """The parent's objects a known result speaks of: its translation must hold them too."""
+    low = fold(statement)
+    cs = {c[0] for c in concepts_of(statement)}
+    if "χ" in statement:
+        cs.add("chromatic")
+    return [o for o in meaning.get("objects") or [] if cs & {c[0] for c in concepts_of(o.get("name", ""))}
+            or fold(o.get("name", "")) in low]
 
 
 def mathlib_names(meaning: dict, problem: str) -> list[str]:
@@ -236,6 +246,40 @@ def vacuous_exists(concl: str) -> bool:
 EMPTY_TYPE = re.compile(r"Fin\s+0(?![\d\w])|\bP?Empty\b")
 
 
+_DEF = re.compile(r"(?ms)^\s*(?:@\[[^\]]*\]\s*)?(?:noncomputable\s+|private\s+|protected\s+)*(?:def|abbrev)\s+(\S+)(.*?)"
+                  r"(?=^\s*(?:@\[|/--|noncomputable|private|protected|def|abbrev|theorem|lemma|example|instance|structure|"
+                  r"class|open|variable|namespace|section|end)\b|\Z)")
+_NOTHING = re.compile(r"(by\s+)?(exact\s+)?\(?(sorry|True|False|∅|⊤|⊥|default|\d+)\)?(\s*:\s*\S+\))?")
+
+
+def hollow_definitions(code: str) -> list[str]:
+    """Names of the auxiliary definitions that say nothing: `def χ (X) : ℕ := 0` (real run 2026-11-25, then « χ ≤ 7 »),
+    `sorry`, or a body that uses none of its own arguments."""
+    src = re.sub(r"(?s)/-.*?-/", " ", re.sub(r"--[^\n]*", " ", code))
+    out = []
+    for m in _DEF.finditer(src):
+        head, sep, body = m.group(2).partition(":=")
+        body = re.sub(r"\s+", " ", body).strip()
+        if not sep or not body:
+            continue
+        args = [n for a in re.findall(r"[({⦃]([^:(){}]+):", head) for n in a.split()]
+        # a constant without arguments may be a real bound (`def N : ℕ := 5`); `sorry` never is
+        if re.search(r"\bsorry\b", body) or args and (_NOTHING.fullmatch(body) or not body.startswith(("fun", "λ", "by"))
+                                        and not any(_word(n, body) for n in args)):
+            out.append(m.group(1))
+    return out
+
+
+EPISTEMIC = re.compile(r"on (ne )?(sait|connait|ignore)|n'est pas (demontre|connu|prouve|etabli)|restent? (possible|ouvert|"
+                       r"inconnu)|actuellement|a ce jour|(is|are|not|currently|only) known|remains? (open|possible|unknown)|"
+                       r"has not been|not (yet )?(proved|proven|established)|open problem|probleme ouvert")
+
+
+def mathematical(statement: str) -> bool:
+    """A result, not a sentence about what is known of it (« on sait seulement que χ ∈ {5, 6, 7} »)."""
+    return not EPISTEMIC.search(fold(statement).replace("’", "'"))
+
+
 def refusals(code: str, meaning: dict | None, problem: str) -> dict:
     """{hard: [reason], soft: [reason], missing: [object]}: `hard` can never be approved as it is; `soft` refuses a
     translation but the user may still choose it. Without `meaning` (no meaning stage): the hard rules only."""
@@ -255,6 +299,9 @@ def refusals(code: str, meaning: dict | None, problem: str) -> dict:
         hard.append(msg("La conclusion est vraie par construction (« True », « x = x »).")["text"])
     elif vacuous_exists(concl):
         hard.append(msg("L'existence énoncée est vraie par construction : elle ne dit rien du problème.")["text"])
+    empty = hollow_definitions(code)
+    if empty:
+        hard.append(msg("Définition vide : {names}. L'énoncé ne dit rien du vrai objet.", names=", ".join(empty))["text"])
     text = reach(sig)
     if EMPTY_TYPE.search(text) and not re.search(r"\bvides?\b|\bempty\b|\b0\b|\bzero\b", fold(problem)):
         hard.append(msg("L'énoncé porte sur un type vide (« Fin 0 »…) : il est vrai ou faux pour une raison sans "
@@ -286,7 +333,7 @@ TRIVIAL = ("rfl", "trivial", "simp", "decide")
 CONTRA = ("simp_all", "omega", "norm_num at *", "linarith")
 
 
-async def lean_refusals(io, ws, code: str, status: str) -> tuple[list[str], list[str]]:
+async def lean_refusals(io, ws, code: str, status: str, deep: bool = False) -> tuple[list[str], list[str]]:
     """(hard reasons, notes) from Lean: contradictory hypotheses; a claim closed at once by a trivial tactic — a refusal
     when the claim is said to be open or false, a note otherwise (an easy exercise may be easy)."""
     sig = P.split_statement(code)
@@ -311,6 +358,9 @@ async def lean_refusals(io, ws, code: str, status: str) -> tuple[list[str], list
             elif status in ("open", "false"):
                 hard.append(msg("Lean prouve l'énoncé d'un coup ({tactic}) alors que le problème est ouvert ou faux : "
                                 "ce n'est pas le même énoncé.", tactic=p.meta["tactic"])["text"])
+            elif deep:
+                hard.append(msg("Lean prouve l'énoncé d'un coup ({tactic}) : ce résultat n'est pas si facile, l'énoncé "
+                                "ne le dit pas.", tactic=p.meta["tactic"])["text"])
             else:
                 notes.append(msg("Lean prouve l'énoncé d'un coup ({tactic}).", tactic=p.meta["tactic"])["text"])
     except Exception as e:  # noqa: BLE001 (a probe never breaks the translation)
@@ -463,8 +513,8 @@ def review_messages(problem: str, meaning: dict, items: list, lang_name: str) ->
         'unchanged>", "objects": [{"name": "…", "meaning": "<definition>", "lean": ["<Mathlib name, only if sure>"]}], '
         '"hypotheses": ["…"], "claim": "<exact claim, numbers and relation unchanged>", "names": ["<classical English '
         'name of the problem or theorem>"], "status": "known|open|false|unclear", "known_results": [{"title": "…", '
-        '"statement": "<a PROVED result around an open or false claim, complete, never stronger than what is '
-        'proved>"}], "questions": ["<only if really ambiguous>"]}\n'
+        '"statement": "<a PROVED result around an open or false claim: ONE purely mathematical sentence, '
+        'complete, never stronger than what is proved; no history, method, name, year, nor what is known or not>"}], "questions": ["<only if really ambiguous>"]}\n'
         "The status is the status of THIS exact claim, not of its neighbours: \"known\" only if a proof of exactly this "
         "claim exists; an exact value inside a range that is not settled is \"open\". Never change the claim to make it "
         "true.")}]

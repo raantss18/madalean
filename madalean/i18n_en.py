@@ -1580,6 +1580,10 @@ EN.update({
         "Read back without seeing the problem, the statement does not mention: {names}.",
     "Lean prouve l'énoncé d'un coup ({tactic}) alors que le problème est ouvert ou faux : ce n'est pas le même énoncé.":
         "Lean proves the statement at once ({tactic}) although the problem is open or false: it is not the same statement.",
+    "Définition vide : {names}. L'énoncé ne dit rien du vrai objet.":
+        "Empty definition: {names}. The statement says nothing of the real object.",
+    "Lean prouve l'énoncé d'un coup ({tactic}) : ce résultat n'est pas si facile, l'énoncé ne le dit pas.":
+        "Lean proves the statement at once ({tactic}): this result is not that easy, the statement does not say it.",
     "Lean prouve l'énoncé d'un coup ({tactic}).":
         "Lean proves the statement at once ({tactic}).",
     "Lean prouve le contraire de cet énoncé.":

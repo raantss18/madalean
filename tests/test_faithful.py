@@ -619,3 +619,26 @@ async def test_encyclopedia_takes_only_the_article_of_that_name(tmp_path):
 def test_code_models_do_not_understand_first():
     from madalean.brain.router import CODE_ONLY
     assert CODE_ONLY.search("codestral-2508") and CODE_ONLY.search("qwen3-coder") and not CODE_ONLY.search("decoder-x")
+
+
+# real run 2026-11-25: « χ(ℝ²) ≤ 7 » translated with an empty definition, and « on sait seulement que … »
+def test_an_empty_definition_never_passes():
+    bad = "def χ (X : Type*) [MetricSpace X] : ℕ :=\n  0\n\ntheorem t : χ (EuclideanSpace ℝ (Fin 2)) ≤ 7 := by sorry"
+    assert F.refusals(bad, None, PROBLEM)["hard"]
+    assert F.hollow_definitions("def u (x : ℕ) (y : ℕ) : ℕ :=\n  default\ntheorem t : u 1 2 = 0 := by sorry") == ["u"]
+    assert F.hollow_definitions("def v : ℕ := sorry\ntheorem t : v = 1 := by sorry") == ["v"]
+    for ok in ("def N : ℕ := 5\ntheorem t : N < 6 := by sorry", "def f (x : ℕ) : ℕ := x + 1\ntheorem t : f 1 = 2 := by sorry",
+               "def G : SimpleGraph (EuclideanSpace ℝ (Fin 2)) where\n  Adj x y := dist x y = 1\ntheorem t : True := by sorry",
+               "def k (x : ℕ) : ℕ :=\n  match x with\n  | 0 => 1\n  | _ => 2\ntheorem t : k 0 = 1 := by sorry", GOOD):
+        assert not F.hollow_definitions(ok), ok
+
+
+def test_known_results_are_results_and_keep_the_objects():
+    m = F.parse_meaning(MEANING | {"known_results": [{"title": "a", "statement": "On sait seulement que χ ∈ {5, 6, 7}."},
+                                                     {"title": "b", "statement": "χ(ℝ²) ≤ 7"}]}, PROBLEM)
+    assert [k["statement"] for k in m["known_results"]] == ["χ(ℝ²) ≤ 7"]
+    assert "nombre chromatique" in [o["name"] for o in F.shared_objects(m, "χ(ℝ²) ≤ 7")]
+    kid = {"restated": "χ(ℝ²) ≤ 7", "claim": "χ(ℝ²) ≤ 7", "objects": F.shared_objects(m, "χ(ℝ²) ≤ 7")}
+    assert F.refusals("theorem t : ∃ χ : ℕ, χ ≤ 7 := by sorry", kid, "χ(ℝ²) ≤ 7")["missing"]
+    assert not F.refusals("theorem t : ∃ c : EuclideanSpace ℝ (Fin 2) → Fin 7, ∀ x y, dist x y = 1 → c x ≠ c y := by sorry",
+                          kid, "χ(ℝ²) ≤ 7")["missing"]

@@ -652,7 +652,8 @@ class DossierPipeline:
             if gated and statement_key(code) in (d.extra.get("refused") or []):
                 out.append(msg("Cet énoncé a déjà été refusé pour ce problème.")["text"])
             if gated and not out and self._lean_real():
-                out += (await faithful.lean_refusals(io, ws, code, (meaning or {}).get("known_status", "")))[0]
+                out += (await faithful.lean_refusals(io, ws, code, (meaning or {}).get("known_status", ""),
+                                                     deep=bool(d.extra.get("known_result"))))[0]
             return out
         return judge
 
