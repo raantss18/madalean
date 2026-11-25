@@ -642,3 +642,10 @@ def test_known_results_are_results_and_keep_the_objects():
     assert F.refusals("theorem t : ∃ χ : ℕ, χ ≤ 7 := by sorry", kid, "χ(ℝ²) ≤ 7")["missing"]
     assert not F.refusals("theorem t : ∃ c : EuclideanSpace ℝ (Fin 2) → Fin 7, ∀ x y, dist x y = 1 → c x ≠ c y := by sorry",
                           kid, "χ(ℝ²) ≤ 7")["missing"]
+
+
+def test_two_readers_know_the_bound_although_the_article_says_the_value_is_unknown():
+    m = MEAN | {"known_status": "known", "reviewed_by": "anthropic:x"}
+    assert F.status_of(m, [page()]) == {"known_status": "known", "status_sources": [], "status_confidence": "model_only"}
+    assert F.status_of(m, [page(), item("The Hadwiger-Nelson problem, the chromatic number of the plane, remains open.")]
+                       )["known_status"] == "unclear"

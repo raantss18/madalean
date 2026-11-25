@@ -596,9 +596,16 @@ def status_of(meaning: dict, items: list) -> dict:
                     continue
                 q = t.text[span[0]:span[1]]
                 if not any(r["quote"] == q for r in found.get(kind, [])):
-                    found.setdefault(kind, []).append({"title": it.reference.title, "url": url, "quote": q})
+                    found.setdefault(kind, []).append({"title": it.reference.title, "url": url, "quote": q,
+                                                       "about": bool(getattr(it, "about", False))})
+    article = {k for k, rs in found.items() if all(r.pop("about") for r in rs)}      # only the problem's own article says it
     opinion = meaning.get("known_status", "unknown")
     strong = [k for k in ("open", "false") if k in found]
+    if opinion == "known" and meaning.get("reviewed_by") and strong and "known" not in found \
+            and set(strong) <= article:
+        # two readers say this exact claim is proved; the second one had the article, which speaks of the whole problem
+        # (« au plus 7 couleurs » is proved, the exact value is open — real run 2026-11-25)
+        return {"known_status": "known", "status_sources": [], "status_confidence": "model_only"}
     if opinion in ("open", "false") and opinion in found or opinion == "known" and "known" in found and not strong:
         return {"known_status": opinion, "status_sources": found[opinion][:3], "status_confidence": "cited"}
     if strong:

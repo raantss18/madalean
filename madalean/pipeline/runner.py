@@ -601,11 +601,25 @@ class DossierPipeline:
             + await self._mathlib_objects(d, ws) + self._lessons_note(d) \
             + conductor_hook.hook_of(job).hint("formalize")                    # S-AI: the conductor's advice
         judge = self._judge(job, d, io, ws, gated)
-        f = await Formalizer(io, job.mode, prefer=self._goedel_online_key("formalize", job.mode), judge=judge).run(
-                                                text, ws, s.translate_attempts,
-                                                s.compile_timeout_s, name=d.theorem, profile=s.profile,
-                                                previous=previous, request=req)
-        second = await self._second_candidate(job, d, io, ws, text, previous, req, f, judge) if gated else None
+        goedel = self._goedel_online_key("formalize", job.mode)
+        lead = (s.prefer or {}).get("formalize") or goedel or conductor_hook.hook_of(job).prefer("formalize") \
+            or self._model_guess("formalize", job.mode)
+        twin = asyncio.create_task(self._second_candidate(job, d, io, ws, text, previous, req, judge, lead)) \
+            if gated else None
+        try:
+            f = await Formalizer(io, job.mode, prefer=goedel, judge=judge).run(
+                text, ws, s.translate_attempts, s.compile_timeout_s, name=d.theorem, profile=s.profile,
+                previous=previous, request=req)
+            second = await twin if twin is not None else None
+        except BaseException:
+            if twin is not None:
+                twin.cancel()
+                await asyncio.gather(twin, return_exceptions=True)
+            raise
+        # two answers of one family are not independent
+        if second is not None and f.model and second.model and \
+                faithful.family(f.model) == faithful.family(second.model):
+            second = None
         self._record_stage(job, d, first, "statement", "formalize")
         if gated and (f.ok or f.refused or second is not None and (second.ok or second.refused)):
             return await self._candidates_gate(job, d, io, ws, req, f, second)
@@ -676,16 +690,24 @@ class DossierPipeline:
                 "this workspace:\n" + "\n".join(lines) + "\nKeep the claim exactly as stated, with its numbers: "
                 "never state `False`, a weaker claim or a true neighbour of it.\n")
 
-    async def _second_candidate(self, job: Job, d: Dossier, io: JobIO, ws, text: str, previous: str, req: str, f,
-                                judge):
-        """An independent translation by a model of another family, when one is available (None otherwise)."""
-        if not f.model:
+    def _model_guess(self, role: str, mode: str) -> str:
+        try:
+            refs = self.ctx.brain.candidates(role, mode)
+        except Exception:  # noqa: BLE001
+            refs = []
+        return refs[0].key if refs else ""
+
+    async def _second_candidate(self, job: Job, d: Dossier, io: JobIO, ws, text: str, previous: str, req: str,
+                                judge, first: str):
+        """An independent translation by a model of another family than `first`, the model expected to translate
+        (the two run side by side: a slow model no longer doubles the wait); None when there is none."""
+        if not first:
             return None
         try:
             refs = self.ctx.brain.candidates("formalize", job.mode)
         except Exception:  # noqa: BLE001
             return None
-        other = next((r for r in refs if not r.paid and faithful.family(r.key) != faithful.family(f.model)
+        other = next((r for r in refs if not r.paid and faithful.family(r.key) != faithful.family(first)
                       and (not r.local or job.mode == "local")), None)
         if other is None:
             return None
