@@ -25,6 +25,7 @@ import json
 import re
 import threading
 import time
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -33,7 +34,7 @@ from urllib.parse import urlsplit
 import aiohttp
 
 from ._util import read_json, write_private
-from .api import ToolSpec
+from .api import BrainError, ToolSpec
 from .net import CONNECT_TIMEOUT, Http
 
 # descriptive, contact-less (no user data ever goes into it): Wikimedia's User-Agent policy refuses generic agents
@@ -244,6 +245,47 @@ class WebSearch:
         return [{"title": str(r.get("title") or ""), "url": base + str(r.get("title") or "").replace(" ", "_"),
                  "snippet": _strip_tags(str(r.get("snippet") or ""))[:600], "published": ""}
                 for r in ((v or {}).get("query") or {}).get("search") or [] if isinstance(r, dict)]
+
+    async def encyclopedia(self, name: str, *, mode: str = "auto") -> dict | None:
+        """The introduction of the English Wikipedia article called exactly like `name` (a problem's or theorem's
+        classical name), verbatim; None when there is no such article, or when Wikipedia is disabled or unreachable."""
+        p = BY_ID["wikipedia"]
+        if mode == "local" or self.disabled(p.id) or not name.strip():
+            return None
+
+        def words(t: str) -> set[str]:
+            t = re.sub(r"[‐-―]", "-", unicodedata.normalize("NFKD", t)).encode("ascii", "ignore").decode()
+            return set(re.findall(r"[a-z0-9]+", t.lower())) - {"the", "s", "of"}
+        try:
+            async with self._wiki_lock:
+                v = await self._call("GET", self.url(p, "en"), p.id, key=None, headers={"Accept": "application/json"},
+                                     params={"action": "query", "prop": "extracts|pageprops", "ppprop": "disambiguation",
+                                             "explaintext": "1", "exintro": "1", "redirects": "1", "titles": name[:120],
+                                             "format": "json", "formatversion": "2"})
+                hit = self._page(v)
+                if hit is None:
+                    s = await self._call("GET", self.url(p, "en"), p.id, key=None, headers={"Accept": "application/json"},
+                                         params={"action": "query", "generator": "search", "gsrsearch": name[:120],
+                                                 "gsrlimit": "1", "prop": "extracts|pageprops",
+                                                 "ppprop": "disambiguation", "explaintext": "1", "exintro": "1",
+                                                 "format": "json", "formatversion": "2"})
+                    hit = self._page(s)
+                    # a search hit is used only when its title has all the words of the name (accents and dashes aside)
+                    if hit is not None and not words(name) <= words(hit["title"]):
+                        hit = None
+            self.usage.add(p.id, 1)
+        except (SearchError, BrainError):
+            return None
+        return hit
+
+    @staticmethod
+    def _page(v) -> dict | None:
+        for r in ((v or {}).get("query") or {}).get("pages") or []:
+            if isinstance(r, dict) and r.get("extract") and not r.get("missing") and not r.get("pageprops"):
+                t = str(r["title"])
+                return {"title": t, "url": "https://en.wikipedia.org/wiki/" + t.replace(" ", "_"),
+                        "text": str(r["extract"])[:4000]}
+        return None
 
     async def _one(self, pid: str, q: str, k: int, lang: str) -> list[dict]:
         if pid == "wikipedia":

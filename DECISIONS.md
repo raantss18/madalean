@@ -1527,3 +1527,11 @@
 - **Report by rules** (no model). Its cause is « probable », « indéterminée » when no rule applies.
 - Rejected: letting models write the report; trusting the extracted `have`s of `sorry` skeletons; unlimited « one more
   round »; merging the blackboard across statements.
+
+## D68 — Status of a problem: the named article and a second reader; FreeLLMAPI as a provider (2026-11-25)
+- Real run (« Le nombre chromatique du plan est 6 »): a code model (codestral) understood the request and said « known »,
+  with no source. Now: code models lose rank to understand; the introduction of the Wikipedia article bearing exactly the
+  problem's classical name is quoted as a source; a second reader of another family (Claude within the conductor's cap,
+  else a free model) corrects the meaning with the retrieved passages; « known » needs two readers or a source.
+- FreeLLMAPI (user request; v0.16.43 in Docker, 127.0.0.1:3011, ~/GitHub/freellmapi): keyed provider, concrete models
+  only (no `auto` / `fusion`), at most 60, AI Horde excluded, refused in local mode although its host is loopback.

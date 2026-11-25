@@ -98,8 +98,8 @@ class Http:
 
     def check(self, url: str, mode: str, provider: str | None = None, key: str | None = None) -> None:
         host = host_of(url)
-        if self.effective_mode(mode) == "local" and not is_loopback_host(host):
-            raise LocalModeViolation(host)
+        if self.effective_mode(mode) == "local" and (not is_loopback_host(host) or provider == "freellmapi"):
+            raise LocalModeViolation(host)         # FreeLLMAPI listens here but forwards to the Internet (D68)
         if key:
             allowed = self.key_hosts.get(provider or "")
             ok = host in allowed if isinstance(allowed, (set, frozenset)) else (bool(allowed) and host == allowed)

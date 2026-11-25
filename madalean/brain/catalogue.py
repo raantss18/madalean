@@ -76,6 +76,9 @@ KEYED: list[Provider] = [
     # session S-U (docs/PROVIDERS.md, checked 2026-11-22): free tiers with a key, OpenAI-compatible, `/models` listed
     Provider("sambanova", "SambaNova Cloud", "https://api.sambanova.ai/v1", True, False,
              key_url="https://cloud.sambanova.ai/apis"),
+    # FreeLLMAPI (MIT, self-hosted on this computer by the user, D68): one key for the free tiers the user connected
+    # there. The server is local but the requests leave for the Internet: never used in local mode (net.Http.check).
+    Provider("freellmapi", "FreeLLMAPI", "http://127.0.0.1:3011/v1", True, False, key_url="http://127.0.0.1:3011"),
     Provider("nvidia", "NVIDIA NIM", "https://integrate.api.nvidia.com/v1", True, False, key_url="https://build.nvidia.com"),
     Provider("openai", "OpenAI", "https://api.openai.com/v1", True, True, key_url="https://platform.openai.com/api-keys"),
     Provider("deepseek", "DeepSeek", "https://api.deepseek.com/v1", True, True,
@@ -322,6 +325,23 @@ def lean_quality(m: Model) -> float:
 
 
 _NOT_CHAT_WORD = re.compile(r"(^|[-_./ ])(live|aqa|genie|imagen|antigravity)([-_./ ]|$)", re.I)
+
+
+FREELLMAPI_MAX = 60         # its catalogue can hold a thousand models: the best ones only
+
+
+def freellmapi_ok(m: dict, mid: str) -> bool:
+    """A concrete model: `auto*` and `fusion` hide who answered (the leaderboard and the rule « two different families »
+    need to know), and AI Horde runs on strangers' computers."""
+    low = mid.lower()
+    return not re.match(r"(auto|fusion)\b", low) and "horde" not in f"{m.get('owned_by', '')} {low}".lower()
+
+
+def best_of(models: list["Model"], provider: str, k: int) -> list["Model"]:
+    mine = sorted((m for m in models if m.provider == provider and not unfit_reason(m)),
+                  key=lambda m: -max(lean_quality(m), m.score("math")))[:k]
+    keep = {m.model_id for m in mine}
+    return [m for m in models if m.provider != provider or m.model_id in keep]
 
 
 def is_text_chat(model_id: str) -> bool:
@@ -573,7 +593,8 @@ class CatalogueStore:
                         if not found or m.model_id in found:
                             models.append(m)
                     continue
-                v = await http.get_json(f"{p.base_url}/models", mode="online", timeout=15, provider=p.id, key=key)
+                url = f"{p.base_url}/models" + ("?available=true" if p.id == "freellmapi" else "")
+                v = await http.get_json(url, mode="online", timeout=15, provider=p.id, key=key)
                 if v is None:
                     continue
                 provs.append(p)
@@ -584,6 +605,8 @@ class CatalogueStore:
                     mid = (m.get("id") or m.get("name") or "").removeprefix("models/")
                     if p.free_suffix and not mid.endswith(p.free_suffix):
                         continue
+                    if p.id == "freellmapi" and not freellmapi_ok(m, mid):
+                        continue
                     if p.id == "openrouter" and str((m.get("pricing") or {}).get("prompt", "0")) not in ("0", "0.0"):
                         continue
                     sp = m.get("supported_parameters")
@@ -591,6 +614,7 @@ class CatalogueStore:
                     vision = "image" in ((m.get("architecture") or {}).get("input_modalities") or [])
                     push(p.id, mid, m.get("name") or m.get("display_name") or mid, tools, vision, paid=p.paid,
                          context=int(m.get("context_length") or 0))
+            models = best_of(models, "freellmapi", FREELLMAPI_MAX)
             tags = await http.get_json(f"{OLLAMA_URL}/api/tags", mode="local", timeout=3)
             if tags:
                 provs.append(Provider("ollama", "Ollama (local)", f"{OLLAMA_URL}/v1", local=True))

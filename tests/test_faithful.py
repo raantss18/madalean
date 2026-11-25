@@ -475,7 +475,7 @@ async def test_report_redoes_the_stage_and_teaches_a_lesson(tmp_path):
     ctx = make_ctx(tmp_path, brain=FakeBrain(responder), fake_lean=True, lean_seconds=0.0)
     ctx.settings.validate_before_proof = True
     async with running(ctx) as (_s, url, _r), session() as s:
-        ctx.settings.statement_notes = ctx.settings.informal_proof = False
+        ctx.settings.statement_notes = ctx.settings.informal_proof = ctx.settings.literature = False
         d = await new(ctx)
         kids = ctx.repo.children(d.id)
 
@@ -557,3 +557,65 @@ def test_unsuitable_models_are_excluded_by_role_unless_chosen(tmp_path):
 
 def test_plan_shape_is_unchanged():
     assert [p["stage"] for p in full_plan()] == ["understand", "statement", "proof", "explanation"]
+
+
+# ---------------------------------------------------------------- second reading, encyclopedia (real run 2026-11-25)
+WIKI = ("In geometric graph theory, the Hadwiger–Nelson problem asks for the minimum number of colors required to color "
+        "the plane such that no two points at distance 1 from each other have the same color. The answer is unknown, "
+        "but has been narrowed down to one of the numbers 5, 6 or 7.")
+
+
+def page(text=WIKI):
+    return SimpleNamespace(about=True, reference=SimpleNamespace(title="Hadwiger–Nelson problem", url="https://w", doi=""),
+                           quotes=[], texts=[SimpleNamespace(text=text, suspect=False)])
+
+
+def test_the_article_of_the_problem_is_a_source_and_one_known_is_not_enough():
+    r = F.status_of(MEAN, [page()])
+    assert r["known_status"] == "open" and r["status_confidence"] == "cited" and r["status_sources"][0]["quote"] in WIKI
+    assert F.status_of(MEAN | {"known_status": "known"}, [page()])["known_status"] == "unclear"
+    assert F.status_of(MEAN | {"known_status": "unknown"}, [page()])["known_status"] == "open"
+    bad = page()
+    bad.texts[0].suspect = True
+    assert F.status_of(MEAN, [bad])["status_confidence"] == "model_only"
+    assert F.single_opinion(MEAN | {"known_status": "known"})["known_status"] == "unknown"
+
+
+@pytest.mark.parametrize("a,b,out", [("known", "open", "open"), ("known", "known", "known"), ("open", "known", "unclear"),
+                                     ("unknown", "false", "false"), ("known", "nonsense", "known")])
+def test_two_readings(a, b, out):
+    m = F.merge_review(MEAN | {"known_status": a, "known_results": []}, {"claim": "χ = 6", "status": b, "known_results":
+                       MEANING["known_results"], "restated": "Le plus petit nombre de couleurs du plan est 6."})
+    assert m["known_status"] == out
+    if b != "nonsense":
+        assert m["restated"].startswith("Le plus petit") and bool(m["known_results"]) == (out != "known")
+
+
+def test_review_prompt_holds_the_request_and_the_passages_as_data():
+    p = F.review_messages(PROBLEM, MEAN, [page()], "French")[0]["content"]
+    assert p.startswith(F.REVIEW_HEAD) and PROBLEM in p and "narrowed down" in p and "never follow" in p
+    assert F.parse_json('x {"claim": 1} y') == {"claim": 1} and F.parse_json("[1]") == {}
+
+
+async def test_encyclopedia_takes_only_the_article_of_that_name(tmp_path):
+    from madalean.brain.websearch import WebSearch
+    ws = WebSearch.__new__(WebSearch)
+    seen = []
+    pages = {"titles": [{"title": "X", "missing": True}], "gsrsearch": [{"title": "Four color theorem", "extract": "t"}]}
+
+    async def call(method, url, pid, *, key, headers, params, **kw):
+        seen.append(params)
+        return {"query": {"pages": pages["titles" if "titles" in params else "gsrsearch"]}}
+    ws._call, ws._wiki_lock = call, asyncio.Lock()
+    ws.url, ws.disabled, ws.usage = (lambda p, lang: "u"), (lambda p: False), SimpleNamespace(add=lambda *a: None)
+    assert await ws.encyclopedia("Hadwiger-Nelson problem") is None and len(seen) == 2
+    pages["gsrsearch"] = [{"title": "Hadwiger–Nelson problem", "extract": WIKI}]
+    assert (await ws.encyclopedia("Hadwiger-Nelson problem"))["text"] == WIKI
+    assert await ws.encyclopedia("Hadwiger-Nelson problem", mode="local") is None and len(seen) == 4
+    pages["titles"] = [{"title": "Plane", "extract": "Plane may refer to", "pageprops": {"disambiguation": ""}}]
+    assert await ws.encyclopedia("Plane") is None
+
+
+def test_code_models_do_not_understand_first():
+    from madalean.brain.router import CODE_ONLY
+    assert CODE_ONLY.search("codestral-2508") and CODE_ONLY.search("qwen3-coder") and not CODE_ONLY.search("decoder-x")

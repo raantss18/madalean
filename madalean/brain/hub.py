@@ -175,6 +175,17 @@ CARDS: list[dict] = [
        key_url="https://cloud.sambanova.ai/apis",
        sources=["https://docs.sambanova.ai/docs/en/models/rate-limits",
                 "https://docs.sambanova.ai/docs/en/get-started/api-keys-urls.md"]),
+    _c("freellmapi", "code", "FreeLLMAPI", key="freellmapi", kind="llm", price="free_tier", integrated="yes",
+       good=("Une seule clé pour tous les modèles gratuits que vous branchez dans FreeLLMAPI, installé sur cet "
+             "ordinateur.", "One key for every free model you connect in FreeLLMAPI, installed on this computer."),
+       tier=("Gratuit ; les limites sont celles des services que vous y branchez. Usage personnel d'essai.",
+             "Free; the limits are those of the services you connect there. Personal experimentation."),
+       privacy=("Vos textes partent chez les services que vous y branchez ; certains services gratuits gardent ou "
+                "utilisent les textes pour s'entraîner. Jamais utilisé en mode Local. AI Horde est écarté.",
+                "Your texts go to the services you connect there; some free services keep them or train on them. Never "
+                "used in Local mode. AI Horde is left out."),
+       key_url="http://127.0.0.1:3011",
+       sources=["https://github.com/tashfeenahmed/freellmapi"], prefix="^freellmapi-"),
     # ------------------------------------------------------------------ web search
     _c("tavily", "web", "Tavily", key="tavily", kind="search", price="free_tier", integrated="yes",
        good=("Recherche Internet pensée pour les assistants : résultats courts et cités pour l'orchestrateur de "

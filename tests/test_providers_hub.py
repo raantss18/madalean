@@ -235,7 +235,7 @@ def test_hub_cards_are_complete_and_starter_has_keys():
         for f in ("good_for", "free_tier", "privacy"):
             assert c[f]["fr"] and c[f]["en"], (c["id"], f)
         if c["key"]:
-            assert c["key_url"].startswith("https://"), c["id"]
+            assert c["key_url"].startswith(("https://", "http://127.0.0.1:")), c["id"]
     for s in hub.STARTER:
         assert cards[s]["key"] and cards[s]["price"] in ("free", "free_tier")
     assert cards["github-models"]["integrated"] == "retired" and cards["aristotle"]["integrated"] == "no"
@@ -371,3 +371,19 @@ def test_providers_and_search_routes(tmp_path):
         finally:
             await srv.stop()
     run(go())
+
+
+def test_freellmapi_concrete_models_only_and_never_in_local_mode():
+    from madalean.brain import catalogue as C
+    from madalean.brain.net import Http, LocalModeViolation
+    ok = C.freellmapi_ok
+    assert ok({}, "gemini-2.5-flash") and ok({"owned_by": "groq"}, "llama-3.3-70b") and ok({}, "autocoder-x")
+    assert not ok({}, "auto") and not ok({}, "auto:smart") and not ok({}, "fusion") and not ok({"owned_by": "aihorde"}, "m")
+    ms = [C.Model("freellmapi", f"big-{i}-70b", "", quality={"math": i / 100}) for i in range(80)] + [
+        C.Model("groq", "x-70b", "")]
+    out = C.best_of(ms, "freellmapi", 60)
+    assert len(out) == 61 and "big-0-70b" not in {m.model_id for m in out}
+    h = Http({"freellmapi": "127.0.0.1"})
+    h.check("http://127.0.0.1:3011/v1/models", "online", "freellmapi", "k")
+    with pytest.raises(LocalModeViolation):
+        h.check("http://127.0.0.1:3011/v1/models", "local", "freellmapi", "k")

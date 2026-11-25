@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from types import SimpleNamespace
 
 from .. import leancheck
 from ..dossiers import Dossier
@@ -193,7 +194,11 @@ def force(d: Dossier) -> None:
 # ---------------------------------------------------------------- meaning gate
 async def meaning_gate(pipe, job, d: Dossier, meaning: dict, rest: list[dict]) -> None:
     """Status from the literature (bounded, never blocking), known results as sub-dossiers, then the gate."""
-    items = await _literature(pipe, job, d, meaning)
+    items, pages = await asyncio.gather(_literature(pipe, job, d, meaning), _encyclopedia(pipe, job, d, meaning["names"]))
+    meaning = await pipe.review_meaning(job, d, meaning, pages + items)
+    if not pages:                            # the second reader may have found the problem's classical name
+        pages = await _encyclopedia(pipe, job, d, meaning["names"])
+    items = pages + items
     meaning.update(F.status_of(meaning, items))
     F.source_known(meaning, items)
     old = {k["statement"]: k.get("dossier_id", "") for k in ((d.extra.get("meaning") or {}).get("known_results") or [])}
@@ -221,6 +226,29 @@ async def status_event(pipe, job, d: Dossier, meaning: dict) -> None:
     await pipe.event(d, job, "status", key, detail="\n".join(
         f"> « {s['quote']} » — {s['title']} {s['url']}" for s in meaning["status_sources"]),
         status=meaning["known_status"], confidence=meaning["status_confidence"])
+
+
+async def _encyclopedia(pipe, job, d: Dossier, names: list[str]) -> list:
+    """The introductions of the articles named like the problem (verbatim, quoted as a source of the status)."""
+    from . import literature_hook
+    ws = getattr(pipe.ctx, "websearch", None)
+    if ws is None or not names or not literature_hook.enabled(pipe, job, d, None):
+        return []
+    out = []
+    for n in names[:2]:
+        try:
+            p = await asyncio.wait_for(ws.encyclopedia(n, mode=job.mode), 12)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001 (never blocks the gate)
+            log.info("encyclopedia %s: %s", n, e)
+            continue
+        if p and not any(x.reference.url == p["url"] for x in out):
+            from ..literature import quotes as Q
+            out.append(SimpleNamespace(about=True, reference=SimpleNamespace(
+                title=f"{p['title']} (Wikipédia)", url=p["url"], doi=""),
+                quotes=[], texts=[SimpleNamespace(text=p["text"], suspect=Q.suspect(p["text"]))]))
+    return out
 
 
 async def _literature(pipe, job, d: Dossier, meaning: dict) -> list:

@@ -92,6 +92,9 @@ def score_model(m: Model, cat: str, cat2: str, fast: bool, states: States, paid_
     return s, ", ".join(parts)
 
 
+CODE_ONLY = re.compile(r"codestral|(?<!de)coder|devstral|starcoder|code-?llama|codegemma|(?<![a-z])code(?![a-z])", re.I)
+
+
 def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | None = None, prefer: str | None = None,
          paid_first: bool = False, need_tools: bool = False, local_models: list[Model] | None = None,
          allow_online: bool = True, allow_local: bool = True, leaderboard: Leaderboard | None = None,
@@ -133,6 +136,9 @@ def rank(cat_: Catalogue, states: States, role: str, *, messages: list[dict] | N
             if unfit:
                 s -= 0.3
                 why += f", {unfit} -0.30"
+        if role == "understand" and not chosen(m) and CODE_ONLY.search(m.model_id):
+            s -= 0.4                              # a code model said « known » of an open problem (2026-11-25)
+            why += ", code model -0.40"
         if leaderboard is not None and task:
             b, bwhy = leaderboard.bonus(m.key, task, domain, lang)
             if bwhy:

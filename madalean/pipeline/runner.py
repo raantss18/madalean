@@ -505,6 +505,39 @@ class DossierPipeline:
         meaning = faithful.parse_meaning(data, d.understood_display or d.understood or d.problem)
         await gates.meaning_gate(self, job, d, meaning, rest)
 
+    async def review_meaning(self, job: Job, d: Dossier, meaning: dict, items: list) -> dict:
+        """A second reading by a strong model of another family (Claude within its caps, else the best free one)."""
+        io, hook = JobIO(self.ctx, job), conductor_hook.hook_of(job)
+        first = next((e.model for e in reversed(d.events) if e.kind == "understood"), "")
+        keys: list[str] = []
+        if hook.active and hook.claude and not hook.declined:
+            keys += [f"anthropic:{m}" for m in hook.conductor.claude_models(job.mode) if "sonnet" in m]
+        try:
+            refs = self.ctx.brain.candidates("understand", job.mode)
+        except Exception:  # noqa: BLE001
+            refs = []
+        keys += [r.key for r in refs if not r.paid and not r.local]
+        keys = [k for k in dict.fromkeys(keys) if not first or faithful.family(k) != faithful.family(first)][:2]
+        from ..brain.spend import SPEND_SCOPE
+        from ..i18n import language
+        for k in keys:
+            # the spend scope of the conductor's request: its cap holds for this reading too
+            tok = SPEND_SCOPE.set(hook.scope if hook.active else f"{d.id}:{job.id}")
+            try:
+                with classify.short_stage():
+                    c = await io.complete("understand", faithful.review_messages(
+                        d.problem, meaning, items, "French" if language() == "fr" else "English"), None,
+                        temperature=0.1, max_tokens=3000, extra={"top_p": 0.9, **NO_THINK}, only=k)
+            except BrainError as e:
+                log.info("second reading by %s: %s", k, e)
+                continue
+            finally:
+                SPEND_SCOPE.reset(tok)
+            data = faithful.parse_json(leancheck.clean_model_text(c.text))
+            if data.get("claim") and data.get("status"):
+                return {**faithful.merge_review(meaning, data), "reviewed_by": c.model.key}
+        return faithful.single_opinion(meaning)
+
     def _lessons_note(self, d: Dossier) -> str:
         """Earlier « mal compris » reports on similar problems (data, bounded)."""
         from ..research import lessons
