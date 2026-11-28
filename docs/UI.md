@@ -898,3 +898,26 @@ Screenshots: `docs/screenshots/v2/news-{list,item}-{360,820,1440}-{light,dark}.p
 - Tests: `tests/unit/flow.test.ts`, `e2e/one-thread.spec.ts` (gates mocked on top of demo dossiers; set
   `ONE_THREAD_SHOTS=<dir>` for screenshots).
 - Not verified: a real screen reader, the new server fields end to end (S-BG runs in parallel), a real phone.
+
+## 20. « Problèmes ouverts » (session S-BK, 2026-11-28, DECISIONS D70, contract docs/ATTACK.md)
+
+| File | Role |
+| --- | --- |
+| `lib/api/attack.ts` | types and client of `/api/attack*` (status, start / stop, workspace, submissions, send / discard, history, settings) |
+| `lib/attack.ts` | pure: `headline` (state → sentence key), `money`, `gb`, `downloaded`, `readCheck`, `requestWords`, `planLogin`, event readers, `upsertSubmission`, `filterHistory`, `ago` |
+| `screens/attack/Attack.svelte` | `/attaque`: header (state, Démarrer / Arrêter, spend bar, counts), « En ce moment », « Prêtes à envoyer », « Historique », agreement and confirmation dialogs |
+| `screens/attack/SubmissionCard.svelte` | one submission: Lean file (read only), checks, plan in words + exact requests, Envoyer… / Écarter… |
+| `screens/attack/AttackCard.svelte` | Home card, only while `attack_enabled` |
+| `screens/settings/AttackSettings.svelte` | Réglages › Problèmes ouverts |
+
+- Reuses `StatusMark` (wrapped `aria-hidden`, the words are written next to it), `Dialog`, toasts, `CodeEditor`
+  read only, the settings layout. Nothing sends without a confirmation dialog; dialogs return the focus to their button.
+- Announcements: the visible state line is `aria-hidden`; a polite `role=status` says the state without the
+  download numbers; the progress bar has a label and a value text.
+- Layout: cards in `auto-fill` columns (one column on phones), the history becomes one column below 700 px, no
+  sideways scroll at 390 px; reduced motion stops the running mark (StatusMark's own rule).
+- Tests: `tests/unit/attack.test.ts` (rules, client paths, words in fr / en), `e2e/attack.spec.ts` (API mocked:
+  off → agreement → download, running, budget and pause by live events, ready → confirm → sent → merged, discard,
+  failing check, history filter, settings, menu and Home card, phone + dark + reduced motion, axe on each).
+  `ATTACK_SHOTS=<dir>` saves screenshots.
+- Not verified: the real server (S-BJ), a real GitHub send, a real screen reader, a real phone.

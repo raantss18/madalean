@@ -149,6 +149,14 @@ Cas d'échec réel : « le nombre chromatique du plan est 6 » (dossier 20261124
 3. ⚠️ Mieux prouver et apprendre de ses échecs (S-BI, D67 ; fait et testé avec des modèles simulés et le vrai Lean ; reste : mesurer avec de vrais modèles, « Mal compris » vers les leçons de preuve, liens cliquables des lemmes dans le rapport, `have` sous `obtain` / puces)
 Deux sessions au plus en même temps (quota).
 
+### « Attaque » : problèmes ouverts de Left to Solve (28/11, D69 contrat docs/ATTACK.md)
+1. ⚠️ Serveur (S-BJ) : en parallèle
+2. ⚠️ Interface (S-BK, D70, branche `attack-ui`) : écran `/attaque` « Problèmes ouverts » (état en mots, Démarrer /
+   Arrêter, dépense du jour, accord expliqué au premier démarrage, « En ce moment », « Prêtes à envoyer » avec fichier,
+   vérifications, plan exact et confirmation, « Historique »), carte sur l'Accueil, Réglages → Problèmes ouverts.
+   Testé contre une API simulée ; reste : brancher sur le vrai serveur S-BJ, régler les questions de contrat (D70),
+   essai chez toi avec une vraie clé GitHub
+
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 
 Publié : 2.0.0, 2.0.1, 2.0.2 (GitHub, signées ; site https://raantss18.github.io/madalean/ et canal de mises à jour

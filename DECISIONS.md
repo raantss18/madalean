@@ -1535,3 +1535,40 @@
   else a free model) corrects the meaning with the retrieved passages; « known » needs two readers or a source.
 - FreeLLMAPI (user request; v0.16.43 in Docker, 127.0.0.1:3011, ~/GitHub/freellmapi): keyed provider, concrete models
   only (no `auto` / `fusion`), at most 60, AI Horde excluded, refused in local mode although its host is loopback.
+
+## D70 — « Problèmes ouverts »: the attack on Left to Solve in the web UI (S-BK, 2026-11-28, contract docs/ATTACK.md / D69)
+- One screen `/attaque` (logo menu « Problèmes ouverts », a Home card only while `attack_enabled`), one settings
+  section `/reglages/problemes-ouverts`. Web only: the server (S-BJ) is built in parallel against the same contract, so
+  every endpoint is mocked in `web/e2e/attack.spec.ts`; the client is `web/src/lib/api/attack.ts`, the pure rules
+  `web/src/lib/attack.ts`.
+- The state is a sentence, never a code: « Madalean travaille sur 2 problèmes », « En pause : budget du jour atteint
+  (5,00 $) », « Préparation : téléchargement de Lean et Mathlib, 3,2 / 8 Go ». Sizes in decimal gigabytes (what a
+  download shows), money in US dollars written the French way. Server `reason` codes are translated when known
+  (`attack.reason.*`), else shown as given. The visible line is hidden from screen readers; one polite status says
+  the state without the download numbers (the progress bar carries them), so a download is not read out every event.
+- First start = an agreement dialog that says plainly: continuous background work, the daily Claude spend inside the
+  monthly cap, the one-time download (size from the server, else « environ 10 Go »), that nothing becomes public
+  before the user's « Envoyer », team notes off, and GitHub's e-mail privacy setting with a link. Accepting calls
+  `POST /api/attack/workspace {accept:true}` then `/start`; cancelling calls nothing. Shown while `workspace.state`
+  is `none`.
+- A submission shows the Lean file read only (CodeEditor), the three local checks (each « réussi / échoué / pas encore
+  vérifié » with its detail; axioms pass only within propext / Classical.choice / Quot.sound), and the exact plan
+  as D61 does: each GitHub request said in words (copy the site's repository, create a branch, add the file, open a
+  public request), the exact method and URL under it, bodies folded. « Envoyer… » and « Écarter… » each open a
+  confirmation naming the account; the plan is hidden and « Envoyer » disabled while a check has not passed. Start,
+  stop, send and discard are disabled off the host (the server refuses them anyway).
+- Live: `attack.state` (the whole GET /api/attack answer, at the top level or under `attack`) replaces the state;
+  `attack.submission` (one submission, under `submission` or at the top level) is merged by id and refreshes the
+  history when it leaves « ready ».
+- Settings: four kinds, budget per day, problems at once, highest difficulty of open problems, « publier des notes
+  pour l'équipe » (`attack_team_notes`, off, explained). Read from the general settings (`attack_*`, contract
+  defaults when absent), written through `PATCH /api/attack/settings`, optimistic with roll-back.
+- Contract questions left to S-BJ: (1) the shape of `check.local / rules / axioms` (the UI reads a boolean, a string,
+  a list of axioms or `{ok, detail}`); (2) `plan.login` (the account; else taken from the first `/repos/<owner>/`
+  write); (3) `file` as text or `{path, text}`; (4) `workspace.progress` fraction or bytes (both read); (5) the
+  envelopes of the two events; (6) the `phase` vocabulary (`reading, planning, proving, searching, checking,
+  formalizing, reducing, preparing, releasing` have words; another shows « au travail »); (7) the `reason` codes
+  (`user_jobs, month_cap, site, no_github, workspace`); (8) `attack_team_notes` is not in the contract's settings
+  list; (9) are the `attack_*` settings in GET /api/settings / the state snapshot (the Home card needs
+  `attack_enabled`); (10) what send / discard return (the UI reloads the list either way); (11) `dossier_id` on a
+  submission (optional link).
