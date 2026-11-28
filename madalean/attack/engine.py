@@ -531,7 +531,7 @@ class Attack:
                 brief = await self.desk.brief(p["id"])
             except D.DeskError as e:
                 log.info("brief %s: %s", p["id"], e)
-            if not p.get("lean"):
+            if not p.get("lean") or not p.get("module"):     # the desk's answer may lack them (live run)
                 with contextlib.suppress(D.DeskError):
                     p.update({k: v for k, v in (await self.desk.problem(p["id"])).items() if v not in (None, "", [])})
             t = rules.target_of(p, brief)
