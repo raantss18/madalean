@@ -20,6 +20,7 @@
   import DossierList from '../components/DossierList.svelte';
   import SetupReminder from './setup/SetupReminder.svelte';
   import NewsCard from './news/NewsCard.svelte';
+  import AttackCard from './attack/AttackCard.svelte';
 
   let { params: _p }: { params: Record<string, string> } = $props();
   const draft = loadJSON<{ text: string; lean: string; asLean: boolean; title?: string }>('draft.new', { text: '', lean: '', asLean: false });
@@ -183,6 +184,7 @@
     </section>
   {/if}
 
+  <AttackCard />
   <NewsCard />
 
   <section class="examples" aria-labelledby="ex-h">
