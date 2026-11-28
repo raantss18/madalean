@@ -218,8 +218,10 @@ test('settings: kinds, budget, parallel, difficulty, team notes off by default',
   await expect(page.getByRole('heading', { name: 'Problèmes ouverts', level: 2 })).toBeVisible();
   const kinds = page.getByRole('group', { name: 'Types de problèmes' });
   await expect(kinds.getByRole('checkbox')).toHaveCount(4);
-  await kinds.getByRole('checkbox', { name: /Énoncé à formaliser/ }).uncheck();
-  await expect.poll(() => m.bodies.at(-1)).toEqual({ attack_kinds: ['known', 'counterexample', 'open'] });
+  // the server's default: the three kinds its engine produces (statements to formalise come later, D69)
+  await expect(kinds.getByRole('checkbox', { name: /Énoncé à formaliser/ })).not.toBeChecked();
+  await kinds.getByRole('checkbox', { name: /Contre-exemple/ }).uncheck();
+  await expect.poll(() => m.bodies.at(-1)).toEqual({ attack_kinds: ['known', 'open'] });
   await page.getByLabel('Budget par jour (dollars)').fill('2.5');
   await page.getByLabel('Budget par jour (dollars)').press('Tab');
   await expect.poll(() => m.bodies.at(-1)).toEqual({ attack_usd_per_day: 2.5 });

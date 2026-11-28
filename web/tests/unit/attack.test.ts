@@ -140,12 +140,13 @@ describe('API client and words', () => {
   });
   it('uses the contract paths', async () => {
     await attack.get(); await attack.start(); await attack.stop(); await attack.workspace();
-    await attack.submissions(); await attack.send('a/b'); await attack.discard('x'); await attack.history();
+    await attack.submissions(); await attack.send('a/b', 'pl-1'); await attack.discard('x'); await attack.history();
     await attack.settings({ attack_parallel: 1 });
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
       'GET /api/attack', 'POST /api/attack/start', 'POST /api/attack/stop', 'POST /api/attack/workspace', 'GET /api/attack/submissions',
       'POST /api/attack/submissions/a%2Fb/send', 'POST /api/attack/submissions/x/discard', 'GET /api/attack/history', 'PATCH /api/attack/settings']);
     expect(calls[3]!.body).toEqual({ accept: true });
+    expect(calls[5]!.body).toEqual({ plan: 'pl-1' });
   });
   it('has every runtime-built word in both languages', () => {
     const need = [
