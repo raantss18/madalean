@@ -91,9 +91,9 @@
     if (!c) return;
     busy = c.sub.id;
     try {
-      const r = c.kind === 'send' ? await attack.send(c.sub.id) : await attack.discard(c.sub.id);
+      const r = c.kind === 'send' ? await attack.send(c.sub.id, c.sub.plan?.id ?? '') : await attack.discard(c.sub.id);
       if (c.kind === 'discard') subs = subs.filter((x) => x.id !== c.sub.id);
-      else if (r && typeof r.id === 'string') subs = upsertSubmission(subs, r);
+      else if (r?.submission && typeof r.submission.id === 'string') subs = upsertSubmission(subs, r.submission);
       toast('ok', c.kind === 'send' ? t('attack.sent') : t('attack.discarded'));
       await loadSubs(); void loadHist();
     } catch (e) { toast('error', errorText(e)); } finally { busy = ''; }

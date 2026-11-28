@@ -45,8 +45,9 @@ EXEC_RISKS = [
      "méta-programmation (élaborateur, macro, syntaxe)"),
     (r"\b(unsafe|implemented_by|IO|EIO|BaseIO|System\.FilePath|IO\.Process|ST\.Ref)\b", "accès au système (IO, unsafe)"),
     (r"\bnative_decide\b|\bLean\.ofReduceBool\b", "code natif (native_decide)"),
-    # `public import` / `meta import` (module system of recent Lean, S-BC) are imports too
-    (r"(?m)^\s*(?:(?:public|private|meta)\s+)*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible)(\.|\s|$))",
+    # `public import` / `meta import` (module system of recent Lean, S-BC) are imports too; FormalConjectures (D69):
+    # google-deepmind/formal-conjectures at the commit Left to Solve pins, only present in the « Attaque » workspace
+    (r"(?m)^\s*(?:(?:public|private|meta)\s+)*import\s+(?!(Mathlib|Aesop|Batteries|Std|Qq|ProofWidgets|Plausible|FormalConjectures|FormalConjecturesUtil)(\.|\s|$))",
      "import d'un module non autorisé"),
 ]
 

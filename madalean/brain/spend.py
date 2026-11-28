@@ -11,7 +11,11 @@ with a known or estimated price — Hugging Face Inference Providers (Goedel-Pro
   write tokens) in `<config_dir>/brain-spend.json` (mode 0600, no keys, no prompts; bounded).
 
 The proof scope comes from the context variable SPEND_SCOPE (set by the pipeline around a proof stage); a call made
-outside any proof only counts towards the month."""
+outside any proof only counts towards the month.
+
+S-BJ (D69): a GROUP (context variable SPEND_GROUP, e.g. « attack:2026-11-28 ») spans many proofs. It is set by the
+caller before a job is submitted, so the job's task inherits it whatever proof scopes the pipeline sets inside; a
+group with a cap in `Ledger.group_caps` is refused past that cap (on top of the proof and month caps)."""
 from __future__ import annotations
 
 import contextvars
@@ -46,6 +50,7 @@ DEFAULT_CAP_MONTH = 20.0
 MIN_OUTPUT = 2048          # a paid call whose affordable answer would be shorter than this is not made
 
 SPEND_SCOPE: contextvars.ContextVar[str | None] = contextvars.ContextVar("madalean_spend_scope", default=None)
+SPEND_GROUP: contextvars.ContextVar[str] = contextvars.ContextVar("madalean_spend_group", default="")
 
 
 LONG_PROMPT = {"claude-haiku-5-5": (100_000, 5.0)}   # prompts above 100K tokens: every price × 5 ($0.50 / $2.50)
@@ -125,6 +130,7 @@ class Row:
     cache_read: int
     cache_write: int
     usd: float
+    group: str = ""       # S-BJ: spend group (« attack:<date> ») or ""
 
 
 class BudgetExceeded(Exception):
@@ -149,6 +155,17 @@ class Ledger:
         # cap question); it replaces the per-proof cap for that scope (the request's scope IS its proof scope). Kept in
         # memory for the job's lifetime only; the monthly cap always applies on top.
         self.scope_caps: dict[str, float] = {}
+        self.group_caps: dict[str, float] = {}     # S-BJ (D69): group -> cap in USD (e.g. the attack's day)
+        self._reserved_group: dict[str, float] = {}
+
+    def group_total(self, group: str) -> float:
+        return sum(r.usd for r in self.rows if group and r.group == group)
+
+    def group_room(self, group: str | None = None) -> float:
+        group = SPEND_GROUP.get() if group is None else group
+        if not group or group not in self.group_caps:
+            return float("inf")
+        return self.group_caps[group] - self.group_total(group) - self._reserved_group.get(group, 0.0)
 
     def cap_for(self, scope: str | None, cap_proof: float) -> float:
         return self.scope_caps.get(scope or "", cap_proof) if scope else cap_proof
@@ -179,7 +196,7 @@ class Ledger:
 
     def room(self, scope: str | None, cap_proof: float, cap_month: float) -> float:
         """USD still allowed for one call now (calls in flight count with their estimate)."""
-        return max(0.0, min(self.month_room(cap_month), self.proof_room(scope, cap_proof)))
+        return max(0.0, min(self.month_room(cap_month), self.proof_room(scope, cap_proof), self.group_room()))
 
     def check(self, scope: str | None, est: float, cap_proof: float, cap_month: float) -> None:
         """Raise BudgetExceeded when the call would pass a cap (calls in flight count with their estimate)."""
@@ -193,6 +210,12 @@ class Ledger:
                 cap = self.cap_for(scope, cap_proof)
                 if s + est > cap + 1e-9:
                     raise BudgetExceeded("proof", est, s, cap)
+            group = SPEND_GROUP.get()
+            if group and group in self.group_caps:
+                g = self.group_total(group) + self._reserved_group.get(group, 0.0)
+                if g + est > self.group_caps[group] + 1e-9:
+                    raise BudgetExceeded("group", est, g, self.group_caps[group])
+                self._reserved_group[group] = self._reserved_group.get(group, 0.0) + est
             key = scope or ""
             self._reserved[key] = self._reserved.get(key, 0.0) + est
 
@@ -204,11 +227,19 @@ class Ledger:
                 self._reserved[key] = left
             else:
                 self._reserved.pop(key, None)
+            group = SPEND_GROUP.get()
+            if group in self._reserved_group:
+                g = self._reserved_group[group] - est
+                if g > 1e-9:
+                    self._reserved_group[group] = g
+                else:
+                    self._reserved_group.pop(group, None)
 
     def record(self, model: str, scope: str | None, tokens_in: int, tokens_out: int, cache_read: int = 0,
                cache_write: int = 0) -> Row:
         row = Row(time.time(), model, scope or "", int(tokens_in), int(tokens_out), int(cache_read),
-                  int(cache_write), round(cost(model, tokens_in, tokens_out, cache_read, cache_write), 6))
+                  int(cache_write), round(cost(model, tokens_in, tokens_out, cache_read, cache_write), 6),
+                  SPEND_GROUP.get())
         with self._lock:
             self.rows.append(row)
             self._save()

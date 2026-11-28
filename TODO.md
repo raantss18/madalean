@@ -156,6 +156,12 @@ Deux sessions au plus en même temps (quota).
    vérifications, plan exact et confirmation, « Historique »), carte sur l'Accueil, Réglages → Problèmes ouverts.
    Testé contre une API simulée ; reste : brancher sur le vrai serveur S-BJ, régler les questions de contrat (D70),
    essai chez toi avec une vraie clé GitHub
+### « Attaque » — Left to Solve (28/11, D69, docs/ATTACK.md)
+1. ⚠️ Serveur (S-BJ, branche `attack`) : fait et testé avec un faux site, un faux GitHub, un faux espace et le vrai
+   Lean sur des fichiers faits main. Reste : essai réel (préparer l'espace ≈ 10 Go, puis « Démarrer »), vrais modèles,
+   réductions et cas particuliers écrits par les modèles, « formalize », tableau (take / done), notes des coéquipiers
+   données au prouveur, suivi des demandes fusionnées / refusées (`/api/pending`)
+2. ⬜ Interface (S-BK)
 
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 

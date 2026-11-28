@@ -24,7 +24,7 @@ const FILE = 'import FormalConjectures.Util.ProblemImports\n\ntheorem erdos_123 
 const READY: J = {
   id: 'sub-1', problem: 'erdos-123', title: 'Erdős 123 : sommes de puissances', kind: 'proof', file: { path: 'FormalConjectures/ErdosProblems/123.lean', text: FILE },
   check: { local: true, rules: { ok: true }, axioms: ['propext', 'Classical.choice'] },
-  plan: { login: 'ada-l', requests: [
+  plan: { id: 'pl-1', login: 'ada-l', requests: [
     { method: 'POST', url: 'https://api.github.com/repos/google-deepmind/formal-conjectures/forks' },
     { method: 'POST', url: 'https://api.github.com/repos/ada-l/formal-conjectures/git/refs', body: { ref: 'refs/heads/madalean/erdos-123' } },
     { method: 'PUT', url: 'https://api.github.com/repos/ada-l/formal-conjectures/contents/FormalConjectures/ErdosProblems/123.lean', body: { message: 'Erdős 123', branch: 'madalean/erdos-123' } },
@@ -58,9 +58,11 @@ async function mock(page: Page, init: Partial<Mock> = {}): Promise<Mock> {
     if (sm) {
       const s = m.subs.find((x) => x['id'] === sm[1]);
       if (!s) return r.fulfill({ status: 404, json: { error: 'not_found' } });
-      if (sm[2] === 'send') Object.assign(s, { state: 'sent', pr_url: 'https://github.com/google-deepmind/formal-conjectures/pull/4242' });
-      else m.subs = m.subs.filter((x) => x !== s);
-      return r.fulfill({ json: s });
+      if (sm[2] === 'send') {
+        if ((req.postDataJSON() as { plan?: string })?.plan !== (s['plan'] as { id?: string })?.id) return r.fulfill({ status: 409, json: { error: 'plan_changed' } });
+        Object.assign(s, { state: 'sent', pr_url: 'https://github.com/google-deepmind/formal-conjectures/pull/4242' });
+      } else m.subs = m.subs.filter((x) => x !== s);
+      return r.fulfill({ json: { submission: s } });
     }
     return r.fulfill({ status: 404, json: { error: 'not_found' } });
   });

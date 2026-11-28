@@ -22,8 +22,12 @@ export function gb(bytes: number, lang: Lang): string {
 
 /** Downloaded / total bytes. `progress` is a fraction (≤ 1) or, if larger, a byte count. */
 export function downloaded(ws: AttackStatus['workspace']): { done: number; total: number; ratio: number } {
+  if (ws.progress && typeof ws.progress === 'object') {
+    const total = Math.max(0, ws.progress.total_bytes || ws.size || 0), done = Math.max(0, Math.min(ws.progress.done_bytes || 0, total));
+    return { done, total, ratio: total > 0 ? done / total : 0 };
+  }
   const total = Math.max(0, ws.size || 0);
-  const p = Math.max(0, ws.progress || 0);
+  const p = Math.max(0, (ws.progress as number) || 0);
   const done = p <= 1 ? p * total : Math.min(p, total || p);
   return { done, total, ratio: total > 0 ? Math.min(1, done / total) : Math.min(1, p <= 1 ? p : 0) };
 }

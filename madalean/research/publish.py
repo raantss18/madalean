@@ -544,7 +544,7 @@ def gh_failure(gh: GitHub, status: int, data: dict, step: str, kind: str, owner:
     if status in (403, 404) and (accepted or "not accessible by" in message.lower()):
         # GitHub names what THIS request needed (e.g. pages=read for a GET): the step needs at least its own list
         want = {c.partition("=")[0]: c for c in accepted}
-        for c in STEP_NEEDS[step]["fine_grained"]:
+        for c in STEP_NEEDS.get(step, STEP_NEEDS["push"])["fine_grained"]:   # unknown step (D61 names): push
             if c.partition("=")[0] in want or not accepted:
                 want[c.partition("=")[0]] = c
         need = list(want.values())
@@ -552,8 +552,8 @@ def gh_failure(gh: GitHub, status: int, data: dict, step: str, kind: str, owner:
                             token_kind=kind, settings=TOKEN_SETTINGS["fine_grained"])
     if status == 403 and _scoped(kind) == "classic":
         have = gh.scopes() or []
-        need = [s for s in STEP_NEEDS[step]["classic"] if s not in have]
-        return PublishError("github_scope_missing", 403, step=step, scope=", ".join(need or STEP_NEEDS[step]["classic"]),
+        need = [s for s in STEP_NEEDS.get(step, STEP_NEEDS["push"])["classic"] if s not in have]
+        return PublishError("github_scope_missing", 403, step=step, scope=", ".join(need or STEP_NEEDS.get(step, STEP_NEEDS["push"])["classic"]),
                             token_kind=kind, settings=TOKEN_SETTINGS["classic"])
     if status == 403:
         return PublishError("github_forbidden", 403, step=step, message=message, token_kind=kind)

@@ -1032,6 +1032,31 @@ Dossiers gain `gate`, `now`, `meaning` (approved), `reports`; events gain `phase
 true). `gates: false` in `POST /api/dossiers`, `/run`, `/message` opts out explicitly. `GET /api/lessons` lists kind
 `interpretation`.
 
+## 6n. « Attaque » — Left to Solve (session S-BJ, DECISIONS D69, plugin `attack.py`, docs/ATTACK.md)
+
+Errors: `{error, params}` — `not_found` 404, `accept_required` 400 (`{size_gb}`), `invalid` / `unknown` 400,
+`no_github_key` / `not_ready` / `plan_mismatch` / `file_changed` / `github_login_changed` / `github_branch_exists` /
+`github_fork_name` 409, `github_fork_pending` 504, and « Publier »'s GitHub errors.
+
+| Method | Path | Body | Answer |
+| --- | --- | --- | --- |
+| GET | `/api/attack` | — | `{state: off\|setup\|running\|paused\|budget\|error, reason, detail, handle, today: {usd, cap, taken, proofs, released}, workspace: {state: none\|downloading\|building\|ready\|error, commit, size, percent, progress, step, error, building}, current: [{problem, title, kind, difficulty, dossier_id, phase, waiting, since, lease, submission, running}], queue, settings: {attack_*}}` |
+| POST | `/api/attack/start` · `/api/attack/stop` | — | same (**host only**; stop releases every lease `out_of_time`) |
+| POST | `/api/attack/workspace` | `{accept: true}` | same (**host only**; sets `attack_download_max_gb` ≥ 10) |
+| GET | `/api/attack/submissions` | — | `[{id, problem, title, kind: proof\|disproof\|reduction\|statement, file: {path, text}, lease, model, check: {local: {ok, detail}, rules: {ok, detail}, axioms: {ok, detail: the axioms}, review, failures: [{rule, ok, detail}]}, plan: {id, login, fork, branch, sha256, requests: [{method, url, body}]} \| null, state: ready\|sent\|merged\|rejected\|expired\|discarded\|failed, pr_url, created, dossier_id}]` (newest first) |
+| POST | `/api/attack/submissions/{id}/send` | `{plan: <plan.id>}` | `{submission}` with `state: sent`, `pr_url` (**host only**; at most once; needs the GitHub key) |
+| POST | `/api/attack/submissions/{id}/discard` | — | `{submission}` (**host only**; its lease is released) |
+| GET | `/api/attack/history` | — | `[{problem, title, kind, outcome: solved\|released\|reduced\|submitted\|rejected, reason, t, usd, dossier_id}]` (newest first) |
+| PATCH | `/api/attack/settings` | `{attack_enabled?, attack_kinds? ⊆ [known, counterexample, open], attack_usd_per_day? (0–100), attack_parallel? (1–10), attack_max_difficulty_open? (0–100), attack_post_notes?}` | the attack settings (**host only**) |
+
+`reason` (state): `user_jobs`, `month_cap`, `day_cap`, `site`, `no_github`, `workspace`, `error` or `""`; `detail`
+keeps the internal one (`no_github_key`, `github_<error>`, `workspace_consent`, `workspace_downloading|building|error`,
+`catalogue`, `desk_busy`, …). `phase` (current): `reading`, `planning`, `proving`, `searching`, `checking`,
+`preparing`, `releasing` (`formalizing`, `reducing` reserved); `waiting`: the proof job waits for a slot.
+`workspace.progress = {done_bytes (measured on disk), total_bytes (the 10 GB estimate), estimated: true}`, `percent`
+the step's share. Events: `attack.state` (the full GET answer at top level), `attack.submission` `{submission}`. The same settings are in `GET/PATCH /api/settings` (host-only keys). Spending: ledger rows gain `group`
+(`attack:<YYYY-MM-DD>`); `GET /api/spend` is unchanged.
+
 ## 7. Demo mode
 
 `madalean serve --demo` (config `~/.config/madalean-demo` unless `--config-dir`): scripted fake brain (streams at

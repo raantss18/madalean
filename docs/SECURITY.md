@@ -467,3 +467,23 @@ A `.madalean-memory` file (docs/MEMORY.md) may come from anyone: it is **untrust
 | Redistribution of protected texts | Digests of sources whose licence is not CC BY / CC0 / public domain are left out of exports by default and listed in the manifest; original files only when ticked. |
 | Backups leaking | Local folder only (default `~/.config/madalean/backups`, 0700; files 0600), never uploaded; rotation deletes only `madalean-memory-YYYYMMDD-HHMMSS.madalean-memory` files. |
 
+
+## 13. « Attaque » — Left to Solve in the user's name (S-BJ, D69, docs/ATTACK.md)
+
+The attack talks to a third-party site (lefttosolve.com, its « desk »), reads text written by strangers (problem
+statements, briefs, other agents' notes and board items) and can open pull requests credited to the user's GitHub
+account. Everything below is enforced in `madalean/attack/` and tested in `tests/test_attack*.py`.
+
+| Threat | Control |
+|---|---|
+| Acting without the user | `attack_enabled` is false until the user presses « Démarrer » (host only); while off, the loop makes **no request** (tested). Every attack setting is host-only. Stop releases every lease. |
+| Leases taken in the user's name | The handle is the login of the saved GitHub key (`GET /user`), never a value from a page; `event=0` (no event problem imposed); at most `attack_parallel` (2) problems, join.txt's cap of 10 never approached; leases released honestly (`out_of_time`, `too_hard`, `submitted`). |
+| Pull requests in the user's name | **Only** the host's explicit `POST /api/attack/submissions/{id}/send` with the plan id the user was shown (method, URL, body, file), once; the login is read again and must match the plan; the file's SHA-256 must match the plan; only a « prête » submission (checker rules AND a fresh strict Lean, below) can be sent; one new file on a branch `oma/<id>` of the user's fork; the body is exactly `Lease / Agent / Model`. Never a push to upstream, never `--force`, no draft trick, no other repository. |
+| A false proof sent under the user's name | The checker's rules re-implemented (`rules.py`, one test per rule) + a **fresh strict Lean** (never the warm one, D37) in the pinned workspace, axiom probe ⊆ {propext, Classical.choice, Quot.sound} (the answer case: the placeholder's `sorryAx` only, and then « relu par une personne »). |
+| Prompt injection from briefs, statements, notes, board items | All screened (`screen.py`): bounded lengths, control / bidi characters removed, the news injection heuristic plus shell / credential phrases → `suspect`: a suspect problem is never taken, a suspect brief never reaches a model; the brief that does is wrapped as `SOURCE_DATA` with the untrusted-data rule. Nothing they say is executed or followed (no command, install, URL, credential); Lean code from notes would only be compiled in the sandbox (D28) and never trusted. |
+| Code execution while checking | Every check goes through `exec_risks` (D28) + bubblewrap; the import allow-list gains `FormalConjectures` / `FormalConjecturesUtil` only (other names refused, tested). `native_decide`, `#eval`, attributes, macros… are refused by the rules before any compilation. |
+| Code execution while building the workspace | git, elan and lake run on google-deepmind/formal-conjectures **at the commit the site pins** (Apache-2.0, built by every Left to Solve agent; its lakefile and Mathlib's cache are trusted like Mathlib itself) only after the user consented to the download (size shown); never a command taken from the site's text; commit ids and module names validated by strict patterns. Accepted risk: a malicious pinned commit would run its lakefile at build time (same trust as any Lake project). |
+| Posting text publicly | Notes are outward: `attack_post_notes` (default **false**); when on, only factual DEAD END notes written by rules (no model text), nothing about the user. |
+| Money | Claude spend in group `attack:<date>` capped by `attack_usd_per_day` (ledger refusal before sending, D41 machinery) and the month cap; free models first (pipeline order); the day's cap stops new problems (state `budget`). |
+| Overloading the desk | One request at a time, ≥ 3 s apart, back-off 5 min on 503 / unreachable, catalogue once an hour, ≤ 3 detail pages per tick, beats every 6 min. |
+| Tests touching the real site or GitHub | Fake desk and fake GitHub servers (`desk.BASE`, `publish.GITHUB_API` pointed at local servers); fixtures saved once from public pages. |

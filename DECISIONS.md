@@ -1572,3 +1572,46 @@
   list; (9) are the `attack_*` settings in GET /api/settings / the state snapshot (the Home card needs
   `attack_enabled`); (10) what send / discard return (the UI reloads the list either way); (11) `dossier_id` on a
   submission (optional link).
+
+## D69 — « Attaque »: Left to Solve problems in the background, in the user's name, within a day's budget (user request, 2026-11-28, S-BJ server / S-BK interface)
+- Contract: docs/ATTACK.md (user decisions of 2026-11-28 there). Rules read from https://lefttosolve.com/join.txt
+  (2026-11-28) and re-implemented (no licence on the site's code); fixtures of five public pages in tests/fixtures/attack.
+- **Nothing outward without the user.** Off until « Démarrer » (host only); a pull request only by the host's « Envoyer »
+  with the plan id shown (D61's GitHub client and one-shot plan idea; login re-read and compared at send; file hash
+  pinned); notes to the site's teams are outward too: `attack_post_notes`, default **false**, and then only factual
+  DEAD END notes written by rules. Rejected: posting PLAN/DONE notes with model text (unreviewed text in the user's
+  name); opening the PR in the loop (the user asked to confirm each one); the `gh` CLI token.
+- **« Prête » = the checker's rules AND a fresh strict Lean** in formal-conjectures at the pinned commit. Rules (one
+  test each): import first, one target byte for byte (`type_of% @decl`), allowed commands (+ tactic-level
+  `set_option` limited to the four allowed options), forbidden words on comment-free code, no double quote anywhere,
+  never the upstream declaration nor another `sorry` one, the `OMA.answer` heuristics (typed, no problem namespace /
+  module definition / choice / inf / sup / limit, one level of helpers), reductions, statements. Answer case: the
+  placeholder's `sorryAx` is tolerated only when the file names no sorry (then « relu par une personne »). The
+  certificate's closing tactic loses its `exponentiation.threshold` alternative (rule c).
+- **Strategy**: counterexample (D52 certificates on the negated upstream statement when it is a ∀ over ℕ / ℤ in the
+  arithmetic language; Sage bounded; `decide` / `norm_num`, never `native_decide`), else the proof pipeline (D67) on
+  the exact target, gates off, brief given as data (never when suspect); open problems only up to difficulty 40 unless
+  taken for the counterexample shape. Selection: unsolved, not proof_pending, not suspect, not released in the last 7
+  days, least crowded then lowest difficulty. Lessons: `strategy` on success, `approach` on failure.
+- **Budget**: a spend GROUP (`spend.SPEND_GROUP`, inherited by the job's task, so the pipeline's own proof scopes stay)
+  `attack:<date>` capped in `Ledger.group_caps` (refusal before sending), plus the month cap; at the cap: state
+  `budget`, no new problem, free models finish. Rejected: re-scoping SPEND_SCOPE (the pipeline resets it per stage).
+- **Courtesy**: slot priority 2 (`Orchestrator.submit(priority=)`), no new problem while a person's job runs
+  (`paused/user_jobs`); desk ≥ 3 s, beats every 6 min, 410 / STOP stops the work at once, 409 proof_pending skips the
+  problem a day, 503 backs off 5 min, degraded leases are not beaten.
+- **Restart**: leases, history, day counters persisted (`<config>/attack/state.json`, 0600); after a restart the leases
+  are beaten and their work resumes on the same dossier; a lease whose file is ready keeps beating up to 24 h waiting
+  for « Envoyer ».
+- **Workspace**: one folder per pinned commit, built beside the old one (git clone at the commit, elan toolchain, `lake
+  exe cache get`, `lake build FormalConjecturesUtil`; modules on demand), only within `attack_download_max_gb` (the
+  consent, 10 GB, covers updates); the old folder is removed after the switch, a failed update keeps the old one.
+- Cut for now (said in ATTACK.md): reductions and special cases written by models (rules ready, engine does not produce
+  them), formalize (needs the D65 gates and a person; rules ready), board take/done, reading teammates' notes into the
+  prover prompts, tracking merged / rejected PRs (`/api/pending`).
+- Verified: `tests/test_attack_rules.py` (each rule on the real skeletons; REAL Lean 4.36 on a hand-made
+  `FormalConjectures.Fake` workspace: proof, refused proof, sorry dependency caught by the axiom probe, decide
+  disproof, answer case), `tests/test_attack.py` (fake desk: courtesy, 409 / 410, release reasons, notes; fake
+  GitHub: plan, host only, forged plan, once, exact PR body; fake workspace manager: consent, build, update beside,
+  failure keeps the old; loop: off, setup, counterexample to PR, known problem through the pipeline at priority 2 in
+  the day's group with a suspect brief withheld, restart, stop, budget, user jobs, notes only when allowed). Untested:
+  the live desk, the real 5–10 GB workspace, real models.

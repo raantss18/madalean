@@ -15,7 +15,8 @@ export interface AttackCurrent {
 export interface AttackStatus {
   state: AttackState; reason: string;
   today: { usd: number; cap: number; taken: number; proofs: number; released: number };
-  workspace: { state: WorkspaceState; commit: string; size: number; progress: number };
+  workspace: { state: WorkspaceState; commit: string; size: number;
+    progress: number | { done_bytes: number; total_bytes: number; estimated?: boolean } };
   current: AttackCurrent[]; queue: number;
 }
 /** One local check: the contract leaves the shape open; a boolean, a string or `{ok, detail}` are all read. */
@@ -25,7 +26,7 @@ export interface AttackSubmission {
   id: string; problem: string; title: string; kind: 'proof' | 'disproof' | 'reduction' | 'statement';
   file: string | { path?: string; text: string };
   check: { local: CheckValue; rules: CheckValue; axioms: CheckValue };
-  plan: { requests: PlanRequest[]; login?: string; repo?: string; fork?: string; branch?: string; path?: string; title?: string };
+  plan: { id?: string; requests: PlanRequest[]; login?: string; repo?: string; fork?: string; branch?: string; path?: string; title?: string };
   state: 'ready' | 'sent' | 'merged' | 'rejected' | 'expired'; pr_url: string; created: number;
   dossier_id?: string;
 }
@@ -44,8 +45,9 @@ export const attack = {
   stop: () => request<AttackStatus>('POST', '/attack/stop'),
   workspace: () => request<AttackStatus>('POST', '/attack/workspace', { accept: true }),
   submissions: () => request<AttackSubmission[]>('GET', '/attack/submissions'),
-  send: (id: string) => request<AttackSubmission>('POST', `/attack/submissions/${encodeURIComponent(id)}/send`),
-  discard: (id: string) => request<AttackSubmission>('POST', `/attack/submissions/${encodeURIComponent(id)}/discard`),
+  // the plan the user saw: the server sends nothing else (D69)
+  send: (id: string, plan: string) => request<{ submission: AttackSubmission }>('POST', `/attack/submissions/${encodeURIComponent(id)}/send`, { plan }),
+  discard: (id: string) => request<{ submission: AttackSubmission }>('POST', `/attack/submissions/${encodeURIComponent(id)}/discard`),
   history: () => request<AttackHistoryItem[]>('GET', '/attack/history'),
   settings: (patch: AttackSettings) => request<AttackSettings>('PATCH', '/attack/settings', patch),
 };
