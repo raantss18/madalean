@@ -34,7 +34,10 @@ ENUMS = {"mode": ("local", "auto", "online"), "prove_strategy": ("goedel", "agen
 HOST_ONLY_SETTINGS = {"lan_listener", "lan_port", "remote_jupyter", "agent_exec", "experiments_auto",
                       "experiments_remote", "updates_auto", "browser_session_idle_minutes", "calcul_warm",
                       "gpu_share_ollama", "gpu_share_busy_wait_s", "gpu_share_busy_fallback",
-                      "mcp_server", "mcp_server_http", "mcp_server_sage"}
+                      "mcp_server", "mcp_server_http", "mcp_server_sage",
+                      # S-BJ (D69): the attack acts in the user's name (leases, pull requests): host only
+                      "attack_enabled", "attack_kinds", "attack_usd_per_day", "attack_parallel",
+                      "attack_max_difficulty_open", "attack_post_notes", "attack_download_max_gb"}
 LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), "translate_attempts": (1, 10), "compile_timeout_s": (10, 1800),
           "agent_max_steps": (1, 200), "agent_max_seconds": (30, 7200), "lan_port": (1024, 65535),
           "tournament_contestants": (1, 6), "tournament_max_rounds": (0, 10), "tournament_max_minutes": (1, 240),
@@ -42,7 +45,9 @@ LIMITS = {"browser_session_idle_minutes": (5, 1440), "prove_attempts": (1, 64), 
           "claude_cap_month_usd": (0, 1000), "conductor_cap_usd": (0, 100), "plan_max_depth": (1, 5),
           "plan_budget_minutes": (10, 1440), "graph_search_minutes": (1, 240),
           "graph_search_attempts": (1, 200), "graph_search_usd": (0, 5), "local_idle_unload_minutes": (0, 1440), "calcul_idle_minutes": (0, 1440),
-          "lean_warm_idle_minutes": (1, 240), "gpu_share_busy_wait_s": (0, 600)}
+          "lean_warm_idle_minutes": (1, 240), "gpu_share_busy_wait_s": (0, 600),
+          "attack_usd_per_day": (0, 100), "attack_parallel": (1, 10), "attack_max_difficulty_open": (0, 100),
+          "attack_download_max_gb": (0, 50)}
 
 
 class ServerContext:

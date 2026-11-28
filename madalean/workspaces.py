@@ -133,6 +133,10 @@ def builtin_workspaces() -> list[Workspace]:
     cur = config.WORKSPACES_DIR / "lean-current"
     out.append(Workspace("lean-current", "Lean actuel (Mathlib récent)", cur, _read_toolchain(cur), False,
                          "Lean et Mathlib récents, pour le travail quotidien et les cours."))
+    from .attack.workspace import current_workspace     # S-BJ (D69): only once the user prepared it
+    fc = current_workspace()
+    if fc is not None:
+        out.append(fc)
     return out
 
 

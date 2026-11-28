@@ -22,6 +22,8 @@ ALLOWED = {
                                r"cloud\.cerebras\.ai|cloud\.sambanova\.ai|openrouter\.ai|build\.nvidia\.com|"
                                r"platform\.openai\.com|platform\.deepseek\.com|app\.tavily\.com|dashboard\.exa\.ai|"
                                r"api-dashboard\.search\.brave\.com)(/.*)?$"),
+    # « Attaque » (D69): the site whose problems are attacked
+    "attack": re.compile(r"^https://lefttosolve\.com/?$"),
 }
 
 

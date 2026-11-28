@@ -149,6 +149,13 @@ Cas d'échec réel : « le nombre chromatique du plan est 6 » (dossier 20261124
 3. ⚠️ Mieux prouver et apprendre de ses échecs (S-BI, D67 ; fait et testé avec des modèles simulés et le vrai Lean ; reste : mesurer avec de vrais modèles, « Mal compris » vers les leçons de preuve, liens cliquables des lemmes dans le rapport, `have` sous `obtain` / puces)
 Deux sessions au plus en même temps (quota).
 
+### « Attaque » — Left to Solve (28/11, D69, docs/ATTACK.md)
+1. ⚠️ Serveur (S-BJ, branche `attack`) : fait et testé avec un faux site, un faux GitHub, un faux espace et le vrai
+   Lean sur des fichiers faits main. Reste : essai réel (préparer l'espace ≈ 10 Go, puis « Démarrer »), vrais modèles,
+   réductions et cas particuliers écrits par les modèles, « formalize », tableau (take / done), notes des coéquipiers
+   données au prouveur, suivi des demandes fusionnées / refusées (`/api/pending`)
+2. ⬜ Interface (S-BK)
+
 ## 📌 État au 22/11/2026 au soir — 2.0.2 publiée
 
 Publié : 2.0.0, 2.0.1, 2.0.2 (GitHub, signées ; site https://raantss18.github.io/madalean/ et canal de mises à jour

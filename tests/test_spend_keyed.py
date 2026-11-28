@@ -130,7 +130,8 @@ def test_prices_costs_and_ledger(tmp_path):
     assert led.scope_total("d1:j1") == pytest.approx(0.44) and led.month_total() == pytest.approx(0.44)
     assert stat.S_IMODE(os.stat(tmp_path / "spend.json").st_mode) == 0o600
     raw = json.loads((tmp_path / "spend.json").read_text())
-    assert set(raw["rows"][0]) == {"ts", "model", "scope", "tokens_in", "tokens_out", "cache_read", "cache_write", "usd"}
+    assert set(raw["rows"][0]) == {"ts", "model", "scope", "tokens_in", "tokens_out", "cache_read", "cache_write", "usd",
+                                     "group"}     # S-BJ: the spend group (« attack:<date> »), no prompt, no key
     with pytest.raises(spend.BudgetExceeded) as e:
         led.check("d1:j1", 0.6, cap_proof=1.0, cap_month=20.0)
     assert e.value.which == "proof"

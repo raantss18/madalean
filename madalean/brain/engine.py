@@ -376,8 +376,11 @@ class MadaleanBrain:
         floor_ = min(max_tokens, spend.MIN_OUTPUT)
         if affordable < floor_:
             which = "proof" if scope and self.ledger.proof_room(scope, cp) <= self.ledger.month_room(cm) else "month"
-            why = (f"spending cap reached ({which}: {self.ledger.cap_for(scope, cp) if which == 'proof' else cm:.2f} $); "
-                   f"{m.name} not called")
+            if self.ledger.group_room() < min(self.ledger.proof_room(scope, cp), self.ledger.month_room(cm)):
+                which = "group"               # S-BJ (D69): the attack's day cap
+            capv = (self.ledger.cap_for(scope, cp) if which == "proof" else cm if which == "month"
+                    else self.ledger.group_caps.get(spend.SPEND_GROUP.get(), 0.0))
+            why = f"spending cap reached ({which}: {capv:.2f} $); {m.name} not called"
             emit(on_chunk, "info", why, event="budget", model=m.key, cap=which)
             raise ProviderError("budget", why)
         mt = min(max_tokens, affordable)

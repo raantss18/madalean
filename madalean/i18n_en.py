@@ -1652,3 +1652,21 @@ EN.update({
     "Cet élément n'existe pas.":
         "This item does not exist.",
 })
+
+# S-BJ (D69): « Attaque » — Left to Solve, events in the problem's dossier
+EN.update({
+    "Contre-exemple : rien de vérifié ({why}).":
+        "Counterexample: nothing verified ({why}).",
+    "Contre-exemple trouvé par Sage, vérifié par Lean : {w}":
+        "Counterexample found by Sage, checked by Lean: {w}",
+    "Le fichier OMA.disproof est refusé : {why}":
+        "The OMA.disproof file is refused: {why}",
+    "Fichier prêt pour Left to Solve ({kind}) : règles du vérificateur et Lean strict passés. Rien n'est envoyé sans "
+    "votre clic « Envoyer ».":
+        "File ready for Left to Solve ({kind}): the checker's rules and strict Lean passed. Nothing is sent without "
+        "your “Envoyer” click.",
+    "Problème rendu ({reason}). Note DEAD END publiée pour l'équipe.":
+        "Problem handed back ({reason}). DEAD END note posted for the team.",
+    "Problème rendu ({reason}). Note DEAD END préparée, non publiée (réglage « Publier des notes » désactivé).":
+        "Problem handed back ({reason}). DEAD END note prepared, not posted (the “post notes” setting is off).",
+})

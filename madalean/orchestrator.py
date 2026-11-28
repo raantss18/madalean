@@ -98,9 +98,10 @@ class Orchestrator:
 
     # ------------------------------------------------------------ control
     def submit(self, dossier_id: str, plan: list[dict], *, mode: str | None = None, strategy: str | None = None,
-               user: bool = True, gates: bool | None = None, run: str = "") -> Job:
+               user: bool = True, gates: bool | None = None, run: str = "", priority: int | None = None) -> Job:
         """`gates`: stop at the dossier's gates (D65) — by default for a person's jobs; bench, lemma plans and
-        scripted runs pass False. `run`: the user request it continues (default: a new one)."""
+        scripted runs pass False. `run`: the user request it continues (default: a new one). `priority`: slot
+        priority (0 a person's job, 1 automatic, 2 « Attaque », D69: always served last)."""
         cur = self.active_for(dossier_id)
         if cur is not None:
             raise DossierBusy(cur)
@@ -108,6 +109,7 @@ class Orchestrator:
         job = Job.new(dossier_id, plan, mode or s.mode, strategy or s.prove_strategy, user)
         job.gates = user if gates is None else gates
         job.run = run or job.id
+        job.priority = priority if priority is not None else (0 if user else 1)
         self.jobs[job.id] = job
         self.by_dossier[dossier_id] = job.id
         self.tasks[job.id] = asyncio.create_task(self._run(job), name=f"job-{job.id}")
@@ -174,7 +176,7 @@ class Orchestrator:
 
     async def _run(self, job: Job) -> None:
         CURRENT_JOB.set(job.id)
-        CURRENT_PRIORITY.set(0 if job.user else 1)
+        CURRENT_PRIORITY.set(getattr(job, "priority", 0 if job.user else 1))
         job.state, job.started = "running", time.time()
         self.ctx.publish_job(job)
         d = self.ctx.repo.get(job.dossier_id)

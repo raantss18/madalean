@@ -153,6 +153,16 @@ class Settings:
     mcp_server: bool = False
     mcp_server_http: bool = False
     mcp_server_sage: bool = False
+    # S-BJ (D69, docs/ATTACK.md): « Attaque » — Left to Solve problems in the background. Off until the user starts it
+    # (host only); Claude only within attack_usd_per_day (spend group « attack:<date> ») and the month cap; posting notes
+    # to the site's teams is outward, so it has its own switch, off by default
+    attack_enabled: bool = False
+    attack_kinds: list = field(default_factory=lambda: ["known", "counterexample", "open"])
+    attack_usd_per_day: float = 5.0
+    attack_parallel: int = 2
+    attack_max_difficulty_open: int = 40
+    attack_post_notes: bool = False
+    attack_download_max_gb: float = 0.0      # the user's consent to download the workspace (and updates up to this size)
     server: ServerSettings = field(default_factory=ServerSettings)
     sampling: SamplingSettings = field(default_factory=SamplingSettings)
 
