@@ -10,7 +10,7 @@
   import Icon from '../../components/Icon.svelte';
 
   const DEFAULTS: Required<Omit<AttackSettings, 'attack_enabled'>> = {
-    attack_kinds: [...ATTACK_KINDS], attack_usd_per_day: 5, attack_parallel: 2, attack_max_difficulty_open: 40, attack_team_notes: false,
+    attack_kinds: [...ATTACK_KINDS], attack_usd_per_day: 5, attack_parallel: 2, attack_max_difficulty_open: 40, attack_post_notes: false,
   };
   const raw = $derived((app.m.settings ?? {}) as Record<string, unknown>);
   const s = $derived({
@@ -18,7 +18,7 @@
     attack_usd_per_day: Number(raw['attack_usd_per_day'] ?? DEFAULTS.attack_usd_per_day),
     attack_parallel: Number(raw['attack_parallel'] ?? DEFAULTS.attack_parallel),
     attack_max_difficulty_open: Number(raw['attack_max_difficulty_open'] ?? DEFAULTS.attack_max_difficulty_open),
-    attack_team_notes: Boolean(raw['attack_team_notes'] ?? DEFAULTS.attack_team_notes),
+    attack_post_notes: Boolean(raw['attack_post_notes'] ?? DEFAULTS.attack_post_notes),
   });
 
   async function save(patch: AttackSettings) {
@@ -83,7 +83,7 @@
 
 <section class="panel" aria-labelledby="as-notes">
   <h3 id="as-notes" class="sr-only">{t('attack.set.notes')}</h3>
-  <label class="switch"><input type="checkbox" checked={s.attack_team_notes} onchange={(e) => save({ attack_team_notes: e.currentTarget.checked })} aria-describedby="as-notes-h" /><span>{t('attack.set.notes')}</span></label>
+  <label class="switch"><input type="checkbox" checked={s.attack_post_notes} onchange={(e) => save({ attack_post_notes: e.currentTarget.checked })} aria-describedby="as-notes-h" /><span>{t('attack.set.notes')}</span></label>
   <p class="hint" id="as-notes-h">{t('attack.set.notesHint')}</p>
 </section>
 

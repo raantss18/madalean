@@ -228,7 +228,7 @@ test('settings: kinds, budget, parallel, difficulty, team notes off by default',
   await expect(notes).not.toBeChecked();
   await expect(page.getByText('Désactivé par défaut.', { exact: false })).toBeVisible();
   await notes.check();
-  await expect.poll(() => m.bodies.at(-1)).toEqual({ attack_team_notes: true });
+  await expect.poll(() => m.bodies.at(-1)).toEqual({ attack_post_notes: true });
   await axe(page, 'attack settings');
 });
 

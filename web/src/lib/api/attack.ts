@@ -35,7 +35,7 @@ export interface AttackHistoryItem {
 }
 export interface AttackSettings {
   attack_enabled?: boolean; attack_kinds?: AttackKind[]; attack_usd_per_day?: number; attack_parallel?: number;
-  attack_max_difficulty_open?: number; attack_team_notes?: boolean;
+  attack_max_difficulty_open?: number; attack_post_notes?: boolean;
 }
 
 export const attack = {
