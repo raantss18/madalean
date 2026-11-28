@@ -120,6 +120,13 @@ def tactics_of(code: str, name: str) -> str:
     return m.group(1).rstrip() if m else ""
 
 
+
+def upstream(p: dict) -> bool:
+    """A formal-conjectures problem: its module (when known) is `FormalConjectures.*`; ids of the site's own statements
+    have no namespace dot (« oeis-a000009 »)."""
+    m = p.get("module") or ""
+    return m.startswith("FormalConjectures") if m else "." in p.get("id", "")
+
 class Attack:
     def __init__(self, ctx, *, root: Path | None = None, ws_manager: WorkspaceManager | None = None,
                  desk_factory=None, github=None):
@@ -363,6 +370,8 @@ class Attack:
         self.save()
 
     def _candidates(self) -> list[dict]:
+        """Problems this workspace can build: formal-conjectures' modules only (live run 2026-11-28: OEIS statements
+        live in the site's own repository, « OMAStatements.* »)."""
         s = self.ctx.settings
         kinds = {k for k in (s.attack_kinds or []) if k in KINDS}
         held = {r["problem"]["id"] for r in self.leases.values()}
@@ -374,6 +383,8 @@ class Attack:
                 continue
             if p.get("solved") or p.get("proofPending") or p.get("suspect"):
                 continue
+            if not upstream(p):
+                continue                      # stated in the site's own repository, not in formal-conjectures (yet)
             k = p.get("kind")
             direct = (k == "known" and "known" in kinds) or (
                 k == "open" and "open" in kinds and p.get("difficulty") is not None
@@ -532,6 +543,7 @@ class Attack:
             ok, why = await self.wsm.build_module(p.get("module", ""))
             if not ok:
                 await self._release(lease, "other", outcome="released")
+                self.skip[p["id"]] = time.time() + RECENT_DAYS * 86400
                 log.info("module %s not built: %s", p.get("module"), why)
                 return
             ws = self.wsm.workspace()

@@ -472,3 +472,37 @@ def test_plan_and_pr_body():
     assert plan["requests"][-1]["body"]["body"] == "Lease: L9\nAgent: madalean\nModel: claude-opus-5-5 Injected: line"
     with pytest.raises(S.SubmitError):
         S.plan_for(sub, "evil/../login")
+
+
+def test_live_run_fixes_2026_11_28():
+    from madalean.attack.engine import upstream
+    assert upstream({"id": "Erdos1160.erdos_1160.variants.sum"}) and not upstream({"id": "oeis-a000009"})
+    assert not upstream({"id": "x.y", "module": "OMAStatements.S_oeis_a000009"})
+    assert upstream({"id": "x", "module": "FormalConjectures.ErdosProblems.«1160»"})
+
+
+async def test_desk_reads_a_long_answer_to_its_end(aiohttp_server=None):
+    import json as _j
+    from aiohttp import web
+    from madalean.attack.desk import Desk
+    big = {"id": "Erdos1.erdos_1", "title": "t", "kind": "known", "statement": "x" * 200000, "decl": "Erdos1.erdos_1"}
+
+    async def h(_r):
+        resp = web.StreamResponse()
+        await resp.prepare(_r)
+        raw = _j.dumps(big).encode()
+        for i in range(0, len(raw), 1000):
+            await resp.write(raw[i:i + 1000])
+        return resp
+    app = web.Application()
+    app.router.add_get("/api/problems/{pid}", h)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]
+    try:
+        p = await Desk("h", base=f"http://127.0.0.1:{port}", min_interval=0).problem("Erdos1.erdos_1")
+        assert p["id"] == "Erdos1.erdos_1"
+    finally:
+        await runner.cleanup()

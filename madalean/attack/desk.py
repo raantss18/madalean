@@ -57,7 +57,13 @@ class Desk:
                                          headers={"User-Agent": "Madalean (attack)",
                                                   **({"Content-Type": "text/plain; charset=utf-8"} if body else {})},
                                          allow_redirects=False, timeout=aiohttp.ClientTimeout(total=TIMEOUT)) as r:
-                        raw = await r.content.read(MAX_BYTES + 1)
+                        # read to the end: one read() returns one network chunk, not the whole answer (live run
+                        # 2026-11-28: problem records cut in the middle → « bad_answer »)
+                        raw = b""
+                        async for part in r.content.iter_chunked(65536):
+                            raw += part
+                            if len(raw) > MAX_BYTES:
+                                break
                         status = r.status
             except (aiohttp.ClientError, asyncio.TimeoutError, OSError) as e:
                 raise DeskError("unreachable", 0, type(e).__name__) from None
